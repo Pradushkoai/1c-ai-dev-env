@@ -1,0 +1,5 @@
+# Python зависимости для 1C AI Development Environment
+v8unpack>=1.2.6
+fastembed>=0.8.0
+qdrant-client>=1.0.0
+python-dotenv>=1.0.0

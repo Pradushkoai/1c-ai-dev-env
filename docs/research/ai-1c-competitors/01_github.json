@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://github.com/zilliztech/claude-context",
+    "name": "GitHub - zilliztech/claude-context: Code search MCP for Claude",
+    "snippet": "Claude Context is an MCP plugin that adds semantic code search to Claude Code and other AI coding agents, giving them deep context from your entire codebase.",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://mcpmarket.com/server/platform-context-exporter",
+    "name": "Platform Context Exporter: 1C BSL Context for LLMs & AI Integration",
+    "snippet": "Exports 1C:Enterprise platform context from help files into multiple formats for LLMs and offers an MCP server for AI assistant integration. About README FAQ.",
+    "host_name": "mcpmarket.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/mcp/comments/1s7j0w5/i_built_an_mcp_server_that_gives_claude_and",
+    "name": "I built an MCP server that gives Claude and ChatGPT full control of",
+    "snippet": "You connect your GitHub, get one MCP URL, paste it into Claude or ChatGPT — and your AI can fully control your repo from anywhere. Even from ...",
+    "host_name": "www.reddit.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/DitriXNew/MCP-DB-Client",
+    "name": "DitriXNew/MCP-DB-Client: MCP layer for 1C - GitHub",
+    "snippet": "Use it as a template to expose any 1C business logic — catalogs, documents, reports, calculations — to AI applications like VS Code Copilot, Claude Desktop, and ...",
+    "host_name": "github.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/punkpeye/awesome-mcp-servers",
+    "name": "punkpeye/awesome-mcp-servers - GitHub",
+    "snippet": "MCP is an open protocol that enables AI models to securely interact with local and remote resources through standardized server implementations.",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=FiirOCVrPOk",
+    "name": "This Claude MCP GitHub AI AGENT Changes EVERYTHING!",
+    "snippet": "This Claude MCP GitHub AI AGENT Changes EVERYTHING! Become a ... MCP GitHub AI Agent 13:35 Model Context Protocol AI Agent Wrap Up.",
+    "host_name": "www.youtube.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/ClaudeCode/comments/1ngag9h/initial_context_comparison_with_and_without_the",
+    "name": "Initial context comparison, with and without the Github MCP - Reddit",
+    "snippet": "Github is an MCP worth skipping given the alternative command line `gh`. Claude might not be familiar with just ask it to run that command",
+    "host_name": "www.reddit.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/upstash/context7",
+    "name": "Context7 Platform - Up-to-date Code Docs For Any Prompt - GitHub",
+    "snippet": "You can choose between CLI + Skills or MCP mode. Use --cursor , --claude , or --opencode to target a specific agent. To remove the generated setup later, ...",
+    "host_name": "github.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=wlpBCazAY9Q",
+    "name": "AI-Assisted Coding Tutorial – OpenClaw, GitHub Copilot  - YouTube",
+    "snippet": "AI-Assisted Coding Tutorial – OpenClaw, GitHub Copilot, Claude Code, CodeRabbit, Gemini CLI · Comments.",
+    "host_name": "www.youtube.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.blog/open-source/accelerate-developer-productivity-with-these-9-open-source-ai-and-mcp-projects",
+    "name": "Accelerate developer productivity with these 9 open source AI and",
+    "snippet": "These nine open source MCP projects provide new frameworks, tools, and assistants to unlock AI-native workflows, agentic tooling, ...",
+    "host_name": "github.blog",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

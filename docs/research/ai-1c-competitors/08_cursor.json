@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://shtruzel.ru/articles/cursor-dlya-1c-nastrojka-mcp-bsl-2026",
+    "name": "Cursor для 1С в 2026: настройка, MCP и rules для BSL - Shtruzel",
+    "snippet": "Language 1C (BSL) — подсветка синтаксиса, навигация F12, автодополнение методов глобального контекста. Обязательно. BSL Language Server ...",
+    "host_name": "shtruzel.ru",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://infostart.ru/1c/articles/2372034",
+    "name": "Cursor IDE для 1С. Кодревью и рефакторинг с помощью AI",
+    "snippet": "Автодополнение и подсказки 1С нужно запустить Cursor IDE и нажать Ctrl+Shift+X, это - \"Language 1C (BSL)\" плагин Плагин \"1C",
+    "host_name": "infostart.ru",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://cursor.com",
+    "name": "Cursor: AI coding agent",
+    "snippet": "Cursor is your coding agent for building ambitious software. Agents turn ideas into code Accelerate development by handing off tasks to Cursor, while you focus ...",
+    "host_name": "cursor.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/comol/ai_rules_1c",
+    "name": "comol/ai_rules_1c: Rules\\skills\\subagens for vibecoding in 1C(bsl)",
+    "snippet": "1c-rules — это переносимый набор правил, ролей субагентов, on-demand инструкций и интеграций для разработки в 1С:Предприятие 8 (BSL)",
+    "host_name": "github.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=3289vhOUdKA",
+    "name": "Cursor AI Tutorial for Beginners - YouTube",
+    "snippet": "Full AI Coding Course → https://bit.ly/ai-coding-volo ‍ Cursor is a powerful new AI-powered code editor that makes coding much faster with ...",
+    "host_name": "www.youtube.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://packagecontrol.io/packages/Language%201C%20(BSL)",
+    "name": "Language 1C (BSL) - Packages - Package Control",
+    "snippet": "Переход к определению процедур и функций по нажатию F12; Автодополнение процедур и функций глобального контекста; Сниппеты (шаблоны текста); Использование ...",
+    "host_name": "packagecontrol.io",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://habr.com/ru/articles/1005342",
+    "name": "1C Metadata Viewer для IDE Cursor — работа с конфигурацией 1С",
+    "snippet": "Основные возможности · Открытие BSL модулей · ✏️ Редактор метаданных объектов · Просмотр форм и макетов · AI-генерация кода (autogen-bsl) ·",
+    "host_name": "habr.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.emgoto.com/cursor",
+    "name": "Getting started with Cursor AI - Emma Goto",
+    "snippet": "To open Cursor's AI sidebar, you can type Cmd + I and it will bring up a new sidebar in your IDE. From here, you can ask it a question: How do ...",
+    "host_name": "www.emgoto.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=UpXmgDyFdqM",
+    "name": "AI in 1C: Integrating 1C and Cursor - YouTube",
+    "snippet": "1спредприятие #cursor #вайбкодинг 13 промптов https://lp2.1s-up.ru/13prompt_ai Перестань писать вручную - Cursor в 1С: ...",
+    "host_name": "www.youtube.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://selectel.ru/blog/how-to-install-and-configure-cursor-ai",
+    "name": "Как установить и настроить Cursor AI, создать проект и  - Selectel",
+    "snippet": "... автодополнением и контекстными подсказками, Cursor работает с кодовой базой как с единым контекстом. Он индексирует проект, понимает ...",
+    "host_name": "selectel.ru",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://github.com/Desko77/claude-code-skills-1c",
+    "name": "Claude Code Skills for 1C:Enterprise - GitHub",
+    "snippet": "25 правил — стандарты кода BSL, антипаттерны, оптимизация запросов, паттерны расширений, генерация форм, требования EDT, БСП API, права ролей, прямой запрос в ...",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://code.claude.com/docs/ru/skills",
+    "name": "Расширьте Claude с помощью skills - Claude Code Docs",
+    "snippet": "Skills расширяют возможности Claude. Создайте файл SKILL.md с инструкциями, и Claude добавит его в свой набор инструментов. Claude использует skills при ...",
+    "host_name": "code.claude.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=lJwc6REE9vc",
+    "name": "TOP 10 Claude Code Skills and Plugins of April 2026 - YouTube",
+    "snippet": "Все полезные ресурсы здесь — https://t.me/aikirichenko ТОП 10 Claude Code Skills и Plugins — которые реально работают в апреле 2026!",
+    "host_name": "www.youtube.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://code.claude.com/docs/en/skills",
+    "name": "Extend Claude with skills - Claude Code Docs",
+    "snippet": "Create, manage, and share skills to extend Claude's capabilities in Claude Code. Includes custom commands and bundled skills.",
+    "host_name": "code.claude.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://techsy.io/en/blog/claude-skills-tutorial",
+    "name": "Claude Skills Tutorial: Build Your First Skill | TECHSY",
+    "snippet": "Build your first Claude Code skill in 10 minutes. 2 working SKILL.md examples, the MCP vs Skills matrix, and 4 gotchas that break skill ...",
+    "host_name": "techsy.io",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.turbodocx.com/blog/how-to-build-claude-code-skill",
+    "name": "How to Build a Claude Code Skill from Scratch (2026) | TurboDocx",
+    "snippet": "Step-by-step guide to building your first Claude Code skill. Create a SKILL.md, write a trigger description that actually loads, ...",
+    "host_name": "www.turbodocx.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=rcRS8-7OgBo",
+    "name": "Claude Code Skills & skills.sh - Crash Course - YouTube",
+    "snippet": "Learn everything about Agent Skills - the open standard for AI agent customization adopted by Anthropic, OpenAI, Microsoft, GitHub, ...",
+    "host_name": "www.youtube.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/spillwave-solutions/claude-code-skills-deep-dive-part-1-82b572ad9450",
+    "name": "Claude Code Skills Deep Dive Part 1 | by Rick Hightower - Medium",
+    "snippet": "The Key Insight: Skills are prompt extensions. When you activate a skill, you dynamically inject specialized instructions into Claude's context.",
+    "host_name": "medium.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.mindstudio.ai/blog/claude-code-skills-common-mistakes-guide",
+    "name": "How to Use Claude Code Skills Without Making These 3 Common",
+    "snippet": "The agent skills plugin is the right choice when: You need access to common capabilities (search, email, image generation, data lookups); You ...",
+    "host_name": "www.mindstudio.ai",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/ClaudeAI/comments/1o9ph4u/ive_been_tracking_what_people_are_building_with/?tl=ru",
+    "name": "Я следил за тем, что люди создают с помощью Claude Skills с",
+    "snippet": "Включите его в настройках возможностей, затем заставьте Claude в вашем браузере создать zip-файл создателя навыков. Затем перенесите его в ...",
+    "host_name": "www.reddit.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

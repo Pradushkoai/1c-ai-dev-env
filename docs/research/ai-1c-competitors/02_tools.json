@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://www.youtube.com/watch?v=2-gKZDkxD8Q",
+    "name": "НОВЫЙ Claude Code — начни делать невозможное С НУЛЯ",
+    "snippet": "Это практический урок по тому, как с помощью вайбкодинга и нейросети для программирования Claude Code создать приложение без опыта, ...",
+    "host_name": "www.youtube.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://thecode.media/neyroseti-dlya-programmirovaniya",
+    "name": "Лучшие ИИ для программирования в 2026 году: нейросети",
+    "snippet": "Модель GPT-4o вышла весной 2024 года и заменила GPT-4 для подписчиков ChatGPT Plus. ... ИИ‑ассистенты могут упростить написание кода, но не делают ...",
+    "host_name": "thecode.media",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://habr.com/ru/articles/975926",
+    "name": "ИИ-кодинг для 1С: Предприятие. Нынешнее положение дел - Habr",
+    "snippet": "С начала января 2025 года я перешел на парадигму работы \"AI first\" с полным созданием всего необходимого посредством ИИ кодинга. Мне ...",
+    "host_name": "habr.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://codeitdir.ru/stories/ai-1c-2026-03-16",
+    "name": "Я был не прав про ИИ в 1С - Код ИТ-директора - Виталий Барилко",
+    "snippet": "Claude Code Max и производительность , мы даём нейросети инструменты для работы с ним. 1С: RAG-системы плюс MCP нейросети инструменты, пусть он ...",
+    "host_name": "codeitdir.ru",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://infostart.ru/1c/articles/2613515",
+    "name": "Выбор модели для разработки в 1С: сравниваем топов и open",
+    "snippet": "Сравнение 7 LLM на задаче анализа ЗУП: Claude, Kimi, GigaChat, YandexGPT, Gemini, GLM, Grok. Агентный режим, реальный код, итоговый рейтинг.",
+    "host_name": "infostart.ru",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://plaan.ai/ai-dlya-1c",
+    "name": "ИИ для 1С: автоматизация учета и умный помощник - Plaan",
+    "snippet": "Как внедрить ИИ в 1С для распознавания отчетов, прогнозирования и помощи бухгалтеру – обзоры AI на «Plaan»",
+    "host_name": "plaan.ai",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://mashagpt.ru/blog/neyroset-dlya-koda",
+    "name": "Нейросеть для написания кода — какую выбрать - MashaGPT",
+    "snippet": "В этой статье сравним пять лучших ИИ для кода: с бенчмарками, ценами, реальными примерами и рекомендациями для разных уровней разработчиков.",
+    "host_name": "mashagpt.ru",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://petr-panda.ru/neyroseti-dlya-koda-1c-dev",
+    "name": "ТОП-10 нейросетей (ИИ) для написания кода 1с. Подборка от",
+    "snippet": "Как использовать нейросети для написания кода 1с? Обзор подборки 10 лучших ИИ: рабочие связки, сценарии применения и советы практиков.\nЕсли нужен один основной ИИ для кода 1С — ChatGPT или Claude; Если важнее логика, отладка и длинные вводные — Claude; Если нужен лучший ...",
+    "host_name": "petr-panda.ru",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=Pme-K_5QvLg",
+    "name": "Don't need a 1C programmer anymore? I'm building an MCP server",
+    "snippet": "Заменит ли ИИ программистов 1С? Я провёл эксперимент — и вот результат. За один день Claude Code написал полноценный MCP-сервер для ...",
+    "host_name": "www.youtube.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.gptunnel.ru/ru/blog/best-ai-tools-for-coding",
+    "name": "Топ 7 лучших ИИ для программирования 2025 - GPTunneL",
+    "snippet": "По нашим тестам Claude 4.1 Opus и GPT-5.1 Codex показали себя лучшими для рефакторинга легаси-кода благодаря способности удерживать контекст и ...",
+    "host_name": "www.gptunnel.ru",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

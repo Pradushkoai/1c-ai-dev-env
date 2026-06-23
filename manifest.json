@@ -1,0 +1,126 @@
+{
+  "version": "1.0.0",
+  "name": "1C AI Development Environment",
+  "description": "Среда разработки 1С с ИИ-ассистентом",
+  "system_dependencies": {
+    "java": ">=17 (для BSL Language Server)",
+    "python": ">=3.10",
+    "git": "any"
+  },
+  "python_dependencies": [
+    "v8unpack>=1.2.6",
+    "fastembed>=0.8.0",
+    "qdrant-client>=1.0.0"
+  ],
+  "git_repositories": [
+    {
+      "name": "ai_rules_1c",
+      "url": "https://github.com/comol/ai_rules_1c.git"
+    },
+    {
+      "name": "bsl-language-server",
+      "url": "https://github.com/1c-syntax/bsl-language-server.git"
+    },
+    {
+      "name": "bsl-parser",
+      "url": "https://github.com/1c-syntax/bsl-parser.git"
+    },
+    {
+      "name": "claude-code-skills-1c",
+      "url": "https://github.com/Desko77/claude-code-skills-1c.git"
+    },
+    {
+      "name": "claude-code-bsl-lsp",
+      "url": "https://github.com/1c-syntax/claude-code-bsl-lsp.git"
+    },
+    {
+      "name": "EDT-MCP",
+      "url": "https://github.com/DitriXNew/EDT-MCP.git"
+    },
+    {
+      "name": "MCP-DB-Client",
+      "url": "https://github.com/DitriXNew/MCP-DB-Client.git"
+    },
+    {
+      "name": "OneScript",
+      "url": "https://github.com/EvilBeaver/OneScript.git"
+    },
+    {
+      "name": "add",
+      "url": "https://github.com/vanessa-opensource/add.git"
+    },
+    {
+      "name": "OpenIntegrations",
+      "url": "https://github.com/Bayselonarrend/OpenIntegrations.git"
+    },
+    {
+      "name": "1c-agent-based-dev-framework",
+      "url": "https://github.com/SteelMorgan/1c-agent-based-dev-framework.git"
+    }
+  ],
+  "bsl_language_server": {
+    "version": "1.0.1",
+    "url": "https://github.com/1c-syntax/bsl-language-server/releases/download/v1.0.1/bsl-language-server_nix.zip",
+    "install_path": "~/.local/share/bsl-language-server",
+    "binary_path": "~/.local/bin/bsl-language-server"
+  },
+  "scripts": [
+    {
+      "name": "hbk_extractor.py",
+      "purpose": "Распаковка .hbk файлов синтакс-помощника"
+    },
+    {
+      "name": "build_config_index_generic.py",
+      "purpose": "Индексация конфигурации 1С"
+    },
+    {
+      "name": "build_syntax_helper_index.py",
+      "purpose": "Индексация методов 1С из .hbk"
+    },
+    {
+      "name": "build_ut11_api_reference.py",
+      "purpose": "Справочник API общих модулей"
+    },
+    {
+      "name": "fast_search_1c.py",
+      "purpose": "TF-IDF семантический поиск по методам"
+    },
+    {
+      "name": "bsl-analyze.sh",
+      "purpose": "Анализ .bsl файлов через BSL LS (--baseline, --diff)"
+    },
+    {
+      "name": "add_config.sh",
+      "purpose": "Добавление новой конфигурации"
+    },
+    {
+      "name": "rag_1c_methods.py",
+      "purpose": "RAG индекс (опционально, требует GPU)"
+    }
+  ],
+  "user_data": {
+    "description": "Пользователь предоставляет:",
+    "items": [
+      "ZIP выгрузки конфигураций (через Конфигуратор → Сохранить в файлы)",
+      ".hbk файлы синтакс-помощника (из C:\\Program Files\\1cv8\\<версия>\\bin\\ru\\)",
+      ".cf/.cfe файлы (опционально, через v8unpack)"
+    ]
+  },
+  "indexes_generated": [
+    {
+      "name": "syntax-helper-index",
+      "input": "syntax-helper/shcntx_ru/",
+      "output": "indexes/syntax-helper-index.json"
+    },
+    {
+      "name": "fast-search-index",
+      "input": "indexes/syntax-helper-index.json",
+      "output": "indexes/fast-search-index.json"
+    },
+    {
+      "name": "config-api-reference",
+      "input": "config/CommonModules/",
+      "output": "indexes/<name>-api-reference.json"
+    }
+  ]
+}

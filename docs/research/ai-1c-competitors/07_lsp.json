@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://github.com/1c-syntax/claude-code-bsl-lsp",
+    "name": "Claude Code plugin — BSL Language Server LSP for 1C  - GitHub",
+    "snippet": "Claude Code plugin that integrates BSL Language Server as an LSP server for 1C:Enterprise (BSL) and OneScript (OS) files. references Hover information Code ...",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://1c-syntax.github.io/bsl-language-server/en",
+    "name": "BSL Language Server - GitHub Pages",
+    "snippet": "Language Server Protocol implementation for 1C (BSL) Each language-server capability comes with a short animated demo. Quickly jump to any method or object ...",
+    "host_name": "1c-syntax.github.io",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=yF2XDhjUt8U",
+    "name": "Integration Testing, Hover, and Hands-On Exercises (LSP) - YouTube",
+    "snippet": "00:00 - Intro 00:10 - Integration testing our Language Server 07:31 - Challenge 1: Shutdown & Exit 07:45 - Implementing Shutdown and Exit ...",
+    "host_name": "www.youtube.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://stackoverflow.com/questions/77015711/popup-hover-with-markdown-from-a-language-server-protocol-lsp",
+    "name": "Popup (hover) with Markdown from a Language Server Protocol (LSP)",
+    "snippet": "I'm new to the Language server protocol, and there might be a simple solution to my problem. I created markdown content for a Hover popup, but the content is ...",
+    "host_name": "stackoverflow.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://tech-talk.the-experts.nl/give-your-ai-coding-agent-eyes-how-lsp-integration-transform-coding-agents-4ccae8444929",
+    "name": "Give Your AI Coding Agent Eyes: How LSP Integrations transform",
+    "snippet": "Here's how to wire up Language Server Protocol support. Hover ( textDocument/hover ): retrieve type signatures, documentation, and parameter ...",
+    "host_name": "tech-talk.the-experts.nl",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.warp.dev/code/code-editor/language-server-protocol",
+    "name": "Language Server Protocol (LSP) - Warp Docs",
+    "snippet": "When you enable an LSP server for your project, you get hover documentation, go-to-definition, find references, inline diagnostics, and ...",
+    "host_name": "docs.warp.dev",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://learn.microsoft.com/en-us/visualstudio/extensibility/adding-an-lsp-extension?view=visualstudio",
+    "name": "Adding a Language Server Protocol extension - Visual Studio",
+    "snippet": "This article describes how to create a Visual Studio extension that uses an LSP-based language server. It assumes that you've already developed an LSP-based ...",
+    "host_name": "learn.microsoft.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://code.visualstudio.com/api/language-extensions/language-server-extension-guide",
+    "name": "Language Server Extension Guide - Visual Studio Code",
+    "snippet": "With Language Servers, you can implement autocomplete, error-checking (diagnostics), jump-to-definition, and many other language features supported in VS Code.",
+    "host_name": "code.visualstudio.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=2PaGiJUHgfQ",
+    "name": "Language Server Protocol to accelerate your development and",
+    "snippet": "Karthik dove into LSP (Language Server Protocol), JSON RPC protocol that describes and how the features in the IDE are represented in a ...",
+    "host_name": "www.youtube.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@vinodh.thiagarajan/lsp-the-protocol-your-ide-uses-every-day-and-now-your-ai-agent-does-too-19e74ca26ace",
+    "name": "LSP — The Protocol Your IDE Uses Every Day (And Now Your AI",
+    "snippet": "You right-click “Go to Definition” a dozen times a day. You hover over a function and a tooltip pops up with its signature, its parameters, ...",
+    "host_name": "medium.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

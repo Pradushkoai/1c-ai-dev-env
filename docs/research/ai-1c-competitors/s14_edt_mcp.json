@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://github.com/DitriXNew/EDT-MCP",
+    "name": "DitriXNew/EDT-MCP: MCP for 1C:EDT - GitHub",
+    "snippet": "EDT MCP Server. MCP (Model Context Protocol) server plugin for 1C:EDT, enabling AI assistants (Claude, GitHub Copilot, Cursor, etc.) to ...",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://skillsllm.com/skill/edt-mcp",
+    "name": "EDT-MCP - MCP Servers on GitHub | SkillsLLM",
+    "snippet": "EDT-MCP is an open-source mcp servers skill for AI coding assistants such as Claude Code, Codex CLI, and ChatGPT, built by DitriXNew. MCP for 1C ...",
+    "host_name": "skillsllm.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://mcp.aibase.com/server/1639702917588197594",
+    "name": "1C:EDT MCP Protocol Server Plugin for AI Interaction & Code Analysis",
+    "snippet": "It is based on the Model Context Protocol (MCP) standard, enabling AI to read project information, analyze code errors, obtain documentation, perform query ...",
+    "host_name": "mcp.aibase.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://mcpmarket.com/server/edt",
+    "name": "EDT MCP Server: AI Assistants for 1C:EDT Developers - MCP Market",
+    "snippet": "Integrates AI assistants like Claude and GitHub Copilot with 1C:EDT workspaces, enabling enhanced code generation and analysis capabilities. About README FAQ.",
+    "host_name": "mcpmarket.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://lobehub.com/ru/mcp/ditrixnew-edt-mcp",
+    "name": "EDT MCP Server - LobeHub",
+    "snippet": "Плагин сервера MCP для 1C:EDT, позволяющий AI-ассистентам, таким как Claude и GitHub Copilot, взаимодействовать с рабочим пространством EDT.",
+    "host_name": "lobehub.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

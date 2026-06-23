@@ -1,0 +1,30 @@
+# Данные пользователя (НЕ коммитить)
+data/
+config/
+config-priemka/
+config-unp/
+archives/
+upload/
+download/
+
+# Инструменты (клонируются скриптом)
+tools/
+syntax/
+
+# Распакованные файлы (генерируются)
+syntax-helper/
+
+# Индексы (генерируются скриптами)
+indexes/
+*.json.gz
+
+# Runtime файлы
+runtime/
+.bsl-language-server.json
+
+# Временные файлы
+*.tmp
+*.bak
+__pycache__/
+*.pyc
+.tool-results/
