@@ -1,40 +1,104 @@
 # 1C AI Development Environment
 
-> Среда разработки 1С с ИИ-ассистентом: синтакс-помощник, API справочники, анализ кода, генерация объектов через JSON DSL
+> Среда для разработки на 1С с ИИ-ассистентом: синтакс-помощник, API-справочники, анализ кода, генерация объектов через JSON DSL.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Java 17+](https://img.shields.io/badge/Java-17+-orange.svg)](https://openjdk.org/)
-[![BSL LS 1.0.1](https://img.shields.io/badge/BSL%20LS-1.0.1-green.svg)](https://github.com/1c-syntax/bsl-language-server)
 
-## Возможности
+---
 
-- **8 141 методов** платформы 1С (синтакс-помощник из .hbk)
-- **API справочники** типовых конфигураций (УТ11: 16 654 метода, УНП: 53 085)
-- **BSL Language Server** v1.0.1 — анализ .bsl кода с diff-режимом
-- **94 скила** (JSON DSL для метаданных, форм, расширений)
-- **355 проверок** кода (187 BSL LS + 168 EDT-MCP)
-- **TF-IDF поиск** по методам 1С (2 секунды, без нейросети)
-- **v8unpack** — распаковка .cf/.cfe без платформы 1С
-- **Role-switching protocol** — 4 роли: Архитектор → Программист → Ревьюер → Документатор
-- **Learning loop** — авто-создание skills из опыта
+## Содержание
+
+- [Что это](#что-это)
+- [Быстрый старт](#быстрый-старт)
+- [Требования](#требования)
+- [Архитектура](#архитектура)
+- [Команды](#команды)
+- [Инструменты](#инструменты)
+- [Лицензия](#лицензия)
+
+---
+
+## Что это
+
+Проект превращает чат с ИИ в полноценную среду разработки 1С. Не нужно копировать код туда-сюда — ИИ видит конфигурацию, знает API методов, проверяет код по стандартам.
+
+**Возможности:**
+
+| Что | Сколько |
+|-----|---------|
+| Методов платформы 1С (синтакс-помощник из `.hbk`) | 8 141 |
+| API-методов типовых конфигураций | 16 654 (УТ11) + 53 085 (УНП) |
+| Проверок качества кода | 355 (187 BSL LS + 168 EDT-MCP) |
+| Скилов для генерации объектов (JSON DSL) | 94 |
+| Ролей в role-switching protocol | 4 (Архитектор → Программист → Ревьюер → Документатор) |
+
+---
 
 ## Быстрый старт
 
+### Шаг 1. Установить
+
 ```bash
-# 1. Клонировать
 git clone https://github.com/Pradushkoai/1c-ai-dev-env.git
 cd 1c-ai-dev-env/setup
-
-# 2. Установить
 ./install.sh
-# install.sh спросит про .hbk и ZIP конфигурации
-
-# 3. Работать
-python3 scripts/register_config.py list
-python3 scripts/fast_search_1c.py search "найти по коду"
-scripts/bsl-analyze.sh data/configs/<name>/path/to/file.bsl
 ```
+
+`install.sh` спросит:
+1. **`.hbk` файлы** (синтакс-помощник) — распакует и проиндексирует 8 141 методов
+2. **ZIP выгрузку конфигурации** — распакует, зарегистрирует, построит индекс метаданных + API-справочник
+
+### Шаг 2. Проверить
+
+```bash
+python3 -m src.cli validate
+python3 -m src.cli config list
+```
+
+### Шаг 3. Работать
+
+```bash
+# Добавить ещё конфигурацию
+python3 -m src.cli config add --name erp --zip /path/to/erp.zip --title "1С:ERP"
+
+# Построить индексы
+python3 -m src.cli config build --name erp
+
+# Искать метод по описанию
+python3 -m src.cli search "найти элемент по коду"
+
+# Анализ .bsl файла
+python3 -m src.cli bsl analyze data/configs/priemka/DataProcessors/...
+
+# Анализ с diff (только новые ошибки после редактирования)
+python3 -m src.cli bsl baseline data/configs/priemka/...
+# ... редактируем ...
+python3 -m src.cli bsl diff data/configs/priemka/...
+```
+
+### Шаг 4. Программно (Python)
+
+```python
+from src.project import Project
+
+project = Project()
+
+# Список конфигураций
+for cfg in project.list_configs():
+    print(f"{cfg.name}: v{cfg.version}, {cfg.objects_count} объектов")
+
+# Добавить новую
+project.config_manager.add_from_zip("erp", Path("erp.zip"), "1С:ERP")
+project.config_manager.build("erp")
+
+# Анализ кода
+result = project.bsl_analyzer.analyze(Path("file.bsl"))
+print(f"Диагностик: {result.total}")
+```
+
+---
 
 ## Требования
 
@@ -42,39 +106,103 @@ scripts/bsl-analyze.sh data/configs/<name>/path/to/file.bsl
 |-------------|--------|-------|
 | Python | 3.10+ | Скрипты, поиск, индексация |
 | Java | 17+ | BSL Language Server |
-| git | any | Клонирование репозиториев |
-| unzip | any | Распаковка ZIP и .hbk |
+| git | любая | Клонирование репозиториев |
+| unzip | любая | Распаковка ZIP и `.hbk` |
 
-## Структура
+Python-зависимости (`requirements.txt`):
+```
+v8unpack>=1.2.6
+python-dotenv>=1.0.0
+fastembed>=0.8.0
+qdrant-client>=1.0.0
+```
 
-См. [ARCHITECTURE.md](docs/ARCHITECTURE.md) — 4-слойная модель (data → derived → tools → runtime).
+---
+
+## Архитектура
+
+4-слойная модель с чётким разделением ответственности:
+
+```
+project/
+├── data/              Исходные данные (от пользователя)
+│   ├── configs/       Конфигурации 1С (распакованные)
+│   ├── archives/      ZIP-архивы
+│   └── hbk/           Исходные .hbk файлы
+│
+├── derived/           Производные (генерируются скриптами)
+│   ├── configs/       Индексы по конфигурациям
+│   └── platform/      Индексы платформы 1С
+│
+├── tools/             Инструменты
+│   ├── repos/         Git-репозитории (клонируются)
+│   └── bsl-ls/        BSL Language Server
+│
+├── runtime/           Рабочие файлы
+│   ├── paths.env      Конфиг путей
+│   ├── paths.py       Python-модуль путей
+│   └── ...            session-resume, soul, worklog
+│
+├── src/               ООП-приложение
+│   ├── models/        Configuration, ConfigurationRegistry
+│   ├── services/      PathManager, ConfigManager, BSLAnalyzer
+│   ├── project.py     Project (оркестратор)
+│   └── cli.py         Единый CLI
+│
+└── setup/             Что коммитится в GitHub
+```
+
+Подробнее: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+---
 
 ## Команды
 
+### Управление конфигурациями
+
 ```bash
-# Управление конфигурациями
-python3 scripts/register_config.py list                    # список
-python3 scripts/register_config.py add --name X --zip Y    # добавить
-python3 scripts/register_config.py build --name X           # индексы
-python3 scripts/register_config.py build-all                # все индексы
-
-# Поиск
-python3 scripts/fast_search_1c.py search "найти элемент по коду"
-grep "ИмяМетода" derived/configs/<name>/api-reference.md
-
-# Анализ .bsl
-scripts/bsl-analyze.sh <path>
-scripts/bsl-analyze.sh --baseline <path>  # сохранить baseline
-scripts/bsl-analyze.sh --diff <path>      # только новые ошибки
-
-# Создание объектов (JSON DSL)
-python3 tools/repos/claude-code-skills-1c/skills/1c-meta-compile/scripts/meta-compile.py \
-  -JsonPath /tmp/catalog.json -OutputDir data/configs/<name>
+python3 -m src.cli config list                              # список
+python3 -m src.cli config add --name X --zip Y              # добавить из ZIP
+python3 -m src.cli config build --name X                    # индексы для одной
+python3 -m src.cli config build-all                         # индексы для всех
 ```
 
-## Форки
+### Поиск
 
-Все 16 внешних репозиториев форкнуты в `github.com/Pradushkoai/*` для устойчивости к удалению.
+```bash
+python3 -m src.cli search "найти элемент по коду"           # семантический поиск
+grep "ИмяМетода" derived/configs/<name>/api-reference.md    # grep по API
+```
+
+### Анализ .bsl
+
+```bash
+python3 -m src.cli bsl analyze <path>                       # полный анализ
+python3 -m src.cli bsl baseline <path>                      # сохранить baseline
+python3 -m src.cli bsl diff <path>                          # только новые ошибки
+```
+
+### Проверка окружения
+
+```bash
+python3 -m src.cli validate                                 # проверить пути
+```
+
+---
+
+## Инструменты
+
+| Инструмент | Что даёт |
+|------------|----------|
+| [BSL Language Server](https://github.com/1c-syntax/bsl-language-server) v1.0.1 | Анализ `.bsl` кода (187 диагностик, `--diff` режим) |
+| [claude-code-skills-1c](https://github.com/Desko77/claude-code-skills-1c) | 94 скила: JSON DSL для метаданных, форм, расширений |
+| [EDT-MCP](https://github.com/DitriXNew/EDT-MCP) | 168 проверок качества кода |
+| [ai_rules_1c](https://github.com/comol/ai_rules_1c) | 28 правил разработки + 13 ролей субагентов |
+| v8unpack | Распаковка `.cf`/`.cfe` без платформы 1С |
+| TF-IDF Search | Семантический поиск по 8 141 методам 1С (2 сек, без нейросети) |
+| hbk_extractor | Распаковка `.hbk` синтакс-помощника 1С |
+
+---
 
 ## Лицензия
 
