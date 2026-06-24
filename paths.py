@@ -2,31 +2,31 @@
 """
 paths.py — Единый источник путей для всех Python-скриптов.
 
-Читает paths.env из корня проекта.
-Все скрипты должны использовать: from paths import PATHS
-
-Пример:
-    from paths import PATHS
-    json_file = PATHS.syntax_helper_index_json
-    config_dir = PATHS.config_ut11
+4 слоя архитектуры:
+  data/      — исходные данные (от пользователя)
+  derived/   — производные (генерируются скриптами)
+  tools/     — инструменты (клонируются/устанавливаются)
+  runtime/   — файлы работы ассистента
 """
 
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Загружаем paths.env
-PROJECT_ROOT = Path(__file__).parent.resolve()
-ENV_FILE = PROJECT_ROOT / 'paths.env'
+# Загружаем paths.env из runtime/
+PROJECT_ROOT = Path(__file__).parent.parent.resolve() if Path(__file__).parent.name == 'runtime' else Path(__file__).parent.resolve()
+ENV_FILE = PROJECT_ROOT / 'runtime' / 'paths.env'
+
+if not ENV_FILE.exists():
+    ENV_FILE = PROJECT_ROOT / 'paths.env'
 
 if ENV_FILE.exists():
     load_dotenv(ENV_FILE)
 else:
-    # Fallback — пытаемся найти paths.env
     for candidate in [
+        Path('/home/z/my-project/runtime/paths.env'),
         Path('/home/z/my-project/paths.env'),
-        Path.cwd() / 'paths.env',
-        Path.cwd().parent / 'paths.env',
+        Path.cwd() / 'runtime' / 'paths.env',
     ]:
         if candidate.exists():
             load_dotenv(candidate)
@@ -34,9 +34,7 @@ else:
 
 
 def _get(key, default=''):
-    """Получить значение из env с подстановкой переменных."""
     value = os.getenv(key, default)
-    # Подставляем ${VAR} ссылки
     while '${' in value:
         start = value.find('${')
         end = value.find('}', start)
@@ -49,83 +47,99 @@ def _get(key, default=''):
 
 
 class Paths:
-    """Все пути проекта. Единый источник истины."""
+    """Все пути проекта. 4 слоя архитектуры."""
 
     # === Базовый ===
     project_root: str = _get('PROJECT_ROOT', str(PROJECT_ROOT))
 
-    # === Данные (конфигурации 1С) ===
-    config_ut11: str = _get('CONFIG_UT11_DIR', f'{project_root}/config')
-    config_priemka: str = _get('CONFIG_PRIEMKA_DIR', f'{project_root}/config-priemka')
-    archives_dir: str = _get('ARCHIVES_DIR', f'{project_root}/archives')
-    archive_unp: str = _get('ARCHIVE_UNP', f'{archives_dir}/unp_full.zip')
+    # === СЛОЙ 1: data/ — ИСХОДНЫЕ ДАННЫЕ ===
+    data_dir: str = _get('DATA_DIR', f'{project_root}/data')
+    configs_dir: str = _get('CONFIGS_DIR', f'{data_dir}/configs')
+    archives_dir: str = _get('ARCHIVES_DIR', f'{data_dir}/archives')
+    hbk_dir: str = _get('HBK_DIR', f'{data_dir}/hbk')
 
-    # === Справочная информация ===
-    syntax_helper_dir: str = _get('SYNTAX_HELPER_DIR', f'{project_root}/syntax-helper')
-    syntax_repos_dir: str = _get('SYNTAX_REPOS_DIR', f'{project_root}/syntax')
+    config_ut11: str = _get('CONFIG_UT11', f'{configs_dir}/ut11')
+    config_priemka: str = _get('CONFIG_PRIEMKA', f'{configs_dir}/priemka')
 
-    # === Индексы ===
-    indexes_dir: str = _get('INDEXES_DIR', f'{project_root}/indexes')
+    # === СЛОЙ 2: derived/ — ПРОИЗВОДНЫЕ ===
+    derived_dir: str = _get('DERIVED_DIR', f'{project_root}/derived')
+    derived_configs: str = _get('DERIVED_CONFIGS', f'{derived_dir}/configs')
+    derived_platform: str = _get('DERIVED_PLATFORM', f'{derived_dir}/platform')
 
-    syntax_helper_index_json: str = _get('SYNTAX_HELPER_INDEX_JSON', f'{indexes_dir}/syntax-helper-index.json')
-    syntax_helper_index_md: str = _get('SYNTAX_HELPER_INDEX_MD', f'{indexes_dir}/syntax-helper-index.md')
-    fast_search_index: str = _get('FAST_SEARCH_INDEX', f'{indexes_dir}/fast-search-index.json')
-    ut11_api_reference_json: str = _get('UT11_API_REFERENCE_JSON', f'{indexes_dir}/ut11-api-reference.json')
-    ut11_api_reference_md: str = _get('UT11_API_REFERENCE_MD', f'{indexes_dir}/ut11-api-reference.md')
-    unp_api_reference_json: str = _get('UNP_API_REFERENCE_JSON', f'{indexes_dir}/unp-api-reference.json')
-    unp_api_reference_md: str = _get('UNP_API_REFERENCE_MD', f'{indexes_dir}/unp-api-reference.md')
+    syntax_helper_dir: str = _get('SYNTAX_HELPER_DIR', f'{derived_platform}/syntax-helper')
+    syntax_helper_index_json: str = _get('SYNTAX_HELPER_INDEX_JSON', f'{derived_platform}/syntax-helper-index.json')
+    syntax_helper_index_md: str = _get('SYNTAX_HELPER_INDEX_MD', f'{derived_platform}/syntax-helper-index.md')
+    fast_search_index: str = _get('FAST_SEARCH_INDEX', f'{derived_platform}/fast-search-index.json')
 
-    # === Инструменты ===
+    # === СЛОЙ 3: tools/ — ИНСТРУМЕНТЫ ===
+    tools_dir: str = _get('TOOLS_DIR', f'{project_root}/tools')
+    repos_dir: str = _get('REPOS_DIR', f'{tools_dir}/repos')
     bsl_ls_binary: str = _get('BSL_LS_BINARY', f'{os.path.expanduser("~")}/.local/bin/bsl-language-server')
-    bsl_ls_config: str = _get('BSL_LS_CONFIG', f'{project_root}/.bsl-language-server.json')
+    bsl_ls_config: str = _get('BSL_LS_CONFIG', f'{project_root}/runtime/.bsl-language-server.json')
 
-    # === Runtime ===
+    # === СЛОЙ 4: runtime/ — ФАЙЛЫ РАБОТЫ ===
+    runtime_dir: str = _get('RUNTIME_DIR', f'{project_root}/runtime')
+    session_resume: str = _get('SESSION_RESUME', f'{runtime_dir}/session-resume.md')
+    project_context: str = _get('PROJECT_CONTEXT', f'{runtime_dir}/project-context.md')
+    soul_md: str = _get('SOUL_MD', f'{runtime_dir}/soul.md')
+    user_profile: str = _get('USER_PROFILE', f'{runtime_dir}/user-profile.md')
+    worklog: str = _get('WORKLOG', f'{runtime_dir}/worklog.md')
+    config_registry: str = _get('CONFIG_REGISTRY', f'{runtime_dir}/config-registry.json')
+
+    # === Learning loop ===
     learned_skills_dir: str = _get('LEARNED_SKILLS_DIR', f'{project_root}/learned-skills')
+
+    # === Временные ===
     tmp_dir: str = _get('TMP_DIR', '/tmp/bsl_tmp')
     baseline_dir: str = _get('BASELINE_DIR', '/tmp/bsl_baseline')
 
     # === Setup ===
     setup_dir: str = _get('SETUP_DIR', f'{project_root}/setup')
     setup_scripts: str = _get('SETUP_SCRIPTS', f'{setup_dir}/scripts')
-    setup_configs: str = _get('SETUP_CONFIGS', f'{setup_dir}/configs')
-    setup_templates: str = _get('SETUP_TEMPLATES', f'{setup_dir}/templates')
-
-    # === Скрипты ===
     scripts_dir: str = _get('SCRIPTS_DIR', f'{project_root}/scripts')
 
-    # === Конфигурации (список) ===
+    # === Методы ===
+
     @classmethod
     def get_config_path(cls, name):
-        """
-        Получить путь к конфигурации по имени.
-        Имя: 'ut11', 'priemka', 'unp', и т.д.
-        """
-        mapping = {
-            'ut11': cls.config_ut11,
-            'priemka': cls.config_priemka,
-            'unp': cls.archive_unp,
-        }
-        # Также проверяем env: CONFIG_<NAME>
+        """Путь к конфигурации по имени."""
+        # Сначала из env
         env_key = f'CONFIG_{name.upper()}'
         if env_key in os.environ:
             return _get(env_key)
+        # Потом из registry
+        import json
+        if os.path.exists(cls.config_registry):
+            with open(cls.config_registry) as f:
+                registry = json.load(f)
+            cfg = registry.get('configs', {}).get(name, {})
+            path = cfg.get('path')
+            if path:
+                return os.path.join(cls.project_root, path) if not os.path.isabs(path) else path
+        # Fallback
+        mapping = {'ut11': cls.config_ut11, 'priemka': cls.config_priemka}
         return mapping.get(name.lower(), '')
 
     @classmethod
+    def get_derived_config_dir(cls, name):
+        """Путь к производным индексам конфигурации."""
+        return os.path.join(cls.derived_configs, name)
+
+    @classmethod
     def get_api_reference(cls, config_name):
-        """
-        Получить путь к API-справочнику конфигурации.
-        """
-        mapping = {
-            'ut11': (cls.ut11_api_reference_json, cls.ut11_api_reference_md),
-            'unp': (cls.unp_api_reference_json, cls.unp_api_reference_md),
-        }
-        return mapping.get(config_name.lower(), (None, None))
+        """Пути к API-справочнику конфигурации."""
+        d = cls.get_derived_config_dir(config_name)
+        return (os.path.join(d, 'api-reference.json'), os.path.join(d, 'api-reference.md'))
+
+    @classmethod
+    def get_config_index(cls, config_name):
+        """Путь к индексу метаданных конфигурации."""
+        return os.path.join(cls.get_derived_config_dir(config_name), 'index.md')
 
     @classmethod
     def print_all(cls):
-        """Вывести все пути (для отладки)."""
-        print("=== Paths ===")
+        """Вывести все пути."""
+        print("=== Paths (4-layer architecture) ===")
         for attr in sorted(dir(cls)):
             if attr.startswith('_'):
                 continue
@@ -136,15 +150,19 @@ class Paths:
 
     @classmethod
     def validate(cls):
-        """Проверить что все ключевые пути существуют."""
+        """Проверить критичные пути."""
         critical = [
             ('project_root', cls.project_root),
-            ('config_ut11', cls.config_ut11),
-            ('syntax_helper_dir', cls.syntax_helper_dir),
-            ('indexes_dir', cls.indexes_dir),
+            ('data_dir', cls.data_dir),
+            ('configs_dir', cls.configs_dir),
+            ('derived_dir', cls.derived_dir),
+            ('tools_dir', cls.tools_dir),
+            ('runtime_dir', cls.runtime_dir),
             ('bsl_ls_binary', cls.bsl_ls_binary),
+            ('config_registry', cls.config_registry),
         ]
         all_ok = True
+        print("=== Validate ===")
         for name, path in critical:
             exists = os.path.exists(path)
             icon = '✅' if exists else '❌'
@@ -154,9 +172,7 @@ class Paths:
         return all_ok
 
 
-# Singleton
 PATHS = Paths()
-
 
 if __name__ == '__main__':
     import sys
@@ -166,6 +182,4 @@ if __name__ == '__main__':
     elif len(sys.argv) > 1 and sys.argv[1] == 'list':
         PATHS.print_all()
     else:
-        print("Использование:")
-        print("  python3 paths.py list      — показать все пути")
-        print("  python3 paths.py validate  — проверить критичные пути")
+        print("Использование: python3 paths.py [validate|list]")

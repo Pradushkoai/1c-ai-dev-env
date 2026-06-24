@@ -24,9 +24,9 @@ from pathlib import Path
 
 # Пути
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
-REGISTRY_FILE = PROJECT_ROOT / 'config-registry.json'
-INDEXES_DIR = PROJECT_ROOT / 'indexes'
-ARCHIVES_DIR = PROJECT_ROOT / 'archives'
+REGISTRY_FILE = PROJECT_ROOT / 'runtime' / 'config-registry.json'
+INDEXES_DIR = PROJECT_ROOT / 'derived' / 'configs'
+ARCHIVES_DIR = PROJECT_ROOT / 'data' / 'archives'
 SCRIPTS_DIR = PROJECT_ROOT / 'scripts'
 
 
@@ -74,7 +74,7 @@ def cmd_add(args):
         sys.exit(1)
     
     # Папка для распаковки
-    config_dir = str(PROJECT_ROOT / f"config-{args.name}")
+    config_dir = str(PROJECT_ROOT / 'data' / 'configs' / args.name)
     os.makedirs(config_dir, exist_ok=True)
     
     # Распаковка
@@ -92,7 +92,7 @@ def cmd_add(args):
         "name": args.title or args.name,
         "version": version,
         "vendor": vendor,
-        "path": f"config-{args.name}",
+        "path": f"data/configs/{args.name}",
         "status": "active",
         "objects_count": objects_count,
         "added_at": datetime.now().strftime("%Y-%m-%d"),
@@ -130,7 +130,7 @@ def cmd_register(args):
         "name": args.title or args.name,
         "version": version,
         "vendor": vendor,
-        "path": config_path,
+        "path": args.path if args.path.startswith("data/") or args.path.startswith("/") else f"data/configs/{args.name}",
         "status": "active",
         "objects_count": objects_count,
         "added_at": datetime.now().strftime("%Y-%m-%d"),
@@ -162,7 +162,7 @@ def cmd_activate(args):
         print(f"❌ Архив не найден: {archive_path}")
         sys.exit(1)
     
-    config_dir = str(PROJECT_ROOT / f"config-{args.name}")
+    config_dir = str(PROJECT_ROOT / 'data' / 'configs' / args.name)
     os.makedirs(config_dir, exist_ok=True)
     
     print(f"Распаковка {archive_path} → {config_dir}...")
@@ -333,7 +333,10 @@ def build_indexes(name, cfg):
     os.makedirs(INDEXES_DIR, exist_ok=True)
     
     # 1. Индекс метаданных
-    index_md = str(INDEXES_DIR / f'{name}-index.md')
+    import os as _os
+    derived_dir = str(PROJECT_ROOT / 'derived' / 'configs' / name)
+    _os.makedirs(derived_dir, exist_ok=True)
+    index_md = _os.path.join(derived_dir, 'index.md')
     print(f"\n  📊 Индекс метаданных → {index_md}")
     script = str(SCRIPTS_DIR / 'build_config_index_generic.py')
     result = subprocess.run(
@@ -348,8 +351,8 @@ def build_indexes(name, cfg):
     # 2. API справочник (если есть CommonModules)
     common_modules = os.path.join(full_path, 'CommonModules')
     if os.path.isdir(common_modules):
-        api_md = str(INDEXES_DIR / f'{name}-api-reference.md')
-        api_json = str(INDEXES_DIR / f'{name}-api-reference.json')
+        api_md = _os.path.join(derived_dir, 'api-reference.md')
+        api_json = _os.path.join(derived_dir, 'api-reference.json')
         print(f"\n  📚 API справочник → {api_md}")
         script = str(SCRIPTS_DIR / 'build_api_reference.py')
         if os.path.exists(script):
@@ -370,9 +373,9 @@ def build_indexes(name, cfg):
     registry = load_registry()
     if name in registry['configs']:
         if os.path.exists(index_md):
-            registry['configs'][name]['index_file'] = f'{name}-index.md'
+            registry['configs'][name]['index_file'] = f'derived/configs/{name}/index.md'
         if os.path.isdir(common_modules) and os.path.exists(api_md if 'api_md' in dir() else ''):
-            registry['configs'][name]['api_reference'] = f'{name}-api-reference.md'
+            registry['configs'][name]['api_reference'] = f'derived/configs/{name}/api-reference.md'
         save_registry(registry)
 
 
