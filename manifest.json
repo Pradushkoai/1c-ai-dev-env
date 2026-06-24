@@ -126,5 +126,14 @@
       "input": "config/CommonModules/",
       "output": "indexes/<name>-api-reference.json"
     }
-  ]
+  ],
+  "architecture": {
+    "version": "2.0",
+    "layers": {
+      "data": "Исходные данные (configs, archives, hbk)",
+      "derived": "Производные (индексы по конфигурациям и платформе)",
+      "tools": "Инструменты (repos, bsl-ls)",
+      "runtime": "Файлы работы (paths, registry, session-resume, ...)"
+    }
+  }
 }
