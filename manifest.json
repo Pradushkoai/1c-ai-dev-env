@@ -56,6 +56,26 @@
     {
       "name": "1c-agent-based-dev-framework",
       "url": "https://github.com/SteelMorgan/1c-agent-based-dev-framework.git"
+    },
+    {
+      "name": "1c-ai-rules",
+      "url": "https://github.com/unchnm/1c-ai-rules.git"
+    },
+    {
+      "name": "1c-standards-claude-skill",
+      "url": "https://github.com/SolovievHub/1c-standards-claude-skill.git"
+    },
+    {
+      "name": "bsl-help-toc-parser",
+      "url": "https://github.com/1c-syntax/bsl-help-toc-parser.git"
+    },
+    {
+      "name": "bsl-parser-bia",
+      "url": "https://github.com/bia-technologies/bsl-parser.git"
+    },
+    {
+      "name": "claude_rules_1c",
+      "url": "https://github.com/Dach-Coin/claude_rules_1c.git"
     }
   ],
   "bsl_language_server": {
