@@ -78,10 +78,6 @@
       "purpose": "Индексация методов 1С из .hbk"
     },
     {
-      "name": "build_ut11_api_reference.py",
-      "purpose": "Справочник API общих модулей"
-    },
-    {
       "name": "fast_search_1c.py",
       "purpose": "TF-IDF семантический поиск по методам"
     },
@@ -96,6 +92,14 @@
     {
       "name": "rag_1c_methods.py",
       "purpose": "RAG индекс (опционально, требует GPU)"
+    },
+    {
+      "name": "build_api_reference.py",
+      "purpose": "Универсальный API справочник для любой конфигурации"
+    },
+    {
+      "name": "register_config.py",
+      "purpose": "Управление конфигурациями (add, build, list, activate, archive)"
     }
   ],
   "user_data": {

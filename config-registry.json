@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "configs": {
+    "ut11": {
+      "name": "Управление торговлей 11",
+      "version": "11.3.4.197",
+      "vendor": "ОАО МинскСортСемОвощ",
+      "path": "config",
+      "status": "active",
+      "objects_count": 7488,
+      "added_at": "2026-06-22"
+    },
+    "priemka": {
+      "name": "Приемка товаров",
+      "version": "1.2",
+      "path": "config-priemka",
+      "status": "active",
+      "objects_count": 23,
+      "added_at": "2026-06-22",
+      "index_file": "priemka-index.md",
+      "api_reference": "priemka-api-reference.md"
+    }
+  }
+}
