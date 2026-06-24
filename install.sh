@@ -96,8 +96,8 @@ ln -sf runtime/paths.py "$PROJECT_DIR/paths.py"
 
 # Runtime файлы (soul, user-profile, role-switching, session-resume)
 for f in soul.md user-profile.md role-switching-protocol.md; do
-    if [ -f "$SETUP_DIR/templates/$f" ]; then
-        cp "$SETUP_DIR/templates/$f" "$PROJECT_DIR/runtime/$f"
+    if [ -f "$SETUP_DIR/templates/$f.template.md" ]; then
+        cp "$SETUP_DIR/templates/$f.template.md" "$PROJECT_DIR/runtime/$f"
     fi
 done
 

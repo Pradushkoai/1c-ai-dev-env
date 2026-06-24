@@ -1,51 +1,49 @@
 # Changelog
 
-## [1.0.0] — 2026-06-23
+## [2.0.0] — 2026-06-24
 
 ### Добавлено
 
-**Базовая инфраструктура:**
-- Единый конфиг путей (`paths.env` + `paths.py`) — 24 пути в 7 категориях
-- `install.sh` — автоматическая установка среды
-- `manifest.json` — список всех компонентов (11 git репозиториев, 8 скриптов, BSL LS)
-- `requirements.txt` — Python зависимости (v8unpack, fastembed, qdrant-client, python-dotenv)
-- `.gitignore` — исключения данных пользователя
+**4-слойная архитектура:**
+- `data/` — исходные данные (configs, archives, hbk)
+- `derived/` — производные (индексы по конфигурациям и платформе)
+- `tools/` — инструменты (16 форкнутых репозиториев + BSL LS)
+- `runtime/` — файлы работы (paths, registry, soul, session-resume)
 
-**Скрипты (8 шт):**
-- `hbk_extractor.py` — распаковка .hbk файлов синтакс-помощника 1С
-- `build_config_index_generic.py` — универсальный парсер конфигураций 1С
-- `build_syntax_helper_index.py` — индексация 8 141 методов платформы 1С
-- `build_ut11_api_reference.py` — справочник API общих модулей конфигурации
-- `fast_search_1c.py` — TF-IDF семантический поиск (2 сек, без нейросети)
-- `bsl-analyze.sh` — анализ .bsl через BSL LS (--baseline, --diff режимы)
-- `add_config.sh` — добавление новой конфигурации 1С
-- `rag_1c_methods.py` — RAG индекс (опционально, требует GPU)
+**Универсальная система конфигураций:**
+- `register_config.py` — CLI (add, register, activate, archive, build, build-all, list, remove)
+- `build_api_reference.py` — универсальный парсер API (любая конфигурация)
+- `config-registry.json` — реестр всех конфигураций
+- `paths.env` + `paths.py` — единый конфиг путей
 
-**Шаблоны:**
-- `session-resume.template.md` — точка входа для новой сессии
-- `project-context.template.md` — паспорт проекта
+**Инструменты:**
+- BSL Language Server v1.0.1 (анализ .bsl + --baseline/--diff)
+- 94 скила Desko77 (JSON DSL: meta-compile, form-compile, cfe-*)
+- 168 проверок EDT-MCP
+- 187 диагностик BSL LS
+- v8unpack (распаковка .cf/.cfe)
+- TF-IDF семантический поиск (fast_search_1c.py)
+- hbk_extractor.py (распаковка .hbk синтакс-помощника)
 
-**Документация:**
-- `README.md` — quick start guide
-- `docs/research/` — исходники конкурентного анализа ИИ-инструментов для 1С
+**Фичи из Hermes Agent:**
+- Learning loop (auto-skill creation в learned-skills/)
+- LSP post-write diff (bsl-analyze.sh --diff)
+- user-profile.md + soul.md (персона)
+- Role-switching protocol (4 роли, 3 протокола)
 
-### Архитектура
+**Стандартные файлы:**
+- LICENSE (MIT)
+- CONTRIBUTING.md, CODE_OF_CONDUCT.md
+- .editorconfig
+- .github/ (ISSUE_TEMPLATE, PULL_REQUEST_TEMPLATE)
+- ARCHITECTURE.md
 
-**Принцип разделения:**
-- `setup/` — код (коммитится в GitHub, ~240 КБ)
-- `config/` — данные пользователя (НЕ коммитится)
-- `indexes/` — генерируемые индексы (НЕ коммитятся)
-- `syntax/` — клонируемые репозитории (НЕ коммитятся)
+**Форки:**
+- Все 16 репозиториев форкнуты на github.com/Pradushkoai/*
+- manifest.json обновлён — URL указывают на форки
 
-**Фичи из Hermes Agent (внедрены):**
-- Learning loop — auto-skill creation после задач
-- LSP post-write diff — только новые ошибки при рефакторинге
-- user-profile.md — профиль пользователя
-- soul.md — персона ассистента
-- Role-switching protocol — 4 роли (Архитектор → Программист → Ревьюер → Документатор)
+## [1.0.0] — 2026-06-23
 
-**Что НЕ внедрено (нам не подходит):**
-- Cron scheduling (нет фоновых процессов)
-- External memory providers (своя система)
-- Multi-platform messaging
-- Нейросетевой RAG (CPU слишком медленный, TF-IDF работает за 2 сек)
+- Initial release
+- 8 скриптов, paths.env/paths.py, manifest.json, install.sh
+- Шаблоны session-resume и project-context
