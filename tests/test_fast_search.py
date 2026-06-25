@@ -6,10 +6,8 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import pytest
-from setup_src.services.search import tokenize, build_index, search
+from src.services.search import tokenize, build_index, search
 
 
 def test_tokenize_camel_case():

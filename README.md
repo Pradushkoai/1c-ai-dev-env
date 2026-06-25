@@ -17,20 +17,22 @@ cd 1c-ai-dev-env
 
 # 2. Установить (интерактивно — спросит про .hbk и ZIP конфигурации)
 bash install.sh
+# Или только Python-пакет (без git-репозиториев и BSL LS):
+# pip install -e ".[dev]"
 
 # 3. Проверить
-python3 -m src.cli validate
-python3 -m src.cli config list
+1c-ai validate
+1c-ai config list
 
 # 4. Работать
-python3 -m src.cli search "найти элемент по коду"
-python3 -m src.cli bsl analyze data/configs/<name>/path/to/file.bsl
+1c-ai search "найти элемент по коду"
+1c-ai bsl analyze data/configs/<name>/path/to/file.bsl
 ```
 
 ### Добавить конфигурацию
 
 ```bash
-python3 -m src.cli config add --name ut11 --zip /path/to/ut11.zip --title "УТ 11"
+1c-ai config add --name ut11 --zip /path/to/ut11.zip --title "УТ 11"
 # → Распакует в data/configs/ut11/
 # → Построит derived/configs/ut11/index.md (индекс метаданных)
 # → Построит derived/configs/ut11/api-reference.md (API-справочник)
@@ -100,22 +102,24 @@ python3 -m pytest tests/ -v
 
 ```bash
 # Конфигурации
-python3 -m src.cli config list                              # список
-python3 -m src.cli config add --name X --zip Y              # добавить из ZIP
-python3 -m src.cli config build --name X                    # индексы
-python3 -m src.cli config build-all                         # все индексы
+1c-ai config list                              # список
+1c-ai config add --name X --zip Y              # добавить из ZIP
+1c-ai config build --name X                    # индексы
+1c-ai config build-all                         # все индексы
 
 # Поиск
-python3 -m src.cli search "найти элемент по коду"           # TF-IDF поиск
+1c-ai search "найти элемент по коду"           # TF-IDF поиск
 
 # Анализ .bsl
-python3 -m src.cli bsl analyze <path>                       # полный анализ
-python3 -m src.cli bsl baseline <path>                      # сохранить baseline
-python3 -m src.cli bsl diff <path>                          # только новые ошибки
+1c-ai bsl analyze <path>                       # полный анализ
+1c-ai bsl baseline <path>                      # сохранить baseline
+1c-ai bsl diff <path>                          # только новые ошибки
 
 # Проверка
-python3 -m src.cli validate                                 # проверить пути
+1c-ai validate                                 # проверить пути
 ```
+
+Альтернативно можно использовать `python3 -m src.cli <command>`.
 
 ---
 

@@ -10,13 +10,11 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import pytest
-from setup_src.services.path_manager import PathManager
-from setup_src.services.config_manager import ConfigManager
-from setup_src.models.config_registry import ConfigurationRegistry
-from setup_src.models.configuration import Configuration
+from src.services.path_manager import PathManager
+from src.services.config_manager import ConfigManager
+from src.models.config_registry import ConfigurationRegistry
+from src.models.configuration import Configuration
 
 
 @pytest.fixture
@@ -135,7 +133,7 @@ def test_build_with_mocked_subprocess(setup):
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     # Мокаем subprocess.run — чтобы не запускать реальные скрипты
-    with patch("setup_src.services.config_manager.subprocess.run") as mock_run:
+    with patch("src.services.config_manager.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0)
         report = cm.build("ut11")
 

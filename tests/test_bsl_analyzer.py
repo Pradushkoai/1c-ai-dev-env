@@ -7,10 +7,8 @@ import sys
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import pytest
-from setup_src.services.bsl_analyzer import BSLAnalyzer, AnalysisResult, Diagnostic
+from src.services.bsl_analyzer import BSLAnalyzer, AnalysisResult, Diagnostic
 
 
 def _fake_bsl_json(output_dir: Path) -> None:
@@ -92,7 +90,7 @@ def test_analyzer_analyze_with_mock(tmp_path):
         _fake_bsl_json(output_dir)
         return MagicMock(returncode=0)
 
-    with patch("setup_src.services.bsl_analyzer.subprocess.run", side_effect=fake_run):
+    with patch("src.services.bsl_analyzer.subprocess.run", side_effect=fake_run):
         result = analyzer.analyze(tmp_path)
 
     assert result.total == 3
@@ -117,7 +115,7 @@ def test_analyzer_baseline_persistence(tmp_path):
         _fake_bsl_json(output_dir)
         return MagicMock(returncode=0)
 
-    with patch("setup_src.services.bsl_analyzer.subprocess.run", side_effect=fake_run):
+    with patch("src.services.bsl_analyzer.subprocess.run", side_effect=fake_run):
         # Сохраняем baseline
         result = analyzer.save_baseline(tmp_path)
         assert result.total == 3

@@ -1,10 +1,8 @@
 """Тесты для Configuration model."""
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
-from setup_src.models.configuration import Configuration
+from src.models.configuration import Configuration
 
 
 def test_configuration_basic():

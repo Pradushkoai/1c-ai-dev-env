@@ -1,5 +1,39 @@
 # Changelog
 
+## [2.4.0] — 2026-06-25
+
+### pyproject.toml + editable install (большой рефакторинг)
+
+**Упаковка как Python-пакет (PEP 517/518/621):**
+- Добавлен `pyproject.toml` — пакет `1c-ai-dev-env` v2.4.0
+- `setup_src/` переименован в `src/` (git mv, история сохранена)
+- `[project.scripts]` — entry point `1c-ai = "src.cli:main"` (команда `1c-ai` вместо `python3 -m src.cli`)
+- `[project.optional-dependencies]` — `rag` (fastembed, qdrant-client) и `dev` (pytest)
+- Установка: `pip install -e .` (editable mode) или `pip install -e ".[dev]"`
+
+**Упрощение install.sh:**
+- Убран `cp -r setup_src src` — заменён на `pip install -e "$SETUP_DIR"`
+- Больше не нужно синхронизировать `setup_src/` и `src/` вручную
+- Пакет доступен через `from src.services...` после установки
+
+**Очистка хаков:**
+- `tests/conftest.py` — убран `sys.path.insert` хак
+- Все 6 тестовых файлов — убраны `sys.path.insert` и `from setup_src...` → `from src...`
+- Тесты теперь используют стандартный механизм импорта Python через установленный пакет
+
+**CI обновлён:**
+- `pip install -e ".[dev]"` вместо отдельных `pip install -r requirements*.txt`
+- `find scripts src` вместо `find scripts setup_src`
+
+**Документация:**
+- README: `1c-ai validate` вместо `python3 -m src.cli validate` (с пометкой про альтернативу)
+- CONTRIBUTING.md: обновлены инструкции установки, импорты в примерах
+- ARCHITECTURE.md: структура обновлена под `src/`
+
+**Обратная совместимость:**
+- `python3 -m src.cli` по-прежнему работает (если пакет установлен или CWD = корень проекта)
+- Старый корневой `src/` можно удалить — pip install -e . создаёт правильный импорт сам
+
 ## [2.3.0] — 2026-06-25
 
 ### Изменения (раунд 2, v5 отзыв)

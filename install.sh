@@ -75,10 +75,10 @@ cp "$SETUP_DIR"/scripts/* "$PROJECT_DIR/scripts/" 2>/dev/null || true
 chmod +x "$PROJECT_DIR"/scripts/*.sh 2>/dev/null || true
 echo "  ✅ Скрипты: $(ls "$PROJECT_DIR/scripts/" | wc -l) файлов"
 
-if [ -d "$SETUP_DIR/setup_src" ]; then
-    cp -r "$SETUP_DIR/setup_src" "$PROJECT_DIR/src"
-    echo "  ✅ src/ (ООП пакет: Project, ConfigManager, BSLAnalyzer)"
-fi
+# Устанавливаем Python-пакет через pyproject.toml (editable mode)
+# После этого доступны: from src.services... и команда 1c-ai
+pip3 install -e "$SETUP_DIR" -q 2>&1 | tail -2
+echo "  ✅ Python-пакет установлен (editable mode): 1c-ai CLI + src.* импорты"
 
 # paths.env, paths.py, config-registry.json → runtime/
 cp "$SETUP_DIR/paths.env" "$PROJECT_DIR/runtime/paths.env"

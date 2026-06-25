@@ -7,10 +7,8 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import pytest
-from setup_src.services.path_manager import PathManager
+from src.services.path_manager import PathManager
 
 
 def test_path_manager_root_detection(tmp_path):

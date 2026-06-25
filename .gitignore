@@ -16,6 +16,10 @@ __pycache__/
 **/__pycache__/
 *.pyc
 *.pyo
+*.egg-info/
+*.egg
+build/
+dist/
 # Системные
 .env
 upload/

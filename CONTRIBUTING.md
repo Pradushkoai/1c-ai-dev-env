@@ -27,10 +27,12 @@
 ```bash
 git clone https://github.com/Pradushkoai/1c-ai-dev-env.git
 cd 1c-ai-dev-env
-bash install.sh --non-interactive
 
-# Зависимости для разработки
-pip install -r requirements-dev.txt
+# Установка пакета (editable mode + dev-зависимости, включая pytest)
+pip install -e ".[dev]"
+
+# Или полная установка через install.sh (клонирует git-репозитории, BSL LS, и т.д.)
+bash install.sh --non-interactive
 ```
 
 ### Запуск тестов
@@ -43,10 +45,12 @@ python3 -m pytest tests/ -v
 python3 -m pytest tests/test_config_manager.py -v
 
 # С покрытием (если установлен pytest-cov)
-python3 -m pytest tests/ --cov=setup_src --cov-report=term-missing
+python3 -m pytest tests/ --cov=src --cov-report=term-missing
 ```
 
 Тесты **не требуют** Java/BSL LS/внешних скриптов — все внешние вызовы замокированы через `unittest.mock.patch`. Полный прогон занимает <1 секунды.
+
+После `pip install -e .` пакет `src` доступен для импорта без sys.path хаков.
 
 ### Что покрывают тесты
 
@@ -68,11 +72,11 @@ python3 -m pytest tests/ --cov=setup_src --cov-report=term-missing
 3. Мокай внешние вызовы через `unittest.mock.patch`:
    ```python
    from unittest.mock import patch, MagicMock
-   with patch("setup_src.services.config_manager.subprocess.run") as mock_run:
+   with patch("src.services.config_manager.subprocess.run") as mock_run:
        mock_run.return_value = MagicMock(returncode=0)
        # твой код
    ```
-4. Импортируй через `from setup_src.<module> import <name>` (не `from src.<module>` — это разные пути!)
+4. Импортируй через `from src.<module> import <name>` (после `pip install -e .`)
 
 ## Стандарты кода
 
@@ -96,20 +100,21 @@ python3 -m pytest tests/ --cov=setup_src --cov-report=term-missing
 
 ```
 setup/                — что коммитится в GitHub
-├── setup_src/        — OOP-пакет (models/, services/, project.py, cli.py)
+├── src/             — OOP-пакет (models/, services/, project.py, cli.py)
 ├── scripts/          — standalone-скрипты (build_api_reference, hbk_extractor, ...)
-├── tests/            — pytest-тесты (33+ тестов)
+├── tests/            — pytest-тесты (50+ тестов)
 ├── templates/        — шаблоны runtime файлов
 ├── docs/             — документация (ARCHITECTURE.md)
 ├── .github/          — CI + issue/PR templates
 ├── install.sh        — установщик
+├── pyproject.toml    — упаковка пакета + 1c-ai CLI entry point
 ├── manifest.json     — реестр компонентов
 ├── requirements.txt           — обязательные Python-зависимости
 ├── requirements-optional.txt  — опциональные (RAG с embeddings)
 └── requirements-dev.txt       — для разработки (pytest)
 ```
 
-После `install.sh` пакет `setup_src/` копируется в `src/` в корне проекта — это рабочая копия, в неё вносятся локальные правки.
+После `pip install -e .` пакет `src/` доступен для импорта через `from src.services...`, а команда `1c-ai` доступна глобально.
 
 ## CI
 
