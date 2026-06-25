@@ -85,6 +85,74 @@ def cmd_validate(project: Project, args):
     sys.exit(0 if all_ok else 1)
 
 
+def cmd_search(project: Project, args):
+    """Семантический поиск по методам 1С (TF-IDF)."""
+    import json, math, re
+    from collections import Counter
+
+    index_path = project.paths.fast_search_index
+    if not index_path.exists():
+        print("❌ Индекс не найден. Запустите: python3 scripts/fast_search_1c.py build")
+        sys.exit(1)
+
+    with open(index_path, 'r', encoding='utf-8') as f:
+        index = json.load(f)
+
+    methods = index['methods']
+    idf = index['idf']
+    inverted_index = index['inverted_index']
+
+    def tokenize(text):
+        tokens = re.findall(r'[а-яёА-ЯЁa-zA-Z0-9]+', text.lower())
+        result = []
+        for t in tokens:
+            result.append(t)
+            parts = re.findall(r'[А-ЯA-Z]?[а-яёa-z]+|\d+', t)
+            if len(parts) > 1:
+                result.extend(p.lower() for p in parts)
+        return result
+
+    query_tokens = tokenize(args.query)
+    if not query_tokens:
+        print("Пустой запрос")
+        return
+
+    query_tf = Counter(query_tokens)
+    query_tfidf = {}
+    for t, tf in query_tf.items():
+        if t in idf:
+            query_tfidf[t] = tf * idf[t]
+
+    norm = math.sqrt(sum(w**2 for w in query_tfidf.values()))
+    if norm > 0:
+        query_tfidf = {t: w / norm for t, w in query_tfidf.items()}
+
+    scores = {}
+    for t, q_weight in query_tfidf.items():
+        if t in inverted_index:
+            for doc_id, doc_weight in inverted_index[t]:
+                scores[doc_id] = scores.get(doc_id, 0) + q_weight * doc_weight
+
+    ranked = sorted(scores.items(), key=lambda x: -x[1])[:args.limit]
+
+    print(f'Поиск: "{args.query}"')
+    print(f'Найдено: {len(ranked)} результатов (из {len(methods)} методов)')
+    print()
+    for rank, (doc_id, score) in enumerate(ranked, 1):
+        m = methods[doc_id]
+        name_ru = m['name_ru']
+        name_en = m['name_en']
+        context = m['context'][:80]
+        syntax = m['syntax'][:120]
+        desc = m['description'][:150]
+        print(f'{rank}. [{score:.3f}] {name_ru} ({name_en})')
+        print(f'   Контекст: {context}')
+        print(f'   Синтаксис: {syntax}')
+        if desc:
+            print(f'   Описание: {desc}')
+        print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="src.cli",
@@ -125,6 +193,11 @@ def main():
     # validate
     sub.add_parser("validate", help="Проверить окружение")
 
+    # search
+    p_search = sub.add_parser("search", help="Семантический поиск методов 1С")
+    p_search.add_argument("query", help="Поисковый запрос")
+    p_search.add_argument("--limit", type=int, default=10, help="Кол-во результатов")
+
     args = parser.parse_args()
     project = Project()
 
@@ -146,6 +219,8 @@ def main():
             cmd_bsl_diff(project, args)
     elif args.command == "validate":
         cmd_validate(project, args)
+    elif args.command == "search":
+        cmd_search(project, args)
 
 
 if __name__ == "__main__":

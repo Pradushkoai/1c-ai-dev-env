@@ -27,7 +27,7 @@ run_analysis() {
     local OUT="$2"
     mkdir -p "$OUT"
     rm -rf "$OUT"/*
-    "$BSL_LS" -c "$CONFIG" analyze -s "$SRC" -r json -o "$OUT" -q 2>/dev/null
+    "$BSL_LS" -c "$CONFIG" analyze -s "$SRC" -r json -o "$OUT" -q >/dev/null 2>&1
     echo "$OUT/bsl-json.json"
 }
 

@@ -75,6 +75,17 @@ cp "$SETUP_DIR"/scripts/* "$PROJECT_DIR/scripts/" 2>/dev/null || true
 chmod +x "$PROJECT_DIR"/scripts/*.sh 2>/dev/null || true
 echo "  ✅ Скрипты: $(ls "$PROJECT_DIR/scripts/" | wc -l) файлов"
 
+# src/ пакет (ООП)
+if [ -d "$SETUP_DIR/setup_src" ]; then
+    cp -r "$SETUP_DIR/setup_src" "$PROJECT_DIR/src"
+    echo "  ✅ src/ (ООП пакет: Project, ConfigManager, BSLAnalyzer)"
+fi
+# src/ пакет (ООП)
+if [ -d "$SETUP_DIR/setup_src" ]; then
+    cp -r "$SETUP_DIR/setup_src" "$PROJECT_DIR/src"
+fi
+echo "  ✅ src/ (ООП пакет)"
+
 # paths.env, paths.py, config-registry.json → runtime/
 cp "$SETUP_DIR/paths.env" "$PROJECT_DIR/runtime/paths.env"
 cp "$SETUP_DIR/paths.py" "$PROJECT_DIR/runtime/paths.py"
@@ -259,10 +270,10 @@ echo "║                                                      ║"
 echo "║  Что установлено:                                     ║"
 echo "║    ✅ BSL Language Server v1.0.1                     ║"
 echo "║    ✅ v8unpack, fastembed, qdrant-client             ║"
-echo "║    ✅ 94 скила (JSON DSL)                            ║"
-echo "║    ✅ 168 проверок EDT-MCP                           ║"
-echo "║    ✅ 187 диагностик BSL LS                          ║"
-echo "║    ✅ 29 правил ai_rules_1c                          ║"
+echo "║    ✅ 94 скила (JSON DSL) [claude-code-skills-1c]                            ║"
+echo "║    ✅ 168 проверок [EDT-MCP]                           ║"
+echo "║    ✅ 187 диагностик [bsl-language-server]                          ║"
+echo "║    ✅ 28 правил [ai_rules_1c]                          ║"
 echo "║                                                      ║"
 echo "║  Команды:                                            ║"
 echo "║    python3 scripts/register_config.py list           ║"

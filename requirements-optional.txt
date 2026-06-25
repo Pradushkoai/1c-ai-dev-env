@@ -1,0 +1,4 @@
+# Опциональные — для RAG с нейросетевыми embeddings
+# TF-IDF поиск (fast_search_1c.py) работает БЕЗ этих пакетов
+fastembed>=0.8.0
+qdrant-client>=1.0.0
