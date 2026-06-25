@@ -29,11 +29,21 @@ class ConfigManager:
         """Распаковать ZIP и зарегистрировать конфигурацию."""
         if name in self._registry:
             raise ValueError(f"Конфигурация '{name}' уже существует")
+        if not zip_path.exists():
+            raise FileNotFoundError(f"ZIP не найден: {zip_path}")
 
         config_dir = self._paths.config_path(name)
         config_dir.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            zf.extractall(config_dir)
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                # Проверим целостность перед распаковкой
+                bad = zf.testzip()
+                if bad is not None:
+                    raise zipfile.BadZipFile(f"Повреждён файл внутри архива: {bad}")
+                zf.extractall(config_dir)
+        except zipfile.BadZipFile as e:
+            shutil.rmtree(config_dir, ignore_errors=True)
+            raise ValueError(f"ZIP повреждён или не является архивом: {zip_path} ({e})") from e
 
         config = self._create_config(name, title or name, config_dir)
         self._registry.add(config)
@@ -74,8 +84,15 @@ class ConfigManager:
 
         config_dir = self._paths.config_path(name)
         config_dir.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(config.archive, "r") as zf:
-            zf.extractall(config_dir)
+        try:
+            with zipfile.ZipFile(config.archive, "r") as zf:
+                bad = zf.testzip()
+                if bad is not None:
+                    raise zipfile.BadZipFile(f"Повреждён файл: {bad}")
+                zf.extractall(config_dir)
+        except zipfile.BadZipFile as e:
+            shutil.rmtree(config_dir, ignore_errors=True)
+            raise ValueError(f"Архив повреждён: {config.archive} ({e})") from e
 
         config.path = config_dir
         config.status = "active"
@@ -152,10 +169,10 @@ class ConfigManager:
             tree = ET.parse(xml_path)
             root = tree.getroot()
             cfg = next((c for c in root if _strip_ns(c.tag) == "Configuration"), None)
-            if not cfg:
+            if cfg is None:
                 return ("unknown", "")
             props = next((c for c in cfg if _strip_ns(c.tag) == "Properties"), None)
-            if not props:
+            if props is None:
                 return ("unknown", "")
             version = ""
             vendor = ""

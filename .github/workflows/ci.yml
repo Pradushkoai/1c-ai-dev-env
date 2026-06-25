@@ -14,52 +14,16 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+
       - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Check syntax
         run: |
-          python3 -m py_compile scripts/build_api_reference.py
-          python3 -m py_compile scripts/fast_search_1c.py
-          python3 -m py_compile scripts/hbk_extractor.py
-          python3 -m py_compile scripts/register_config.py
-          python3 -m py_compile setup_src/cli.py
-          python3 -m py_compile setup_src/project.py
-          python3 -m py_compile setup_src/models/configuration.py
-          python3 -m py_compile setup_src/services/bsl_analyzer.py
-          python3 -m py_compile setup_src/services/config_manager.py
-          python3 -m py_compile setup_src/services/path_manager.py
-          python3 -m py_compile setup_src/services/search.py
-      - name: Run tests
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Check syntax (all Python files)
         run: |
-          cd setup_src && python3 -c "
-          import sys; sys.path.insert(0, '.')
-          from models.configuration import Configuration
-          from pathlib import Path
+          find scripts setup_src -name "*.py" -exec python3 -m py_compile {} \;
 
-          # Test 1: Basic
-          c = Configuration(name='test', title='Test')
-          assert c.name == 'test'
-          assert c.version == 'unknown'
-          print('✅ Test 1: Configuration basic')
-
-          # Test 2: from_dict
-          d = {'name': 'УТ 11', 'version': '11.3.4.197'}
-          c2 = Configuration.from_dict('ut11', d, Path('/tmp'))
-          assert c2.version == '11.3.4.197'
-          print('✅ Test 2: Configuration.from_dict')
-
-          # Test 3: to_dict
-          c3 = Configuration(name='test', title='Test', version='1.0')
-          d3 = c3.to_dict()
-          assert d3['version'] == '1.0'
-          print('✅ Test 3: Configuration.to_dict')
-
-          # Test 4: search service
-          from services.search import tokenize
-          tokens = tokenize('НайтиПоКоду test 123')
-          assert len(tokens) >= 3
-          print('✅ Test 4: tokenize')
-
-          print()
-          print('✅ Все тесты прошли')
-          "
+      - name: Run pytest
+        run: |
+          python3 -m pytest tests/ -v

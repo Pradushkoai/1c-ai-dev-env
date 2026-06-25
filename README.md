@@ -70,6 +70,22 @@ fastembed>=0.8.0
 qdrant-client>=1.0.0
 ```
 
+**Для разработки** (`requirements-dev.txt`):
+```
+pytest>=7.0
+```
+
+---
+
+## Тесты
+
+```bash
+pip install -r requirements-dev.txt
+python3 -m pytest tests/ -v
+```
+
+33 теста покрывают PathManager, ConfigManager (с моком subprocess), BSLAnalyzer (с моком subprocess), search (TF-IDF), Configuration model. Тесты не требуют Java/BSL LS — внешние вызовы замокированы через `unittest.mock`.
+
 ---
 
 ## Архитектура

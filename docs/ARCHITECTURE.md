@@ -24,8 +24,8 @@
 │  └── bsl-ls/    BSL Language Server binary        │
 ├──────────────────────────────────────────────────┤
 │  runtime/       ФАЙЛЫ РАБОТЫ                       │
-│  ├── paths.env          Конфиг путей              │
-│  ├── paths.py           Python-модуль путей       │
+│  ├── paths.env          Конфиг путей (shell)       │
+│  ├── paths.py           Legacy Python-модуль (⚠)   │
 │  ├── config-registry.json  Реестр конфигов        │
 │  ├── session-resume.md  Точка входа               │
 │  ├── soul.md            Персона ассистента        │
@@ -33,6 +33,28 @@
 │  └── worklog.md         Журнал работы             │
 └──────────────────────────────────────────────────┘
 ```
+
+## OOP-слой (src/)
+
+Поверх 4-слойной файловой структуры работает Python-пакет `src/`:
+
+```
+src/
+├── models/         Конфигурация как данные
+│   ├── configuration.py      Configuration dataclass
+│   └── config_registry.py    ConfigurationRegistry
+├── services/       Бизнес-логика
+│   ├── path_manager.py       PathManager (вместо paths.py)
+│   ├── config_manager.py     add/activate/archive/build
+│   ├── bsl_analyzer.py       BSL LS wrapper + baseline/diff
+│   └── search.py             TF-IDF поиск (единственная реализация)
+├── project.py      Project — оркестратор
+└── cli.py          Единый CLI: config, bsl, validate, search
+```
+
+Принцип: **одна ответственность — один модуль**. Логика TF-IDF
+не дублируется между `cli.py` и `fast_search_1c.py` — обе точки
+вызывают `src.services.search`.
 
 ## Принципы
 
@@ -73,7 +95,14 @@ python3 scripts/register_config.py list
 
 ## Единый конфиг путей
 
-`runtime/paths.env` — для shell-скриптов
-`runtime/paths.py` — для Python-скриптов
+**Основной источник:** `src/services/path_manager.py` — `PathManager` (OOP).
+Используется во всём коде приложения (`src/cli.py`, `src/project.py`, сервисах).
 
-При переносе в другую среду — изменить только `PROJECT_ROOT` в `paths.env`.
+**Legacy:** `runtime/paths.py` — процедурная обёртка над `paths.env`,
+помечена как `@deprecated`, оставлена только для обратной совместимости
+со старыми скриптами. Новый код должен использовать `PathManager`.
+
+**Для shell-скриптов:** `runtime/paths.env` (загружается через `dotenv`).
+
+При переносе в другую среду — изменить только `PROJECT_ROOT` в `paths.env`
+или передать `project_root` в `PathManager(project_root=...)`.

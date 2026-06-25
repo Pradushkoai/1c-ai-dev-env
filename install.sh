@@ -249,7 +249,8 @@ echo ""
 echo "=== Шаг 8/8: Проверка ==="
 
 echo ""
-python3 "$PROJECT_DIR/runtime/paths.py" validate 2>&1 || true
+# Используем OOP PathManager (через CLI) вместо устаревшего paths.py
+cd "$PROJECT_DIR" && python3 -m src.cli validate 2>&1 || true
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
