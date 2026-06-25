@@ -79,10 +79,16 @@ class BSLAnalyzer:
         """Анализ файла или директории."""
         import tempfile
         if output_dir is None:
-            output_dir = Path(tempfile.mkdtemp())
+            # Используем контекстный менеджер для автоочистки
+            with tempfile.TemporaryDirectory() as tmpdir:
+                output_dir = Path(tmpdir)
+                return self._run_analysis(source, output_dir)
         else:
             output_dir.mkdir(parents=True, exist_ok=True)
+            return self._run_analysis(source, output_dir)
 
+    def _run_analysis(self, source: Path, output_dir: Path) -> AnalysisResult:
+        """Внутренний метод — запуск BSL LS."""
         cmd = [
             str(self._binary),
             "-c", str(self._config),

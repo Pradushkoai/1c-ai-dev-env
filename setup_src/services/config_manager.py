@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -31,7 +32,8 @@ class ConfigManager:
 
         config_dir = self._paths.config_path(name)
         config_dir.mkdir(parents=True, exist_ok=True)
-        subprocess.run(["unzip", "-q", "-o", str(zip_path), "-d", str(config_dir)], check=True)
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            zf.extractall(config_dir)
 
         config = self._create_config(name, title or name, config_dir)
         self._registry.add(config)
@@ -56,7 +58,7 @@ class ConfigManager:
 
         self._paths.archives_dir.mkdir(parents=True, exist_ok=True)
         archive_path = self._paths.archives_dir / f"{name}_full.zip"
-        subprocess.run(["zip", "-q", "-r", str(archive_path), "."], cwd=str(config.path), check=True)
+        shutil.make_archive(str(archive_path.with_suffix("")), "zip", str(config.path))
         shutil.rmtree(config.path)
 
         config.path = None
@@ -72,7 +74,8 @@ class ConfigManager:
 
         config_dir = self._paths.config_path(name)
         config_dir.mkdir(parents=True, exist_ok=True)
-        subprocess.run(["unzip", "-q", "-o", str(config.archive), "-d", str(config_dir)], check=True)
+        with zipfile.ZipFile(config.archive, "r") as zf:
+            zf.extractall(config_dir)
 
         config.path = config_dir
         config.status = "active"
@@ -163,7 +166,7 @@ class ConfigManager:
                 elif tag == "Vendor":
                     vendor = child.text or ""
             return (version, vendor)
-        except Exception:
+        except (ET.ParseError, Exception):
             return ("unknown", "")
 
     @staticmethod
