@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.5.0] — 2026-06-25
+
+### Тесты для парсера метаданных + интеграционные тесты
+
+**Тесты для `build_config_index_generic.py` (последний непокрытый парсер):**
+- `test_build_config_index.py` — 14 тестов:
+  - Хелперы: `strip_ns`, `get_child`, `get_text`, `get_synonym_text` (3 теста)
+  - `parse_configuration_xml`: валидный XML, missing file, без Configuration element (3 теста)
+  - `parse_dumpinfo`: Catalog с UUID, Document с Form, Template+Command, modules (ObjectModule/ManagerModule), fields (Dimension/Resource), missing file, unknown type (7 тестов)
+  - `build_index`: генерация Markdown с метаданными (1 тест)
+- Все 1000 строк XML-парсера теперь покрыты тестами с синтетическими XML
+
+**Интеграционные тесты (полный flow):**
+- `test_integration.py` — 2 теста:
+  - `test_integration_add_build_analyze`: создание ZIP → `add_from_zip` → `build` (реальные парсеры выполняются) → проверка `index.md`, `api-reference.md`, `api-reference.json` → BSL `analyze` (subprocess замокан) → проверка диагностики
+  - `test_integration_archive_and_restore`: add → build → archive (проверка что path=None, archive существует, индексы сохранены) → activate (восстановление)
+- Создаётся синтетическая мини-конфигурация 1С в ZIP: Configuration.xml, ConfigDumpInfo.xml, Catalogs/, CommonModules/ с .bsl файлом
+- Тестируется реальное взаимодействие всех компонентов: PathManager → ConfigManager → ConfigRegistry → build_config_index_generic → build_api_reference → BSLAnalyzer
+
+**Итого: 66 тестов** (было 50), проходят за 0.44 сек. Все парсеры проекта теперь покрыты.
+
 ## [2.4.0] — 2026-06-25
 
 ### pyproject.toml + editable install (большой рефакторинг)
