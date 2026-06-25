@@ -62,7 +62,7 @@ echo ""
 echo "=== Шаг 3/8: Python зависимости ==="
 
 pip3 install -q -r "$SETUP_DIR/requirements.txt" 2>&1 | tail -1
-echo "  ✅ v8unpack, python-dotenv, fastembed, qdrant-client"
+echo "  ✅ v8unpack, python-dotenv (базовые)"
 echo ""
 
 # ============================================================================
@@ -75,20 +75,16 @@ cp "$SETUP_DIR"/scripts/* "$PROJECT_DIR/scripts/" 2>/dev/null || true
 chmod +x "$PROJECT_DIR"/scripts/*.sh 2>/dev/null || true
 echo "  ✅ Скрипты: $(ls "$PROJECT_DIR/scripts/" | wc -l) файлов"
 
-# src/ пакет (ООП)
 if [ -d "$SETUP_DIR/setup_src" ]; then
     cp -r "$SETUP_DIR/setup_src" "$PROJECT_DIR/src"
     echo "  ✅ src/ (ООП пакет: Project, ConfigManager, BSLAnalyzer)"
 fi
-# src/ пакет (ООП)
-if [ -d "$SETUP_DIR/setup_src" ]; then
-    cp -r "$SETUP_DIR/setup_src" "$PROJECT_DIR/src"
-fi
-echo "  ✅ src/ (ООП пакет)"
 
 # paths.env, paths.py, config-registry.json → runtime/
 cp "$SETUP_DIR/paths.env" "$PROJECT_DIR/runtime/paths.env"
+    sed -i "s|/home/z/my-project|$PROJECT_DIR|g" "$PROJECT_DIR/runtime/paths.env"
 cp "$SETUP_DIR/paths.py" "$PROJECT_DIR/runtime/paths.py"
+    sed -i "s|/home/z/my-project|$PROJECT_DIR|g" "$PROJECT_DIR/runtime/paths.py"
 cp "$SETUP_DIR/config-registry.json" "$PROJECT_DIR/runtime/config-registry.json" 2>/dev/null || true
 
 # .bsl-language-server.json → runtime/
@@ -263,13 +259,13 @@ echo "║                                                      ║"
 echo "║  Структура:                                          ║"
 echo "║    data/       — исходные данные                     ║"
 echo "║    derived/    — индексы (генерируются)              ║"
-echo "║    tools/      — инструменты (17 репозиториев + BSL) ║"
+echo "║    tools/      — инструменты (16 репозиториев + BSL) ║"
 echo "║    runtime/    — файлы работы                        ║"
-echo "║    scripts/    — 9 скриптов                          ║"
+echo "║    scripts/    — 10 скриптов                          ║"
 echo "║                                                      ║"
 echo "║  Что установлено:                                     ║"
 echo "║    ✅ BSL Language Server v1.0.1                     ║"
-echo "║    ✅ v8unpack, fastembed, qdrant-client             ║"
+echo "║    ✅ v8unpack, python-dotenv (базовые)             ║"
 echo "║    ✅ 94 скила (JSON DSL) [claude-code-skills-1c]                            ║"
 echo "║    ✅ 168 проверок [EDT-MCP]                           ║"
 echo "║    ✅ 187 диагностик [bsl-language-server]                          ║"

@@ -16,7 +16,7 @@ git clone https://github.com/Pradushkoai/1c-ai-dev-env.git
 cd 1c-ai-dev-env
 
 # 2. Установить (интерактивно — спросит про .hbk и ZIP конфигурации)
-bash setup/install.sh
+bash install.sh
 
 # 3. Проверить
 python3 -m src.cli validate

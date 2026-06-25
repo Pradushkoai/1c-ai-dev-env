@@ -66,9 +66,13 @@ class DiffResult:
 class BSLAnalyzer:
     """Анализ .bsl файлов через BSL Language Server."""
 
-    def __init__(self, binary_path: Path, config_path: Path):
+    BASELINE_FILE = Path("runtime/bsl-baseline.json")
+
+    def __init__(self, binary_path: Path, config_path: Path, project_root: Path | None = None):
         self._binary = binary_path
         self._config = config_path
+        self._project_root = project_root or Path.cwd()
+        self._baseline_path = self._project_root / self.BASELINE_FILE
         self._baseline: Optional[Set[str]] = None
 
     def analyze(self, source: Path, output_dir: Optional[Path] = None) -> AnalysisResult:
@@ -94,15 +98,20 @@ class BSLAnalyzer:
         return AnalysisResult.from_json(json_file)
 
     def save_baseline(self, source: Path) -> AnalysisResult:
-        """Сохранить baseline для последующего diff."""
+        """Сохранить baseline (в память + в файл)."""
         result = self.analyze(source)
         self._baseline = result.diagnostic_set
+        self._save_baseline_to_file()
         return result
 
     def diff(self, source: Path) -> DiffResult:
         """Показать только новые диагностики."""
+        # Загружаем baseline из файла если в памяти пусто
         if self._baseline is None:
-            raise RuntimeError("Нет baseline. Сначала вызовите save_baseline().")
+            self._load_baseline_from_file()
+
+        if self._baseline is None:
+            raise RuntimeError("Нет baseline. Сначала вызовите: python3 -m src.cli bsl baseline <path>")
 
         result = self.analyze(source)
         current_set = result.diagnostic_set
@@ -110,7 +119,9 @@ class BSLAnalyzer:
         new_keys = current_set - self._baseline
         fixed_keys = self._baseline - current_set
 
-        self._baseline = current_set  # обновляем baseline
+        # Обновляем baseline (в памяти + в файле)
+        self._baseline = current_set
+        self._save_baseline_to_file()
 
         return DiffResult(
             new=[d for d in result.diagnostics if d["key"] in new_keys],
@@ -120,4 +131,21 @@ class BSLAnalyzer:
 
     @property
     def has_baseline(self) -> bool:
-        return self._baseline is not None
+        if self._baseline is not None:
+            return True
+        return self._baseline_path.exists()
+
+    def _save_baseline_to_file(self) -> None:
+        """Сериализовать baseline в JSON файл."""
+        import json
+        if self._baseline is not None:
+            self._baseline_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._baseline_path, "w", encoding="utf-8") as f:
+                json.dump(sorted(list(self._baseline)), f, ensure_ascii=False)
+
+    def _load_baseline_from_file(self) -> None:
+        """Загрузить baseline из JSON файла."""
+        import json
+        if self._baseline_path.exists():
+            with open(self._baseline_path, "r", encoding="utf-8") as f:
+                self._baseline = set(json.load(f))

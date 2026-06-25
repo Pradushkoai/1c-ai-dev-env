@@ -1,0 +1,36 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Validate paths
+        run: |
+          mkdir -p data/configs derived/configs derived/platform tools/repos runtime
+          python3 -c "from pathlib import Path; print('OK')"
+      - name: Check scripts syntax
+        run: |
+          python3 -m py_compile scripts/build_api_reference.py
+          python3 -m py_compile scripts/fast_search_1c.py
+          python3 -m py_compile scripts/hbk_extractor.py
+          python3 -m py_compile scripts/register_config.py
+      - name: Check src package
+        run: |
+          python3 -m py_compile setup_src/cli.py
+          python3 -m py_compile setup_src/project.py
+          python3 -m py_compile setup_src/models/configuration.py
+          python3 -m py_compile setup_src/services/bsl_analyzer.py
+          python3 -m py_compile setup_src/services/config_manager.py
+          python3 -m py_compile setup_src/services/path_manager.py

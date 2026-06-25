@@ -42,6 +42,7 @@ class Project:
             self._bsl_analyzer = BSLAnalyzer(
                 self.paths.bsl_ls_binary,
                 self.paths.bsl_ls_config,
+                self.paths.root,
             )
         return self._bsl_analyzer
 
