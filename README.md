@@ -111,9 +111,14 @@ python3 -m pytest tests/ -v
 1c-ai search "найти элемент по коду"           # TF-IDF поиск
 
 # Анализ .bsl
-1c-ai bsl analyze <path>                       # полный анализ
+1c-ai bsl analyze <path>                       # полный анализ (BSL LS)
 1c-ai bsl baseline <path>                      # сохранить baseline
 1c-ai bsl diff <path>                          # только новые ошибки
+
+# Проверка стандартов 1С
+1c-ai standards <path>                         # проверить .bsl файл/директорию
+1c-ai standards <path> --format json           # JSON вывод для CI
+1c-ai standards <path> --severity error        # только errors
 
 # Проверка
 1c-ai validate                                 # проверить пути

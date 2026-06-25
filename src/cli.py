@@ -2,14 +2,16 @@
 Единый CLI для всех команд проекта.
 
 Usage:
-    python3 -m src.cli config list
-    python3 -m src.cli config add --name ut11 --zip ut11.zip --title "УТ 11"
-    python3 -m src.cli config build --name ut11
-    python3 -m src.cli config build-all
-    python3 -m src.cli bsl analyze <path>
-    python3 -m src.cli bsl baseline <path>
-    python3 -m src.cli bsl diff <path>
-    python3 -m src.cli validate
+    1c-ai config list
+    1c-ai config add --name ut11 --zip ut11.zip --title "УТ 11"
+    1c-ai config build --name ut11
+    1c-ai config build-all
+    1c-ai bsl analyze <path>
+    1c-ai bsl baseline <path>
+    1c-ai bsl diff <path>
+    1c-ai validate
+    1c-ai search "найти по коду"
+    1c-ai standards <path>            # проверка .bsl на стандарты 1С
 """
 from __future__ import annotations
 
@@ -108,6 +110,43 @@ def cmd_search(project: Project, args):
         print()
 
 
+def cmd_standards(project: Project, args):
+    """Проверка .bsl файлов на соответствие стандартам разработки 1С."""
+    import importlib.util
+    from pathlib import Path
+
+    # Загружаем скрипт как модуль
+    script_path = project.paths.scripts_dir / "check_1c_standards.py"
+    if not script_path.exists():
+        script_path = project.paths.root / "setup" / "scripts" / "check_1c_standards.py"
+    if not script_path.exists():
+        print("❌ Скрипт check_1c_standards.py не найден")
+        sys.exit(1)
+
+    spec = importlib.util.spec_from_file_location("check_1c_standards", script_path)
+    mod = importlib.util.module_from_spec(spec)
+    # Регистрируем в sys.modules — нужно для @dataclass
+    sys.modules["check_1c_standards"] = mod
+    spec.loader.exec_module(mod)
+
+    target = Path(args.path)
+    if not target.is_absolute():
+        target = project.paths.root / target
+
+    checker = mod.StandardsChecker()
+    violations = checker.check_path(target)
+
+    # Фильтр по severity
+    if args.severity == "error":
+        violations = [v for v in violations if v.severity == "error"]
+
+    output = mod.format_violations(violations, args.format)
+    print(output)
+
+    has_errors = any(v.severity == "error" for v in violations)
+    sys.exit(1 if has_errors else 0)
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="src.cli",
@@ -153,6 +192,14 @@ def main():
     p_search.add_argument("query", help="Поисковый запрос")
     p_search.add_argument("--limit", type=int, default=10, help="Кол-во результатов")
 
+    # standards
+    p_std = sub.add_parser("standards", help="Проверка .bsl на стандарты 1С")
+    p_std.add_argument("path", help="Путь к .bsl файлу или директории")
+    p_std.add_argument("--format", choices=["text", "json"], default="text",
+                       help="Формат вывода")
+    p_std.add_argument("--severity", choices=["error", "all"], default="all",
+                       help="Минимальный уровень severity")
+
     args = parser.parse_args()
     project = Project()
 
@@ -176,6 +223,8 @@ def main():
         cmd_validate(project, args)
     elif args.command == "search":
         cmd_search(project, args)
+    elif args.command == "standards":
+        cmd_standards(project, args)
 
 
 if __name__ == "__main__":

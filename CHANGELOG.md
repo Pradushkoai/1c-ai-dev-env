@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.6.0] — 2026-06-25
+
+### Проверка стандартов разработки 1С
+
+**Новый скрипт `scripts/check_1c_standards.py`:**
+- 10 правил, основанных на официальных стандартах ITS (454, 455, 456) и `ai_rules_1c/anti-patterns.md`:
+  - `no-non-breaking-space` (error) — неразрывные пробелы U+00A0, U+2007, U+2009 (STD 456:1.2)
+  - `no-wrong-dash` (error) — em/en-dash вместо дефиса (STD 456:1.2)
+  - `no-yo-in-code` (warning) — буква «ё» в коде, кроме строковых литералов (STD 456:1.1)
+  - `no-commented-code` (warning) — закомментированные BSL-конструкции (STD 456:3)
+  - `todo-with-task` (warning) — TODO/FIXME без номера задачи «№ N» (STD 456:3)
+  - `no-author-marks` (warning) — авторские пометки `// Фамилия:` (STD 456:3)
+  - `no-hungarian-notation` (warning) — префиксы типа `м`, `стр`, `цел` (STD 454:2)
+  - `no-short-variables` (warning) — имена переменных < 2 символов (STD 454:4)
+  - `no-underscore-vars` (error) — имена, начинающиеся с `_` (STD 454:3)
+  - `line-too-long` (warning) — строки > 120 символов (STD 456)
+- Покрывает правила, которые BSL LS не проверяет или проверяет слабо
+- Поддержка UTF-8 и windows-1251 кодировок (часто в 1С)
+- Вывод: text (как ESLint) или JSON (для CI)
+- Exit code: 1 если есть errors, 0 если только warnings или чисто
+
+**CLI интеграция:**
+- Новая команда: `1c-ai standards <path>` (или `python3 -m src.cli standards <path>`)
+- Опции: `--format text|json`, `--severity error|all`
+
+**Тесты:**
+- `test_check_standards.py` — 29 тестов: каждое правило (positive + negative case), интеграционные тесты на директорию, JSON/text формат, cp1251 кодировка
+- Итого: **95 тестов** (было 66), проходят за 0.53 сек
+
 ## [2.5.0] — 2026-06-25
 
 ### Тесты для парсера метаданных + интеграционные тесты

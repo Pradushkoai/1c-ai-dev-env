@@ -64,10 +64,11 @@ python3 -m pytest tests/ --cov=src --cov-report=term-missing
 | `test_hbk_extractor_full.py` | parse_hbk_file на синтетическом .hbk, extract_file_data (deflate/store) |
 | `test_build_api_reference.py` | Парсинг .bsl (Процедура/Функция Экспорт), parse_comment_block, parse_module_xml |
 | `test_build_config_index.py` | Парсинг Configuration.xml/ConfigDumpInfo.xml, генерация индекса метаданных |
+| `test_check_standards.py` | 10 правил стандартов 1С (em-dash, ё, Hungarian, commented code и т.д.) |
 | `test_integration.py` | Полный flow: add_from_zip → build → analyze на синтетической конфигурации |
 | `test_hbk_extractor.py` | Базовая проверка PK-сигнатуры |
 
-**Итого: 66 тестов**, проходят за <0.5 сек. Все парсеры проекта (`hbk_extractor`, `build_api_reference`, `build_config_index_generic`) покрыты тестами с синтетическими данными.
+**Итого: 95 тестов**, проходят за <1 сек. Все парсеры проекта и проверка стандартов покрыты тестами с синтетическими данными.
 
 ### Добавление новых тестов
 
