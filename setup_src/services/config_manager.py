@@ -3,6 +3,7 @@
 """
 from __future__ import annotations
 
+import logging
 import os
 import re
 import shutil
@@ -14,6 +15,8 @@ from pathlib import Path
 from ..models.configuration import Configuration
 from ..models.config_registry import ConfigurationRegistry
 from .path_manager import PathManager
+
+logger = logging.getLogger(__name__)
 
 
 class ConfigManager:
@@ -183,7 +186,11 @@ class ConfigManager:
                 elif tag == "Vendor":
                     vendor = child.text or ""
             return (version, vendor)
-        except (ET.ParseError, Exception):
+        except ET.ParseError as e:
+            logger.warning("Не удалось распарсить %s: %s", xml_path, e)
+            return ("unknown", "")
+        except (OSError, PermissionError) as e:
+            logger.warning("Нет доступа к %s: %s", xml_path, e)
             return ("unknown", "")
 
     @staticmethod

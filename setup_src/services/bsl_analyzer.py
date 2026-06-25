@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -89,6 +90,11 @@ class BSLAnalyzer:
 
     def _run_analysis(self, source: Path, output_dir: Path) -> AnalysisResult:
         """Внутренний метод — запуск BSL LS."""
+        # Очищаем output_dir от старых отчётов (защита от устаревшего bsl-json.json,
+        # если новый запуск BSL LS упадёт и не создаст файл)
+        shutil.rmtree(output_dir, ignore_errors=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
         cmd = [
             str(self._binary),
             "-c", str(self._config),

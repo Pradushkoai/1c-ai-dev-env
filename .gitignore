@@ -13,7 +13,9 @@ learned-skills/
 *.tmp
 *.bak
 __pycache__/
+**/__pycache__/
 *.pyc
+*.pyo
 # Системные
 .env
 upload/

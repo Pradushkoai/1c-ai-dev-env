@@ -234,16 +234,22 @@ def parse_comment_block(comment_block):
             current_param = None
             continue
         elif lower.startswith('возвращаемое значение:'):
+            # Сохраняем последний параметр перед сменой секции
+            if current_param:
+                result['params'].append(current_param)
+                current_param = None
             in_params = False
             in_returns = True
             in_example = False
-            current_param = None
             continue
         elif lower.startswith('пример:') or lower.startswith('пример'):
+            # Сохраняем последний параметр перед сменой секции
+            if current_param:
+                result['params'].append(current_param)
+                current_param = None
             in_params = False
             in_returns = False
             in_example = True
-            current_param = None
             continue
         
         if in_params:

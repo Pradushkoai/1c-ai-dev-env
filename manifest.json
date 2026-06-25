@@ -9,6 +9,9 @@
   },
   "python_dependencies": [
     "v8unpack>=1.2.6",
+    "python-dotenv>=1.0.0"
+  ],
+  "python_dependencies_optional": [
     "fastembed>=0.8.0",
     "qdrant-client>=1.0.0"
   ],
@@ -155,6 +158,6 @@
   "forks": {
     "user": "Pradushkoai",
     "forked_at": "2026-06-24",
-    "count": 16
+    "count": 15
   }
 }

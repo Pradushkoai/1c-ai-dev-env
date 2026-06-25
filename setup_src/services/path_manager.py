@@ -16,11 +16,16 @@ class PathManager:
         self._load_env()
 
     def _detect_root(self) -> Path:
-        # Пробуем найти paths.env
-        for candidate in [Path.cwd(), Path.cwd().parent, Path("/home/z/my-project")]:
+        """
+        Поиск корня проекта: ищем paths.env вверх по дереву каталогов
+        (как git ищет .git). Если не найден — используем CWD.
+        """
+        cwd = Path.cwd()
+        for candidate in [cwd, *cwd.parents]:
             if (candidate / "runtime" / "paths.env").exists() or (candidate / "paths.env").exists():
                 return candidate
-        return Path("/home/z/my-project")
+        # Fallback: CWD (позволяет пользователю явно указывать рабочую директорию)
+        return cwd
 
     def _load_env(self) -> None:
         env_file = self._root / "runtime" / "paths.env"

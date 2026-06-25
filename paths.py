@@ -34,13 +34,12 @@ if not ENV_FILE.exists():
 if ENV_FILE.exists():
     load_dotenv(ENV_FILE)
 else:
-    for candidate in [
-        Path('/home/z/my-project/runtime/paths.env'),
-        Path('/home/z/my-project/paths.env'),
-        Path.cwd() / 'runtime' / 'paths.env',
-    ]:
-        if candidate.exists():
-            load_dotenv(candidate)
+    # Поиск paths.env вверх по дереву каталогов (как git ищет .git)
+    _cwd = Path.cwd()
+    for _candidate in [_cwd, *_cwd.parents]:
+        _env_candidate = _candidate / 'runtime' / 'paths.env'
+        if _env_candidate.exists():
+            load_dotenv(_env_candidate)
             break
 
 
@@ -68,9 +67,6 @@ class Paths:
     configs_dir: str = _get('CONFIGS_DIR', f'{data_dir}/configs')
     archives_dir: str = _get('ARCHIVES_DIR', f'{data_dir}/archives')
     hbk_dir: str = _get('HBK_DIR', f'{data_dir}/hbk')
-
-    config_ut11: str = _get('CONFIG_UT11', f'{configs_dir}/ut11')
-    config_priemka: str = _get('CONFIG_PRIEMKA', f'{configs_dir}/priemka')
 
     # === СЛОЙ 2: derived/ — ПРОИЗВОДНЫЕ ===
     derived_dir: str = _get('DERIVED_DIR', f'{project_root}/derived')
@@ -127,9 +123,8 @@ class Paths:
             path = cfg.get('path')
             if path:
                 return os.path.join(cls.project_root, path) if not os.path.isabs(path) else path
-        # Fallback
-        mapping = {'ut11': cls.config_ut11, 'priemka': cls.config_priemka}
-        return mapping.get(name.lower(), '')
+        # Fallback: <configs_dir>/<name>
+        return os.path.join(cls.configs_dir, name)
 
     @classmethod
     def get_derived_config_dir(cls, name):

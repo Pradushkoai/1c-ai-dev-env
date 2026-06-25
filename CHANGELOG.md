@@ -1,5 +1,48 @@
 # Changelog
 
+## [2.3.0] — 2026-06-25
+
+### Изменения (раунд 2, v5 отзыв)
+
+**Тесты для парсеров (A4):**
+- `test_hbk_extractor_full.py` — 7 тестов: `parse_hbk_file` на синтетическом .hbk (1 и 3 файла), `extract_file_data` (deflate/store/invalid), `safe_filename`
+- `test_build_api_reference.py` — 10 тестов: `parse_module_bsl` (Функция Экспорт, Процедура Экспорт, skip non-export, multiple methods, empty, nonexistent), `parse_comment_block` (структура, пустой), `parse_module_xml` (валидный + невалидный)
+- **Тесты нашли реальный баг**: `parse_comment_block` терял последний параметр при переходе в секцию "Возвращаемое значение:" — `current_param` сбрасывался без сохранения. Исправлено.
+- Итого теперь **50 тестов** (было 33), все проходят за 0.28 сек
+
+**Документация (D3):**
+- `CONTRIBUTING.md` полностью переписан: добавлена секция «Запуск тестов», «Добавление новых тестов» (с примером mock), таблица покрытия, описание CI
+- Явно указано: использовать `PathManager`, а не `paths.py` (deprecated)
+
+**Портативность (A5):**
+- `Project()` теперь корректно работает из любой поддиректории — поиск `paths.env` вверх по дереву (фикс из раунда 1)
+- Проверено: `Project()` запущенный из `<root>/subdir/deep/` находит `<root>`
+
+## [2.2.0] — 2026-06-25
+
+### Изменения (раунд 1, v5 отзыв)
+
+**Портативность (без хардкода):**
+- `PathManager._detect_root()` — поиск `paths.env` вверх по дереву каталогов (как git ищет `.git`), fallback на `Path.cwd()` вместо хардкода `/home/z/my-project`
+- `paths.py` — аналогичный поиск вверх вместо хардкода в fallback-логике
+
+**Очистка мёртвого кода:**
+- `paths.py`: удалены `config_ut11`, `config_priemka` (legacy-маппинг конкретных конфигов)
+- `paths.Paths.get_config_path()`: fallback упрощён — возвращает `<configs_dir>/<name>` вместо хардкод-маппинга
+- Удалён `setup_src/test_configuration.py` — дубликат `tests/test_configuration.py`, засорял продакшен-пакет после `install.sh`
+
+**Точность обработки ошибок:**
+- `ConfigManager._read_config_props()`: `except (ET.ParseError, Exception)` → `except ET.ParseError` + `except (OSError, PermissionError)` с логированием через `logging.warning`
+- `BSLAnalyzer._run_analysis()`: `output_dir` очищается через `shutil.rmtree(..., ignore_errors=True)` перед запуском BSL LS — защита от устаревшего `bsl-json.json`, если новый запуск упадёт
+
+**Корректность метаданных:**
+- `manifest.json`: `python_dependencies` теперь содержит только обязательные (`v8unpack`, `python-dotenv`); `fastembed`, `qdrant-client` вынесены в `python_dependencies_optional`
+- `manifest.json`: `forks.count` исправлен с 16 на 15 (фактическое число git-репозиториев)
+- Унифицирована формулировка «15 git + BSL LS» в `install.sh`, `ARCHITECTURE.md`, `CHANGELOG.md`
+
+**.gitignore усилен:**
+- Добавлены `**/__pycache__/` и `*.pyo` для предотвращения случайного коммита артефактов
+
 ## [2.1.0] — 2026-06-25
 
 ### Изменения (раунд 1 рефакторинга)
@@ -76,7 +119,7 @@
 - ARCHITECTURE.md
 
 **Форки:**
-- Все 16 репозиториев форкнуты на github.com/Pradushkoai/*
+- Все 15 репозиториев форкнуты на github.com/Pradushkoai/*
 - manifest.json обновлён — URL указывают на форки
 
 ## [1.0.0] — 2026-06-23
