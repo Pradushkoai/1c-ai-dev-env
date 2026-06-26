@@ -35,7 +35,11 @@ def cmd_config_list(project: Project, args):
 
 
 def cmd_config_add(project: Project, args):
-    config = project.config_manager.add_from_zip(args.name, Path(args.zip), args.title)
+    """Добавить конфигурацию из ZIP или .cf файла."""
+    if args.cf:
+        config = project.config_manager.add_from_cf(args.name, Path(args.cf), args.title)
+    else:
+        config = project.config_manager.add_from_zip(args.name, Path(args.zip), args.title)
     print(f"✅ Добавлена: {config.name} v{config.version} ({config.objects_count} объектов)")
     if not args.skip_build:
         print("Индексация...")
@@ -162,7 +166,8 @@ def main():
 
     p_add = cfg_sub.add_parser("add", help="Добавить из ZIP")
     p_add.add_argument("--name", required=True)
-    p_add.add_argument("--zip", required=True)
+    p_add.add_argument("--zip", help="ZIP выгрузка конфигурации")
+    p_add.add_argument("--cf", help=".cf/.cfe/.epf файл конфигурации")
     p_add.add_argument("--title", default="")
     p_add.add_argument("--skip-build", action="store_true")
 

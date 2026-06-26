@@ -61,6 +61,44 @@ class ConfigManager:
         self._registry.add(config)
         return config
 
+    def add_from_cf(self, name: str, cf_path: Path, title: str = "") -> Configuration:
+        """
+        Распаковать .cf/.cfe/.epf файл и зарегистрировать конфигурацию.
+
+        Использует scripts/cf_extractor.py — наш собственный парсер
+        формата контейнера 1С (без зависимости от внешнего v8unpack).
+        """
+        if name in self._registry:
+            raise ValueError(f"Конфигурация '{name}' уже существует")
+        if not cf_path.exists():
+            raise FileNotFoundError(f".cf файл не найден: {cf_path}")
+
+        # Импортируем cf_extractor из scripts/
+        import importlib.util
+        script_path = self._paths.scripts_dir / "cf_extractor.py"
+        if not script_path.exists():
+            script_path = self._paths.root / "setup" / "scripts" / "cf_extractor.py"
+        if not script_path.exists():
+            raise FileNotFoundError("scripts/cf_extractor.py не найден")
+
+        spec = importlib.util.spec_from_file_location("cf_extractor", script_path)
+        cf_mod = importlib.util.module_from_spec(spec)
+        import sys
+        sys.modules["cf_extractor"] = cf_mod
+        spec.loader.exec_module(cf_mod)
+
+        config_dir = self._paths.config_path(name)
+        config_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            cf_mod.extract_cf(cf_path, config_dir)
+        except Exception as e:
+            shutil.rmtree(config_dir, ignore_errors=True)
+            raise ValueError(f"Ошибка распаковки .cf: {e}") from e
+
+        config = self._create_config(name, title or name, config_dir)
+        self._registry.add(config)
+        return config
+
     # --- Архивация ---
 
     def archive(self, name: str) -> None:
