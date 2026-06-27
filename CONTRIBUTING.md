@@ -85,6 +85,20 @@ python3 -m pytest tests/ --cov=src --cov-report=term-missing
 
 ## Стандарты кода
 
+### Версионирование (SemVer)
+
+Проект следует [Semantic Versioning](https://semver.org/):
+
+- **MAJOR** (3.0.0) — breaking changes (удаление API, несовместимые изменения)
+- **MINOR** (3.1.0) — новые функции (backward compatible)
+- **PATCH** (3.1.1) — исправления багов (backward compatible)
+
+Правила:
+- Новые правила проверок → MINOR (3.x.0)
+- Новые скрипты → MINOR (3.x.0)
+- Исправления багов → PATCH (3.x.y)
+- Breaking changes → MAJOR (x.0.0) — **редко**
+
 ### Python скрипты
 - Python 3.10+
 - **Используй `PathManager`** из `src.services.path_manager` — НЕ `paths.py` (он deprecated)

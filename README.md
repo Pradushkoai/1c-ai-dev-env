@@ -82,11 +82,11 @@ pytest>=7.0
 ## Тесты
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-33 теста покрывают PathManager, ConfigManager (с моком subprocess), BSLAnalyzer (с моком subprocess), search (TF-IDF), Configuration model. Тесты не требуют Java/BSL LS — внешние вызовы замокированы через `unittest.mock`.
+188 тестов покрывают: PathManager, ConfigManager, BSLAnalyzer (с реальным BSL LS), search (TF-IDF), Configuration model, cf_extractor (32+64 бита), v8_metadata_parser, backup_manager, check_1c_standards (42 правила), check_metadata_standards (18 правил). 3 интеграционных теста с реальным BSL LS (`@requires_bsl_ls`) — пропускаются если BSL LS не установлен.
 
 ---
 
@@ -116,11 +116,23 @@ python3 -m pytest tests/ -v
 1c-ai bsl diff <path>                          # только новые ошибки
 
 # Проверка стандартов 1С
-1c-ai standards <path>                         # проверить .bsl файл/директорию
+1c-ai standards <path>                         # 42 правила (стилистика, антипаттерны)
 1c-ai standards <path> --format json           # JSON вывод для CI
 1c-ai standards <path> --severity error        # только errors
 
-# Проверка
+# Проверка метаданных конфигурации
+python3 scripts/check_metadata_standards.py data/configs/ut11  # 18 правил XML
+
+# Решение задач (автоматический цикл)
+1c-ai solve context "создать справочник" --config ut11  # собрать контекст для LLM
+1c-ai solve check scripts/module.bsl                    # проверить код (247 проверок)
+
+# Backup/restore
+1c-ai backup create -o backup.zip              # создать backup (data/ + runtime/)
+1c-ai backup restore backup.zip                # восстановить из backup
+1c-ai backup list                              # список backup'ов
+
+# Проверка окружения
 1c-ai validate                                 # проверить пути
 ```
 
