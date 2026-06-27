@@ -151,6 +151,53 @@ def cmd_standards(project: Project, args):
     sys.exit(1 if has_errors else 0)
 
 
+def cmd_backup(project: Project, args):
+    """Управление backup/restore данных проекта."""
+    from .services.backup_manager import BackupManager
+    from pathlib import Path
+
+    bm = BackupManager(project.paths)
+
+    if args.backup_command == 'create':
+        output = Path(args.output) if args.output else Path('download/backup.zip')
+        if not output.is_absolute():
+            output = project.paths.root / output
+        output.parent.mkdir(parents=True, exist_ok=True)
+
+        print(f"Создание backup: {output}")
+        result = bm.create_backup(output, include_derived=args.include_derived)
+        size_mb = result.stat().st_size / 1024 / 1024
+        print(f"✅ Backup создан: {result}")
+        print(f"   Размер: {size_mb:.1f} МБ")
+        print(f"   Скачать: {result}")
+
+    elif args.backup_command == 'restore':
+        backup_path = Path(args.path)
+        if not backup_path.is_absolute():
+            backup_path = project.paths.root / backup_path
+
+        print(f"Восстановление из: {backup_path}")
+        stats = bm.restore_backup(backup_path)
+        print(f"✅ Восстановлено файлов: {stats['files_restored']}")
+        print(f"   Директорий: {', '.join(stats['dirs_restored'])}")
+        print(f"   Размер: {stats['size_bytes'] / 1024 / 1024:.1f} МБ")
+
+    elif args.backup_command == 'list':
+        backup_dir = Path(args.dir) if args.dir else Path('download')
+        if not backup_dir.is_absolute():
+            backup_dir = project.paths.root / backup_dir
+
+        backups = bm.list_backups(backup_dir)
+        if not backups:
+            print("Нет доступных backup'ов")
+            return
+
+        print(f"{'Имя':<30} {'Размер':<10} {'Файлов':<10} {'Создан'}")
+        print("-" * 80)
+        for b in backups:
+            print(f"{b['name']:<30} {b['size_mb']:>6.1f} МБ {b['files']:>8}    {b['created_at'][:19]}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="src.cli",
@@ -205,6 +252,21 @@ def main():
     p_std.add_argument("--severity", choices=["error", "all"], default="all",
                        help="Минимальный уровень severity")
 
+    # backup
+    p_backup = sub.add_parser("backup", help="Backup/restore данных проекта")
+    backup_sub = p_backup.add_subparsers(dest="backup_command", required=True)
+
+    p_b_create = backup_sub.add_parser("create", help="Создать backup")
+    p_b_create.add_argument("--output", "-o", help="Путь к ZIP файлу")
+    p_b_create.add_argument("--include-derived", action="store_true",
+                            help="Включить индексы derived/ (можно перестроить)")
+
+    p_b_restore = backup_sub.add_parser("restore", help="Восстановить из backup")
+    p_b_restore.add_argument("path", help="Путь к ZIP файлу")
+
+    p_b_list = backup_sub.add_parser("list", help="Список backup'ов")
+    p_b_list.add_argument("--dir", help="Папка с backup'ами")
+
     args = parser.parse_args()
     project = Project()
 
@@ -230,6 +292,8 @@ def main():
         cmd_search(project, args)
     elif args.command == "standards":
         cmd_standards(project, args)
+    elif args.command == "backup":
+        cmd_backup(project, args)
 
 
 if __name__ == "__main__":

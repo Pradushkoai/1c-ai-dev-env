@@ -67,6 +67,8 @@ class ConfigManager:
 
         Использует scripts/cf_extractor.py — наш собственный парсер
         формата контейнера 1С (без зависимости от внешнего v8unpack).
+        После распаковки конвертирует структуру v8unpack в формат,
+        совместимый с build_api_reference (через cf_to_xml_adapter).
         """
         if name in self._registry:
             raise ValueError(f"Конфигурация '{name}' уже существует")
@@ -75,22 +77,49 @@ class ConfigManager:
 
         # Импортируем cf_extractor из scripts/
         import importlib.util
-        script_path = self._paths.scripts_dir / "cf_extractor.py"
-        if not script_path.exists():
-            script_path = self._paths.root / "setup" / "scripts" / "cf_extractor.py"
-        if not script_path.exists():
+        import sys
+
+        scripts_dir = self._paths.scripts_dir
+        if not (scripts_dir / "cf_extractor.py").exists():
+            scripts_dir = self._paths.root / "setup" / "scripts"
+        if not (scripts_dir / "cf_extractor.py").exists():
             raise FileNotFoundError("scripts/cf_extractor.py не найден")
 
-        spec = importlib.util.spec_from_file_location("cf_extractor", script_path)
+        # Загружаем cf_extractor
+        spec = importlib.util.spec_from_file_location("cf_extractor", scripts_dir / "cf_extractor.py")
         cf_mod = importlib.util.module_from_spec(spec)
-        import sys
         sys.modules["cf_extractor"] = cf_mod
         spec.loader.exec_module(cf_mod)
 
+        # Загружаем cf_to_xml_adapter
+        adapter_path = scripts_dir / "cf_to_xml_adapter.py"
+        if adapter_path.exists():
+            spec2 = importlib.util.spec_from_file_location("cf_to_xml_adapter", adapter_path)
+            adapter_mod = importlib.util.module_from_spec(spec2)
+            sys.modules["cf_to_xml_adapter"] = adapter_mod
+            spec2.loader.exec_module(adapter_mod)
+        else:
+            adapter_mod = None
+
         config_dir = self._paths.config_path(name)
         config_dir.mkdir(parents=True, exist_ok=True)
+
+        # Создаём временную папку для распаковки
+        raw_dir = config_dir / '_cf_raw'
+        raw_dir.mkdir(parents=True, exist_ok=True)
+
         try:
-            cf_mod.extract_cf(cf_path, config_dir)
+            # Шаг 1: Распаковка .cf
+            cf_mod.extract_cf(cf_path, raw_dir)
+
+            # Шаг 2: Конвертация в формат build_api_reference
+            if adapter_mod:
+                # Конвертируем CommonModules в CommonModules/ папку
+                adapter_mod.convert_cf_to_xml_format(raw_dir, config_dir)
+
+            # Удаляем временную папку (экономим место)
+            shutil.rmtree(raw_dir, ignore_errors=True)
+
         except Exception as e:
             shutil.rmtree(config_dir, ignore_errors=True)
             raise ValueError(f"Ошибка распаковки .cf: {e}") from e
