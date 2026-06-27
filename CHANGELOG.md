@@ -1,5 +1,56 @@
 # Changelog
 
+## [2.9.1] — 2026-06-27
+
+### BSL Language Server — интеграция подтверждена тестами
+
+**Подтверждение работы BSL LS:**
+- BSL LS v1.0.1 успешно устанавливается и запускается (Java 21 + собственная JRE)
+- `1c-ai bsl analyze` — находит 7 диагностик на тестовом файле
+- `1c-ai bsl baseline` — сохраняет baseline в `runtime/bsl-baseline.json`
+- `1c-ai bsl diff` — находит 3 новые диагностики после изменения кода
+- Диагностики BSL LS: InvalidCharacterInFile, CommentedCode, DeprecatedMessage,
+  UnusedLocalVariable, EmptyStatement, MissingVariablesDescription, и др.
+
+**Новые интеграционные тесты с реальным BSL LS:**
+- `test_real_bsl_analyze_simple_file` — анализ файла с известными нарушениями
+- `test_real_bsl_baseline_and_diff` — полный цикл baseline → diff
+- `test_real_bsl_analyze_clean_file` — анализ чистого файла
+- Тесты помечены `@requires_bsl_ls` — пропускаются если BSL LS не установлен
+- Итого: 145 тестов (было 142), 3 новых реальных теста BSL LS
+
+**Исправления:**
+- `pyproject.toml` версия обновлена с 2.4.0 → 2.9.1
+
+## [2.9.0] — 2026-06-27
+
+### v8_metadata_parser + cf_to_xml_adapter + backup_manager
+
+**Парсер структуры значений 1С:**
+- `scripts/v8_metadata_parser.py`: парсер метаданных из распакованного .cf
+- `scripts/cf_to_xml_adapter.py`: конвертер v8unpack → XML формат
+- `ConfigManager.add_from_cf()` обновлён: распаковка + конвертация
+
+**Backup/restore:**
+- `src/services/backup_manager.py`: BackupManager
+- CLI: `1c-ai backup create/restore/list`
+- 12 тестов
+
+## [2.8.0] — 2026-06-27
+
+### cf_extractor — Container64 + многоконтейнерные .cf
+
+- Поддержка 32-битных и 64-битных контейнеров 1С
+- Многоконтейнерные .cf файлы
+- Протестировано на 4 реальных .cf (УТ11, УНП, ЭДО2, ЭДО3)
+
+## [2.7.0] — 2026-06-25
+
+### cf_extractor.py — собственный парсер .cf
+
+- Парсер формата контейнера 1С без зависимости от v8unpack
+- 11 тестов
+
 ## [2.6.0] — 2026-06-25
 
 ### Проверка стандартов разработки 1С

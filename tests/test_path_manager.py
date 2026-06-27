@@ -74,6 +74,8 @@ def test_path_manager_env_substitution(tmp_path, monkeypatch):
     env_file = runtime_dir / "paths.env"
     env_file.write_text('BSL_LS_BINARY=${HOME}/.local/bin/bsl-language-server\n', encoding='utf-8')
 
+    # Очищаем BSL_LS_BINARY из окружения чтобы избежать конфликта с реальным paths.env
+    monkeypatch.delenv("BSL_LS_BINARY", raising=False)
     monkeypatch.setenv("HOME", "/tmp/testhome")
     pm = PathManager(project_root=tmp_path)
     assert str(pm.bsl_ls_binary) == "/tmp/testhome/.local/bin/bsl-language-server"

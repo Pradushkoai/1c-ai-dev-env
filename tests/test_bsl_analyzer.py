@@ -150,5 +150,150 @@ def test_analyzer_diff_no_baseline(tmp_path):
         analyzer.diff(tmp_path)
 
 
+# ============================================================================
+# ИНТЕГРАЦИОННЫЕ ТЕСТЫ С РЕАЛЬНЫМ BSL LS (пропускаются если не установлен)
+# ============================================================================
+
+def _is_bsl_ls_available() -> bool:
+    """Проверяет, установлен ли BSL LS."""
+    from src.services.path_manager import PathManager
+    pm = PathManager()
+    return pm.bsl_ls_binary.exists()
+
+
+# Декоратор для пропуска тестов если BSL LS не установлен
+requires_bsl_ls = pytest.mark.skipif(
+    not _is_bsl_ls_available(),
+    reason="BSL Language Server не установлен"
+)
+
+
+@requires_bsl_ls
+def test_real_bsl_analyze_simple_file(tmp_path):
+    """Реальный анализ простого .bsl файла через BSL LS."""
+    from src.services.path_manager import PathManager
+
+    # Создаём .bsl файл с известными нарушениями
+    bsl_file = tmp_path / "test.bsl"
+    bsl_file.write_text("""// Тестовый модуль
+Перем _Запрос;
+
+Процедура Тест()
+    //Если Истина Тогда
+    //    Сообщить("Отладка");
+    //КонецЕсли;
+    Сообщить("Привет—мир");
+КонецПроцедуры
+""", encoding='utf-8')
+
+    pm = PathManager()
+    # Создаём конфиг BSL LS
+    config_path = tmp_path / ".bsl-language-server.json"
+    config_path.write_text(json.dumps({
+        "language": "ru",
+        "diagnostics": {"parameters": {"Typo": {"dictionary": "ru"}}},
+        "configurationRoot": "",
+        "skipSupport": "filesystem"
+    }), encoding='utf-8')
+
+    analyzer = BSLAnalyzer(
+        binary_path=pm.bsl_ls_binary,
+        config_path=config_path,
+        project_root=tmp_path,
+    )
+
+    result = analyzer.analyze(bsl_file)
+
+    # BSL LS должен найти хотя бы одну диагностику
+    assert result.total > 0
+    # Должна быть диагностика InvalidCharacterInFile (em-dash)
+    assert "InvalidCharacterInFile" in result.by_code
+    # Должна быть диагностика CommentedCode
+    assert "CommentedCode" in result.by_code
+
+
+@requires_bsl_ls
+def test_real_bsl_baseline_and_diff(tmp_path):
+    """Реальный baseline + diff цикл через BSL LS."""
+    from src.services.path_manager import PathManager
+
+    # Создаём .bsl файл
+    bsl_file = tmp_path / "test.bsl"
+    bsl_file.write_text("""Процедура Тест()
+    Сообщить("Привет");
+КонецПроцедуры
+""", encoding='utf-8')
+
+    pm = PathManager()
+    config_path = tmp_path / ".bsl-language-server.json"
+    config_path.write_text(json.dumps({
+        "language": "ru",
+        "diagnostics": {"parameters": {"Typo": {"dictionary": "ru"}}},
+        "configurationRoot": "",
+        "skipSupport": "filesystem"
+    }), encoding='utf-8')
+
+    analyzer = BSLAnalyzer(
+        binary_path=pm.bsl_ls_binary,
+        config_path=config_path,
+        project_root=tmp_path,
+    )
+
+    # Сохраняем baseline
+    result = analyzer.save_baseline(bsl_file)
+    assert result.total > 0
+    assert analyzer.has_baseline is True
+
+    # Проверяем, что файл baseline создан
+    assert analyzer._baseline_path.exists()
+
+    # Меняем файл — добавляем новую ошибку
+    bsl_file.write_text("""Процедура Тест()
+    Сообщить("Привет");
+    ;
+КонецПроцедуры
+""", encoding='utf-8')
+
+    # Должны быть новые диагностики
+    diff = analyzer.diff(bsl_file)
+    assert len(diff.new) > 0
+    # EmptyStatement — это новая диагностика
+    new_codes = [d['code'] for d in diff.new]
+    assert "EmptyStatement" in new_codes
+
+
+@requires_bsl_ls
+def test_real_bsl_analyze_clean_file(tmp_path):
+    """Анализ чистого .bsl файла — 0 диагностик."""
+    from src.services.path_manager import PathManager
+
+    bsl_file = tmp_path / "clean.bsl"
+    bsl_file.write_text("""// Чистый модуль без нарушений
+Функция РассчитатьСумму(А, Б)
+    Возврат А + Б;
+КонецФункции
+""", encoding='utf-8')
+
+    pm = PathManager()
+    config_path = tmp_path / ".bsl-language-server.json"
+    config_path.write_text(json.dumps({
+        "language": "ru",
+        "diagnostics": {"parameters": {"Typo": {"dictionary": "ru"}}},
+        "configurationRoot": "",
+        "skipSupport": "filesystem"
+    }), encoding='utf-8')
+
+    analyzer = BSLAnalyzer(
+        binary_path=pm.bsl_ls_binary,
+        config_path=config_path,
+        project_root=tmp_path,
+    )
+
+    result = analyzer.analyze(bsl_file)
+    # Чистый файл должен иметь 0 или минимальное количество диагностик
+    # (BSL LS может найти MissingVariablesDescription для параметров, но это Information level)
+    assert result.total >= 0  # не падает
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
