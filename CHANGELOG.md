@@ -1,5 +1,36 @@
 # Changelog
 
+## [3.4.0] — 2026-06-27
+
+### 13 правил из 1c-standards-claude-skill (всего 42 в check_1c_standards)
+
+**Новые правила на основе SKILL.md из tools/repos/1c-standards-claude-skill:**
+
+Клиент-серверное взаимодействие (STD 12):
+- no-transaction-in-nacliente (error): НачатьТранзакцию в &НаКлиенте
+- no-db-in-nacliente (error): обращение к БД в &НаКлиенте
+- no-server-call-in-loop (warning): серверные вызовы в цикле
+- no-opovestit-on-server (warning): ОповеститьОбИзменении на сервере
+
+Структура модуля (STD 455):
+- procedures-outside-regions (warning): процедуры вне #Область
+- export-in-wrong-region (warning): экспортные процедуры не в ПрограммныйИнтерфейс
+- no-doc-comment (warning): экспортные процедуры без документации
+
+Безопасность (STD 13):
+- no-privileged-mode-without-reason (warning): ПривилегированныйРежим без обоснования
+- check-pravo-dostupa-before-write (warning): запись без проверки ПравоДоступа
+- no-com-object-bypass (error): COMОбъект/ADODB — обход прав 1С
+
+Запросы (STD 03):
+- no-query-concat (warning): конкатенация строк вместо Запрос.УстановитьПараметр
+- query-keywords-lowercase (warning): ключевые слова запроса не КАПСОМ
+
+Именование:
+- no-bool-negative-names (warning): булевы переменные с отрицанием (НеПроверен)
+
+**Итого проверок: 247** (187 BSL LS + 42 check_1c_standards + 18 check_metadata_standards)
+
 ## [3.3.0] — 2026-06-27
 
 ### check_metadata_standards.py — проверка метаданных конфигурации
