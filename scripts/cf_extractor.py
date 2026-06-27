@@ -2,25 +2,46 @@
 """
 cf_extractor.py — Распаковщик .cf/.cfe/.epf файлов 1С.
 
-Формат контейнера 1С:
-- 4 байта: сигнатура 0xFF 0xFF 0xFF 0x7F
-- 4 байта: first_empty_block_offset (int32 LE)
-- 4 байта: default_block_size (int32 LE) — обычно 0x200 (512 байт)
-- 4 байта: count_files (int32 LE) — кол-во файлов в TOC
+Формат контейнера 1С (на основе изучения исходников v8unpack и реальных .cf):
 
-Затем — Document с TOC (оглавлением):
-- Заголовок блока (31 байт) + данные
+ЗАГОЛОВОК КОНТЕЙНЕРА (16 байт, 4 int32 LE):
+  - 4 байта: сигнатура 0xFF 0xFF 0xFF 0x7F (= 0x7FFFFFFF = END_MARKER)
+  - 4 байта: first_empty_block_offset
+  - 4 байта: default_block_size (обычно 0x200 = 512)
+  - 4 байта: count_files (часто 0, не используется — реальное кол-во из TOC)
 
-TOC — массив записей по 8 байт (парами int32):
-  - 4 байта: hex-имя файла (как строка ASCII, например "vers", "root")
-  - 4 байта: тип/флаги
-Запись-терминатор: 0x7FFFFFFF
+БЛОК ДАННЫХ (заголовок 31 байт, формат '2s8s1s8s1s8s1s2s'):
+  - 2 байта: \r\n (разделитель)
+  - 8 байт: doc_size в hex (например "0000003c" = 60)
+  - 1 байт: пробел
+  - 8 байт: current_block_size в hex (например "00000200" = 512)
+  - 1 байт: пробел
+  - 8 байт: next_block_offset в hex (например "7fffffff" = END_MARKER)
+  - 1 байт: пробел
+  - 2 байта: \r\n (разделитель)
+После заголовка — данные блока (current_block_size байт).
 
-После TOC: данные файлов (по цепочке блоков).
-Каждый файл может быть:
-- Вложенным контейнером (начинается с 0xFF 0xFF 0xFF 0x7F) — рекурсивно извлекаем
-- Deflate-сжатыми данными (zlib raw, wbits=-15)
-- Сырыми данными (XML, BSL)
+ПЕРВЫЙ ДОКУМЕНТ ПОСЛЕ ЗАГОЛОВКА — TOC (оглавление):
+TOC содержит массив записей по 12 байт (3 int32 LE):
+  - 4 байта: file_description_offset
+  - 4 байта: file_data_offset
+  - 4 байта: END_MARKER (terminator каждой записи)
+Запись-терминатор всего TOC: пара (0, END_MARKER) или аналогично.
+
+FILE_DESCRIPTION (структура):
+  - 8 байт: created (datetime)
+  - 8 байт: modified (datetime)
+  - 4 байта: длина имени файла
+  - N байт: имя файла в UTF-16 LE
+
+FILE_DATA:
+  Цепочка блоков (как документ). Если первый байт данных = 0xFF 0xFF 0xFF 0x7F —
+  это вложенный контейнер (рекурсивно извлекаем). Иначе — raw deflate сжатые данные
+  (zlib raw, wbits=-15) или несжатые данные.
+
+Имена файлов в .cf:
+  - "version", "versions", "root" — служебные
+  - UUID (например "30ffe4cc-eef2-4371-8b26-046597e37e22") — метаданные или контейнеры
 
 Использование:
     python3 cf_extractor.py <file.cf> <output_dir>
@@ -30,158 +51,187 @@ TOC — массив записей по 8 байт (парами int32):
 """
 from __future__ import annotations
 
-import os
 import struct
 import sys
 import zlib
+from collections import OrderedDict
 from pathlib import Path
-from typing import Iterator, Optional
 
 # Сигнатура контейнера 1С
 V8_SIGNATURE = b'\xFF\xFF\xFF\x7F'
-END_MARKER = 0x7FFFFFFF
+END_MARKER = 0x7FFFFFFF  # 2147483647
+
+# Размеры
+HEADER_SIZE = 16          # 4 int32
+BLOCK_HEADER_SIZE = 31    # 2+8+1+8+1+8+1+2
+DEFAULT_BLOCK_SIZE = 0x200  # 512
+INDEX_BLOCK_SIZE = 0x200    # 512
+
+# Формат заголовка блока: \r\n + hex(8) + ' ' + hex(8) + ' ' + hex(8) + ' ' + \r\n
+BLOCK_HEADER_FMT = '2s8s1s8s1s8s1s2s'
+
+
+class V8Block:
+    """Блок данных в контейнере 1С."""
+    __slots__ = ('doc_size', 'current_block_size', 'next_block_offset', 'data')
+
+    def __init__(self, doc_size: int, current_block_size: int,
+                 next_block_offset: int, data: bytes):
+        self.doc_size = doc_size
+        self.current_block_size = current_block_size
+        self.next_block_offset = next_block_offset
+        self.data = data
 
 
 class V8Container:
     """Контейнер 1С — формат хранения .cf/.cfe/.epf файлов."""
 
-    HEADER_FMT = '<4i'  # 4 int32 little-endian
-    HEADER_SIZE = 16
-    BLOCK_HEADER_SIZE = 31
-    INDEX_FMT = 'i'
-    DEFAULT_BLOCK_SIZE = 0x200
-    INDEX_BLOCK_SIZE = 0x200
-
     def __init__(self, data: bytes, offset: int = 0):
         self.data = data
         self.offset = offset
         self.first_empty_block_offset = 0
-        self.default_block_size = self.DEFAULT_BLOCK_SIZE
-        self.count_files = 0
-        self.toc: list[tuple[str, int]] = []  # (name, type)
+        self.default_block_size = DEFAULT_BLOCK_SIZE
+        self.files: OrderedDict[str, bytes] = OrderedDict()
         self.size = 0
 
     def read(self) -> None:
-        """Прочитать заголовок и TOC."""
+        """Прочитать заголовок и все файлы."""
         self._read_header()
-        self._read_toc()
+        self._read_files()
 
     def _read_header(self) -> None:
         """Читает 16-байтный заголовок контейнера."""
         if self.data[self.offset:self.offset + 4] != V8_SIGNATURE:
-            raise ValueError(f"Неверная сигнатура контейнера по смещению {self.offset}")
-        header = struct.unpack_from(self.HEADER_FMT, self.data, self.offset)
-        self.first_empty_block_offset = header[1]
-        self.default_block_size = header[2] if header[2] else self.DEFAULT_BLOCK_SIZE
-        self.count_files = header[3]
-        self.size += self.HEADER_SIZE
+            raise ValueError(
+                f"Неверная сигнатура контейнера по смещению {self.offset}"
+            )
+        sig, default_block_size, count_files, _ = struct.unpack_from(
+            '<4i', self.data, self.offset
+        )
+        # header[0] = 0x7FFFFFFF (сигнатура/END_MARKER)
+        # header[1] = default_block_size (обычно 512)
+        # header[2] = count_files
+        # header[3] = 0 (не используется)
+        self.first_empty_block_offset = END_MARKER
+        self.default_block_size = default_block_size if default_block_size else DEFAULT_BLOCK_SIZE
+        self.size += HEADER_SIZE
 
-    def _read_block(self, file_offset: int) -> tuple[bytes, int, int]:
+    def _read_block(self, file_offset: int, max_data_length: int = None) -> V8Block:
         """
-        Читает один блок по цепочке.
-        Возвращает (data, full_size, next_block_offset).
+        Читает один блок по смещению.
+        Возвращает V8Block с данными.
         """
         abs_offset = self.offset + file_offset
-        # Заголовок блока: 31 байт
-        # doc_size (2 hex) + current_block_size (8 hex) + sep(1) + next_offset (8 hex) + sep(1) + data_len (8 hex) + sep(1) + end(2)
-        header = self.data[abs_offset:abs_offset + self.BLOCK_HEADER_SIZE]
-        if len(header) < self.BLOCK_HEADER_SIZE:
-            return b'', 0, 0
+        header_bytes = self.data[abs_offset:abs_offset + BLOCK_HEADER_SIZE]
+        if len(header_bytes) < BLOCK_HEADER_SIZE:
+            return V8Block(0, 0, END_MARKER, b'')
 
-        # Парсим hex значения из заголовка
+        parts = struct.unpack(BLOCK_HEADER_FMT, header_bytes)
+        # parts: (b'\r\n', b'0000003c', b' ', b'00000200', b' ', b'7fffffff', b' ', b'\r\n')
         try:
-            # current_block_size = int(header[2:10], 16)
-            next_block_offset = int(header[11:19], 16)
-            data_len = int(header[20:28], 16)
+            doc_size = int(parts[1], 16)
+            current_block_size = int(parts[3], 16)
+            next_block_offset = int(parts[5], 16)
         except ValueError:
-            return b'', 0, 0
+            return V8Block(0, 0, END_MARKER, b'')
 
-        # Читаем данные блока
-        data_start = abs_offset + self.BLOCK_HEADER_SIZE
-        block_data = self.data[data_start:data_start + data_len]
+        if max_data_length is None:
+            max_data_length = min(current_block_size, doc_size)
 
-        # full_size = заголовок (31) + длина данных
-        full_size = self.BLOCK_HEADER_SIZE + data_len
+        data_size = min(current_block_size, max_data_length)
+        data_start = abs_offset + BLOCK_HEADER_SIZE
+        block_data = self.data[data_start:data_start + data_size]
 
-        return block_data, full_size, next_block_offset
+        return V8Block(doc_size, current_block_size, next_block_offset, block_data)
 
-    def _read_document(self, file_offset: int) -> tuple[bytes, int]:
+    def _read_document(self, file_offset: int, min_block_size: int = 0) -> bytes:
         """
         Читает документ (цепочку блоков) целиком.
-        Возвращает (data, total_size_in_container).
+        Возвращает все данные документа.
         """
         result = b''
         current_offset = file_offset
-        total_size = 0
+        left_bytes = None
         max_iterations = 100000  # защита от зацикливания
 
         for _ in range(max_iterations):
-            if current_offset >= len(self.data) - self.BLOCK_HEADER_SIZE:
+            if current_offset >= len(self.data) - BLOCK_HEADER_SIZE:
+                break
+            if current_offset == END_MARKER or current_offset < 0:
                 break
 
-            block_data, full_size, next_offset = self._read_block(current_offset)
-            if not block_data and full_size == 0:
+            max_data = None if left_bytes is None else left_bytes
+            block = self._read_block(current_offset, max_data)
+            if not block.data and block.doc_size == 0:
                 break
 
-            result += block_data
-            total_size += full_size
+            if left_bytes is None:
+                # Первый блок — определяем общий размер
+                left_bytes = block.doc_size
 
-            if next_offset == 0 or next_offset == END_MARKER:
+            result += block.data
+            left_bytes -= len(block.data)
+
+            if left_bytes <= 0 or block.next_block_offset == END_MARKER:
                 break
-            current_offset = next_offset
+            current_offset = block.next_block_offset
 
-        return result, total_size
+        return result
 
-    def _read_toc(self) -> None:
-        """Читает оглавление (TOC) — первый документ после заголовка."""
-        # Первый документ содержит TOC
-        toc_data, toc_size = self._read_document(self.HEADER_SIZE)
-        self.size += toc_size
-
-        # TOC: массив пар int32 (name, type), завершается END_MARKER
-        index_size = struct.calcsize(self.INDEX_FMT)
-        end_marker_bytes = struct.pack(self.INDEX_FMT, END_MARKER)
-
-        # Берём всё до end_marker
-        parts = toc_data.split(end_marker_bytes)
-        if parts:
-            toc_data = parts[0]
-
-        self.toc = []
-        for i in range(0, len(toc_data) - index_size * 2 + 1, index_size * 2):
-            name_int, file_type = struct.unpack_from(f'2{self.INDEX_FMT}', toc_data, i)
-            if name_int == 0 or name_int == END_MARKER:
+    def _read_files(self) -> None:
+        """Читает TOC и все файлы контейнера."""
+        # Первый документ после заголовка — TOC
+        toc_data = self._read_document(HEADER_SIZE, INDEX_BLOCK_SIZE)
+        # TOC содержит тройки (file_description_offset, file_data_offset, END_MARKER)
+        # Каждая запись — 12 байт (3 int32 LE)
+        entry_size = 12
+        entries = []
+        for i in range(0, len(toc_data) - entry_size + 1, entry_size):
+            desc_offset, data_offset, terminator = struct.unpack_from(
+                '<3i', toc_data, i
+            )
+            if desc_offset == END_MARKER or desc_offset == 0:
                 break
-            # Имя файла — это 4 ASCII символа (little-endian int32)
-            name_bytes = struct.pack(self.INDEX_FMT, name_int)
-            name = name_bytes.decode('ascii', errors='replace').strip('\x00')
-            self.toc.append((name, file_type))
+            if data_offset == END_MARKER or data_offset == 0:
+                break
+            entries.append((desc_offset, data_offset))
 
-    def extract(self, output_dir: Path, deflate: bool = True, recursive: bool = True,
-                progress_prefix: str = '') -> int:
+        # Читаем каждый файл
+        for desc_offset, data_offset in entries:
+            # Читаем описание файла
+            desc_data = self._read_document(desc_offset)
+            if len(desc_data) < 20:
+                continue
+
+            # Формат: created(8) + modified(8) + unknown(4) + name(UTF-16 LE, до конца)
+            # Имя читается как desc_data[20:].decode('utf-16-le').split('\x00')[0]
+            name_bytes = desc_data[20:]
+            try:
+                name = name_bytes.decode('utf-16-le').split('\x00')[0]
+            except UnicodeDecodeError:
+                name = name_bytes.decode('utf-16-le', errors='replace').split('\x00')[0]
+
+            if not name:
+                continue
+
+            # Читаем данные файла
+            file_data = self._read_document(data_offset, self.default_block_size)
+            self.files[name] = file_data
+
+    def extract(self, output_dir: Path, deflate: bool = True,
+                recursive: bool = True, progress_prefix: str = '') -> int:
         """
         Извлечь файлы из контейнера.
         Возвращает количество извлечённых файлов.
         """
         output_dir.mkdir(parents=True, exist_ok=True)
-
         extracted = 0
-        current_pos = self.HEADER_SIZE  # после заголовка
 
-        # Читаем TOC-документ (первый)
-        _, toc_full_size = self._read_document(current_pos)
-        current_pos += toc_full_size
-
-        for name, file_type in self.toc:
+        for name, file_data in self.files.items():
             if not name:
                 continue
-            file_data, doc_full_size = self._read_document(current_pos)
-            current_pos += doc_full_size
 
-            if not file_data:
-                continue
-
-            # Если данные сжаты (deflate) — распаковываем
+            # Если данные сжаты (deflate) — пробуем распаковать
             if deflate:
                 try:
                     file_data = zlib.decompress(file_data, -15)
@@ -191,36 +241,36 @@ class V8Container:
             # Определяем, является ли файл вложенным контейнером
             is_container = file_data[:4] == V8_SIGNATURE
 
-            file_path = output_dir / name
+            # Безопасное имя файла
+            safe_name = name.replace('/', '_').replace('\\', '_').replace(':', '_')
+            file_path = output_dir / safe_name
 
             if is_container and recursive:
                 # Рекурсивно извлекаем вложенный контейнер
-                nested_dir = file_path
-                nested_dir.mkdir(parents=True, exist_ok=True)
                 try:
                     nested = V8Container(file_data, 0)
                     nested.read()
-                    extracted += nested.extract(nested_dir, deflate, recursive,
-                                                progress_prefix + name + '/')
+                    extracted += nested.extract(
+                        file_path, deflate, recursive,
+                        progress_prefix + name + '/'
+                    )
                 except Exception:
-                    # Если не удалось распаковать как контейнер — сохраняем как есть
+                    # Если не удалось — сохраняем как .bin
+                    file_path = file_path.with_suffix('.bin')
                     with open(file_path, 'wb') as f:
                         f.write(file_data)
                     extracted += 1
             else:
-                # Сохраняем как файл
-                # Если данные похожи на XML — добавляем расширение .xml
-                if file_data[:5] == b'<?xml' or (file_data[:1] == b'<' and b'<' in file_data[:100]):
+                # Определяем расширение по содержимому
+                if file_data[:5] == b'<?xml':
                     if file_path.suffix != '.xml':
                         file_path = file_path.with_suffix('.xml')
                 elif file_data[:2] == b'PK':
-                    # ZIP архив
                     if file_path.suffix != '.bin':
                         file_path = file_path.with_suffix('.bin')
-                else:
-                    # BSL или другой — оставляем как есть
-                    if file_path.suffix == '':
-                        file_path = file_path.with_suffix('.bin')
+                elif file_path.suffix == '':
+                    # Если нет расширения — оставляем как есть
+                    pass
 
                 with open(file_path, 'wb') as f:
                     f.write(file_data)
@@ -245,7 +295,10 @@ def extract_cf(cf_path: Path, output_dir: Path, recursive: bool = True) -> int:
         data = f.read()
 
     if data[:4] != V8_SIGNATURE:
-        raise ValueError(f"Файл {cf_path} не является контейнером 1С (нет сигнатуры 0xFF 0xFF 0xFF 0x7F)")
+        raise ValueError(
+            f"Файл {cf_path} не является контейнером 1С "
+            f"(нет сигнатуры 0xFF 0xFF 0xFF 0x7F)"
+        )
 
     container = V8Container(data, 0)
     container.read()
@@ -277,6 +330,8 @@ def main():
         print(f"   Каталог: {output_dir}")
     except Exception as e:
         print(f"\n❌ Ошибка: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 
