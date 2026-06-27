@@ -1,5 +1,46 @@
 # Changelog
 
+## [3.3.0] — 2026-06-27
+
+### check_metadata_standards.py — проверка метаданных конфигурации
+
+**Новый скрипт `scripts/check_metadata_standards.py`** — проверяет XML метаданные
+конфигурации 1С (не .bsl файлы, а объекты метаданных).
+
+**15 правил проверки метаданных:**
+
+Configuration:
+- empty-vendor: Vendor не указан (STD 16)
+- empty-version: Version не указана (STD 16)
+- empty-name-prefix: NamePrefix не указан (STD 01)
+- empty-compatibility-mode: CompatibilityMode не указан (STD 01)
+- non-russian-script: ScriptVariant != Russian (STD 04)
+
+Объекты метаданных (все типы):
+- empty-synonym: синоним не заполнен (STD 01)
+- name-with-spaces: имя содержит пробелы (STD 01)
+- name-starts-with-digit: имя начинается с цифры (STD 01)
+
+Справочники (Catalog):
+- catalog-no-check-unique: CheckUnique=false при наличии кода (STD 01)
+- catalog-no-list-form: нет DefaultListForm (STD 01)
+- catalog-no-object-form: нет DefaultObjectForm (STD 01)
+
+Общие модули (CommonModule):
+- module-no-comment: Comment не заполнен (STD 04)
+- module-no-synonym: синоним не заполнен (STD 01)
+- module-server-no-suffix: серверный модуль без суффикса 'Сервер' (STD 04)
+- module-client-no-suffix: клиентский модуль без суффикса 'Клиент' (STD 04)
+- module-servercall-no-suffix: ServerCall без суффикса 'ВызовСервера' (STD 04)
+
+Документы (Document):
+- document-no-list-form: нет DefaultListForm (STD 01)
+- document-no-check-unique: CheckUnique=false при наличии номера (STD 01)
+
+**Протестировано на priemka:** 8 warnings найдено (Vendor, NamePrefix, CheckUnique, формы, комментарии).
+
+**Итого проверок: 234** (187 BSL LS + 29 check_1c_standards + 18 check_metadata_standards)
+
 ## [3.2.0] — 2026-06-27
 
 ### Расширение check_1c_standards.py — 7 правил для запросов (всего 29)
