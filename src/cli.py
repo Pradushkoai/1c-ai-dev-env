@@ -198,6 +198,216 @@ def cmd_backup(project: Project, args):
             print(f"{b['name']:<30} {b['size_mb']:>6.1f} МБ {b['files']:>8}    {b['created_at'][:19]}")
 
 
+def cmd_solve(project: Project, args):
+    """
+    Автоматический цикл решения задачи с проверками.
+
+    Две подкоманды:
+    - context: собирает контекст для LLM (методы + API + стандарты)
+    - check: проверяет сгенерированный .bsl код (BSL LS + 22 правила)
+    """
+    from pathlib import Path
+
+    if args.solve_command == 'context':
+        _solve_context(project, args)
+    elif args.solve_command == 'check':
+        _solve_check(project, args)
+
+
+def _solve_context(project: Project, args):
+    """Собирает контекст для LLM: методы платформы + API конфигурации + стандарты."""
+    import json
+
+    query = args.query
+    config_name = getattr(args, 'config', None)
+    limit = getattr(args, 'limit', 5)
+
+    print(f"╔══════════════════════════════════════════════════════╗")
+    print(f"║  1c-ai solve: сбор контекста для задачи              ║")
+    print(f"╚══════════════════════════════════════════════════════╝")
+    print(f"\nЗадача: {query}")
+    print()
+
+    # 1. Поиск методов платформы 1С
+    print("=== 1. Методы платформы 1С (TF-IDF поиск) ===")
+    from .services.search import search as tfidf_search
+
+    index_path = project.paths.fast_search_index
+    if index_path.exists():
+        results = tfidf_search(index_path, query, limit=limit)
+        if results:
+            for i, r in enumerate(results, 1):
+                print(f"  {i}. [{r['score']:.3f}] {r['name_ru']} ({r['name_en']})")
+                print(f"     Контекст: {r['context']}")
+                print(f"     Синтаксис: {r['syntax']}")
+                if r.get('description'):
+                    print(f"     Описание: {r['description'][:100]}")
+                print()
+        else:
+            print("  Ничего не найдено.\n")
+    else:
+        print("  ⚠️  Индекс платформы не найден. Запустите: python3 scripts/fast_search_1c.py build\n")
+
+    # 2. API-справочник конфигурации
+    if config_name:
+        print(f"=== 2. API конфигурации '{config_name}' ===")
+        api_json = project.paths.config_api_reference_json(config_name)
+        if api_json.exists():
+            with open(api_json, 'r', encoding='utf-8') as f:
+                modules = json.load(f)
+
+            # Ищем модули по ключевым словам из запроса
+            query_lower = query.lower()
+            relevant = []
+            for m in modules:
+                # Простая эвристика — ищем совпадение в имени модуля
+                if any(word in m['name'].lower() for word in query_lower.split()):
+                    relevant.append(m)
+
+            if relevant:
+                print(f"  Найдено {len(relevant)} релевантных модулей:")
+                for m in relevant[:limit]:
+                    print(f"  • {m['name']}: {m.get('methods_count', 0)} методов")
+                    # Показываем топ-3 метода
+                    for method in m.get('methods', [])[:3]:
+                        print(f"    - {method['name']}({', '.join(p['name'] for p in method.get('params', []))})")
+                print()
+            else:
+                print(f"  Релевантных модулей не найдено. Всего модулей: {len(modules)}\n")
+        else:
+            print(f"  ⚠️  API-справочник не найден. Запустите: 1c-ai config build --name {config_name}\n")
+    else:
+        print("=== 2. API конфигурации ===")
+        print("  ⚠️  Конфигурация не указана (--config). Пропускаем.\n")
+
+    # 3. Стандарты 1С
+    print("=== 3. Стандарты 1С для соблюдения ===")
+    standards_dir = project.paths.root / "tools" / "repos" / "1c-standards-claude-skill" / "1c-standards" / "rules"
+    if standards_dir.exists():
+        print(f"  Доступно {len(list(standards_dir.glob('*.md')))} разделов стандартов ITS:")
+        print("  • 01 — Создание и изменение объектов метаданных")
+        print("  • 03 — Реализация обработки данных")
+        print("  • 04 — Соглашения при написании кода (STD 454, 455, 456)")
+        print("  • 12 — Клиент-серверное взаимодействие")
+        print()
+        print("  Ключевые правила:")
+        print("  • Структура модуля: #Область ПрограммныйИнтерфейс / Служебный...")
+        print("  • Запрещено: Сообщить(), Выполнить(), Вычислить(), ?(...)")
+        print("  • Запрещено: точечная нотация (Товар.Цена)")
+        print("  • Запрещено: запрос в цикле, Попытка вокруг DB")
+        print()
+    else:
+        print("  ⚠️  Стандарты не найдены. Запустите: bash install.sh\n")
+
+    # 4. Антипаттерны
+    print("=== 4. Антипаттерны для избегания ===")
+    antipatterns_path = project.paths.root / "tools" / "repos" / "ai_rules_1c" / "content" / "rules" / "anti-patterns.md"
+    if antipatterns_path.exists():
+        print("  CRITICAL:")
+        print("  • Query in Loop — запрос в цикле")
+        print("  • Direct Attribute Access — точечная нотация")
+        print("  • Subquery in SELECT — подзапрос в SELECT")
+        print("  • Excessive Client-Server Calls — лишние вызовы")
+        print()
+        print("  Полную документация: tools/repos/ai_rules_1c/content/rules/anti-patterns.md\n")
+    else:
+        print("  ⚠️  Файл антипаттернов не найден.\n")
+
+    # 5. Проверки после генерации
+    print("=== 5. После генерации кода — выполните проверку ===")
+    print(f"  1c-ai solve check <file.bsl> --config {config_name or 'ut11'}")
+    print(f"  1c-ai bsl analyze <file.bsl>")
+    print(f"  1c-ai standards <file.bsl>")
+    print()
+    print("─" * 60)
+    print("Контекст собран. Теперь LLM может генерировать код,")
+    print("опираясь на методы, API и стандарты выше.")
+
+
+def _solve_check(project: Project, args):
+    """Проверяет .bsl код: BSL LS + 22 правила стандартов."""
+    from pathlib import Path
+    import json
+
+    bsl_path = Path(args.path)
+    if not bsl_path.is_absolute():
+        bsl_path = project.paths.root / bsl_path
+
+    if not bsl_path.exists():
+        print(f"❌ Файл не найден: {bsl_path}")
+        sys.exit(1)
+
+    print(f"╔══════════════════════════════════════════════════════╗")
+    print(f"║  1c-ai solve: проверка кода                          ║")
+    print(f"╚══════════════════════════════════════════════════════╝")
+    print(f"\nФайл: {bsl_path}")
+    print()
+
+    total_errors = 0
+    total_warnings = 0
+
+    # 1. BSL Language Server (187 диагностик)
+    print("=== 1. BSL Language Server (187 диагностик) ===")
+    if project.paths.bsl_ls_binary.exists():
+        try:
+            result = project.bsl_analyzer.analyze(bsl_path)
+            print(f"  Найдено: {result.total} диагностик")
+            for code, count in sorted(result.by_code.items(), key=lambda x: -x[1])[:10]:
+                print(f"    {count:4d}  {code}")
+            total_errors += sum(1 for d in result.diagnostics if d.get('severity', '').lower() == 'error')
+            total_warnings += sum(1 for d in result.diagnostics if d.get('severity', '').lower() in ('warning', 'information', 'hint'))
+            print()
+        except Exception as e:
+            print(f"  ⚠️  Ошибка BSL LS: {e}\n")
+    else:
+        print("  ⚠️  BSL LS не установлен. Запустите: bash install.sh\n")
+
+    # 2. check_1c_standards (22 правила)
+    print("=== 2. Проверка стандартов 1С (22 правила) ===")
+    import importlib.util
+    script_path = project.paths.scripts_dir / "check_1c_standards.py"
+    if not script_path.exists():
+        script_path = project.paths.root / "setup" / "scripts" / "check_1c_standards.py"
+    if script_path.exists():
+        spec = importlib.util.spec_from_file_location("check_1c_standards", script_path)
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["check_1c_standards"] = mod
+        spec.loader.exec_module(mod)
+
+        checker = mod.StandardsChecker()
+        violations = checker.check_file(bsl_path)
+
+        std_errors = sum(1 for v in violations if v.severity == "error")
+        std_warnings = sum(1 for v in violations if v.severity == "warning")
+        total_errors += std_errors
+        total_warnings += std_warnings
+
+        print(f"  Найдено: {std_errors} errors, {std_warnings} warnings")
+        for v in violations[:15]:
+            print(f"  {v.severity.upper():7} {v.rule_id:25} {v.file}:{v.line}  {v.message[:80]}")
+        if len(violations) > 15:
+            print(f"  ... и ещё {len(violations) - 15}")
+        print()
+    else:
+        print("  ⚠️  check_1c_standards.py не найден.\n")
+
+    # 3. Итоговый отчёт
+    print("─" * 60)
+    print(f"ИТОГО: {total_errors} errors, {total_warnings} warnings")
+    print()
+    if total_errors == 0 and total_warnings == 0:
+        print("✅ Код прошёл все проверки! Готов к коммиту.")
+    elif total_errors == 0:
+        print("⚠️  Нет критичных ошибок, но есть warnings.")
+        print("   Исправьте warnings перед коммитом.")
+    else:
+        print("❌ Есть критичные ошибки. Код НЕ готов к коммиту.")
+        print("   Исправьте все errors и повторите проверку:")
+        print(f"   1c-ai solve check {bsl_path}")
+
+    sys.exit(1 if total_errors > 0 else 0)
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="src.cli",
@@ -267,6 +477,19 @@ def main():
     p_b_list = backup_sub.add_parser("list", help="Список backup'ов")
     p_b_list.add_argument("--dir", help="Папка с backup'ами")
 
+    # solve
+    p_solve = sub.add_parser("solve", help="Автоматический цикл решения задачи")
+    solve_sub = p_solve.add_subparsers(dest="solve_command", required=True)
+
+    p_s_ctx = solve_sub.add_parser("context", help="Собрать контекст для LLM")
+    p_s_ctx.add_argument("query", help="Описание задачи")
+    p_s_ctx.add_argument("--config", help="Имя конфигурации")
+    p_s_ctx.add_argument("--limit", type=int, default=5, help="Кол-во результатов поиска")
+
+    p_s_chk = solve_sub.add_parser("check", help="Проверить .bsl код")
+    p_s_chk.add_argument("path", help="Путь к .bsl файлу")
+    p_s_chk.add_argument("--config", help="Имя конфигурации")
+
     args = parser.parse_args()
     project = Project()
 
@@ -294,6 +517,8 @@ def main():
         cmd_standards(project, args)
     elif args.command == "backup":
         cmd_backup(project, args)
+    elif args.command == "solve":
+        cmd_solve(project, args)
 
 
 if __name__ == "__main__":
