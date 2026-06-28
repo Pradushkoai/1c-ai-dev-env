@@ -141,6 +141,12 @@ python3 scripts/check_metadata_standards.py data/configs/ut11  # 18 правил
 1c-ai data load-pkg backup.zip                        # восстановить из ZIP
 1c-ai data info backup.zip                            # информация о пакете
 
+# GitHub Releases (для восстановления после пересоздания диска)
+export GITHUB_TOKEN=<YOUR_GITHUB_TOKEN>                           # один раз за сессию
+1c-ai data release-push                               # загрузить пакет в GitHub Releases
+1c-ai data release-pull                               # скачать пакет из GitHub Releases
+1c-ai data release-status                             # статус релиза
+
 # Backup/restore
 1c-ai backup create -o backup.zip              # создать backup (data/ + runtime/)
 1c-ai backup restore backup.zip                # восстановить из backup
