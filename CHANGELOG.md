@@ -1,5 +1,61 @@
 # Changelog
 
+## [3.10.0] — 2026-06-28
+
+### GitHub Releases integration — Фаза 3 завершена
+
+**Новый сервис `src/services/github_releases.py`:**
+- `GitHubReleases.push()` — загрузить data-package ZIP в GitHub Release
+- `GitHubReleases.pull()` — скачать пакет из Release
+- `GitHubReleases.status()` — статус интеграции
+- `GitHubReleases.get_release()` / `list_releases()` — информация о релизах
+- Авто-определение repo из `git remote origin`
+- Использует REST API через `curl` (не требует `gh` CLI)
+- Поддержка обновления существующих релизов (старые assets удаляются)
+
+**CLI команды (`1c-ai data release-*`):**
+- `1c-ai data release-push [--body TEXT]` — загрузить autosave пакет
+- `1c-ai data release-pull` — скачать в download/
+- `1c-ai data release-status` — статус интеграции
+
+**Workflow для восстановления после пересоздания диска:**
+```bash
+# 1. Установить токен (один раз за сессию)
+export GITHUB_TOKEN=ghp_xxx
+
+# 2. Скачать пакет (39 МБ, 7 сек)
+1c-ai data release-pull
+
+# 3. Восстановить данные (секунды)
+1c-ai data autoload
+
+# 4. Проверить
+1c-ai data status
+1c-ai search "найти элемент по коду"
+```
+
+**Тесты:**
+- tests/test_github_releases.py — 24 теста (мок subprocess)
+- Покрытие: detect_repo, get_release, push (new/existing), pull, status
+- Всего: 311 (было 287)
+
+### Реальные данные загружены
+
+- 4 конфигурации 1С: edo2 (240 объектов), edo3 (218), ut11 (50), unp (659)
+- Платформа 1С: 8141 методов, BM25 индекс (11.7 МБ, 2.2 сек построение)
+- DataPackage: 39 МБ, 34758 файлов, autosave + GitHub Release
+- Release URL: https://github.com/Pradushkoai/1c-ai-dev-env/releases/tag/data-package
+
+### BM25 vs TF-IDF — реальное сравнение
+
+Запрос: "найти элемент справочника по коду"
+- BM25: топ-1 = `НайтиПоКоду` (score 0.951) — точно то что нужно
+- TF-IDF: топ-1 = `Найти` (score 0.278) — общий метод, менее релевантный
+
+Запрос: "выполнить запрос к базе"
+- BM25: топ-1 = `Выполнить` (QueryBuilder, score 0.933)
+- BM25: топ-5 включает `ВыполнитьПакет` (ExecuteBatch)
+
 ## [3.9.0] — 2026-06-28
 
 ### Persistence данных — DataPackage

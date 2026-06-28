@@ -643,6 +643,86 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
                 print(f"  Создан: {ai['manifest'].get('created_at', '?')[:19]}")
                 print(f"  Восстановить: 1c-ai data autoload")
 
+    elif args.data_command == 'release-push':
+        # Загрузить в GitHub Releases
+        from .services.github_releases import GitHubReleases
+        gh = GitHubReleases(project.paths)
+        if not gh.is_configured():
+            print("❌ GitHub Releases не настроен")
+            print("   Установите GITHUB_TOKEN в окружении:")
+            print("   export GITHUB_TOKEN=ghp_xxx")
+            sys.exit(1)
+
+        if not dp.has_autosave():
+            print("❌ Автосохранение не найдено. Сначала:")
+            print("   1c-ai data autosave --include-raw")
+            sys.exit(1)
+
+        print(f"Загрузка в GitHub Releases...")
+        print(f"   Repo: {gh._repo}")
+        print(f"   Пакет: {dp.default_package_path}")
+        print()
+        result = gh.push(body=args.body or "Autosave data package")
+        if result.get("success"):
+            print(f"✅ Загружено в release '{result['tag']}'")
+            print(f"   Размер: {result['size_mb']:.1f} МБ")
+            print(f"   Release: {result['release_url']}")
+            print(f"   Asset: {result['asset_url']}")
+            print()
+            print("В новой сессии восстановите:")
+            print("   1c-ai data release-pull")
+            print("   1c-ai data autoload")
+        else:
+            print(f"❌ Ошибка: {result.get('error', 'неизвестная')}")
+            sys.exit(1)
+
+    elif args.data_command == 'release-pull':
+        # Скачать из GitHub Releases
+        from .services.github_releases import GitHubReleases
+        gh = GitHubReleases(project.paths)
+        if not gh.is_configured():
+            print("❌ GitHub Releases не настроен")
+            print("   Установите GITHUB_TOKEN: export GITHUB_TOKEN=ghp_xxx")
+            sys.exit(1)
+
+        print(f"Скачивание из GitHub Releases...")
+        print(f"   Repo: {gh._repo}")
+        print(f"   Target: {dp.default_package_path}")
+        print()
+        result = gh.pull()
+        if result.get("success"):
+            print(f"✅ Скачано в: {result['path']}")
+            print(f"   Размер: {result['size_mb']:.1f} МБ")
+            print(f"   Release tag: {result['tag']}")
+            print()
+            print("Восстановите данные:")
+            print("   1c-ai data autoload")
+        else:
+            print(f"❌ Ошибка: {result.get('error', 'неизвестная')}")
+            sys.exit(1)
+
+    elif args.data_command == 'release-status':
+        # Статус GitHub Releases
+        from .services.github_releases import GitHubReleases
+        gh = GitHubReleases(project.paths)
+        status = gh.status()
+        print("GitHub Releases статус:")
+        print(f"  Настроен: {'✅' if status['configured'] else '❌'}")
+        print(f"  Repo: {status['repo'] or '(не определён)'}")
+        print(f"  Token: {'✅' if status['token_set'] else '❌'}")
+        if status["configured"]:
+            print(f"  Release существует: {'✅' if status['release_exists'] else '❌'}")
+            if status["release_exists"]:
+                print(f"  Tag: {status['release_tag']}")
+                print(f"  Создан: {status['release_created_at']}")
+                print(f"  Размер asset: {status['asset_size_mb']:.1f} МБ")
+                print(f"  Имя asset: {status['asset_name']}")
+                print(f"  URL: {status['release_url']}")
+                print()
+                print("Восстановить:")
+                print("   1c-ai data release-pull")
+                print("   1c-ai data autoload")
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -759,6 +839,14 @@ def main() -> None:
     data_sub.add_parser("autoload", help="Восстановить из стандартного места (download/)")
 
     data_sub.add_parser("status", help="Статус данных: что доступно, что нужно перестроить")
+
+    # GitHub Releases
+    p_rpush = data_sub.add_parser("release-push", help="Загрузить пакет в GitHub Releases")
+    p_rpush.add_argument("--body", "-b", default="", help="Описание релиза")
+
+    data_sub.add_parser("release-pull", help="Скачать пакет из GitHub Releases")
+
+    data_sub.add_parser("release-status", help="Статус GitHub Releases интеграции")
 
     args = parser.parse_args()
     project = Project()
