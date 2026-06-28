@@ -11,8 +11,7 @@ python3 -m src.cli validate
 
 ### Шаг 1: Прочитать контекст
 1. `runtime/session-resume.md` (этот файл)
-2. `runtime/soul.md` — персона + 3 принципа работы
-3. `runtime/checklist.md` — чек-лист решения задач 1С (обязательно!)
+2. `runtime/soul.md` — персона + 2 принципа работы
 
 ### Шаг 2: Восстановить данные (если диск пересоздан)
 ```bash
@@ -22,26 +21,7 @@ python3 -m src.cli data autoload       # восстановить 4 configs + BM
 python3 -m src.cli config list         # проверка: 4 конфигурации
 ```
 
-## ⚠️ Как решать задачи 1С
-
-При любой задаче по 1С-разработке — **обязательно** пройди чек-лист из
-`runtime/checklist.md`. Это не ритуал, а проверяемые условия.
-
-### Кратко: 3 принципа
-1. **Уточни ТЗ** — не выдумывай реквизиты/методы/формы. Спроси.
-2. **Используй репозиторий** — `search`, `solve_context`, `get_api_reference`
-3. **Проверь результат** — `check_standards`, `solve_check --level full`
-
-### 3 режима работы репозитория
-| Режим | Кто агент | Когда |
-|-------|-----------|-------|
-| A. MCP-сервер | Cursor/Claude | Внешняя IDE |
-| B. Прямая работа со мной | Я (LLM) | Сейчас |
-| C. CLI напрямую | Пользователь | Без меня |
-
-В режиме B — я агент, чек-лист мой процесс.
-
-## 📊 Конфигурации (v3.14.0)
+## 📊 Конфигурации (v3.14.1)
 
 ```bash
 python3 -m src.cli config list
@@ -71,7 +51,7 @@ python3 -m src.cli search "найти элемент по коду"
 python3 -m src.cli bsl analyze <path>
 python3 -m src.cli standards <path>
 
-# Решение задач (использует чек-лист!)
+# Решение задач
 python3 -m src.cli solve context "задача" --config ut11
 python3 -m src.cli solve check <file.bsl> --level full
 
@@ -87,7 +67,6 @@ python3 -m src.cli data release-push / release-pull / release-status
 ```
 
 ## 📚 Документация
-- `runtime/checklist.md` — чек-лист решения задач 1С (ОБЯЗАТЕЛЬНО)
 - `docs/ARCHITECTURE.md` — 4-слойная архитектура проекта
-- `docs/MCP_INTEGRATION.md` — подключение к IDE (режим A)
-- `CHANGELOG.md` — история версий (v3.14.0 — последняя)
+- `docs/MCP_INTEGRATION.md` — подключение к IDE
+- `CHANGELOG.md` — история версий (v3.14.1 — последняя)
