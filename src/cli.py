@@ -325,9 +325,18 @@ def _solve_context(project: Project, args: argparse.Namespace) -> None:
 
 
 def _solve_check(project: Project, args: argparse.Namespace) -> None:
-    """Проверяет .bsl код: BSL LS + 22 правила стандартов."""
+    """
+    Проверяет .bsl код: BSL LS + 56 правил стандартов.
+
+    Уровни проверки (--level):
+    - quick:    только check_1c_standards (быстро, без Java)
+    - standard: quick + BSL LS (по умолчанию)
+    - full:     standard + check_metadata_standards (если есть XML метаданные)
+    """
     from pathlib import Path
     import json
+
+    level = getattr(args, 'level', 'standard')
 
     bsl_path = Path(args.path)
     if not bsl_path.is_absolute():
@@ -338,32 +347,17 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
         sys.exit(1)
 
     print(f"╔══════════════════════════════════════════════════════╗")
-    print(f"║  1c-ai solve: проверка кода                          ║")
+    print(f"║  1c-ai solve: проверка кода [level={level}]            ║")
     print(f"╚══════════════════════════════════════════════════════╝")
     print(f"\nФайл: {bsl_path}")
+    print(f"Уровень: {level}")
     print()
 
     total_errors = 0
     total_warnings = 0
 
-    # 1. BSL Language Server (187 диагностик)
-    print("=== 1. BSL Language Server (187 диагностик) ===")
-    if project.paths.bsl_ls_binary.exists():
-        try:
-            result = project.bsl_analyzer.analyze(bsl_path)
-            print(f"  Найдено: {result.total} диагностик")
-            for code, count in sorted(result.by_code.items(), key=lambda x: -x[1])[:10]:
-                print(f"    {count:4d}  {code}")
-            total_errors += sum(1 for d in result.diagnostics if d.get('severity', '').lower() == 'error')
-            total_warnings += sum(1 for d in result.diagnostics if d.get('severity', '').lower() in ('warning', 'information', 'hint'))
-            print()
-        except Exception as e:
-            print(f"  ⚠️  Ошибка BSL LS: {e}\n")
-    else:
-        print("  ⚠️  BSL LS не установлен. Запустите: bash install.sh\n")
-
-    # 2. check_1c_standards (22 правила)
-    print("=== 2. Проверка стандартов 1С (22 правила) ===")
+    # 1. check_1c_standards (56 правил) — все уровни
+    print("=== 1. Проверка стандартов 1С (56 правил) ===")
     import importlib.util
     script_path = project.paths.scripts_dir / "check_1c_standards.py"
     if not script_path.exists():
@@ -391,7 +385,53 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
     else:
         print("  ⚠️  check_1c_standards.py не найден.\n")
 
-    # 3. Итоговый отчёт
+    # 2. BSL Language Server (187 диагностик) — standard / full
+    if level in ('standard', 'full'):
+        print("=== 2. BSL Language Server (187 диагностик) ===")
+        if project.paths.bsl_ls_binary.exists():
+            try:
+                result = project.bsl_analyzer.analyze(bsl_path)
+                print(f"  Найдено: {result.total} диагностик")
+                for code, count in sorted(result.by_code.items(), key=lambda x: -x[1])[:10]:
+                    print(f"    {count:4d}  {code}")
+                total_errors += sum(1 for d in result.diagnostics if d.get('severity', '').lower() == 'error')
+                total_warnings += sum(1 for d in result.diagnostics if d.get('severity', '').lower() in ('warning', 'information', 'hint'))
+                print()
+            except Exception as e:
+                print(f"  ⚠️  Ошибка BSL LS: {e}\n")
+        else:
+            print("  ⚠️  BSL LS не установлен. Запустите: bash install.sh\n")
+
+    # 3. Метаданные (18 правил) — только full
+    if level == 'full':
+        print("=== 3. Проверка метаданных (18 правил) ===")
+        meta_script = project.paths.scripts_dir / "check_metadata_standards.py"
+        if not meta_script.exists():
+            meta_script = project.paths.root / "setup" / "scripts" / "check_metadata_standards.py"
+        if meta_script.exists():
+            try:
+                spec2 = importlib.util.spec_from_file_location("check_metadata_standards", meta_script)
+                mod2 = importlib.util.module_from_spec(spec2)
+                sys.modules["check_metadata_standards"] = mod2
+                spec2.loader.exec_module(mod2)
+
+                checker2 = mod2.MetadataStandardsChecker()
+                meta_violations = checker2.check_path(bsl_path.parent if bsl_path.is_file() else bsl_path)
+                meta_errors = sum(1 for v in meta_violations if v.severity == "error")
+                meta_warnings = sum(1 for v in meta_violations if v.severity == "warning")
+                total_errors += meta_errors
+                total_warnings += meta_warnings
+
+                print(f"  Найдено: {meta_errors} errors, {meta_warnings} warnings")
+                for v in meta_violations[:10]:
+                    print(f"  {v.severity.upper():7} {v.rule_id:25} {v.message[:80]}")
+                print()
+            except Exception as e:
+                print(f"  ⚠️  Ошибка check_metadata: {e}\n")
+        else:
+            print("  ⚠️  check_metadata_standards.py не найден.\n")
+
+    # Итоговый отчёт
     print("─" * 60)
     print(f"ИТОГО: {total_errors} errors, {total_warnings} warnings")
     print()
@@ -403,9 +443,45 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
     else:
         print("❌ Есть критичные ошибки. Код НЕ готов к коммиту.")
         print("   Исправьте все errors и повторите проверку:")
-        print(f"   1c-ai solve check {bsl_path}")
+        print(f"   1c-ai solve check {bsl_path} --level {level}")
 
     sys.exit(1 if total_errors > 0 else 0)
+
+
+def cmd_mcp(project: Project, args: argparse.Namespace) -> None:
+    """Управление MCP-сервером."""
+    if args.mcp_command == 'serve':
+        try:
+            from .mcp_server import run_mcp_server
+            import asyncio
+            asyncio.run(run_mcp_server())
+        except ImportError as e:
+            print(f"❌ MCP SDK не установлен: {e}")
+            print("   Установите: pip install mcp")
+            sys.exit(1)
+    elif args.mcp_command == 'tools':
+        # Выводим список tools без запуска сервера
+        try:
+            from .mcp_server import create_mcp_server
+            import asyncio
+
+            async def _list():
+                server = create_mcp_server()
+                # Достаём handler через декоратор
+                # Простой путь — повторно вызвать описание
+                from .mcp_server import _get_tools_description
+                return _get_tools_description()
+
+            tools = asyncio.run(_list())
+            print(f"MCP tools ({len(tools)}):")
+            print()
+            for t in tools:
+                print(f"  • {t['name']}")
+                print(f"    {t['description']}")
+                print()
+        except ImportError as e:
+            print(f"❌ MCP SDK не установлен: {e}")
+            sys.exit(1)
 
 
 def main() -> None:
@@ -489,6 +565,16 @@ def main() -> None:
     p_s_chk = solve_sub.add_parser("check", help="Проверить .bsl код")
     p_s_chk.add_argument("path", help="Путь к .bsl файлу")
     p_s_chk.add_argument("--config", help="Имя конфигурации")
+    p_s_chk.add_argument("--level", choices=["quick", "standard", "full"],
+                         default="standard",
+                         help="Уровень проверки: quick (только стандарты), "
+                              "standard (+BSL LS), full (+метаданные)")
+
+    # mcp
+    p_mcp = sub.add_parser("mcp", help="MCP-сервер для IDE/LLM")
+    mcp_sub = p_mcp.add_subparsers(dest="mcp_command", required=True)
+    mcp_sub.add_parser("serve", help="Запустить MCP-сервер (stdio)")
+    mcp_sub.add_parser("tools", help="Вывести список доступных tools")
 
     args = parser.parse_args()
     project = Project()
@@ -519,6 +605,8 @@ def main() -> None:
         cmd_backup(project, args)
     elif args.command == "solve":
         cmd_solve(project, args)
+    elif args.command == "mcp":
+        cmd_mcp(project, args)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,67 @@
 # Changelog
 
+## [3.7.0] — 2026-06-28
+
+### MCP-сервер — интеграция с IDE/LLM (Cursor, Claude Desktop, VS Code, и т.д.)
+
+**Новый модуль `src/mcp_server.py`** — экспортирует 7 tools через Model Context Protocol.
+
+Tools:
+- `list_configs` — список загруженных конфигураций 1С
+- `search_1c_methods` — TF-IDF поиск по 8141 методам платформы
+- `get_api_reference` — API-справочник общих модулей конфигурации
+- `analyze_bsl` — анализ .bsl через BSL LS (187 диагностик)
+- `check_standards` — проверка на 56 правил стандартов 1С
+- `solve_context` — сбор контекста для решения задачи
+- `solve_check` — полная проверка .bsl кода
+
+**Новые CLI команды:**
+- `1c-ai mcp serve` — запустить MCP-сервер (stdio)
+- `1c-ai mcp tools` — вывести список доступных tools
+
+**Новые API-методы Project (Фаза 0):**
+- `Project.list_configs_info()` — список конфигураций с детальной инфой (api_methods_count, has_api)
+- `Project.get_config_info(name)` — детальная инфа о конфигурации (включая modules)
+- `Project.get_api_methods(config_name, module_name)` — экспортные методы конфигурации
+- `Project.search_methods(query, limit)` — обёртка над TF-IDF поиском
+
+**Уровни проверки `1c-ai solve check`:**
+- `--level quick` — только check_1c_standards (без Java)
+- `--level standard` — quick + BSL LS (по умолчанию)
+- `--level full` — standard + check_metadata_standards
+
+**Зависимости:**
+- `mcp>=1.0.0` добавлен в `requirements-optional.txt`
+
+**Тесты:**
+- 28 новых тестов (12 для Project API + 16 для MCP-сервера)
+- Всего: 220 тестов (было 192)
+
+### Принципы MCP
+- **Read-only**: MCP-сервер только читает готовые индексы
+- **CLI = admin**: загрузка/индексация через `1c-ai config add/build`
+- **MCP = аналитика**: поиск, проверка, сбор контекста
+- **Любой MCP-клиент**: не привязан к конкретной IDE
+
+## [3.6.0] — 2026-06-28
+
+### v8unpack убран, type hints, исключения, Dockerfile
+
+**Кастомные исключения:**
+- `src/exceptions.py` — `ConfigNotFoundError`, `ConfigExistsError`, `BuildError`, `AnalysisError`
+- Используются в `ConfigManager`, `BSLAnalyzer`
+
+**Type hints:**
+- `cli.py` — все функции имеют аннотации параметров и возвращаемых значений
+
+**Dockerfile:**
+- Базовый образ `python:3.12-slim`
+- Установка Java 17 + BSL LS через multi-stage build
+- ENTRYPOINT: `1c-ai`
+
+**Удалён v8unpack:**
+- Заменён на собственный `scripts/cf_extractor.py` (Container64 + многоконтейнерные .cf)
+
 ## [3.4.0] — 2026-06-27
 
 ### 13 правил из 1c-standards-claude-skill (всего 42 в check_1c_standards)

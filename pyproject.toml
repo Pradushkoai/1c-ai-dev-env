@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "1c-ai-dev-env"
-version = "3.6.0"
+version = "3.7.0"
 description = "Среда разработки 1С с ИИ-ассистентом"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -32,12 +32,17 @@ rag = [
     "fastembed>=0.8.0",
     "qdrant-client>=1.0.0",
 ]
+mcp = [
+    "mcp>=1.0.0",
+]
 dev = [
     "pytest>=7.0",
+    "mcp>=1.0.0",
 ]
 
 [project.scripts]
 1c-ai = "src.cli:main"
+1c-ai-mcp = "src.mcp_server:run_mcp_server_sync"
 
 [tool.setuptools.packages.find]
 where = ["."]

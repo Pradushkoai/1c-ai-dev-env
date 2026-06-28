@@ -66,10 +66,11 @@ v8unpack>=1.2.6
 python-dotenv>=1.0.0
 ```
 
-**Опциональные** (для RAG с нейросетевыми embeddings — `requirements-optional.txt`):
+**Опциональные** (для RAG с нейросетевыми embeddings и MCP-сервера — `requirements-optional.txt`):
 ```
 fastembed>=0.8.0
 qdrant-client>=1.0.0
+mcp>=1.0.0
 ```
 
 **Для разработки** (`requirements-dev.txt`):
@@ -86,7 +87,7 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-188 тестов покрывают: PathManager, ConfigManager, BSLAnalyzer (с реальным BSL LS), search (TF-IDF), Configuration model, cf_extractor (32+64 бита), v8_metadata_parser, backup_manager, check_1c_standards (42 правила), check_metadata_standards (18 правил). 3 интеграционных теста с реальным BSL LS (`@requires_bsl_ls`) — пропускаются если BSL LS не установлен.
+220 тестов покрывают: PathManager, ConfigManager, BSLAnalyzer (с реальным BSL LS), search (TF-IDF), Configuration model, cf_extractor (32+64 бита), v8_metadata_parser, backup_manager, check_1c_standards (56 правил), check_metadata_standards (18 правил), новые API-методы Project, MCP-сервер (7 tools). 3 интеграционных теста с реальным BSL LS (`@requires_bsl_ls`) — пропускаются если BSL LS не установлен.
 
 ---
 
@@ -125,7 +126,12 @@ python3 scripts/check_metadata_standards.py data/configs/ut11  # 18 правил
 
 # Решение задач (автоматический цикл)
 1c-ai solve context "создать справочник" --config ut11  # собрать контекст для LLM
-1c-ai solve check scripts/module.bsl                    # проверить код (247 проверок)
+1c-ai solve check scripts/module.bsl                    # проверить код (quick)
+1c-ai solve check scripts/module.bsl --level full       # все 3 уровня проверок
+
+# MCP-сервер (для IDE/LLM)
+1c-ai mcp serve                                       # запустить MCP-сервер (stdio)
+1c-ai mcp tools                                       # список доступных tools
 
 # Backup/restore
 1c-ai backup create -o backup.zip              # создать backup (data/ + runtime/)
@@ -137,6 +143,69 @@ python3 scripts/check_metadata_standards.py data/configs/ut11  # 18 правил
 ```
 
 Альтернативно можно использовать `python3 -m src.cli <command>`.
+
+---
+
+## Подключение к IDE / LLM через MCP
+
+Проект включает MCP-сервер (Model Context Protocol), который экспортирует 7 tools для любой IDE/LLM с поддержкой MCP: Cursor, Claude Desktop, VS Code, Continue и т.д.
+
+### Установка
+
+```bash
+pip install -r requirements-optional.txt   # добавит mcp>=1.0.0
+```
+
+### Доступные tools (7)
+
+| Tool | Что делает |
+|------|-----------|
+| `list_configs` | Список загруженных конфигураций 1С |
+| `search_1c_methods` | TF-IDF поиск по 8141 методам платформы |
+| `get_api_reference` | API-справочник общих модулей конфигурации |
+| `analyze_bsl` | Анализ .bsl через BSL LS (187 диагностик) |
+| `check_standards` | Проверка на 56 правил стандартов 1С |
+| `solve_context` | Сбор контекста для решения задачи |
+| `solve_check` | Полная проверка .bsl кода |
+
+### Конфиг для Cursor / VS Code
+
+Добавьте в `~/.cursor/mcp.json` (или `~/.vscode/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "1c-ai-dev-env": {
+      "command": "python3",
+      "args": ["-m", "src.cli", "mcp", "serve"],
+      "cwd": "/path/to/1c-ai-dev-env"
+    }
+  }
+}
+```
+
+### Конфиг для Claude Desktop
+
+Добавьте в `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) или `~/.config/Claude/claude_desktop_config.json` (Linux):
+
+```json
+{
+  "mcpServers": {
+    "1c-ai-dev-env": {
+      "command": "python3",
+      "args": ["-m", "src.cli", "mcp", "serve"],
+      "cwd": "/path/to/1c-ai-dev-env"
+    }
+  }
+}
+```
+
+### Принципы
+
+- **MCP-сервер — read-only**: только читает готовые индексы, не загружает данные
+- **CLI = admin**: загрузка, индексация, backup делаются через `1c-ai config add/build`
+- **MCP = аналитика**: поиск, проверка, сбор контекста
+- **Любой MCP-клиент**: не привязан к конкретной IDE
 
 ---
 
