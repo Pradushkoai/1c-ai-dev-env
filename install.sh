@@ -62,7 +62,7 @@ echo ""
 echo "=== Шаг 3/8: Python зависимости ==="
 
 pip3 install -q -r "$SETUP_DIR/requirements.txt" 2>&1 | tail -1
-echo "  ✅ v8unpack, python-dotenv (базовые)"
+echo "  ✅ python-dotenv (базовые)"
 echo ""
 
 # ============================================================================
@@ -266,7 +266,7 @@ echo "║    scripts/    — 10 скриптов                          ║"
 echo "║                                                      ║"
 echo "║  Что установлено:                                     ║"
 echo "║    ✅ BSL Language Server v1.0.1                     ║"
-echo "║    ✅ v8unpack, python-dotenv (базовые)             ║"
+echo "║    ✅ python-dotenv (базовые)                       ║"
 echo "║    ✅ 94 скила (JSON DSL) [claude-code-skills-1c]                            ║"
 echo "║    ✅ 168 проверок [EDT-MCP]                           ║"
 echo "║    ✅ 187 диагностик [bsl-language-server]                          ║"
