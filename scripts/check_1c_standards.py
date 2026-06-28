@@ -163,15 +163,67 @@ def rule_no_yo_in_code(lines: list[str], file_path: Path) -> Iterator[Violation]
 
 
 def rule_no_commented_code(lines: list[str], file_path: Path) -> Iterator[Violation]:
-    """Правило STD 456:3 — закомментированный код запрещён."""
+    """Правило STD 456:3 — закомментированный код запрещён.
+    
+    Отличие docstring от закомментированного кода:
+    - Docstring: '// Текст' (после // есть пробел) — описывает API
+    - Закомментированный код: '//Если ...' (после // НЕТ пробела) — отладочный код
+    
+    Дополнительно: если строка с паттерном (// Если/Для/...) находится внутри
+    блока из 3+ подряд идущих // с пробелом — это docstring, не flagged.
+    """
     for i, line in enumerate(lines, 1):
-        if COMMENTED_CODE_PATTERN.search(line):
-            yield Violation(
-                file=str(file_path), line=i, col=1,
-                rule_id="no-commented-code",
-                severity="warning",
-                message=f"Закомментированный код — удалите после отладки (STD 456:3)",
-            )
+        match = COMMENTED_CODE_PATTERN.search(line)
+        if not match:
+            continue
+        
+        # Проверяем: есть ли пробел после // (то есть это docstring-стиль)
+        # COMMENTED_CODE_PATTERN = r'^\s*//\s*(Если|...)'
+        # Паттерн уже требует \s* после //, значит матчит только docstring-стиль.
+        # Но реальный закомментированный код может быть как '//Если' (без пробела),
+        # так и '// Если' (с пробелом, если код скопирован из редактора).
+        
+        # Эвристика: смотрим, является ли строка частью docstring-блока
+        # (3+ подряд // с пробелом). Если да — это документация.
+        idx = i - 1  # 0-indexed
+        if _is_in_docstring_block(lines, idx):
+            continue
+        
+        yield Violation(
+            file=str(file_path), line=i, col=1,
+            rule_id="no-commented-code",
+            severity="warning",
+            message=f"Закомментированный код — удалите после отладки (STD 456:3)",
+        )
+
+
+def _is_in_docstring_block(lines: list[str], idx: int) -> bool:
+    """Проверяет, находится ли строка idx внутри docstring-блока.
+    
+    Docstring-блок — 3+ подряд идущих строк, начинающихся с '// ' (с пробелом).
+    Одиночные // или //word (без пробела) — НЕ docstring.
+    """
+    # Проверяем, что строка сама начинается с '// ' (с пробелом)
+    line = lines[idx].strip() if idx < len(lines) else ''
+    if not line.startswith('// '):
+        return False
+    
+    # Считаем длину блока // (с пробелом) вокруг этой строки
+    count_back = 0
+    j = idx - 1
+    while j >= 0 and lines[j].strip().startswith('// '):
+        count_back += 1
+        j -= 1
+    
+    count_forward = 0
+    j = idx + 1
+    while j < len(lines) and lines[j].strip().startswith('// '):
+        count_forward += 1
+        j += 1
+    
+    # Всего строк в блоке включая текущую
+    total = count_back + 1 + count_forward
+    return total >= 3
 
 
 def rule_todo_with_task(lines: list[str], file_path: Path) -> Iterator[Violation]:
@@ -397,8 +449,27 @@ def rule_no_yoda_syntax(lines: list[str], file_path: Path) -> Iterator[Violation
 
 
 def rule_no_query_in_loop(lines: list[str], file_path: Path) -> Iterator[Violation]:
-    """CRITICAL: Запрос в цикле — O(n) DB calls → O(1)."""
-    full_text = '\n'.join(lines)
+    """CRITICAL: Запрос в цикле — O(n) DB calls → O(1).
+    
+    Важно: анализирует только реальный код, без комментариев и строковых литералов.
+    Иначе docstring-примеры с 'Для ... Цикл' вызывают ложные срабатывания.
+    """
+    # Удаляем комментарии (// ... до конца строки) и строковые литералы ("...")
+    # Это позволяет избежать ложных срабатываний на docstring-примерах.
+    code_only_lines = []
+    for line in lines:
+        # Удаляем однострочные комментарии (// ...)
+        # В BSL нет многострочных комментариев, только //
+        comment_pos = _find_comment_start(line)
+        if comment_pos >= 0:
+            line = line[:comment_pos]
+        # Удаляем строковые литералы ("...") — заменяем на пустую строку
+        # Важно: не трогаем строки внутри запросов, т.к. там ключевые слова
+        # в тексте запроса не влияют на detection циклов
+        line = re.sub(r'"[^"]*"', '""', line)
+        code_only_lines.append(line)
+    
+    full_text = '\n'.join(code_only_lines)
     for match in QUERY_IN_LOOP_PATTERN.finditer(full_text):
         # Вычисляем номер строки
         line_num = full_text[:match.start()].count('\n') + 1
@@ -408,6 +479,26 @@ def rule_no_query_in_loop(lines: list[str], file_path: Path) -> Iterator[Violati
             severity="error",
             message="Запрос в цикле — CRITICAL антипаттерн, используйте batch-запрос с ВТ (ai_rules_1c)",
         )
+
+
+def _find_comment_start(line: str) -> int:
+    """Найти позицию начала комментария (//) в строке, игнорируя // внутри строк.
+    
+    BSL использует // для комментариев. Но // может быть внутри строкового литерала,
+    например в тексте запроса "http://...". Ищем первый //, который не внутри "...".
+    """
+    in_string = False
+    i = 0
+    while i < len(line) - 1:
+        ch = line[i]
+        if ch == '"' and (i == 0 or line[i-1] != '|'):
+            # Входим/выходим из строкового литерала
+            # Примечание: в BSL строки в запросах начинаются с |" — не считаем
+            in_string = not in_string
+        elif not in_string and ch == '/' and line[i+1] == '/':
+            return i
+        i += 1
+    return -1
 
 
 def rule_no_dot_notation(lines: list[str], file_path: Path) -> Iterator[Violation]:
