@@ -207,6 +207,8 @@ pip install -r requirements-optional.txt   # добавит mcp>=1.0.0
 - **MCP = аналитика**: поиск, проверка, сбор контекста
 - **Любой MCP-клиент**: не привязан к конкретной IDE
 
+📖 **Полная документация по подключению к IDE**: [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) — инструкции для Cursor, Claude Desktop, VS Code (Continue/Cline), JetBrains, примеры использования, устранение неисправностей.
+
 ---
 
 ## Инструменты
