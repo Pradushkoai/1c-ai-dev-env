@@ -424,6 +424,93 @@ def test_no_query_outside_loop_ok(std, tmp_path):
     assert len(v) == 0
 
 
+def test_no_query_in_loop_docstring_ok(std, tmp_path):
+    """Запрос в цикле в docstring-примере — НЕ должен детектиться (bug fix).
+    
+    Регрессионный тест: чекер не должен находить 'Цикл' в комментариях
+    docstring и считать это запросом в цикле.
+    """
+    bsl = """// Находит элемент справочника по артикулу.
+//
+// Параметры:
+//   Артикул - Строка - артикул производителя для поиска.
+//
+// Пример:
+//   НайденныйТовар = НайтиПоАртикулу("PW-001");
+//   Если Не ЗначениеЗаполнено(НайденныйТовар) Тогда
+//       Для Каждого Товар Из Список Цикл
+//           // обработка
+//       КонецЦикла;
+//   КонецЕсли;
+//
+Функция НайтиПоАртикулу(Артикул) Экспорт
+        
+        Запрос = Новый Запрос;
+        Запрос.Текст = "ВЫБРАТЬ * ИЗ Справочник.Товары";
+        Запрос.УстановитьПараметр("Артикул", Артикул);
+        Результат = Запрос.Выполнить();
+        Возврат Результат;
+        
+КонецФункции"""
+    v = _check_rule(std, std.rule_no_query_in_loop, bsl)
+    assert len(v) == 0, f"False positive: docstring 'Цикл' detected as query-in-loop: {v}"
+
+
+def test_no_query_in_loop_real_loop_still_detected(std, tmp_path):
+    """Реальный запрос в цикле — должен детектиться (после фикса)."""
+    bsl = """Для Каждого Элемент Из Список Цикл
+    Запрос = Новый Запрос;
+    Запрос.Текст = "ВЫБРАТЬ * ИЗ Справочник.Товары";
+КонецЦикла;"""
+    v = _check_rule(std, std.rule_no_query_in_loop, bsl)
+    assert len(v) >= 1
+    assert v[0].rule_id == "no-query-in-loop"
+    assert v[0].severity == "error"
+
+
+def test_no_query_in_loop_while_loop(std, tmp_path):
+    """Запрос в цикле Пока — должен детектиться."""
+    bsl = """Пока Выборка.Следующий() Цикл
+    Запрос = Новый Запрос;
+    Запрос.Текст = "ВЫБРАТЬ *";
+КонецЦикла;"""
+    v = _check_rule(std, std.rule_no_query_in_loop, bsl)
+    assert len(v) >= 1
+
+
+def test_no_commented_code_docstring_ok(std, tmp_path):
+    """Закомментированный код в docstring — НЕ должен детектиться (bug fix).
+    
+    Регрессионный тест: docstring-примеры с // Если/КонецЕсли/Цикл
+    не должны считаться закомментированным кодом.
+    """
+    bsl = """// Пример использования:
+//   Если Условие Тогда
+//       Для Каждого Элемент Из Список Цикл
+//           // обработка
+//       КонецЦикла;
+//   КонецЕсли;
+Функция МояФункция() Экспорт
+        Возврат Истина;
+КонецФункции"""
+    v = _check_rule(std, std.rule_no_commented_code, bsl)
+    # Внутри docstring-блока — не должно быть violations
+    docstring_violations = [x for x in v if x.line <= 6]
+    assert len(docstring_violations) == 0, f"False positive: docstring flagged as commented code: {v}"
+
+
+def test_no_commented_code_real_still_detected(std, tmp_path):
+    """Реальный закомментированный код — должен детектиться (после фикса)."""
+    bsl = """Функция МояФункция() Экспорт
+        Возврат Истина;
+КонецФункции
+// Если Условие Тогда
+//     Сообщить("старый код");"""
+    v = _check_rule(std, std.rule_no_commented_code, bsl)
+    # Хотя бы одно нарушение (одиночные // Если вне docstring-блока)
+    assert len(v) >= 1, "Real commented code should be detected"
+
+
 def test_no_dot_notation(std, tmp_path):
     """Точечная нотация Товар.Цена."""
     bsl = 'Цена = Товар.Цена;'
