@@ -76,64 +76,64 @@ TYPE_TO_DIR = {
 # XML шаблон для Configuration.xml
 CONFIGURATION_XML_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 <MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.18">
-	<Configuration uuid="{uuid}">
-		<Properties>
-			<Name>{name}</Name>
-			<Synonym>
-				<v8:item>
-					<v8:lang>ru</v8:lang>
-					<v8:content>{synonym}</v8:content>
-				</v8:item>
-			</Synonym>
-			<Comment>{comment}</Comment>
-			<NamePrefix>{name_prefix}</NamePrefix>
-			<ConfigurationExtensionCompatibilityMode>Version8_3_24</ConfigurationExtensionCompatibilityMode>
-			<DefaultRunMode>ManagedApplication</DefaultRunMode>
-			<ScriptVariant>Russian</ScriptVariant>
-			<Vendor>{vendor}</Vendor>
-			<Version>{version}</Version>
-		</Properties>
-		<ChildObjects>
+        <Configuration uuid="{uuid}">
+                <Properties>
+                        <Name>{name}</Name>
+                        <Synonym>
+                                <v8:item>
+                                        <v8:lang>ru</v8:lang>
+                                        <v8:content>{synonym}</v8:content>
+                                </v8:item>
+                        </Synonym>
+                        <Comment>{comment}</Comment>
+                        <NamePrefix>{name_prefix}</NamePrefix>
+                        <ConfigurationExtensionCompatibilityMode>Version8_3_24</ConfigurationExtensionCompatibilityMode>
+                        <DefaultRunMode>ManagedApplication</DefaultRunMode>
+                        <ScriptVariant>Russian</ScriptVariant>
+                        <Vendor>{vendor}</Vendor>
+                        <Version>{version}</Version>
+                </Properties>
+                <ChildObjects>
 {child_objects}
-		</ChildObjects>
-	</Configuration>
+                </ChildObjects>
+        </Configuration>
 </MetaDataObject>"""
 
 # XML шаблон для объекта метаданных (универсальный)
 OBJECT_XML_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 <MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.18">
-	<{type} uuid="{uuid}">
-		<Properties>
-			<Name>{name}</Name>
-			<Synonym>
-				<v8:item>
-					<v8:lang>ru</v8:lang>
-					<v8:content>{synonym}</v8:content>
-				</v8:item>
-			</Synonym>
-			<Comment>{comment}</Comment>
+        <{type} uuid="{uuid}">
+                <Properties>
+                        <Name>{name}</Name>
+                        <Synonym>
+                                <v8:item>
+                                        <v8:lang>ru</v8:lang>
+                                        <v8:content>{synonym}</v8:content>
+                                </v8:item>
+                        </Synonym>
+                        <Comment>{comment}</Comment>
 {extra_props}
-		</Properties>
-	</{type}>
+                </Properties>
+        </{type}>
 </MetaDataObject>"""
 
 # Дополнительные свойства для CommonModule
-COMMON_MODULE_PROPS = """			<Server>{server}</Server>
-			<ServerCall>{server_call}</ServerCall>
-			<ClientManagedApplication>{client_managed}</ClientManagedApplication>
-			<Global>{global}</Global>
-			<Privileged>{privileged}</Privileged>"""
+COMMON_MODULE_PROPS = """                       <Server>{server}</Server>
+                        <ServerCall>{server_call}</ServerCall>
+                        <ClientManagedApplication>{client_managed}</ClientManagedApplication>
+                        <Global>{global}</Global>
+                        <Privileged>{privileged}</Privileged>"""
 
 # Дополнительные свойства для Catalog
-CATALOG_PROPS = """			<Hierarchical>false</Hierarchical>
-			<HierarchyType>HierarchyFoldersAndItems</HierarchyType>
-			<CodeLength>11</CodeLength>
-			<DescriptionLength>100</DescriptionLength>
-			<CheckUnique>true</CheckUnique>"""
+CATALOG_PROPS = """                     <Hierarchical>false</Hierarchical>
+                        <HierarchyType>HierarchyFoldersAndItems</HierarchyType>
+                        <CodeLength>11</CodeLength>
+                        <DescriptionLength>100</DescriptionLength>
+                        <CheckUnique>true</CheckUnique>"""
 
 # Дополнительные свойства для Document
-DOCUMENT_PROPS = """			<NumberLength>11</NumberLength>
-			<CheckUnique>true</CheckUnique>"""
+DOCUMENT_PROPS = """                    <NumberLength>11</NumberLength>
+                        <CheckUnique>true</CheckUnique>"""
 
 
 def detect_module_properties(metadata_content: str) -> dict:
@@ -297,15 +297,29 @@ def convert_cf_to_xml_format(extracted_dir: Path, output_dir: Path) -> int:
                 module_dir = type_dir / safe_name / 'Ext'
                 module_dir.mkdir(parents=True, exist_ok=True)
                 bsl_path = module_dir / 'Module.bsl'
-                # Записываем первый доступный модуль
-                for mod_code in obj.bsl_modules.values():
-                    if mod_code.strip():
-                        bsl_path.write_text(mod_code, encoding="utf-8")
+                # Prefer 'Module' key (was 'ObjectModule' before v2 fix)
+                preferred_keys = ['Module', 'ObjectModule', 'ManagerModule']
+                written = False
+                for key in preferred_keys:
+                    if key in obj.bsl_modules and obj.bsl_modules[key].strip():
+                        bsl_path.write_text(obj.bsl_modules[key], encoding="utf-8")
+                        written = True
                         break
-                else:
+                if not written:
+                    # Fallback — первый доступный модуль
+                    for mod_code in obj.bsl_modules.values():
+                        if mod_code.strip():
+                            bsl_path.write_text(mod_code, encoding="utf-8")
+                            written = True
+                            break
+                if not written:
                     bsl_path.write_text('', encoding="utf-8")
             elif obj.type_name in ('Catalog', 'Document', 'InformationRegister', 
-                                    'AccumulationRegister', 'Report', 'DataProcessor'):
+                                    'AccumulationRegister', 'Report', 'DataProcessor',
+                                    'ChartOfCharacteristicTypes', 'ChartOfAccounts',
+                                    'AccountingRegister', 'CalculationRegister',
+                                    'BusinessProcess', 'Task', 'ExchangePlan',
+                                    'Enum', 'Constant', 'FilterCriterion'):
                 # Для объектов с модулями — Ext/ObjectModule.bsl, Ext/ManagerModule.bsl
                 obj_dir = type_dir / safe_name / 'Ext'
                 obj_dir.mkdir(parents=True, exist_ok=True)
@@ -315,6 +329,10 @@ def convert_cf_to_xml_format(extracted_dir: Path, output_dir: Path) -> int:
                 if 'ManagerModule' in obj.bsl_modules:
                     (obj_dir / 'ManagerModule.bsl').write_text(
                         obj.bsl_modules['ManagerModule'], encoding="utf-8")
+                # Fallback: если есть только 'Module' (для некоторых объектов)
+                if 'Module' in obj.bsl_modules and not (obj_dir / 'ObjectModule.bsl').exists():
+                    (obj_dir / 'ObjectModule.bsl').write_text(
+                        obj.bsl_modules['Module'], encoding="utf-8")
         
         converted += 1
     
