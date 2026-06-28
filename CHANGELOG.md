@@ -1,5 +1,62 @@
 # Changelog
 
+## [3.11.0] — 2026-06-28
+
+### Полное извлечение объектов из .cf — v8_metadata_parser V2
+
+Проблема: `cf_extractor` извлекал только 50 объектов из УТ11 (должно ~5440), потому что
+`TYPE_MAP` в `v8_metadata_parser.py` использовала классические коды типов 1С (8.2),
+а современные .cf файлы (8.3.24+) используют сдвинутые коды.
+
+**Анализ реальных данных:**
+- Code 12 = CommonModule (не Role как в V1) — 1232 объекта в УТ11
+- Code 17 = DataProcessor (не Catalog)
+- Code 20 = Catalog (не AccumulationRegister)
+- Code 40 = Document (не WSReference)
+- Code 14 = FunctionalOption (имена "Использовать...")
+- Code 56, 57 = Catalog (подтипы)
+- Code 19, 33 = InformationRegister (два подтипа)
+
+**Изменения в `scripts/v8_metadata_parser.py`:**
+- Новая `TYPE_MAP_V2` — карта кодов современного формата (8.3.24+)
+- `TYPE_MAP_V1` сохранена для обратной совместимости со старыми .cf
+- `detect_type_by_content()` — выбирает V2 → V1 → Unknown
+- `re.match` вместо `re.search` для type code (избегает ложных срабатываний на sub-объектах)
+- Поддержка двух паттернов имён:
+  - `{1,0,UUID},"Name"` — стандартный (CommonModule, Catalog, Document, ...)
+  - `{0,0,UUID},"Name"` — альтернативный (FunctionalOption, Constant, ...)
+- Пропуск объектов без имени (sub-объекты: формы, команды)
+
+**Изменения в `scripts/cf_to_xml_adapter.py`:**
+- Сохранение BSL модулей для всех типов объектов (не только CommonModules)
+- Поддержка ключа 'Module' (V2) в дополнение к 'ObjectModule' (V1)
+- Сохранение ObjectModule.bsl + ManagerModule.bsl для Catalog/Document/etc.
+
+**Реальные результаты:**
+| Конфигурация | Было объектов | Стало объектов | Модулей | Методов |
+|--------------|--------------|---------------|---------|---------|
+| ut11         | 50           | 10089         | 1118    | 15809   |
+| edo3         | 218          | 2561          | 1646    | 24266   |
+| edo2         | 240          | 2353          | 1473    | 22506   |
+| unp          | 659          | (в процессе)  | —       | —       |
+
+**Тесты:**
+- tests/test_v8_metadata_parser.py — переписаны под V2 (17 тестов)
+- Покрытие: TYPE_MAP_V2, TYPE_MAP_V1, парсинг обоих паттернов имён,
+  пропуск sub-объектов, unknown type codes
+- Всего: 314 (было 311)
+
+**DataPackage обновлён:**
+- 59.4 МБ, 22398 файлов
+- Конфигурации: edo2 (24266 methods) + edo3 (22506 methods) + BM25 platform index (8141 methods)
+- ut11 и unp требуют повторного извлечения (см. следующий шаг)
+
+### Следующие шаги (для следующей сессии)
+1. Скачать .cf файлы (ut11, unp) из Google Drive
+2. Извлечь через `1c-ai config add --cf X.cf --skip-build` + `1c-ai config build --name X`
+3. `1c-ai data autosave --include-raw` — обновить пакет
+4. `1c-ai data release-push` — загрузить в GitHub Releases
+
 ## [3.10.0] — 2026-06-28
 
 ### GitHub Releases integration — Фаза 3 завершена
