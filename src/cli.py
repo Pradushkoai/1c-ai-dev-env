@@ -22,7 +22,7 @@ from pathlib import Path
 from .project import Project
 
 
-def cmd_config_list(project: Project, args):
+def cmd_config_list(project: Project, args: argparse.Namespace) -> None:
     configs = project.list_configs()
     if not configs:
         print("Нет конфигураций.")
@@ -34,7 +34,7 @@ def cmd_config_list(project: Project, args):
         print(f"{c.name:<15} {c.version:<15} {c.status:<10} {c.objects_count:<10} {path}")
 
 
-def cmd_config_add(project: Project, args):
+def cmd_config_add(project: Project, args: argparse.Namespace) -> None:
     """Добавить конфигурацию из ZIP или .cf файла."""
     if args.cf:
         config = project.config_manager.add_from_cf(args.name, Path(args.cf), args.title)
@@ -48,30 +48,30 @@ def cmd_config_add(project: Project, args):
         print(f"  API:    {'✅' if report['api'] else '—'}")
 
 
-def cmd_config_build(project: Project, args):
+def cmd_config_build(project: Project, args: argparse.Namespace) -> None:
     report = project.config_manager.build(args.name)
     print(f"✅ {args.name}: index={'✅' if report['index'] else '❌'} api={'✅' if report['api'] else '—'}")
 
 
-def cmd_config_build_all(project: Project, args):
+def cmd_config_build_all(project: Project, args: argparse.Namespace) -> None:
     results = project.config_manager.build_all()
     for r in results:
         print(f"✅ {r['name']}: index={'✅' if r['index'] else '❌'} api={'✅' if r['api'] else '—'}")
 
 
-def cmd_bsl_analyze(project: Project, args):
+def cmd_bsl_analyze(project: Project, args: argparse.Namespace) -> None:
     result = project.bsl_analyzer.analyze(Path(args.path))
     print(f"Всего: {result.total}")
     for code, count in sorted(result.by_code.items(), key=lambda x: -x[1])[:15]:
         print(f"  {count:4d}  {code}")
 
 
-def cmd_bsl_baseline(project: Project, args):
+def cmd_bsl_baseline(project: Project, args: argparse.Namespace) -> None:
     result = project.bsl_analyzer.save_baseline(Path(args.path))
     print(f"✅ Baseline: {result.total} диагностик")
 
 
-def cmd_bsl_diff(project: Project, args):
+def cmd_bsl_diff(project: Project, args: argparse.Namespace) -> None:
     diff = project.bsl_analyzer.diff(Path(args.path))
     print(f"\n🆕 НОВЫЕ ({len(diff.new)}):")
     for d in diff.new[:20]:
@@ -81,7 +81,7 @@ def cmd_bsl_diff(project: Project, args):
         print(f"  - {d['key']}")
 
 
-def cmd_validate(project: Project, args):
+def cmd_validate(project: Project, args: argparse.Namespace) -> None:
     checks = project.validate()
     all_ok = True
     for name, ok in checks.items():
@@ -91,7 +91,7 @@ def cmd_validate(project: Project, args):
     sys.exit(0 if all_ok else 1)
 
 
-def cmd_search(project: Project, args):
+def cmd_search(project: Project, args: argparse.Namespace) -> None:
     """Семантический поиск по методам 1С (TF-IDF)."""
     from .services.search import search as tfidf_search
 
@@ -114,7 +114,7 @@ def cmd_search(project: Project, args):
         print()
 
 
-def cmd_standards(project: Project, args):
+def cmd_standards(project: Project, args: argparse.Namespace) -> None:
     """Проверка .bsl файлов на соответствие стандартам разработки 1С."""
     import importlib.util
     from pathlib import Path
@@ -151,7 +151,7 @@ def cmd_standards(project: Project, args):
     sys.exit(1 if has_errors else 0)
 
 
-def cmd_backup(project: Project, args):
+def cmd_backup(project: Project, args: argparse.Namespace) -> None:
     """Управление backup/restore данных проекта."""
     from .services.backup_manager import BackupManager
     from pathlib import Path
@@ -198,7 +198,7 @@ def cmd_backup(project: Project, args):
             print(f"{b['name']:<30} {b['size_mb']:>6.1f} МБ {b['files']:>8}    {b['created_at'][:19]}")
 
 
-def cmd_solve(project: Project, args):
+def cmd_solve(project: Project, args: argparse.Namespace) -> None:
     """
     Автоматический цикл решения задачи с проверками.
 
@@ -214,7 +214,7 @@ def cmd_solve(project: Project, args):
         _solve_check(project, args)
 
 
-def _solve_context(project: Project, args):
+def _solve_context(project: Project, args: argparse.Namespace) -> None:
     """Собирает контекст для LLM: методы платформы + API конфигурации + стандарты."""
     import json
 
@@ -324,7 +324,7 @@ def _solve_context(project: Project, args):
     print("опираясь на методы, API и стандарты выше.")
 
 
-def _solve_check(project: Project, args):
+def _solve_check(project: Project, args: argparse.Namespace) -> None:
     """Проверяет .bsl код: BSL LS + 22 правила стандартов."""
     from pathlib import Path
     import json
@@ -408,7 +408,7 @@ def _solve_check(project: Project, args):
     sys.exit(1 if total_errors > 0 else 0)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         prog="src.cli",
         description="1C AI Development Environment CLI",

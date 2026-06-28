@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "1c-ai-dev-env"
-version = "3.5.0"
+version = "3.6.0"
 description = "Среда разработки 1С с ИИ-ассистентом"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -24,7 +24,6 @@ classifiers = [
     "Topic :: Software Development :: Code Generators",
 ]
 dependencies = [
-    "v8unpack>=1.2.6",
     "python-dotenv>=1.0.0",
 ]
 
