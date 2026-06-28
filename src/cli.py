@@ -92,17 +92,21 @@ def cmd_validate(project: Project, args: argparse.Namespace) -> None:
 
 
 def cmd_search(project: Project, args: argparse.Namespace) -> None:
-    """Семантический поиск по методам 1С (TF-IDF)."""
-    from .services.search import search as tfidf_search
+    """Семантический поиск по методам 1С (BM25/TF-IDF авто)."""
+    from .services.search_bm25 import search_auto, detect_index_version
 
     index_path = project.paths.fast_search_index
     if not index_path.exists():
         print("❌ Индекс не найден. Запустите: python3 scripts/fast_search_1c.py build")
         sys.exit(1)
 
-    results = tfidf_search(index_path, args.query, args.limit)
+    version = detect_index_version(index_path)
+    algo_name = 'BM25+триграммы (v2)' if version == 2 else 'TF-IDF (v1, legacy)'
+
+    results = search_auto(index_path, args.query, args.limit)
 
     print(f'Поиск: "{args.query}"')
+    print(f'Алгоритм: {algo_name}')
     print(f'Найдено: {len(results)} результатов')
     print()
     for rank, r in enumerate(results, 1):
@@ -229,12 +233,15 @@ def _solve_context(project: Project, args: argparse.Namespace) -> None:
     print()
 
     # 1. Поиск методов платформы 1С
-    print("=== 1. Методы платформы 1С (TF-IDF поиск) ===")
-    from .services.search import search as tfidf_search
+    print("=== 1. Методы платформы 1С (BM25+TF-IDF поиск) ===")
+    from .services.search_bm25 import search_auto, detect_index_version
 
     index_path = project.paths.fast_search_index
     if index_path.exists():
-        results = tfidf_search(index_path, query, limit=limit)
+        version = detect_index_version(index_path)
+        algo_name = 'BM25+триграммы (v2)' if version == 2 else 'TF-IDF (v1, legacy)'
+        print(f"   Алгоритм: {algo_name}")
+        results = search_auto(index_path, query, limit=limit)
         if results:
             for i, r in enumerate(results, 1):
                 print(f"  {i}. [{r['score']:.3f}] {r['name_ru']} ({r['name_en']})")
