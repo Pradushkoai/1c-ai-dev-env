@@ -133,6 +133,14 @@ python3 scripts/check_metadata_standards.py data/configs/ut11  # 18 правил
 1c-ai mcp serve                                       # запустить MCP-сервер (stdio)
 1c-ai mcp tools                                       # список доступных tools
 
+# Данные проекта (persistence между сессиями)
+1c-ai data status                                     # что доступно, что перестроить
+1c-ai data autosave                                   # сохранить в download/1c-ai-data-package.zip
+1c-ai data autoload                                   # восстановить из стандартного места
+1c-ai data save-pkg -o backup.zip                     # сохранить в указанный ZIP
+1c-ai data load-pkg backup.zip                        # восстановить из ZIP
+1c-ai data info backup.zip                            # информация о пакете
+
 # Backup/restore
 1c-ai backup create -o backup.zip              # создать backup (data/ + runtime/)
 1c-ai backup restore backup.zip                # восстановить из backup
@@ -156,17 +164,18 @@ python3 scripts/check_metadata_standards.py data/configs/ut11  # 18 правил
 pip install -r requirements-optional.txt   # добавит mcp>=1.0.0
 ```
 
-### Доступные tools (7)
+### Доступные tools (8)
 
 | Tool | Что делает |
 |------|-----------|
 | `list_configs` | Список загруженных конфигураций 1С |
-| `search_1c_methods` | TF-IDF поиск по 8141 методам платформы |
+| `search_1c_methods` | TF-IDF/BM25 поиск по 8141 методам платформы |
 | `get_api_reference` | API-справочник общих модулей конфигурации |
 | `analyze_bsl` | Анализ .bsl через BSL LS (187 диагностик) |
 | `check_standards` | Проверка на 56 правил стандартов 1С |
 | `solve_context` | Сбор контекста для решения задачи |
 | `solve_check` | Полная проверка .bsl кода |
+| `data_status` | Статус данных проекта (что доступно, что перестроить) |
 
 ### Конфиг для Cursor / VS Code
 

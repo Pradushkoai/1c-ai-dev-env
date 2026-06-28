@@ -491,6 +491,159 @@ def cmd_mcp(project: Project, args: argparse.Namespace) -> None:
             sys.exit(1)
 
 
+def cmd_data(project: Project, args: argparse.Namespace) -> None:
+    """Управление данными проекта (persistence)."""
+    from .services.data_package import DataPackage
+
+    dp = DataPackage(project.paths)
+
+    if args.data_command == 'save-pkg':
+        output = Path(args.output) if args.output else dp.default_package_path
+        if not output.is_absolute():
+            output = project.paths.root / output
+
+        print(f"Сохранение данных в: {output}")
+        print(f"  Включая raw (data/): {'да' if args.include_raw else 'нет'}")
+        print(f"  Включая derived: да")
+        print()
+
+        result = dp.save(
+            output,
+            include_raw=args.include_raw,
+            include_derived=True,
+            description=args.description or "",
+        )
+
+        size_mb = result.stat().st_size / 1024 / 1024
+        info = dp.info(result)
+        manifest = info.get("manifest", {})
+
+        print(f"✅ Пакет создан: {result}")
+        print(f"   Размер: {size_mb:.1f} МБ")
+        print(f"   Файлов: {info['total_files']}")
+        if manifest:
+            print(f"   Конфигураций: {len(manifest.get('configs', []))}")
+            print(f"   Создан: {manifest.get('created_at', '?')[:19]}")
+
+    elif args.data_command == 'load-pkg':
+        path = Path(args.path)
+        if not path.is_absolute():
+            path = project.paths.root / path
+
+        if not path.exists():
+            print(f"❌ Пакет не найден: {path}")
+            sys.exit(1)
+
+        print(f"Восстановление из: {path}")
+        print()
+
+        # Сначала покажем что внутри
+        info = dp.info(path)
+        manifest = info.get("manifest")
+        if manifest:
+            print(f"Пакет создан: {manifest.get('created_at', '?')[:19]}")
+            print(f"Конфигураций: {len(manifest.get('configs', []))}")
+            for c in manifest.get("configs", []):
+                print(f"  • {c['name']} v{c['version']} — {c['objects_count']} объектов")
+            print()
+
+        # Распаковка
+        stats = dp.load(path)
+        print(f"✅ Восстановлено файлов: {stats['files_restored']}")
+        print(f"   Из них derived: {stats['derived_restored']}")
+        print(f"   Из них data (raw): {stats['raw_restored']}")
+        print(f"   config-registry.json: {'✅' if stats['configs_loaded'] else '—'}")
+        print()
+        print("Теперь данные доступны для:")
+        print("  • 1c-ai search '<запрос>'        — поиск по методам платформы")
+        print("  • 1c-ai config list              — список конфигураций")
+        print("  • 1c-ai mcp serve                — MCP-сервер для IDE")
+
+    elif args.data_command == 'info':
+        path = Path(args.path) if args.path else dp.default_package_path
+        if not path.is_absolute():
+            path = project.paths.root / path
+
+        if not path.exists():
+            print(f"❌ Пакет не найден: {path}")
+            sys.exit(1)
+
+        info = dp.info(path)
+        print(f"Пакет: {path}")
+        print(f"Размер: {info['size_mb']:.1f} МБ")
+        print(f"Файлов: {info['total_files']}")
+        if info["manifest"]:
+            m = info["manifest"]
+            print()
+            print(f"Манифест:")
+            print(f"  Версия: {m.get('version', '?')}")
+            print(f"  Создан: {m.get('created_at', '?')[:19]}")
+            print(f"  Включая raw: {m.get('include_raw', False)}")
+            print(f"  Конфигураций: {len(m.get('configs', []))}")
+            for c in m.get("configs", []):
+                print(f"    • {c['name']} v{c['version']} — {c.get('objects_count', 0)} объектов")
+            if m.get("description"):
+                print(f"  Описание: {m['description']}")
+        print()
+        print(f"Первые {len(info['file_list_sample'])} файлов:")
+        for f in info["file_list_sample"][:20]:
+            print(f"  {f}")
+        if info["total_files"] > 20:
+            print(f"  ... и ещё {info['total_files'] - 20}")
+
+    elif args.data_command == 'autosave':
+        print(f"Автосохранение в: {dp.default_package_path}")
+        result = dp.autosave(
+            include_raw=args.include_raw,
+            description=args.description or "Autosave",
+        )
+        size_mb = result.stat().st_size / 1024 / 1024
+        info = dp.info(result)
+        print(f"✅ Сохранено: {result}")
+        print(f"   Размер: {size_mb:.1f} МБ, файлов: {info['total_files']}")
+
+    elif args.data_command == 'autoload':
+        if not dp.has_autosave():
+            print(f"❌ Автосохранение не найдено: {dp.default_package_path}")
+            print("   Сначала выполните: 1c-ai data autosave")
+            sys.exit(1)
+
+        print(f"Восстановление из: {dp.default_package_path}")
+        stats = dp.load(dp.default_package_path)
+        print(f"✅ Восстановлено файлов: {stats['files_restored']}")
+        print(f"   derived: {stats['derived_restored']}")
+        print(f"   data (raw): {stats['raw_restored']}")
+
+    elif args.data_command == 'status':
+        status = dp.status()
+        print("Статус данных проекта:")
+        print()
+        print("Платформа 1С:")
+        print(f"  Индекс поиска:      {'✅' if status['has_platform_index'] else '❌'}")
+        print(f"  Методы (syntax-helper): {'✅' if status['has_platform_methods'] else '❌'}")
+        print()
+        print(f"Конфигурации ({len(status['configs'])}):")
+        if not status["configs"]:
+            print("  (нет)")
+        else:
+            print(f"  {'Имя':<15} {'Версия':<15} {'Статус':<10} {'API':<5} {'Индекс':<7} {'Raw':<5}")
+            print("  " + "-" * 60)
+            for c in status["configs"]:
+                api = '✅' if c["has_api"] else '❌'
+                der = '✅' if c["has_derived"] else '❌'
+                raw = '✅' if c["has_raw"] else '—'
+                print(f"  {c['name']:<15} {c['version']:<15} {c['status']:<10} {api:<5} {der:<7} {raw:<5}")
+        print()
+        print(f"Автосохранение: {'✅ доступно' if status['autosave_available'] else '❌ нет'}")
+        if status["autosave_available"]:
+            ai = status["autosave_info"]
+            print(f"  Размер: {ai['size_mb']:.1f} МБ")
+            print(f"  Файлов: {ai['total_files']}")
+            if ai["manifest"]:
+                print(f"  Создан: {ai['manifest'].get('created_at', '?')[:19]}")
+                print(f"  Восстановить: 1c-ai data autoload")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="src.cli",
@@ -583,6 +736,30 @@ def main() -> None:
     mcp_sub.add_parser("serve", help="Запустить MCP-сервер (stdio)")
     mcp_sub.add_parser("tools", help="Вывести список доступных tools")
 
+    # data — persistence данных
+    p_data = sub.add_parser("data", help="Управление данными (persistence между сессиями)")
+    data_sub = p_data.add_subparsers(dest="data_command", required=True)
+
+    p_save = data_sub.add_parser("save-pkg", help="Сохранить данные в ZIP")
+    p_save.add_argument("--output", "-o", help="Путь к ZIP (по умолчанию download/)")
+    p_save.add_argument("--include-raw", action="store_true",
+                        help="Включить data/ (распакованные конфиги — большой объём)")
+    p_save.add_argument("--description", "-d", default="", help="Описание пакета")
+
+    p_load = data_sub.add_parser("load-pkg", help="Восстановить данные из ZIP")
+    p_load.add_argument("path", help="Путь к ZIP файлу")
+
+    p_info = data_sub.add_parser("info", help="Информация о пакете без распаковки")
+    p_info.add_argument("path", nargs="?", help="Путь к ZIP (по умолчанию autosave)")
+
+    p_auto = data_sub.add_parser("autosave", help="Сохранить в стандартное место (download/)")
+    p_auto.add_argument("--include-raw", action="store_true")
+    p_auto.add_argument("--description", "-d", default="")
+
+    data_sub.add_parser("autoload", help="Восстановить из стандартного места (download/)")
+
+    data_sub.add_parser("status", help="Статус данных: что доступно, что нужно перестроить")
+
     args = parser.parse_args()
     project = Project()
 
@@ -614,6 +791,8 @@ def main() -> None:
         cmd_solve(project, args)
     elif args.command == "mcp":
         cmd_mcp(project, args)
+    elif args.command == "data":
+        cmd_data(project, args)
 
 
 if __name__ == "__main__":

@@ -78,11 +78,12 @@ def main():
         assert "result" in resp, f"No result: {resp}"
         assert "tools" in resp["result"], f"No tools: {resp}"
         tools = resp["result"]["tools"]
-        assert len(tools) == 7, f"Expected 7 tools, got {len(tools)}"
+        assert len(tools) == 8, f"Expected 8 tools, got {len(tools)}"
 
         expected_names = {
             'list_configs', 'search_1c_methods', 'get_api_reference',
-            'analyze_bsl', 'check_standards', 'solve_context', 'solve_check'
+            'analyze_bsl', 'check_standards', 'solve_context', 'solve_check',
+            'data_status'
         }
         actual_names = {t['name'] for t in tools}
         assert expected_names == actual_names, f"Tool names mismatch: {actual_names}"

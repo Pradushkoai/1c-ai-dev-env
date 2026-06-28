@@ -17,9 +17,9 @@ from src.mcp_server import _get_tools_description, create_mcp_server
 # ============ _get_tools_description ============
 
 def test_get_tools_description_returns_7_tools():
-    """Должно быть ровно 7 tools."""
+    """Должно быть 8 tools (7 + data_status)."""
     tools = _get_tools_description()
-    assert len(tools) == 7
+    assert len(tools) == 8
 
 
 def test_get_tools_description_names():
@@ -27,7 +27,8 @@ def test_get_tools_description_names():
     tools = _get_tools_description()
     expected = {
         'list_configs', 'search_1c_methods', 'get_api_reference',
-        'analyze_bsl', 'check_standards', 'solve_context', 'solve_check'
+        'analyze_bsl', 'check_standards', 'solve_context', 'solve_check',
+        'data_status'
     }
     actual = {t['name'] for t in tools}
     assert actual == expected
@@ -270,14 +271,44 @@ def test_call_unknown_tool(mcp_server_with_mock_project):
 
 
 def test_call_list_tools(mcp_server_with_mock_project):
-    """list_tools handler возвращает 7 Tool объектов."""
+    """list_tools handler возвращает 8 Tool объектов (7 + data_status)."""
     server, project = mcp_server_with_mock_project
     from mcp.types import ListToolsRequest
     handler = next((h for req_type, h in server.request_handlers.items() if req_type == ListToolsRequest), None)
     assert handler is not None
 
     result = asyncio.run(handler(ListToolsRequest(method='tools/list')))
-    assert len(result.root.tools) == 7
+    assert len(result.root.tools) == 8
     names = {t.name for t in result.root.tools}
     assert 'list_configs' in names
     assert 'solve_check' in names
+    assert 'data_status' in names
+
+
+def test_call_data_status(mcp_server_with_mock_project):
+    """data_status возвращает статус данных проекта."""
+    server, project = mcp_server_with_mock_project
+    from mcp.types import CallToolRequest
+    handler = next(h for req_type, h in server.request_handlers.items() if req_type == CallToolRequest)
+
+    # Мокаем DataPackage.status
+    with patch('src.services.data_package.DataPackage') as dp_cls:
+        dp = MagicMock()
+        dp_cls.return_value = dp
+        dp.status.return_value = {
+            'has_platform_index': True,
+            'has_platform_methods': True,
+            'configs': [{'name': 'ut11', 'has_api': True}],
+            'autosave_available': False,
+            'autosave_info': None,
+        }
+
+        result = asyncio.run(handler(CallToolRequest(
+            method='tools/call',
+            params={'name': 'data_status', 'arguments': {}}
+        )))
+        data = json.loads(result.root.content[0].text)
+        assert data['has_platform_index'] is True
+        assert data['has_platform_methods'] is True
+        assert len(data['configs']) == 1
+        assert data['autosave_available'] is False

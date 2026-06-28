@@ -1,5 +1,46 @@
 # Changelog
 
+## [3.9.0] — 2026-06-28
+
+### Persistence данных — DataPackage
+
+Проблема: диск `/home/z/my-project/` пересоздаётся между сессиями — данные (`data/`, `derived/`) теряются, остаётся только `runtime/config-registry.json` (в git).
+
+**Новый сервис `src/services/data_package.py`:**
+- `DataPackage.save(zip_path, include_raw, include_derived)` — сохранить всё в один ZIP
+- `DataPackage.load(zip_path)` — восстановить
+- `DataPackage.info(zip_path)` — метаданные без распаковки
+- `DataPackage.autosave()` / `DataPackage.autoload()` — стандартное место (`download/1c-ai-data-package.zip`)
+- `DataPackage.status()` — что доступно, что нужно перестроить
+- Манифест с метаданными (версия, дата, конфигурации, размер)
+
+**CLI команды (`1c-ai data`):**
+- `1c-ai data save-pkg [-o PATH] [--include-raw] [-d DESCRIPTION]` — сохранить
+- `1c-ai data load-pkg PATH` — восстановить
+- `1c-ai data info [PATH]` — информация о пакете
+- `1c-ai data autosave [--include-raw] [-d DESCRIPTION]` — стандартное место
+- `1c-ai data autoload` — восстановить из стандартного места
+- `1c-ai data status` — статус данных проекта
+
+**Новый MCP tool `data_status`:**
+- Возвращает: has_platform_index, has_platform_methods, configs[], autosave_available
+- Если есть autosave — показывает команду для восстановления (`1c-ai data autoload`)
+- LLM может вызвать, чтобы понять почему `search_1c_methods`/`get_api_reference` возвращают пустые результаты
+
+**Тесты:**
+- tests/test_data_package.py — 27 тестов
+- 1 новый MCP тест (data_status)
+- Всего: 287 (было 259)
+
+### Улучшенный поиск — BM25 + триграммы + стеммер (v3.8.0 ранее)
+
+- BM25 (k1=1.5, b=0.75) — золотой стандарт полнотекстового поиска
+- Простой стеммер для русского/английского (без зависимостей)
+- Триграммы с Жаккар-сходством — устойчивость к опечаткам
+- Гибридный режим: 0.75 * BM25 + 0.25 * триграммы
+- Версионирование индекса (v1=TF-IDF, v2=BM25)
+- Auto-detect: `search_auto()` выбирает алгоритм
+
 ## [3.7.0] — 2026-06-28
 
 ### MCP-сервер — интеграция с IDE/LLM (Cursor, Claude Desktop, VS Code, и т.д.)

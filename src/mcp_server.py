@@ -34,7 +34,7 @@ def _get_tools_description() -> list[dict]:
         },
         {
             "name": "search_1c_methods",
-            "description": "TF-IDF семантический поиск по 8141 методам платформы 1С. Возвращает: name_ru, name_en, syntax, description, context. Пример: search_1c_methods(query='найти элемент по коду', limit=5)",
+            "description": "TF-IDF/BM25 семантический поиск по 8141 методам платформы 1С. Возвращает: name_ru, name_en, syntax, description, context. Пример: search_1c_methods(query='найти элемент по коду', limit=5)",
             "required_params": ["query"],
             "optional_params": ["limit"],
         },
@@ -58,7 +58,7 @@ def _get_tools_description() -> list[dict]:
         },
         {
             "name": "solve_context",
-            "description": "Сбор контекста для решения задачи 1С. Собирает: TF-IDF поиск методов платформы, API-справочник конфигурации, стандарты 1С. Используй ПЕРВЫМ шагом при решении любой задачи.",
+            "description": "Сбор контекста для решения задачи 1С. Собирает: TF-IDF/BM25 поиск методов платформы, API-справочник конфигурации, стандарты 1С. Используй ПЕРВЫМ шагом при решении любой задачи.",
             "required_params": ["query"],
             "optional_params": ["config"],
         },
@@ -66,6 +66,12 @@ def _get_tools_description() -> list[dict]:
             "name": "solve_check",
             "description": "Полная проверка .bsl кода: BSL LS (187) + 56 правил стандартов. Возвращает: total_errors, total_warnings, violations, verdict. verdict: 'ready' / 'warnings' / 'errors'.",
             "required_params": ["file_path"],
+            "optional_params": [],
+        },
+        {
+            "name": "data_status",
+            "description": "Статус данных проекта: что доступно (платформа, конфигурации), что нужно перестроить, доступен ли autosave пакет. Используй, если данные не находятся — возможно нужно autoload.",
+            "required_params": [],
             "optional_params": [],
         },
     ]
@@ -220,6 +226,19 @@ def create_mcp_server() -> Server:
                         },
                     },
                     "required": ["file_path"],
+                },
+            ),
+            types.Tool(
+                name="data_status",
+                description=(
+                    "Статус данных проекта: что доступно (платформа, конфигурации), "
+                    "что нужно перестроить, доступен ли autosave пакет. "
+                    "Используй, если данные не находятся — возможно нужно autoload через CLI. "
+                    "Возвращает: has_platform_index, has_platform_methods, configs[], autosave_available."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
                 },
             ),
         ]
@@ -435,6 +454,31 @@ def create_mcp_server() -> Server:
                 "verdict": verdict,
                 "details": violations_list,
             }
+            return [types.TextContent(
+                type="text",
+                text=json.dumps(response, ensure_ascii=False, indent=2),
+            )]
+
+        elif name == "data_status":
+            # Статус данных проекта
+            from .services.data_package import DataPackage
+            dp = DataPackage(project.paths)
+            status = dp.status()
+            # Преобразуем Path и другие объекты в сериализуемый формат
+            response = {
+                "has_platform_index": status["has_platform_index"],
+                "has_platform_methods": status["has_platform_methods"],
+                "configs": status["configs"],
+                "autosave_available": status["autosave_available"],
+            }
+            if status.get("autosave_info"):
+                ai = status["autosave_info"]
+                response["autosave_info"] = {
+                    "size_mb": ai.get("size_mb", 0),
+                    "total_files": ai.get("total_files", 0),
+                    "created_at": ai.get("manifest", {}).get("created_at", "")[:19] if ai.get("manifest") else "",
+                }
+                response["autoload_command"] = "1c-ai data autoload"
             return [types.TextContent(
                 type="text",
                 text=json.dumps(response, ensure_ascii=False, indent=2),
