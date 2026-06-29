@@ -98,6 +98,12 @@ def _get_tools_description() -> list[dict]:
             "required_params": ["config_name"],
             "optional_params": ["object_name", "object_type"],
         },
+        {
+            "name": "get_skd_schema",
+            "description": "Структура СКД-схемы (Схемы Компоновки Данных) отчёта или обработки. Наборы данных (с запросами), параметры, поля, итоги. Если report_name не указан — список всех СКД-схем. Пример: get_skd_schema(config_name='ut11', report_name='ABCXYZАнализНоменклатуры').",
+            "required_params": ["config_name"],
+            "optional_params": ["report_name"],
+        },
     ]
 
 
@@ -373,6 +379,30 @@ def create_mcp_server() -> Server:
                         "object_type": {
                             "type": "string",
                             "description": "Тип объекта (Catalog, Document, InformationRegister, и т.д.) — опциональный фильтр",
+                        },
+                    },
+                    "required": ["config_name"],
+                },
+            ),
+            types.Tool(
+                name="get_skd_schema",
+                description=(
+                    "Структура СКД-схемы (Схемы Компоновки Данных) отчёта или обработки. "
+                    "СКД — основной механизм отчётов в 1С 8.3. "
+                    "Возвращает: наборы данных (data_sets) с запросами, параметры, поля, итоги. "
+                    "Если report_name не указан — список всех СКД-схем в конфигурации. "
+                    "Пример: get_skd_schema(config_name='ut11', report_name='ABCXYZАнализНоменклатуры')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "config_name": {
+                            "type": "string",
+                            "description": "Имя конфигурации (ut11, edo2, edo3, unp, obhod)",
+                        },
+                        "report_name": {
+                            "type": "string",
+                            "description": "Имя отчёта или обработки. Если не указан — список всех СКД-схем.",
                         },
                     },
                     "required": ["config_name"],
@@ -764,6 +794,74 @@ def create_mcp_server() -> Server:
                 return [types.TextContent(type="text",
                     text=json.dumps({
                         "error": f"Object '{object_name}' not found in config '{config_name}'",
+                        "suggestions": suggestions,
+                    }, ensure_ascii=False))]
+
+            return [types.TextContent(type="text",
+                text=json.dumps(found, ensure_ascii=False, indent=2))]
+
+        elif name == "get_skd_schema":
+            config_name = arguments.get("config_name", "")
+            report_name = arguments.get("report_name", "")
+
+            if not config_name:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
+
+            # Ищем skd-index.json для конфигурации
+            skd_index_path = project.paths.root / "derived" / "configs" / config_name / "skd-index.json"
+            if not skd_index_path.exists():
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "error": f"skd-index.json not found for config '{config_name}'",
+                        "hint": "Run: python3 scripts/skd_parser.py data/configs/" + config_name + " derived/configs/" + config_name + "/skd-index.json",
+                    }, ensure_ascii=False))]
+
+            with open(skd_index_path, encoding='utf-8') as f:
+                skd_data = json.load(f)
+
+            schemas = skd_data.get('schemas', [])
+
+            # Если report_name не указан — возвращаем список всех СКД-схем
+            if not report_name:
+                summary = []
+                for s in schemas:
+                    summary.append({
+                        'name': s.get('name', ''),
+                        'parent_type': s.get('parent_type', ''),
+                        'parent_name': s.get('parent_name', ''),
+                        'data_sets_count': len(s.get('schema', {}).get('data_sets', [])),
+                        'parameters_count': len(s.get('schema', {}).get('parameters', [])),
+                        'fields_count': sum(len(ds.get('fields', [])) for ds in s.get('schema', {}).get('data_sets', [])),
+                    })
+
+                response = {
+                    'config': config_name,
+                    'stats': skd_data.get('stats', {}),
+                    'schemas': summary,
+                }
+                return [types.TextContent(type="text",
+                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+
+            # Ищем СКД-схему по имени отчёта
+            found = None
+            for s in schemas:
+                if s.get('parent_name', '').lower() == report_name.lower():
+                    found = s
+                    break
+                if s.get('name', '').lower() == report_name.lower():
+                    found = s
+                    break
+
+            if not found:
+                # Fuzzy search
+                suggestions = list(set(
+                    s.get('parent_name', '') for s in schemas
+                    if report_name.lower() in s.get('parent_name', '').lower()
+                ))[:10]
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "error": f"SKD schema for '{report_name}' not found in config '{config_name}'",
                         "suggestions": suggestions,
                     }, ensure_ascii=False))]
 
