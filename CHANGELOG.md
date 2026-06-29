@@ -1,5 +1,59 @@
 # Changelog
 
+## [3.24.0] — 2026-06-29
+
+### Этап 6 роадмапа v4.0: Валидация и тестирование
+
+**Цель:** Проверка сгенерированного кода на соответствие стандартам.
+
+#### Что добавлено:
+
+##### 1. `code_validator.py` — валидатор BSL и XML (новый скрипт)
+- **BSLValidator** — базовая проверка BSL-синтаксиса (без Java):
+  - Сбалансированность `#Область` / `#КонецОбласти`
+  - Сбалансированность `Процедура`/`КонецПроцедуры`, `Функция`/`КонецФункции`
+  - Сбалансированность `Если`/`КонецЕсли`, `Пока`/`КонецЦикла`, `Для`/`КонецЦикла`
+  - Проверка `Экспорт` в объявлениях
+  - Проверка `&НаСервере`/`&НаКлиенте` перед процедурами форм
+
+- **XMLValidator** — проверка XML метаданных:
+  - Парсинг через xml.etree.ElementTree
+  - Проверка обязательных тегов (Name, Synonym, Properties)
+  - Проверка UUID формата
+  - Различение типов XML (Form, DataCompositionSchema, MetaDataObject)
+
+- **validate_structure()** — структурная целостность:
+  - Наличие Module.bsl, Form.xml, метаданных
+  - Связи между файлами (DefaultForm → Forms/<Имя>)
+  - Проверка СКД-схем для отчётов
+
+- **validate_generated()** — полная валидация:
+  - Возвращает verdict: `perfect` / `warnings` / `errors`
+  - Подсчёт total_errors, total_warnings
+
+##### 2. MCP tool `validate_generated` (новый, 18-й tool)
+- Принимает source_dir (из generate_processing/generate_report)
+- Возвращает: verdict, total_errors, total_warnings, детали по BSL/XML/структуре
+
+#### Протестировано:
+- `validate_generated(source_dir='/tmp/test_processing')` → verdict: PERFECT
+- Проверка: 0 ошибок, 0 предупреждений
+
+#### Полный цикл создания и проверки:
+```
+1. generate_processing(name='ВыгрузкаНоменклатуры', synonym='Выгрузка номенклатуры')
+   → структура в generated/ВыгрузкаНоменклатуры/
+
+2. validate_generated(source_dir='generated/ВыгрузкаНоменклатуры')
+   → verdict: perfect / warnings / errors
+
+3. build_epf(source_dir='generated/ВыгрузкаНоменклатуры', output_path='ВыгрузкаНоменклатуры.epf')
+   → .epf файл готов для 1С
+```
+
+#### MCP tools: теперь 18 (было 17)
+- Добавлен: `validate_generated`
+
 ## [3.23.0] — 2026-06-29
 
 ### Этап 5 роадмапа v4.0: Упаковка .epf/.erf

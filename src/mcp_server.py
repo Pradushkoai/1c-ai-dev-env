@@ -129,6 +129,12 @@ def _get_tools_description() -> list[dict]:
             "required_params": ["source_dir", "output_path"],
             "optional_params": ["object_name", "object_type"],
         },
+        {
+            "name": "validate_generated",
+            "description": "Валидация сгенерированного кода: BSL-синтаксис (области, процедуры, циклы), XML-структура, целостность файлов. Возвращает: verdict (perfect/warnings/errors), total_errors, total_warnings. Пример: validate_generated(source_dir='generated/ВыгрузкаНоменклатуры').",
+            "required_params": ["source_dir"],
+            "optional_params": [],
+        },
     ]
 
 
@@ -569,6 +575,26 @@ def create_mcp_server() -> Server:
                         },
                     },
                     "required": ["source_dir", "output_path"],
+                },
+            ),
+            types.Tool(
+                name="validate_generated",
+                description=(
+                    "Валидация сгенерированного кода: BSL-синтаксис (сбалансированность "
+                    "областей, процедур, циклов), XML-структура (обязательные теги, UUID), "
+                    "целостность файлов. "
+                    "Возвращает: verdict (perfect/warnings/errors), total_errors, total_warnings. "
+                    "Пример: validate_generated(source_dir='generated/ВыгрузкаНоменклатуры')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "source_dir": {
+                            "type": "string",
+                            "description": "Путь к каталогу со структурой обработки/отчёта",
+                        },
+                    },
+                    "required": ["source_dir"],
                 },
             ),
         ]
@@ -1203,6 +1229,51 @@ def create_mcp_server() -> Server:
             except Exception as e:
                 return [types.TextContent(type="text",
                     text=json.dumps({"error": f"Build failed: {str(e)}"}, ensure_ascii=False))]
+
+        elif name == "validate_generated":
+            source_dir = arguments.get("source_dir", "")
+
+            if not source_dir:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "source_dir is required"}, ensure_ascii=False))]
+
+            # Преобразуем относительный путь
+            if not os.path.isabs(source_dir):
+                source_dir = str(project.paths.root / source_dir)
+
+            if not os.path.exists(source_dir):
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": f"source_dir not found: {source_dir}"}, ensure_ascii=False))]
+
+            # Загружаем code_validator
+            import importlib.util
+            scripts_dir = project.paths.root / "scripts"
+            cv_path = scripts_dir / "code_validator.py"
+            if not cv_path.exists():
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "code_validator.py not found"}, ensure_ascii=False))]
+
+            spec = importlib.util.spec_from_file_location("code_validator", cv_path)
+            cv_mod = importlib.util.module_from_spec(spec)
+            sys.modules["code_validator"] = cv_mod
+            spec.loader.exec_module(cv_mod)
+
+            try:
+                result = cv_mod.validate_generated(source_dir)
+                response = {
+                    "source_dir": result["source_dir"],
+                    "verdict": result["verdict"],
+                    "total_errors": result["total_errors"],
+                    "total_warnings": result["total_warnings"],
+                    "structure": result["structure"],
+                    "bsl_validation": result.get("bsl_validation", []),
+                    "xml_validation": result.get("xml_validation", []),
+                }
+                return [types.TextContent(type="text",
+                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": f"Validation failed: {str(e)}"}, ensure_ascii=False))]
 
         # Неизвестный tool
         return [types.TextContent(
