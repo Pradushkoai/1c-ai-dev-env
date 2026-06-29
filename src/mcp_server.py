@@ -51,6 +51,12 @@ def _get_tools_description() -> list[dict]:
             "optional_params": ["module", "method"],
         },
         {
+            "name": "get_form_elements",
+            "description": "Элементы формы конфигурации (кнопки, поля, таблицы, группы). Пример: get_form_elements(config_name='obhod', form_name='Форма.ФормаАвторизации'). Если form_name не указан — возвращает список всех форм.",
+            "required_params": ["config_name"],
+            "optional_params": ["form_name"],
+        },
+        {
             "name": "get_api_reference",
             "description": "API-справочник конфигурации — экспортные методы общих модулей. Если module не указан — возвращает список всех модулей с кол-вом методов. Если module указан — возвращает методы конкретного модуля.",
             "required_params": ["config_name"],
@@ -193,6 +199,28 @@ def create_mcp_server() -> Server:
                         },
                     },
                     "required": ["config_name", "action"],
+                },
+            ),
+            types.Tool(
+                name="get_form_elements",
+                description=(
+                    "Элементы формы конфигурации (кнопки, поля, таблицы, группы). "
+                    "Если form_name не указан — возвращает список всех форм. "
+                    "Пример: get_form_elements(config_name='obhod', form_name='Форма.ФормаАвторизации')"
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "config_name": {
+                            "type": "string",
+                            "description": "Имя конфигурации",
+                        },
+                        "form_name": {
+                            "type": "string",
+                            "description": "Имя формы (необязательно). Если пусто — список всех форм.",
+                        },
+                    },
+                    "required": ["config_name"],
                 },
             ),
             types.Tool(
@@ -376,6 +404,39 @@ def create_mcp_server() -> Server:
                 result = graph.find_cycles()
             else:
                 result = graph.to_dict()
+            return [types.TextContent(
+                type="text",
+                text=json.dumps(result, ensure_ascii=False, indent=2),
+            )]
+
+        elif name == "get_form_elements":
+            config_name = arguments.get("config_name", "")
+            form_name = arguments.get("form_name", "")
+            api_json = project.paths.config_api_reference_json(config_name)
+            if not api_json.exists():
+                return [types.TextContent(
+                    type="text",
+                    text=json.dumps({"error": f"API reference not found for '{config_name}'"}, ensure_ascii=False),
+                )]
+            with open(api_json, 'r', encoding='utf-8') as f:
+                modules = json.load(f)
+            forms = [m for m in modules if m.get('type') == 'Форма']
+            if not form_name:
+                # Возвращаем список всех форм
+                result = [{
+                    "name": f['name'],
+                    "methods_count": f.get('methods_count', 0),
+                    "form_elements_count": f.get('form_elements_count', 0),
+                    "parent_type": f.get('parent_type', ''),
+                    "parent_name": f.get('parent_name', ''),
+                } for f in forms]
+            else:
+                # Возвращаем элементы конкретной формы
+                result = []
+                for f in forms:
+                    if f['name'] == form_name:
+                        result = f.get('form_elements', [])
+                        break
             return [types.TextContent(
                 type="text",
                 text=json.dumps(result, ensure_ascii=False, indent=2),

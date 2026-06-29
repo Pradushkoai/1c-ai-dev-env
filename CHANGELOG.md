@@ -1,5 +1,60 @@
 # Changelog
 
+## [3.17.0] — 2026-06-29
+
+### Извлечение и индексация форм конфигураций
+
+**Новый инструмент:** `form_indexer.py` — извлечение модулей форм и элементов форм
+из конфигураций 1С (как из ZIP выгрузки, так и из .cf).
+
+**Что добавлено:**
+
+#### 1. `form_indexer.py` — парсер форм (новый скрипт)
+- `find_form_modules(config_dir)` — находит все модули форм:
+  - CommonForms/<Имя>/Ext/Form/Module.bsl
+  - <ТипОбъекта>/<Имя>/Forms/<ИмяФормы>/Ext/Form/Module.bsl
+- `parse_form_xml(xml_path)` — парсит XML формы, извлекает элементы:
+  - InputField (поля ввода)
+  - Button (кнопки)
+  - Table (таблицы)
+  - UsualGroup, Pages, Page (группы)
+  - CheckBox, RadioButton, и др.
+  - Title, DataPath, CommandName для каждого элемента
+- `add_forms_to_api_reference()` — интеграция в build_api_reference
+
+#### 2. `build_api_reference.py` — обновлён
+- После индексации CommonModules добавляет формы
+- Формы в api-reference.json с type='Форма', category='Формы'
+- Включает: methods (экспортные), form_elements (кнопки, поля), form_elements_count
+
+#### 3. `cf_to_xml_adapter.py` — обновлён
+- Добавлен `_extract_forms_from_cf()` — извлечение модулей форм из .cf
+- Ищет вложенные контейнеры UUID.N/text с info файлами
+- Определяет имя формы через парсинг info
+- Связывает форму с родительским объектом (Document, Catalog, и т.д.)
+
+#### 4. Новый MCP tool: `get_form_elements`
+- `get_form_elements(config_name)` — список всех форм
+- `get_form_elements(config_name, form_name)` — элементы конкретной формы
+- Возвращает: name, type, title, data_path, command
+
+#### 5. `search_code` — обновлён
+- Теперь индексирует методы из модулей форм
+- search_code находит методы в формах (а не только в CommonModules)
+
+**Пример на obhod:**
+```
+Было: 3 модуля, 18 методов (только CommonModules)
+Стало: 8 модулей, 23 метода (3 CommonModules + 5 форм)
+Формы: ФормаАвторизации (8 элементов), ФормаИнцедента (31), 
+       ФормаОбходов (23), ОбходТерритории.Форма (63)
+```
+
+### Статистика
+- MCP tools: 11 (было 10, +get_form_elements)
+- Тестов: 336 (без изменений — форма-индексатор протестирован на obhod)
+- Новых файлов: `scripts/form_indexer.py`
+
 ## [3.16.0] — 2026-06-29
 
 ### call_graph — граф вызовов методов конфигурации
