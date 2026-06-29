@@ -1,5 +1,49 @@
 # Changelog
 
+## [3.23.0] — 2026-06-29
+
+### Этап 5 роадмапа v4.0: Упаковка .epf/.erf
+
+**Цель:** Создание файлов внешних обработок/отчётов (.epf) для открытия в 1С.
+
+#### Что добавлено:
+
+##### 1. `epf_builder.py` — упаковщик .epf (новый скрипт)
+- `V8ContainerWriter` — writer контейнеров 1С (32 и 64 бита)
+  - Формат: заголовок + TOC + блоки данных
+  - Поддержка сжатия zlib
+  - UTF-16-LE кодирование имён файлов
+- `build_epf(source_dir, output_path)` — упаковка каталога в .epf
+  - Читает структуру из code_generator.py
+  - Создаёт Container 0 (root metadata) и Container 1 (модули, формы)
+  - Модули упаковываются в контейнеры info+text
+
+##### 2. MCP tool `build_epf` (новый, 17-й tool)
+- Принимает source_dir (из generate_processing/generate_report)
+- Создаёт .epf файл
+- Возвращает: file_path, size, object_name, uuid, files_included
+
+#### Пример использования:
+```
+1. generate_processing(name='ВыгрузкаНоменклатуры', synonym='Выгрузка номенклатуры')
+   → создаёт структуру в generated/ВыгрузкаНоменклатуры/
+
+2. build_epf(source_dir='generated/ВыгрузкаНоменклатуры', output_path='ВыгрузкаНоменклатуры.epf')
+   → создаёт .epf файл (594 KB)
+```
+
+#### Структура .epf:
+- Container 0 (32-битный): root metadata
+  - UUID файл — метаданные обработки
+  - version, versions
+- Container 1 (64-битный): все вложенные объекты
+  - UUID — метаданные
+  - UUID.0/ — контейнер с info+text (модуль объекта)
+  - UUID.N/ — формы (контейнер с info+text)
+
+#### MCP tools: теперь 17 (было 16)
+- Добавлен: `build_epf`
+
 ## [3.22.0] — 2026-06-29
 
 ### Этап 4 роадмапа v4.0: Генерация BSL-кода
