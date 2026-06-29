@@ -489,6 +489,18 @@ def main():
             'methods_count': len(methods),
         })
     
+    # === Добавляем формы ===
+    print(f'\n=== Индексация форм ===')
+    try:
+        import sys as _sys
+        _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from form_indexer import add_forms_to_api_reference
+        forms_added = add_forms_to_api_reference(_args.config_dir, modules, parse_module_bsl)
+        print(f'Добавлено форм: {forms_added}')
+        total_methods += sum(m['methods_count'] for m in modules[-forms_added:] if m.get('type') == 'Форма')
+    except Exception as e:
+        print(f'⚠️ Ошибка индексации форм: {e}')
+    
     print(f'\n=== Готово ===')
     print(f'Модулей: {len(modules)}')
     print(f'Всего экспортных методов: {total_methods}')

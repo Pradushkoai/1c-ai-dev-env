@@ -336,7 +336,106 @@ def convert_cf_to_xml_format(extracted_dir: Path, output_dir: Path) -> int:
         
         converted += 1
     
+    # 4. Извлекаем формы из вложенных контейнеров
+    # Формы в .cf хранятся как вложенные папки UUID.N внутри объектов
+    # Ищем все .bsl файлы в распакованном .cf и пытаемся определить форму
+    forms_converted = _extract_forms_from_cf(extracted_dir, output_dir, objects)
+    converted += forms_converted
+    
     return converted
+
+
+def _extract_forms_from_cf(extracted_dir: Path, output_dir: Path, 
+                           parent_objects: list) -> int:
+    """
+    Извлекает модули форм из распакованного .cf.
+    
+    В .cf формы хранятся как вложенные контейнеры:
+    - extracted_dir/1/UUID (метаданные объекта) 
+    - extracted_dir/1/UUID.N/ (вложенные данные)
+    - extracted_dir/1/UUID.N/text (BSL модуль формы)
+    
+    Также CommonForms (Code 5) парсятся как top-level объекты.
+    
+    Стратегия: ищем все 'text' файлы во вложенных папках UUID.N
+    и определяем — это форма или модуль объекта.
+    """
+    import re
+    forms_count = 0
+    
+    # Строим карту: UUID родителя → имя объекта
+    parent_map = {}
+    for obj in parent_objects:
+        if obj.name:
+            parent_map[obj.uuid] = obj
+    
+    objects_dir = extracted_dir / '1'
+    if not objects_dir.exists():
+        return 0
+    
+    # Ищем все папки вида UUID.N (вложенные контейнеры)
+    for p in sorted(objects_dir.iterdir()):
+        name = p.name
+        if '.' not in name or not p.is_dir():
+            continue
+        
+        uuid_part = name.split('.')[0]
+        sub_num = name.split('.')[1]
+        
+        # Ищем text файл
+        text_file = p / 'text'
+        if not text_file.exists():
+            continue
+        
+        # Проверяем — есть ли info файл
+        info_file = p / 'info'
+        form_name = None
+        if info_file.exists():
+            try:
+                info_content = info_file.read_text(encoding='utf-8-sig', errors='replace')
+                # В info может быть имя формы
+                # Формат: {3,N,"ИмяФормы"}
+                name_match = re.search(r'\{3,\d+,"([^"]+)"\}', info_content)
+                if name_match:
+                    form_name = name_match.group(1)
+            except Exception:
+                pass
+        
+        # Если не нашли имя в info — пропускаем (это не форма)
+        if not form_name:
+            continue
+        
+        # Находим родителя
+        parent = parent_map.get(uuid_part)
+        if parent and parent.name:
+            # Это форма внутри объекта (Document, Catalog, и т.д.)
+            dir_name = TYPE_TO_DIR.get(parent.type_name)
+            if dir_name:
+                form_dir = output_dir / dir_name / parent.name / 'Forms' / form_name / 'Ext' / 'Form'
+                form_dir.mkdir(parents=True, exist_ok=True)
+                bsl_path = form_dir / 'Module.bsl'
+                bsl_code = text_file.read_text(encoding='utf-8-sig', errors='replace')
+                if bsl_code.strip():
+                    bsl_path.write_text(bsl_code, encoding='utf-8')
+                    forms_count += 1
+        else:
+            # Возможно, это CommonForm (Code 5)
+            # Проверяем — есть ли UUID в parent_map как CommonForm
+            for obj in parent_objects:
+                if obj.uuid == uuid_part and obj.type_name == 'CommonForm' and obj.name:
+                    form_dir = output_dir / 'CommonForms' / obj.name / 'Ext' / 'Form'
+                    form_dir.mkdir(parents=True, exist_ok=True)
+                    bsl_path = form_dir / 'Module.bsl'
+                    bsl_code = text_file.read_text(encoding='utf-8-sig', errors='replace')
+                    if bsl_code.strip():
+                        bsl_path.write_text(bsl_code, encoding='utf-8')
+                        forms_count += 1
+                    break
+    
+    if forms_count > 0:
+        print(f"  Извлечено форм из .cf: {forms_count}")
+    
+    return forms_count
 
 
 def main():
