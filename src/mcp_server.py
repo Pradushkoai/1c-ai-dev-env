@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -121,6 +122,12 @@ def _get_tools_description() -> list[dict]:
             "description": "Генерация отчёта на СКД: модуль объекта с СКД-логикой, форма отчёта, СКД-схема (DataCompositionSchema). Пример: generate_report(name='ОтчетПоПродажам', synonym='Отчёт по продажам', data_source='Документ.РеализацияТоваровУслуг').",
             "required_params": ["name", "synonym"],
             "optional_params": ["description", "author", "output_dir", "data_source", "main_query"],
+        },
+        {
+            "name": "build_epf",
+            "description": "Упаковка структуры каталога в .epf файл (внешняя обработка 1С). Принимает путь к каталогу (из generate_processing) и создаёт .epf. Пример: build_epf(source_dir='generated/ВыгрузкаНоменклатуры', output_path='ВыгрузкаНоменклатуры.epf').",
+            "required_params": ["source_dir", "output_path"],
+            "optional_params": ["object_name", "object_type"],
         },
     ]
 
@@ -530,6 +537,38 @@ def create_mcp_server() -> Server:
                         },
                     },
                     "required": ["name", "synonym"],
+                },
+            ),
+            types.Tool(
+                name="build_epf",
+                description=(
+                    "Упаковка структуры каталога в .epf файл (внешняя обработка 1С). "
+                    "Принимает путь к каталогу (из generate_processing или generate_report) "
+                    "и создаёт .epf файл. "
+                    "Пример: build_epf(source_dir='generated/ВыгрузкаНоменклатуры', "
+                    "output_path='ВыгрузкаНоменклатуры.epf')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "source_dir": {
+                            "type": "string",
+                            "description": "Путь к каталогу со структурой обработки/отчёта",
+                        },
+                        "output_path": {
+                            "type": "string",
+                            "description": "Куда сохранить .epf файл",
+                        },
+                        "object_name": {
+                            "type": "string",
+                            "description": "Имя объекта (если не указано — берётся из имени каталога)",
+                        },
+                        "object_type": {
+                            "type": "string",
+                            "description": "Тип объекта: DataProcessor (по умолчанию) или Report",
+                        },
+                    },
+                    "required": ["source_dir", "output_path"],
                 },
             ),
         ]
@@ -1114,6 +1153,56 @@ def create_mcp_server() -> Server:
             }
             return [types.TextContent(type="text",
                 text=json.dumps(response, ensure_ascii=False, indent=2))]
+
+        elif name == "build_epf":
+            source_dir = arguments.get("source_dir", "")
+            output_path = arguments.get("output_path", "")
+            object_name = arguments.get("object_name")
+            object_type = arguments.get("object_type", "DataProcessor")
+
+            if not source_dir or not output_path:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "source_dir and output_path are required"}, ensure_ascii=False))]
+
+            # Преобразуем относительные пути
+            if not os.path.isabs(source_dir):
+                source_dir = str(project.paths.root / source_dir)
+            if not os.path.isabs(output_path):
+                output_path = str(project.paths.root / output_path)
+
+            if not os.path.exists(source_dir):
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": f"source_dir not found: {source_dir}"}, ensure_ascii=False))]
+
+            # Загружаем epf_builder
+            import importlib.util
+            scripts_dir = project.paths.root / "scripts"
+            eb_path = scripts_dir / "epf_builder.py"
+            if not eb_path.exists():
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "epf_builder.py not found"}, ensure_ascii=False))]
+
+            spec = importlib.util.spec_from_file_location("epf_builder", eb_path)
+            eb_mod = importlib.util.module_from_spec(spec)
+            sys.modules["epf_builder"] = eb_mod
+            spec.loader.exec_module(eb_mod)
+
+            try:
+                result = eb_mod.build_epf(source_dir, output_path, object_name, object_type)
+                response = {
+                    "status": "success",
+                    "file_path": result["file_path"],
+                    "size": result["size"],
+                    "object_name": result["object_name"],
+                    "object_type": result["object_type"],
+                    "uuid": result["uuid"],
+                    "files_included": result["files_included"],
+                }
+                return [types.TextContent(type="text",
+                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": f"Build failed: {str(e)}"}, ensure_ascii=False))]
 
         # Неизвестный tool
         return [types.TextContent(
