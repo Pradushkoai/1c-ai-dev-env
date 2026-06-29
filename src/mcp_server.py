@@ -135,6 +135,12 @@ def _get_tools_description() -> list[dict]:
             "required_params": ["source_dir"],
             "optional_params": [],
         },
+        {
+            "name": "get_knowledge",
+            "description": "База знаний 1С: паттерны (создание справочника, документа, обработки, отчёта СКД), антипаттерны, best practices. Если query не указан — список всех статей. Если item_id указан — полный текст статьи. Пример: get_knowledge(query='справочник'), get_knowledge(item_id='create_catalog').",
+            "required_params": [],
+            "optional_params": ["query", "item_id", "category"],
+        },
     ]
 
 
@@ -595,6 +601,35 @@ def create_mcp_server() -> Server:
                         },
                     },
                     "required": ["source_dir"],
+                },
+            ),
+            types.Tool(
+                name="get_knowledge",
+                description=(
+                    "База знаний 1С: паттерны (создание справочника, документа, обработки, "
+                    "отчёта на СКД), антипаттерны, best practices. "
+                    "Если query не указан — список всех статей. "
+                    "Если item_id указан — полный текст статьи. "
+                    "Пример: get_knowledge(query='справочник'), "
+                    "get_knowledge(item_id='create_catalog')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Поисковый запрос (например 'справочник', 'СКД', 'обработка')",
+                        },
+                        "item_id": {
+                            "type": "string",
+                            "description": "ID статьи для получения полного текста (например 'create_catalog')",
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Категория: patterns, antipatterns, best_practices",
+                        },
+                    },
+                    "required": [],
                 },
             ),
         ]
@@ -1274,6 +1309,50 @@ def create_mcp_server() -> Server:
             except Exception as e:
                 return [types.TextContent(type="text",
                     text=json.dumps({"error": f"Validation failed: {str(e)}"}, ensure_ascii=False))]
+
+        elif name == "get_knowledge":
+            query = arguments.get("query", "")
+            item_id = arguments.get("item_id", "")
+            category = arguments.get("category", "")
+
+            try:
+                from .services.knowledge_base import KnowledgeBase
+                kb = KnowledgeBase()
+
+                # Если item_id указан — возвращаем полный текст
+                if item_id:
+                    item = kb.get_item(item_id)
+                    if item:
+                        return [types.TextContent(type="text",
+                            text=json.dumps(item, ensure_ascii=False, indent=2))]
+                    else:
+                        return [types.TextContent(type="text",
+                            text=json.dumps({"error": f"Item not found: {item_id}"}, ensure_ascii=False))]
+
+                # Если query указан — поиск
+                if query:
+                    results = kb.search(query, category=category if category else None, limit=20)
+                    response = {
+                        "query": query,
+                        "category": category or "all",
+                        "total_results": len(results),
+                        "results": results,
+                    }
+                    return [types.TextContent(type="text",
+                        text=json.dumps(response, ensure_ascii=False, indent=2))]
+
+                # Если ничего не указано — список всех
+                items = kb.list_all()
+                response = {
+                    "stats": kb.get_stats(),
+                    "items": items,
+                }
+                return [types.TextContent(type="text",
+                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": f"Knowledge base error: {str(e)}"}, ensure_ascii=False))]
 
         # Неизвестный tool
         return [types.TextContent(
