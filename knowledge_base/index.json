@@ -1,0 +1,61 @@
+{
+  "version": "1.0",
+  "description": "База знаний 1С разработки — паттерны, антипаттерны, best practices",
+  "categories": {
+    "patterns": {
+      "description": "Паттерны создания объектов 1С",
+      "items": [
+        {
+          "id": "create_catalog",
+          "title": "Создание справочника",
+          "file": "patterns/create_catalog.md",
+          "keywords": ["справочник", "catalog", "создание", "новый"],
+          "applies_to": ["Catalog"]
+        },
+        {
+          "id": "create_document",
+          "title": "Создание документа",
+          "file": "patterns/create_document.md",
+          "keywords": ["документ", "document", "создание", "проведение"],
+          "applies_to": ["Document"]
+        },
+        {
+          "id": "create_processing",
+          "title": "Создание внешней обработки",
+          "file": "patterns/create_processing.md",
+          "keywords": ["обработка", "processing", "внешняя", "epf"],
+          "applies_to": ["DataProcessor"]
+        },
+        {
+          "id": "create_skd_report",
+          "title": "Создание отчёта на СКД",
+          "file": "patterns/create_skd_report.md",
+          "keywords": ["отчёт", "скд", "skd", "компоновка", "report", "data composition"],
+          "applies_to": ["Report"]
+        }
+      ]
+    },
+    "antipatterns": {
+      "description": "Антипаттерны — чего не делать",
+      "items": [
+        {
+          "id": "common_antipatterns",
+          "title": "Общие антипаттерны 1С",
+          "file": "antipatterns/common_antipatterns.md",
+          "keywords": ["антипаттерн", "плохая практика", "ошибка", "запрос в цикле"]
+        }
+      ]
+    },
+    "best_practices": {
+      "description": "Best practices 1С разработки",
+      "items": [
+        {
+          "id": "general_best_practices",
+          "title": "Общие best practices",
+          "file": "best_practices/general_best_practices.md",
+          "keywords": ["best practice", "стандарт", "рекомендация", "архитектура"]
+        }
+      ]
+    }
+  }
+}
