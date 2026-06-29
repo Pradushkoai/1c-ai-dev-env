@@ -95,14 +95,122 @@ def stem(word: str) -> str:
 # ТОКЕНИЗАЦИЯ + СТЕММИНГ
 # ============================================================================
 
+# BSL-синонимы ru↔en — для поиска независимо от языка написания.
+# Запрос "стрнайти" находит "StrFind", "найтипокоду" находит "FindByCode", и наоборот.
+# Словарь построен на основе стандартных методов платформы 1С (8141 методов).
+BSL_SYNONYMS = {
+    # Строковые функции
+    'стрнайти': 'strfind', 'стрдлина': 'strlen', 'стрзаменить': 'strreplace',
+    'стрвставить': 'strinsert', 'струдалить': 'strdelete', 'стррег': 'strregex',
+    'стрначинаетсяс': 'strstartswith', 'стрзаканчиваетсяна': 'strendswith',
+    'стрсодержит': 'strcontains', 'стрразделить': 'strsplit', 'стрсоединить': 'strconcat',
+    'стрсравнить': 'strcompare', 'стрповторить': 'strrepeat',
+    'врег': 'upper', 'нрег': 'lower', 'трег': 'title',
+    'сокрл': 'triml', 'сокрп': 'trimr', 'сокрлп': 'trimall',
+    'лев': 'left', 'прав': 'right', 'сред': 'mid',
+    'символ': 'char', 'кодсимвола': 'charcode', 'символы': 'chars',
+    'стрстр': 'strstr', 'пустаястрока': 'emptystr',
+
+    # Массивы и коллекции
+    'найти': 'find', 'добавить': 'add', 'удалить': 'remove', 'очистить': 'clear',
+    'количество': 'count', 'вставить': 'insert', 'получить': 'get', 'установить': 'set',
+    'выгрузить': 'unload', 'загрузить': 'load', 'выгрузитьколонку': 'unloadcolumn',
+    'загрузитьколонку': 'loadcolumn', 'свернуть': 'collapse', 'копировать': 'copy',
+    'индекс': 'index', 'найтистроку': 'findrow', 'найтистроки': 'findrows',
+
+    # Справочники
+    'найтипокоду': 'findbycode', 'найтипонаименованию': 'findbydescription',
+    'найтипореквизиту': 'findbyattribute', 'создатьэлемент': 'createitem',
+    'создатьгруппу': 'createfolder', 'получитьформу': 'getform',
+    'получитьформусписка': 'getlistform', 'получитьформувыбора': 'getchoiceform',
+    'получитьформуэлемента': 'getitemform', 'пустаяссылка': 'emptyref',
+
+    # Документы
+    'провести': 'post', 'отменапроведения': 'unpost', 'распровести': 'unpost',
+    'записать': 'write', 'прочитать': 'read', 'удалитьобъект': 'deleteobject',
+
+    # Запросы
+    'выполнить': 'execute', 'выполнитьпакет': 'executebatch',
+    'установитьпараметр': 'setparameter', 'результат': 'result',
+    'выбрать': 'select', 'следующий': 'next', 'пустой': 'empty',
+    'выгрузитьрезультат': 'unloadresult',
+
+    # Метаданные
+    'метаданные': 'metadata', 'предопределенный': 'predefined',
+    'получитьпредопределенноезначение': 'getpredefinedvalue',
+    'установитьобязательныйпризнакпредопределенных': 'setpredefinedmandatory',
+
+    # Дата/время
+    'текущаядата': 'currentdate', 'текущаядатасеанса': 'currentsessiondate',
+    'началогода': 'beginofyear', 'конецгода': 'endofyear',
+    'началомесяца': 'beginofmonth', 'конецмесяца': 'endofmonth',
+    'началодня': 'beginofday', 'конецдня': 'endofday',
+    'добавитькдате': 'datadd', 'разностьдат': 'datediff',
+
+    # Числа
+    'цел': 'int', 'окр': 'round', 'макс': 'max', 'мин': 'min',
+    'sqrt': 'sqrt', 'pow': 'pow', 'exp': 'exp', 'log': 'log',
+    'abs': 'abs', 'sign': 'sign', 'acos': 'acos', 'asin': 'asin',
+    'atan': 'atan', 'cos': 'cos', 'sin': 'sin', 'tan': 'tan',
+
+    # Преобразования типов
+    'строка': 'string', 'число': 'number', 'дата': 'date',
+    'булево': 'boolean', 'значениевстроку': 'valuetostring',
+    'значениеизстроки': 'valuefromstring', 'значениевфайл': 'valuetofile',
+    'значениеизфайла': 'valuefromfile', 'тип': 'type', 'типзнч': 'typeof',
+
+    # Универсальные
+    'значениезаполнено': 'valueisfilled', 'заполнитьзначениясвойств': 'fillpropertyvalues',
+    'выполнитьобработку': 'executeprocessing', 'выполнитькод': 'executecode',
+
+    # Регистры
+    'записатьнаборзаписей': 'writerecordset', 'прочитатьнаборзаписей': 'readrecordset',
+    'отбор': 'filter', 'установитьотбор': 'setfilter',
+
+    # Формы
+    'открытьформу': 'openform', 'открытьформумодально': 'openformmodal',
+    'закрытьформу': 'closeform', 'получитьэлементформы': 'getformitem',
+    'установитьвидимость': 'setvisibility', 'установитьдоступность': 'setaccessibility',
+    'обновитьотображениеданных': 'refreshdatadisplay',
+
+    # Общие
+    'сообщить': 'message', 'сообщитьпользователю': 'messageuser',
+    'получитьобщиймодуль': 'getcommonmodule', 'вызватьисключение': 'raiseexception',
+    'вызватьисключениесоп': 'raiseexception',
+}
+
+
+def _apply_synonyms(tokens: list[str]) -> list[str]:
+    """Применяет BSL-синонимы: для каждого токена добавляет его синоним.
+    
+    "стрнайти" → ["стрнайти", "strfind"]
+    "findbycode" → ["findbycode", "найтипокоду"]
+    """
+    result = list(tokens)
+    for token in tokens:
+        # Прямой поиск: ru → en
+        if token in BSL_SYNONYMS:
+            synonym = BSL_SYNONYMS[token]
+            if synonym not in result:
+                result.append(synonym)
+        # Обратный поиск: en → ru
+        else:
+            for ru, en in BSL_SYNONYMS.items():
+                if token == en and ru not in result:
+                    result.append(ru)
+                    break
+    return result
+
+
 def tokenize_stemmed(text: str) -> list[str]:
     """
-    Токенизация + стемминг.
+    Токенизация + стемминг + BSL-синонимы.
     
     Для CamelCase (mixed-case) — разбиваем на слова.
     Для lowercase токенов — оставляем целиком (стеммер нормализует).
+    BSL-синонимы: "стрнайти" → добавляет "strfind", и наоборот.
     
-    Возвращает список стеммированных токенов.
+    Возвращает список стеммированных токенов с синонимами.
     """
     # Сначала разбиваем mixed-case CamelCase на слова
     # "НайтиПоКоду" → "Найти", "По", "Коду"
@@ -116,6 +224,9 @@ def tokenize_stemmed(text: str) -> list[str]:
         stemmed = stem(t)
         if len(stemmed) >= 2:
             result.append(stemmed)
+    
+    # Применяем BSL-синонимы (ru↔en)
+    result = _apply_synonyms(result)
     
     return result
 

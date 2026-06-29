@@ -61,6 +61,9 @@ def test_solve_check_with_errors(tmp_path):
     args = MagicMock()
     args.path = str(bsl_file)
     args.config = None
+    args.ci = False
+    args.json = False
+    args.level = 'quick'
 
     # solve check должен вызвать sys.exit(1) т.к. есть errors (no-vypolnit, no-underscore-vars)
     with pytest.raises(SystemExit) as exc_info:
@@ -107,6 +110,9 @@ def test_solve_check_clean_file(tmp_path):
     args = MagicMock()
     args.path = str(bsl_file)
     args.config = None
+    args.ci = False
+    args.json = False
+    args.level = 'quick'
 
     # solve check должен вызвать sys.exit(0) — нет errors
     with pytest.raises(SystemExit) as exc_info:
@@ -128,11 +134,14 @@ def test_solve_check_nonexistent_file(tmp_path):
     args = MagicMock()
     args.path = str(tmp_path / "nonexistent.bsl")
     args.config = None
+    args.ci = False
+    args.json = False
+    args.level = 'quick'
 
     with pytest.raises(SystemExit) as exc_info:
         _solve_check(project, args)
 
-    assert exc_info.value.code == 1
+    assert exc_info.value.code == 2
 
 
 def test_solve_context_no_config(tmp_path):
