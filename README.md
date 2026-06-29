@@ -403,15 +403,15 @@ data-package/
 - ✅ **v3.13.0**: Протокол 5 ролей для решения задач 1С
 - ✅ **v3.14.0**: Замена 5 ролей на чек-лист
 - ✅ **v3.14.1**: Упрощение — 2 функции репозитория, убран чек-лист
-- 🔲 **v3.15.0** (план): Векторный поиск через fastembed + qdrant
-- 🔲 **v3.16.0** (план): Web UI для просмотра API-справочников
+- ✅ **v3.15.0**: search_code (115K методов), BSL-синонимы ru↔en, --ci/--json режимы
+- 🔲 **v3.16.0** (план): Векторный поиск через fastembed + qdrant
 
 ---
 
 ## 2 функции репозитория
 
 1. **MCP-сервер** для сторонних клиентов (Cursor, Claude Desktop, VS Code, JetBrains) —
-   8 tools: `list_configs`, `search_1c_methods`, `get_api_reference`, `analyze_bsl`,
+   9 tools: `list_configs`, `search_1c_methods`, `search_code`, `get_api_reference`, `analyze_bsl`,
    `check_standards`, `solve_context`, `solve_check`, `data_status`.
    📖 [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md)
 

@@ -39,6 +39,12 @@ def _get_tools_description() -> list[dict]:
             "optional_params": ["limit"],
         },
         {
+            "name": "search_code",
+            "description": "BM25 поиск по коду конфигурации (115K+ методов). Ищет по именам методов, сигнатурам, описаниям. Пример: search_code(query='создать заказ', config_name='ut11', limit=5). Используй для поиска 'как уже реализовано похожее' в конфигурации.",
+            "required_params": ["query", "config_name"],
+            "optional_params": ["limit"],
+        },
+        {
             "name": "get_api_reference",
             "description": "API-справочник конфигурации — экспортные методы общих модулей. Если module не указан — возвращает список всех модулей с кол-вом методов. Если module указан — возвращает методы конкретного модуля.",
             "required_params": ["config_name"],
@@ -101,7 +107,7 @@ def create_mcp_server() -> Server:
             types.Tool(
                 name="search_1c_methods",
                 description=(
-                    "TF-IDF семантический поиск по 8141 методам платформы 1С. "
+                    "TF-IDF/BM25 семантический поиск по 8141 методам платформы 1С. "
                     "Возвращает: name_ru, name_en, syntax, description, context. "
                     "Пример: search_1c_methods(query='найти элемент по коду', limit=5)"
                 ),
@@ -119,6 +125,34 @@ def create_mcp_server() -> Server:
                         },
                     },
                     "required": ["query"],
+                },
+            ),
+            types.Tool(
+                name="search_code",
+                description=(
+                    "BM25 поиск по коду конфигурации (115K+ методов). "
+                    "Ищет по именам методов, сигнатурам, описаниям. "
+                    "Используй для поиска 'как уже реализовано похожее' в конфигурации. "
+                    "Пример: search_code(query='создать заказ', config_name='ut11', limit=5)"
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Поисковый запрос",
+                        },
+                        "config_name": {
+                            "type": "string",
+                            "description": "Имя конфигурации (ut11, edo2, edo3, unp)",
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Кол-во результатов (по умолчанию 10)",
+                            "default": 10,
+                        },
+                    },
+                    "required": ["query", "config_name"],
                 },
             ),
             types.Tool(
@@ -258,6 +292,17 @@ def create_mcp_server() -> Server:
             query = arguments.get("query", "")
             limit = arguments.get("limit", 10)
             results = project.search_methods(query, limit)
+            return [types.TextContent(
+                type="text",
+                text=json.dumps(results, ensure_ascii=False, indent=2),
+            )]
+
+        elif name == "search_code":
+            query = arguments.get("query", "")
+            config_name = arguments.get("config_name", "")
+            limit = arguments.get("limit", 10)
+            from .services.search_code import search_code
+            results = search_code(config_name, query, limit, project.paths)
             return [types.TextContent(
                 type="text",
                 text=json.dumps(results, ensure_ascii=False, indent=2),

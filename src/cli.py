@@ -118,6 +118,37 @@ def cmd_search(project: Project, args: argparse.Namespace) -> None:
         print()
 
 
+def cmd_search_code(project: Project, args: argparse.Namespace) -> None:
+    """Поиск по коду конфигурации (BM25 по 115 666 методов)."""
+    from .services.search_code import search_code
+
+    config_name = args.config
+    if not config_name:
+        print("❌ Укажите конфигурацию: 1c-ai search-code 'запрос' --config ut11")
+        sys.exit(1)
+
+    # Проверяем, что конфигурация существует
+    configs = {c.name for c in project.list_configs()}
+    if config_name not in configs:
+        print(f"❌ Конфигурация '{config_name}' не найдена. Доступные: {', '.join(configs)}")
+        sys.exit(1)
+
+    results = search_code(config_name, args.query, args.limit, project.paths)
+
+    print(f'Поиск по коду: "{args.query}"')
+    print(f'Конфигурация: {config_name}')
+    print(f'Найдено: {len(results)} результатов')
+    print()
+    for rank, r in enumerate(results, 1):
+        print(f'{rank}. [{r["score"]:.3f}] {r["module"]}.{r["name"]}')
+        print(f'   Тип: {r["type"]}')
+        if r['signature']:
+            print(f'   Сигнатура: {r["signature"]}')
+        if r['description']:
+            print(f'   Описание: {r["description"][:120]}')
+        print()
+
+
 def cmd_standards(project: Project, args: argparse.Namespace) -> None:
     """Проверка .bsl файлов на соответствие стандартам разработки 1С."""
     import importlib.util
@@ -339,33 +370,41 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
     - quick:    только check_1c_standards (быстро, без Java)
     - standard: quick + BSL LS (по умолчанию)
     - full:     standard + check_metadata_standards (если есть XML метаданные)
+
+    CI-режим (--ci):
+    - Выводит только errors (не warnings)
+    - Exit code: 0 — OK, 1 — есть errors
+
+    JSON-режим (--json):
+    - Выводит JSON вместо человекочитаемого формата
+    - Для парсинга в CI/CD (GitLab CI, GitHub Actions)
     """
     from pathlib import Path
-    import json
+    import json as json_mod
 
     level = getattr(args, 'level', 'standard')
+    ci_mode = getattr(args, 'ci', False)
+    json_mode = getattr(args, 'json', False)
 
     bsl_path = Path(args.path)
     if not bsl_path.is_absolute():
         bsl_path = project.paths.root / bsl_path
 
     if not bsl_path.exists():
-        print(f"❌ Файл не найден: {bsl_path}")
-        sys.exit(1)
-
-    print(f"╔══════════════════════════════════════════════════════╗")
-    print(f"║  1c-ai solve: проверка кода [level={level}]            ║")
-    print(f"╚══════════════════════════════════════════════════════╝")
-    print(f"\nФайл: {bsl_path}")
-    print(f"Уровень: {level}")
-    print()
+        if json_mode:
+            print(json_mod.dumps({"error": f"Файл не найден: {bsl_path}"}, ensure_ascii=False))
+        else:
+            print(f"❌ Файл не найден: {bsl_path}")
+        sys.exit(2)
 
     total_errors = 0
     total_warnings = 0
+    all_violations = []
+
+    # Сбор результатов проверок (всегда выполняем, вывод зависит от режима)
+    import importlib.util
 
     # 1. check_1c_standards (56 правил) — все уровни
-    print("=== 1. Проверка стандартов 1С (56 правил) ===")
-    import importlib.util
     script_path = project.paths.scripts_dir / "check_1c_standards.py"
     if not script_path.exists():
         script_path = project.paths.root / "setup" / "scripts" / "check_1c_standards.py"
@@ -383,35 +422,42 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
         total_errors += std_errors
         total_warnings += std_warnings
 
-        print(f"  Найдено: {std_errors} errors, {std_warnings} warnings")
-        for v in violations[:15]:
-            print(f"  {v.severity.upper():7} {v.rule_id:25} {v.file}:{v.line}  {v.message[:80]}")
-        if len(violations) > 15:
-            print(f"  ... и ещё {len(violations) - 15}")
-        print()
-    else:
-        print("  ⚠️  check_1c_standards.py не найден.\n")
+        for v in violations:
+            all_violations.append({
+                "source": "check_1c_standards",
+                "rule_id": v.rule_id,
+                "severity": v.severity,
+                "line": v.line,
+                "message": v.message,
+                "file": v.file,
+            })
 
     # 2. BSL Language Server (187 диагностик) — standard / full
+    bsl_ls_available = False
     if level in ('standard', 'full'):
-        print("=== 2. BSL Language Server (187 диагностик) ===")
         if project.paths.bsl_ls_binary.exists():
+            bsl_ls_available = True
             try:
                 result = project.bsl_analyzer.analyze(bsl_path)
-                print(f"  Найдено: {result.total} диагностик")
-                for code, count in sorted(result.by_code.items(), key=lambda x: -x[1])[:10]:
-                    print(f"    {count:4d}  {code}")
-                total_errors += sum(1 for d in result.diagnostics if d.get('severity', '').lower() == 'error')
-                total_warnings += sum(1 for d in result.diagnostics if d.get('severity', '').lower() in ('warning', 'information', 'hint'))
-                print()
-            except Exception as e:
-                print(f"  ⚠️  Ошибка BSL LS: {e}\n")
-        else:
-            print("  ⚠️  BSL LS не установлен. Запустите: bash install.sh\n")
+                bsl_errors = sum(1 for d in result.diagnostics if d.get('severity', '').lower() == 'error')
+                bsl_warnings = sum(1 for d in result.diagnostics if d.get('severity', '').lower() in ('warning', 'information', 'hint'))
+                total_errors += bsl_errors
+                total_warnings += bsl_warnings
+
+                for d in result.diagnostics:
+                    all_violations.append({
+                        "source": "bsl_ls",
+                        "rule_id": d.get('code', ''),
+                        "severity": d.get('severity', 'warning').lower(),
+                        "line": d.get('line', 0),
+                        "message": d.get('message', ''),
+                        "file": str(bsl_path),
+                    })
+            except Exception:
+                pass
 
     # 3. Метаданные (18 правил) — только full
     if level == 'full':
-        print("=== 3. Проверка метаданных (18 правил) ===")
         meta_script = project.paths.scripts_dir / "check_metadata_standards.py"
         if not meta_script.exists():
             meta_script = project.paths.root / "setup" / "scripts" / "check_metadata_standards.py"
@@ -429,22 +475,85 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
                 total_errors += meta_errors
                 total_warnings += meta_warnings
 
-                print(f"  Найдено: {meta_errors} errors, {meta_warnings} warnings")
-                for v in meta_violations[:10]:
-                    print(f"  {v.severity.upper():7} {v.rule_id:25} {v.message[:80]}")
-                print()
-            except Exception as e:
-                print(f"  ⚠️  Ошибка check_metadata: {e}\n")
+                for v in meta_violations:
+                    all_violations.append({
+                        "source": "check_metadata_standards",
+                        "rule_id": v.rule_id,
+                        "severity": v.severity,
+                        "line": v.line,
+                        "message": v.message,
+                        "file": v.file,
+                    })
+            except Exception:
+                pass
+
+    # Определение verdict
+    if total_errors == 0 and total_warnings == 0:
+        verdict = "ready"
+    elif total_errors == 0:
+        verdict = "warnings"
+    else:
+        verdict = "errors"
+
+    # ─── Вывод ───
+
+    if json_mode:
+        # JSON-вывод для CI/CD
+        report = {
+            "file": str(bsl_path),
+            "level": level,
+            "total_errors": total_errors,
+            "total_warnings": total_warnings,
+            "verdict": verdict,
+            "bsl_ls_available": bsl_ls_available,
+            "violations": all_violations if not ci_mode else [v for v in all_violations if v["severity"] == "error"],
+        }
+        print(json_mod.dumps(report, ensure_ascii=False, indent=2))
+        sys.exit(1 if total_errors > 0 else 0)
+
+    if ci_mode:
+        # CI-режим: только errors, краткий вывод
+        errors_only = [v for v in all_violations if v["severity"] == "error"]
+        if errors_only:
+            print(f"❌ {total_errors} errors found:")
+            for v in errors_only[:20]:
+                print(f"  {v['source']:25} {v['rule_id']:25} line {v['line']:4}  {v['message'][:80]}")
+            if len(errors_only) > 20:
+                print(f"  ... и ещё {len(errors_only) - 20}")
         else:
-            print("  ⚠️  check_metadata_standards.py не найден.\n")
+            print(f"✅ No errors ({total_warnings} warnings)")
+        sys.exit(1 if total_errors > 0 else 0)
+
+    # Человекочитаемый вывод (по умолчанию)
+    print(f"╔══════════════════════════════════════════════════════╗")
+    print(f"║  1c-ai solve: проверка кода [level={level}]            ║")
+    print(f"╚══════════════════════════════════════════════════════╝")
+    print(f"\nФайл: {bsl_path}")
+    print(f"Уровень: {level}")
+    print()
+
+    # Группируем по source
+    by_source = {}
+    for v in all_violations:
+        by_source.setdefault(v["source"], []).append(v)
+
+    for source, violations in by_source.items():
+        errors = [v for v in violations if v["severity"] == "error"]
+        warnings = [v for v in violations if v["severity"] == "warning"]
+        print(f"=== {source} ({len(errors)} errors, {len(warnings)} warnings) ===")
+        for v in violations[:15]:
+            print(f"  {v['severity'].upper():7} {v['rule_id']:25} {v['file']}:{v['line']}  {v['message'][:80]}")
+        if len(violations) > 15:
+            print(f"  ... и ещё {len(violations) - 15}")
+        print()
 
     # Итоговый отчёт
     print("─" * 60)
     print(f"ИТОГО: {total_errors} errors, {total_warnings} warnings")
     print()
-    if total_errors == 0 and total_warnings == 0:
+    if verdict == "ready":
         print("✅ Код прошёл все проверки! Готов к коммиту.")
-    elif total_errors == 0:
+    elif verdict == "warnings":
         print("⚠️  Нет критичных ошибок, но есть warnings.")
         print("   Исправьте warnings перед коммитом.")
     else:
@@ -770,6 +879,12 @@ def main() -> None:
     p_search.add_argument("query", help="Поисковый запрос")
     p_search.add_argument("--limit", type=int, default=10, help="Кол-во результатов")
 
+    # search-code — поиск по коду конфигураций
+    p_scode = sub.add_parser("search-code", help="Поиск по коду конфигурации (115K+ методов)")
+    p_scode.add_argument("query", help="Поисковый запрос")
+    p_scode.add_argument("--config", required=True, help="Имя конфигурации (ut11, edo2, edo3, unp)")
+    p_scode.add_argument("--limit", type=int, default=10, help="Кол-во результатов")
+
     # standards
     p_std = sub.add_parser("standards", help="Проверка .bsl на стандарты 1С")
     p_std.add_argument("path", help="Путь к .bsl файлу или директории")
@@ -809,6 +924,10 @@ def main() -> None:
                          default="standard",
                          help="Уровень проверки: quick (только стандарты), "
                               "standard (+BSL LS), full (+метаданные)")
+    p_s_chk.add_argument("--ci", action="store_true",
+                         help="CI-режим: только errors, exit code 1 при errors")
+    p_s_chk.add_argument("--json", action="store_true",
+                         help="JSON-вывод для парсинга в CI/CD")
 
     # mcp
     p_mcp = sub.add_parser("mcp", help="MCP-сервер для IDE/LLM")
@@ -871,6 +990,8 @@ def main() -> None:
         cmd_validate(project, args)
     elif args.command == "search":
         cmd_search(project, args)
+    elif args.command == "search-code":
+        cmd_search_code(project, args)
     elif args.command == "standards":
         cmd_standards(project, args)
     elif args.command == "backup":

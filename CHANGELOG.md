@@ -1,5 +1,63 @@
 # Changelog
 
+## [3.15.0] — 2026-06-29
+
+### Топ-3 быстрых победы (из внешнего анализа)
+
+#### 1. `search_code` — поиск по коду конфигураций (115 666 методов)
+
+**Новый MCP tool + CLI команда** — BM25 поиск по экспортным методам
+конфигураций. Самый частый запрос 1С-разработчика: «как у нас уже
+сделано похожее?» — теперь работает.
+
+```bash
+# CLI
+1c-ai search-code "создать заказ клиента" --config ut11 --limit 5
+
+# MCP tool
+search_code(query="создать заказ", config_name="ut11", limit=5)
+```
+
+Новый сервис: `src/services/search_code.py` — BM25 по api-reference.json.
+При первом вызове строит индекс (4-5 сек), затем кэширует (0.4 сек).
+
+Результат: `{score, module, name, type, signature, description, returns}`
+
+#### 2. BSL-синонимы ru↔en
+
+**100+ пар синонимов** в `search_bm25.py` — поиск независимо от языка.
+
+Запрос `StrFind` находит `СтрНайти` (score 1.000).
+Запрос `FindByCode` находит `НайтиПоКоду` (score 1.000).
+
+Словарь покрывает: строковые функции, массивы, справочники, документы,
+запросы, метаданные, дату/время, числа, преобразования типов, формы,
+регистры.
+
+#### 3. `--ci` и `--json` режимы для `solve_check`
+
+**CI/CD-ready** — exit code и JSON-вывод для GitLab CI / GitHub Actions.
+
+```bash
+# CI-режим: только errors, exit code 1 при errors
+1c-ai solve check module.bsl --ci
+# exit 0 — OK, 1 — errors
+
+# JSON-вывод для парсинга
+1c-ai solve check module.bsl --json > report.json
+```
+
+**Изменения:**
+- `--ci`: только errors, краткий вывод, exit code 1 при errors
+- `--json`: полный JSON-отчёт (file, level, total_errors, verdict, violations)
+- Exit code: 0 — OK, 1 — errors, 2 — usage (несуществующий файл)
+
+### Статистика
+- MCP tools: 9 (было 8, +search_code)
+- Тестов: 316 passed, 3 skipped
+- Новых файлов: `src/services/search_code.py`
+- Новых строк кода: ~300
+
 ## [3.14.1] — 2026-06-29
 
 ### Упрощение — 2 функции репозитория
