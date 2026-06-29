@@ -91,12 +91,15 @@ class ConfigManager:
         sys.modules["cf_extractor"] = cf_mod
         spec.loader.exec_module(cf_mod)
 
-        # Загружаем cf_to_xml_adapter
-        adapter_path = scripts_dir / "cf_to_xml_adapter.py"
+        # Загружаем improved_cf_adapter (предпочтительно) или cf_to_xml_adapter (fallback)
+        adapter_path = scripts_dir / "improved_cf_adapter.py"
+        if not adapter_path.exists():
+            adapter_path = scripts_dir / "cf_to_xml_adapter.py"
         if adapter_path.exists():
-            spec2 = importlib.util.spec_from_file_location("cf_to_xml_adapter", adapter_path)
+            adapter_modname = adapter_path.stem
+            spec2 = importlib.util.spec_from_file_location(adapter_modname, adapter_path)
             adapter_mod = importlib.util.module_from_spec(spec2)
-            sys.modules["cf_to_xml_adapter"] = adapter_mod
+            sys.modules[adapter_modname] = adapter_mod
             spec2.loader.exec_module(adapter_mod)
         else:
             adapter_mod = None
