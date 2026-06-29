@@ -110,6 +110,18 @@ def _get_tools_description() -> list[dict]:
             "required_params": ["config_name"],
             "optional_params": ["form_name", "parent_name"],
         },
+        {
+            "name": "generate_processing",
+            "description": "Генерация внешней обработки 1С: модуль объекта, модуль формы, XML метаданные. Создаёт структуру файлов готовую для упаковки в .epf. Пример: generate_processing(name='ВыгрузкаНоменклатуры', synonym='Выгрузка номенклатуры').",
+            "required_params": ["name", "synonym"],
+            "optional_params": ["description", "author", "output_dir"],
+        },
+        {
+            "name": "generate_report",
+            "description": "Генерация отчёта на СКД: модуль объекта с СКД-логикой, форма отчёта, СКД-схема (DataCompositionSchema). Пример: generate_report(name='ОтчетПоПродажам', synonym='Отчёт по продажам', data_source='Документ.РеализацияТоваровУслуг').",
+            "required_params": ["name", "synonym"],
+            "optional_params": ["description", "author", "output_dir", "data_source", "main_query"],
+        },
     ]
 
 
@@ -440,6 +452,84 @@ def create_mcp_server() -> Server:
                         },
                     },
                     "required": ["config_name"],
+                },
+            ),
+            types.Tool(
+                name="generate_processing",
+                description=(
+                    "Генерация внешней обработки 1С. Создаёт структуру файлов: "
+                    "модуль объекта (Ext/Module.bsl), модуль формы (Forms/Форма/Ext/Form/Module.bsl), "
+                    "XML метаданные. Готово для упаковки в .epf. "
+                    "Пример: generate_processing(name='ВыгрузкаНоменклатуры', synonym='Выгрузка номенклатуры')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Имя обработки (латиница, без пробелов)",
+                        },
+                        "synonym": {
+                            "type": "string",
+                            "description": "Синоним (русское название)",
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Описание обработки (опционально)",
+                        },
+                        "author": {
+                            "type": "string",
+                            "description": "Автор (опционально)",
+                        },
+                        "output_dir": {
+                            "type": "string",
+                            "description": "Куда сохранить (по умолчанию generated/<name>)",
+                        },
+                    },
+                    "required": ["name", "synonym"],
+                },
+            ),
+            types.Tool(
+                name="generate_report",
+                description=(
+                    "Генерация отчёта на СКД (Схеме Компоновки Данных). Создаёт: "
+                    "модуль объекта с СКД-логикой, форму отчёта, СКД-схему (DataCompositionSchema). "
+                    "Пример: generate_report(name='ОтчетПоПродажам', synonym='Отчёт по продажам', "
+                    "data_source='Документ.РеализацияТоваровУслуг')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Имя отчёта (латиница, без пробелов)",
+                        },
+                        "synonym": {
+                            "type": "string",
+                            "description": "Синоним (русское название)",
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Описание отчёта (опционально)",
+                        },
+                        "author": {
+                            "type": "string",
+                            "description": "Автор (опционально)",
+                        },
+                        "data_source": {
+                            "type": "string",
+                            "description": "Источник данных (например 'Документ.РеализацияТоваровУслуг')",
+                        },
+                        "main_query": {
+                            "type": "string",
+                            "description": "Готовый запрос 1С (если пусто — будет шаблонный)",
+                        },
+                        "output_dir": {
+                            "type": "string",
+                            "description": "Куда сохранить (по умолчанию generated/<name>)",
+                        },
+                    },
+                    "required": ["name", "synonym"],
                 },
             ),
         ]
@@ -973,6 +1063,57 @@ def create_mcp_server() -> Server:
 
             return [types.TextContent(type="text",
                 text=json.dumps(found, ensure_ascii=False, indent=2))]
+
+        elif name in ("generate_processing", "generate_report"):
+            obj_name = arguments.get("name", "")
+            synonym = arguments.get("synonym", "")
+            description = arguments.get("description", "")
+            author = arguments.get("author", "")
+            output_dir = arguments.get("output_dir", "")
+
+            if not obj_name or not synonym:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "name and synonym are required"}, ensure_ascii=False))]
+
+            # По умолчанию — generated/<name>
+            if not output_dir:
+                output_dir = str(project.paths.root / "generated" / obj_name)
+
+            # Загружаем code_generator
+            import importlib.util
+            scripts_dir = project.paths.root / "scripts"
+            cg_path = scripts_dir / "code_generator.py"
+            if not cg_path.exists():
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "code_generator.py not found"}, ensure_ascii=False))]
+
+            spec = importlib.util.spec_from_file_location("code_generator", cg_path)
+            cg_mod = importlib.util.module_from_spec(spec)
+            sys.modules["code_generator"] = cg_mod
+            spec.loader.exec_module(cg_mod)
+
+            if name == "generate_processing":
+                result = cg_mod.generate_processing(obj_name, synonym, output_dir, description, author)
+            else:  # generate_report
+                data_source = arguments.get("data_source", "")
+                main_query = arguments.get("main_query", "")
+                result = cg_mod.generate_report(obj_name, synonym, output_dir, description, author, data_source, main_query)
+
+            response = {
+                "status": "success",
+                "object_type": result["stats"]["object_type"],
+                "name": obj_name,
+                "synonym": synonym,
+                "uuid": result["stats"].get("uuid", ""),
+                "output_dir": output_dir,
+                "total_files": result["stats"]["total_files"],
+                "bsl_files": result["stats"]["bsl_files"],
+                "xml_files": result["stats"]["xml_files"],
+                "files": [{"path": f["path"].replace(str(project.paths.root) + "/", ""),
+                            "type": f["type"], "size": f["size"]} for f in result["files"]],
+            }
+            return [types.TextContent(type="text",
+                text=json.dumps(response, ensure_ascii=False, indent=2))]
 
         # Неизвестный tool
         return [types.TextContent(

@@ -1,5 +1,5 @@
 {
-  "version": "3.21.0",
+  "version": "3.22.0",
   "name": "1C AI Development Environment",
   "description": "Среда разработки 1С с ИИ-ассистентом: BM25 поиск, API-справочники, BSL LS, MCP-сервер",
   "system_dependencies": {
