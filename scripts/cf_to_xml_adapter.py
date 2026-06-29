@@ -350,92 +350,138 @@ def _extract_forms_from_cf(extracted_dir: Path, output_dir: Path,
     """
     Извлекает модули форм из распакованного .cf.
     
-    В .cf формы хранятся как вложенные контейнеры:
-    - extracted_dir/1/UUID (метаданные объекта) 
-    - extracted_dir/1/UUID.N/ (вложенные данные)
-    - extracted_dir/1/UUID.N/text (BSL модуль формы)
+    Формы в .cf хранятся как:
+    - UUID файл — метаданные формы (type=0, имя формы)
+    - UUID.0 файл — данные формы в формате {4,{50,...}}
     
-    Также CommonForms (Code 5) парсятся как top-level объекты.
-    
-    Стратегия: ищем все 'text' файлы во вложенных папках UUID.N
-    и определяем — это форма или модуль объекта.
+    BSL модуль встроен внутрь {4,{50,...}} как строковое значение.
+    Эта функция извлекает BSL код из этого формата.
     """
     import re
     forms_count = 0
-    
-    # Строим карту: UUID родителя → имя объекта
-    parent_map = {}
-    for obj in parent_objects:
-        if obj.name:
-            parent_map[obj.uuid] = obj
     
     objects_dir = extracted_dir / '1'
     if not objects_dir.exists():
         return 0
     
-    # Ищем все папки вида UUID.N (вложенные контейнеры)
+    # Строим карту: UUID → объект (для поиска родителя формы)
+    parent_map = {}
+    for obj in parent_objects:
+        if obj.name:
+            parent_map[obj.uuid] = obj
+    
+    # Проходим по всем UUID файлам и ищем формы (type=0)
     for p in sorted(objects_dir.iterdir()):
         name = p.name
-        if '.' not in name or not p.is_dir():
+        if '.' in name or not p.is_file():
+            continue
+        if name in ('version', 'versions', 'root'):
             continue
         
-        uuid_part = name.split('.')[0]
-        sub_num = name.split('.')[1]
-        
-        # Ищем text файл
-        text_file = p / 'text'
-        if not text_file.exists():
+        try:
+            content = p.read_text(encoding='utf-8-sig', errors='replace')
+        except Exception:
             continue
         
-        # Проверяем — есть ли info файл
-        info_file = p / 'info'
-        form_name = None
-        if info_file.exists():
-            try:
-                info_content = info_file.read_text(encoding='utf-8-sig', errors='replace')
-                # В info может быть имя формы
-                # Формат: {3,N,"ИмяФормы"}
-                name_match = re.search(r'\{3,\d+,"([^"]+)"\}', info_content)
-                if name_match:
-                    form_name = name_match.group(1)
-            except Exception:
-                pass
-        
-        # Если не нашли имя в info — пропускаем (это не форма)
-        if not form_name:
+        # Проверяем тип
+        type_match = re.match(r'\s*\{1,\s*\{(\d+),', content)
+        if not type_match:
             continue
         
-        # Находим родителя
-        parent = parent_map.get(uuid_part)
-        if parent and parent.name:
-            # Это форма внутри объекта (Document, Catalog, и т.д.)
-            dir_name = TYPE_TO_DIR.get(parent.type_name)
-            if dir_name:
-                form_dir = output_dir / dir_name / parent.name / 'Forms' / form_name / 'Ext' / 'Form'
-                form_dir.mkdir(parents=True, exist_ok=True)
-                bsl_path = form_dir / 'Module.bsl'
-                bsl_code = text_file.read_text(encoding='utf-8-sig', errors='replace')
-                if bsl_code.strip():
-                    bsl_path.write_text(bsl_code, encoding='utf-8')
-                    forms_count += 1
-        else:
-            # Возможно, это CommonForm (Code 5)
-            # Проверяем — есть ли UUID в parent_map как CommonForm
-            for obj in parent_objects:
-                if obj.uuid == uuid_part and obj.type_name == 'CommonForm' and obj.name:
-                    form_dir = output_dir / 'CommonForms' / obj.name / 'Ext' / 'Form'
-                    form_dir.mkdir(parents=True, exist_ok=True)
-                    bsl_path = form_dir / 'Module.bsl'
-                    bsl_code = text_file.read_text(encoding='utf-8-sig', errors='replace')
-                    if bsl_code.strip():
-                        bsl_path.write_text(bsl_code, encoding='utf-8')
-                        forms_count += 1
-                    break
+        type_code = int(type_match.group(1))
+        if type_code != 0:  # 0 = Form
+            continue
+        
+        # Извлекаем имя формы
+        name_match = re.search(r'\{1,0,[0-9a-f-]{36}\},"([^"]+)"', content, re.IGNORECASE)
+        if not name_match:
+            continue
+        form_name = name_match.group(1)
+        
+        # Ищем UUID.0 файл с данными формы
+        form_data_file = objects_dir / f'{name}.0'
+        if not form_data_file.exists():
+            continue
+        
+        # Извлекаем BSL модуль из данных формы
+        bsl_code = _extract_bsl_from_form_data(form_data_file)
+        if not bsl_code or not bsl_code.strip():
+            continue
+        
+        # Определяем родителя формы
+        # В .cf формы идут после родительского объекта
+        # Ищем родителя по UUID — форма может быть привязана к объекту
+        # через метаданные. Но проще: сохраняем в CommonForms если нет родителя,
+        # или в Forms родителя если есть.
+        
+        # Пока сохраняем все формы в CommonForms (универсальный подход)
+        form_dir = output_dir / 'CommonForms' / form_name / 'Ext' / 'Form'
+        form_dir.mkdir(parents=True, exist_ok=True)
+        bsl_path = form_dir / 'Module.bsl'
+        bsl_path.write_text(bsl_code, encoding='utf-8')
+        forms_count += 1
     
     if forms_count > 0:
         print(f"  Извлечено форм из .cf: {forms_count}")
     
     return forms_count
+
+
+def _extract_bsl_from_form_data(form_data_path: Path) -> str:
+    """
+    Извлекает BSL модуль из файла данных формы {4,{50,...}}.
+    
+    BSL код встроен как строковое значение в формате 1C:
+    "код" где "" = escape для "
+    """
+    try:
+        data = form_data_path.read_text(encoding='utf-8-sig', errors='replace')
+    except Exception:
+        return ''
+    
+    # Ищем BSL код по ключевым словам
+    bsl_keywords = ['#Область', 'Процедура', 'Функция', '&НаСервере', '&НаКлиенте']
+    
+    for pattern in bsl_keywords:
+        pos = data.find(pattern)
+        if pos < 0:
+            continue
+        
+        # Идём назад — ищем открывающую кавычку
+        quote_start = data.rfind('"', 0, pos)
+        if quote_start < 0:
+            continue
+        
+        # Проверяем что перед " есть , или } (значение в структуре)
+        if quote_start == 0:
+            continue
+        before_quote = data[quote_start - 1]
+        if before_quote not in (',', '}', '{'):
+            continue
+        
+        # Идём вперёд — ищем закрывающую кавычку (с учётом escape "")
+        i = pos
+        while i < len(data):
+            next_quote = data.find('"', i)
+            if next_quote < 0:
+                break
+            
+            # Проверяем escape ""
+            if next_quote + 1 < len(data) and data[next_quote + 1] == '"':
+                i = next_quote + 2
+                continue
+            
+            # Проверяем что после " идёт , или } или \n
+            after = data[next_quote + 1] if next_quote + 1 < len(data) else ''
+            if after in (',', '}', '\n', '\r'):
+                bsl_code = data[quote_start + 1:next_quote]
+                # Unescape: "" → "
+                bsl_code = bsl_code.replace('""', '"')
+                return bsl_code
+            
+            i = next_quote + 1
+    
+    return ''
 
 
 def main():
