@@ -1,37 +1,43 @@
 #!/usr/bin/env python3
 """
-Патч для build_api_reference.py — добавляет индексацию модулей форм.
+Индексатор модулей конфигурации 1С — формы, модули объектов, модули менеджеров.
 
 Добавляет обработку:
 1. CommonForms/<Имя>/Ext/Form/Module.bsl — общие формы
 2. <ТипОбъекта>/<Имя>/Forms/<ИмяФормы>/Ext/Form/Module.bsl — формы объектов
-3. <ТипОбъекта>/<Имя>/Ext/Form/Module.bsl — формы обработки (если есть)
+3. <ТипОбъекта>/<Имя>/Ext/ObjectModule.bsl — модули объектов
+4. <ТипОбъекта>/<Имя>/Ext/ManagerModule.bsl — модули менеджеров
+5. Ext/ManagedApplicationModule.bsl — модуль приложения
 
-Формы добавляются в api-reference.json с type='Форма' и category='Формы'.
+Модули добавляются в api-reference.json с соответствующим type.
 """
 import re
 import os
 import json
 from pathlib import Path
 
-# Папки типов объектов, где могут быть формы
-OBJECT_TYPES_WITH_FORMS = [
+# Папки типов объектов, где могут быть модули
+OBJECT_TYPES_WITH_MODULES = [
     'Documents', 'Catalogs', 'DataProcessors', 'Reports',
     'InformationRegisters', 'AccumulationRegisters', 'ChartsOfAccounts',
     'ChartsOfCharacteristicTypes', 'BusinessProcesses', 'Tasks',
-    'ExchangePlans', 'FilterCriteria',
+    'ExchangePlans', 'FilterCriteria', 'Enums', 'Constants',
+    'CalculationRegisters', 'AccountingRegisters',
+    'ChartsOfCalculationTypes',
 ]
 
 
-def find_form_modules(config_dir):
-    """Находит все модули форм в конфигурации.
+def find_all_modules(config_dir):
+    """Находит ВСЕ модули в конфигурации.
     
-    Возвращает список: [{name, bsl_path, xml_path, parent_type, parent_name, form_name}]
+    Возвращает список: [{name, bsl_path, xml_path, module_type, parent_type, parent_name, form_name, form_elements}]
     """
-    forms = []
+    modules = []
     config_dir = Path(config_dir)
 
-    # 1. CommonForms/<Имя>/Ext/Form/Module.bsl
+    # 1. CommonModules — уже обрабатываются build_api_reference, пропускаем
+
+    # 2. CommonForms/<Имя>/Ext/Form/Module.bsl — общие формы
     common_forms_dir = config_dir / 'CommonForms'
     if common_forms_dir.exists():
         for item in sorted(common_forms_dir.iterdir()):
@@ -41,24 +47,57 @@ def find_form_modules(config_dir):
             xml_path = item / 'Ext' / 'Form.xml'
             meta_xml = common_forms_dir / f'{item.name}.xml'
             if bsl_path.exists():
-                forms.append({
+                elements = parse_form_xml(str(xml_path if xml_path.exists() else meta_xml if meta_xml.exists() else ''))
+                modules.append({
                     'name': f'Форма.{item.name}',
                     'bsl_path': str(bsl_path),
-                    'xml_path': str(xml_path if xml_path.exists() else meta_xml if meta_xml.exists() else ''),
+                    'xml_path': str(xml_path if xml_path.exists() else ''),
+                    'module_type': 'Форма',
                     'parent_type': 'CommonForm',
                     'parent_name': item.name,
                     'form_name': item.name,
+                    'form_elements': elements,
                 })
 
-    # 2. Forms внутри объектов
-    for obj_type in OBJECT_TYPES_WITH_FORMS:
+    # 3. Forms внутри объектов + ObjectModule + ManagerModule
+    for obj_type in OBJECT_TYPES_WITH_MODULES:
         obj_dir = config_dir / obj_type
         if not obj_dir.exists():
             continue
         for obj_item in sorted(obj_dir.iterdir()):
             if not obj_item.is_dir():
                 continue
-            # <Тип>/<ИмяОбъекта>/Forms/<ИмяФормы>/Ext/Form/Module.bsl
+            safe_name = obj_item.name
+
+            # 3a. ObjectModule.bsl
+            obj_module = obj_item / 'Ext' / 'ObjectModule.bsl'
+            if obj_module.exists():
+                modules.append({
+                    'name': f'{safe_name}.МодульОбъекта',
+                    'bsl_path': str(obj_module),
+                    'xml_path': str(obj_item / f'{safe_name}.xml'),
+                    'module_type': 'МодульОбъекта',
+                    'parent_type': obj_type,
+                    'parent_name': safe_name,
+                    'form_name': '',
+                    'form_elements': [],
+                })
+
+            # 3b. ManagerModule.bsl
+            mgr_module = obj_item / 'Ext' / 'ManagerModule.bsl'
+            if mgr_module.exists():
+                modules.append({
+                    'name': f'{safe_name}.МодульМенеджера',
+                    'bsl_path': str(mgr_module),
+                    'xml_path': str(obj_item / f'{safe_name}.xml'),
+                    'module_type': 'МодульМенеджера',
+                    'parent_type': obj_type,
+                    'parent_name': safe_name,
+                    'form_name': '',
+                    'form_elements': [],
+                })
+
+            # 3c. Forms/<ИмяФормы>/Ext/Form/Module.bsl
             forms_dir = obj_item / 'Forms'
             if forms_dir.exists():
                 for form_item in sorted(forms_dir.iterdir()):
@@ -67,40 +106,91 @@ def find_form_modules(config_dir):
                     bsl_path = form_item / 'Ext' / 'Form' / 'Module.bsl'
                     xml_path = form_item / 'Ext' / 'Form.xml'
                     if bsl_path.exists():
-                        forms.append({
-                            'name': f'{obj_item.name}.{form_item.name}',
+                        elements = parse_form_xml(str(xml_path if xml_path.exists() else ''))
+                        modules.append({
+                            'name': f'{safe_name}.{form_item.name}',
                             'bsl_path': str(bsl_path),
                             'xml_path': str(xml_path if xml_path.exists() else ''),
+                            'module_type': 'Форма',
                             'parent_type': obj_type,
-                            'parent_name': obj_item.name,
+                            'parent_name': safe_name,
                             'form_name': form_item.name,
+                            'form_elements': elements,
                         })
-            # <Тип>/<ИмяОбъекта>/Ext/Form/Module.bsl (форма обработки)
+
+            # 3d. Ext/Form/Module.bsl (форма обработки, без папки Forms/)
             direct_form_bsl = obj_item / 'Ext' / 'Form' / 'Module.bsl'
             if direct_form_bsl.exists():
-                # Проверим что не дубль с Forms/
-                already = any(f['parent_name'] == obj_item.name and f['form_name'] == obj_item.name 
-                             for f in forms)
+                already = any(
+                    m['parent_name'] == safe_name and m['module_type'] == 'Форма'
+                    for m in modules
+                )
                 if not already:
-                    forms.append({
-                        'name': f'{obj_item.name}.Форма',
+                    xml_path = obj_item / 'Ext' / 'Form.xml'
+                    elements = parse_form_xml(str(xml_path if xml_path.exists() else ''))
+                    modules.append({
+                        'name': f'{safe_name}.Форма',
                         'bsl_path': str(direct_form_bsl),
-                        'xml_path': str(obj_item / 'Ext' / 'Form.xml'),
+                        'xml_path': str(xml_path if xml_path.exists() else ''),
+                        'module_type': 'Форма',
                         'parent_type': obj_type,
-                        'parent_name': obj_item.name,
+                        'parent_name': safe_name,
                         'form_name': 'Форма',
+                        'form_elements': elements,
                     })
 
-    return forms
+    # 4. ManagedApplicationModule.bsl — модуль приложения
+    app_module = config_dir / 'Ext' / 'ManagedApplicationModule.bsl'
+    if app_module.exists():
+        modules.append({
+            'name': 'МодульПриложения',
+            'bsl_path': str(app_module),
+            'xml_path': '',
+            'module_type': 'МодульПриложения',
+            'parent_type': 'Configuration',
+            'parent_name': '',
+            'form_name': '',
+            'form_elements': [],
+        })
+
+    # 5. SessionModule.bsl — модуль сеанса (если есть)
+    session_module = config_dir / 'Ext' / 'SessionModule.bsl'
+    if session_module.exists():
+        modules.append({
+            'name': 'МодульСеанса',
+            'bsl_path': str(session_module),
+            'xml_path': '',
+            'module_type': 'МодульСеанса',
+            'parent_type': 'Configuration',
+            'parent_name': '',
+            'form_name': '',
+            'form_elements': [],
+        })
+
+    # 6. ExternalConnectionModule.bsl — модуль внешнего соединения
+    ext_conn_module = config_dir / 'Ext' / 'ExternalConnectionModule.bsl'
+    if ext_conn_module.exists():
+        modules.append({
+            'name': 'МодульВнешнегоСоединения',
+            'bsl_path': str(ext_conn_module),
+            'xml_path': '',
+            'module_type': 'МодульВнешнегоСоединения',
+            'parent_type': 'Configuration',
+            'parent_name': '',
+            'form_name': '',
+            'form_elements': [],
+        })
+
+    return modules
 
 
 def parse_form_xml(xml_path):
     """Парсит XML формы — извлекает элементы формы (кнопки, поля, группы).
     
-    Возвращает: {elements: [{name, type, title, data_path}]}
+    Возвращает: [{name, type, title, data_path, command}]
     """
     if not xml_path or not os.path.exists(xml_path):
-        return {'elements': []}
+        return []
 
     import xml.etree.ElementTree as ET
 
@@ -112,41 +202,35 @@ def parse_form_xml(xml_path):
         tree = ET.parse(xml_path)
         root = tree.getroot()
 
-        # Ищем все элементы формы
+        FORM_TAGS = (
+            'InputField', 'LabelField', 'Button', 'UsualGroup',
+            'Pages', 'Page', 'Table', 'CheckBox', 'RadioButton',
+            'ProgressBar', 'Picture', 'Calendar', 'Chart',
+            'SpreadSheetDocument', 'TextDocument', 'HTMLDocument',
+            'CommandBar', 'ContextMenu', 'AutoCommandBar',
+            'ExtendedTooltip', 'SearchStringAddition',
+            'ViewStatusAddition', 'SearchControlAddition',
+        )
+
         for elem in root.iter():
             tag = strip_ns(elem.tag)
             name = elem.get('name', '')
             if not name:
                 continue
 
-            if tag in ('InputField', 'LabelField', 'Button', 'UsualGroup',
-                       'Pages', 'Page', 'Table', 'CheckBox', 'RadioButton',
-                       'ProgressBar', 'Picture', 'Calendar', 'Chart',
-                       'SpreadSheetDocument', 'TextDocument', 'HTMLDocument',
-                       'CommandBar', 'ContextMenu', 'AutoCommandBar',
-                       'ExtendedTooltip', 'SearchStringAddition',
-                       'ViewStatusAddition', 'SearchControlAddition'):
-                # Получаем title
+            if tag in FORM_TAGS:
                 title = ''
-                title_elem = None
-                for child in elem:
-                    if strip_ns(child.tag) == 'Title':
-                        title = child.text or ''
-                        break
-
-                # Получаем DataPath
                 data_path = ''
-                for child in elem:
-                    if strip_ns(child.tag) == 'DataPath':
-                        data_path = child.text or ''
-                        break
-
-                # Получаем CommandName (для кнопок)
                 command_name = ''
+
                 for child in elem:
-                    if strip_ns(child.tag) == 'CommandName':
-                        command_name = child.text or ''
-                        break
+                    child_tag = strip_ns(child.tag)
+                    if child_tag == 'Title' and child.text:
+                        title = child.text
+                    elif child_tag == 'DataPath' and child.text:
+                        data_path = child.text
+                    elif child_tag == 'CommandName' and child.text:
+                        command_name = child.text
 
                 elements.append({
                     'name': name,
@@ -158,15 +242,11 @@ def parse_form_xml(xml_path):
     except Exception:
         pass
 
-    return {'elements': elements}
+    return elements
 
 
-# ============================================================================
-# Интеграция в build_api_reference
-# ============================================================================
-
-def add_forms_to_api_reference(config_dir, modules_list, parse_bsl_func):
-    """Добавляет модули форм в список modules_list.
+def add_modules_to_api_reference(config_dir, modules_list, parse_bsl_func):
+    """Добавляет все модули (формы, объектов, менеджеров) в список modules_list.
     
     Args:
         config_dir: Путь к директории конфигурации
@@ -174,67 +254,68 @@ def add_forms_to_api_reference(config_dir, modules_list, parse_bsl_func):
         parse_bsl_func: Функция парсинга BSL (parse_module_bsl из build_api_reference)
     
     Returns:
-        Кол-во добавленных форм
+        Кол-во добавленных модулей
     """
-    forms = find_form_modules(config_dir)
+    extra_modules = find_all_modules(config_dir)
     added = 0
 
-    for form in forms:
-        bsl_path = form['bsl_path']
+    for mod in extra_modules:
+        bsl_path = mod['bsl_path']
         if not os.path.exists(bsl_path):
             continue
 
-        # Парсим BSL модуль формы
+        # Парсим BSL модуль
         methods = parse_bsl_func(bsl_path)
 
-        # Парсим XML формы (элементы)
-        form_info = parse_form_xml(form['xml_path'])
+        # Определяем категорию
+        category = 'Формы' if mod['module_type'] == 'Форма' else 'Модули объектов'
 
         modules_list.append({
-            'name': form['name'],
-            'synonym': form['form_name'],
-            'comment': f'Форма: {form["parent_type"]}.{form["parent_name"]}',
-            'type': 'Форма',
-            'category': 'Формы',
+            'name': mod['name'],
+            'synonym': mod.get('form_name', '') or mod['parent_name'],
+            'comment': f'{mod["module_type"]}: {mod["parent_type"]}.{mod["parent_name"]}' if mod['parent_name'] else mod['module_type'],
+            'type': mod['module_type'],
+            'category': category,
             'properties': {
                 'global': False,
-                'server': False,
-                'client_managed': True,
+                'server': mod['module_type'] in ('МодульОбъекта', 'МодульМенеджера', 'МодульВнешнегоСоединения'),
+                'client_managed': mod['module_type'] == 'Форма',
                 'server_call': False,
                 'privileged': False,
                 'external_connection': False,
             },
             'methods': methods,
             'methods_count': len(methods),
-            'form_elements': form_info['elements'],
-            'form_elements_count': len(form_info['elements']),
-            'parent_type': form['parent_type'],
-            'parent_name': form['parent_name'],
+            'form_elements': mod.get('form_elements', []),
+            'form_elements_count': len(mod.get('form_elements', [])),
+            'parent_type': mod['parent_type'],
+            'parent_name': mod['parent_name'],
+            'module_type': mod['module_type'],
         })
         added += 1
 
     return added
 
 
+# Backward compat
+find_form_modules = find_all_modules
+add_forms_to_api_reference = add_modules_to_api_reference
+
+
 if __name__ == '__main__':
-    # Тестовый запуск
     import sys
     if len(sys.argv) < 2:
         print("Использование: python3 form_indexer.py <config_dir>")
         sys.exit(1)
 
     config_dir = sys.argv[1]
-    forms = find_form_modules(config_dir)
-    print(f"Найдено форм с модулями: {len(forms)}")
-    for f in forms:
-        print(f"  {f['name']} ({f['parent_type']}.{f['parent_name']})")
-        print(f"    BSL: {f['bsl_path']}")
-        print(f"    XML: {f['xml_path']}")
-
-        # Парсим элементы формы
-        form_info = parse_form_xml(f['xml_path'])
-        if form_info['elements']:
-            print(f"    Элементов формы: {len(form_info['elements'])}")
-            for elem in form_info['elements'][:5]:
+    modules = find_all_modules(config_dir)
+    print(f"Найдено модулей: {len(modules)}")
+    for m in modules:
+        print(f"  [{m['module_type']}] {m['name']} ({m['parent_type']}.{m['parent_name']})")
+        print(f"    BSL: {m['bsl_path']}")
+        if m.get('form_elements'):
+            print(f"    Элементов формы: {len(m['form_elements'])}")
+            for elem in m['form_elements'][:5]:
                 print(f"      {elem['type']}: {elem['name']} — {elem.get('title','')[:40]}")
         print()
