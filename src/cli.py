@@ -149,6 +149,80 @@ def cmd_search_code(project: Project, args: argparse.Namespace) -> None:
         print()
 
 
+def cmd_call_graph(project: Project, args: argparse.Namespace) -> None:
+    """Граф вызовов методов конфигурации."""
+    from .services.call_graph import build_call_graph
+    import json as json_mod
+
+    config_name = args.config
+    configs = {c.name for c in project.list_configs()}
+    if config_name not in configs:
+        print(f"❌ Конфигурация '{config_name}' не найдена. Доступные: {', '.join(configs)}")
+        sys.exit(1)
+
+    graph = build_call_graph(config_name, project.paths)
+
+    if args.action == 'stats':
+        stats = graph.get_stats()
+        print(f"Граф вызовов: {config_name}")
+        print(f"  Рёбер (вызовов): {stats['total_edges']}")
+        print(f"  Узлов (методов): {stats['total_nodes']}")
+        print(f"  Уникальных вызывающих: {stats['unique_callers']}")
+        print(f"  Уникальных вызываемых: {stats['unique_callees']}")
+
+    elif args.action == 'callers':
+        module = args.module
+        method = args.method
+        callers = graph.get_callers(module, method)
+        if callers:
+            print(f"Кто вызывает {module}.{method}():")
+            for c in callers:
+                print(f"  {c['module']}.{c['method']}()  [{c['file']}:{c['line']}]")
+        else:
+            print(f"Никто не вызывает {module}.{method}()")
+
+    elif args.action == 'callees':
+        module = args.module
+        method = args.method
+        callees = graph.get_callees(module, method)
+        if callees:
+            print(f"Кого вызывает {module}.{method}():")
+            for c in callees:
+                print(f"  → {c['module']}.{c['method']}()  [{c['file']}:{c['line']}]")
+        else:
+            print(f"{module}.{method}() никого не вызывает")
+
+    elif args.action == 'dead-code':
+        # Загружаем export methods из api-reference
+        api_json = project.paths.config_api_reference_json(config_name)
+        export_methods = []
+        if api_json.exists():
+            with open(api_json, 'r', encoding='utf-8') as f:
+                modules = json_mod.load(f)
+            for m in modules:
+                for method in m.get('methods', []):
+                    export_methods.append((m['name'], method['name']))
+        dead = graph.find_dead_code(export_methods)
+        if dead:
+            print(f"Мёртвый код ({len(dead)} из {len(export_methods)} экспортных методов):")
+            for mod, meth in dead:
+                print(f"  {mod}.{meth}()")
+        else:
+            print("Мёртвый код не найден — все экспортные методы вызываются")
+
+    elif args.action == 'cycles':
+        cycles = graph.find_cycles()
+        if cycles:
+            print(f"Циклические зависимости ({len(cycles)}):")
+            for c in cycles:
+                print(f"  {' → '.join(c)}")
+        else:
+            print("Циклов не найдено")
+
+    elif args.action == 'json':
+        print(json_mod.dumps(graph.to_dict(), ensure_ascii=False, indent=2))
+
+
 def cmd_standards(project: Project, args: argparse.Namespace) -> None:
     """Проверка .bsl файлов на соответствие стандартам разработки 1С."""
     import importlib.util
@@ -885,6 +959,14 @@ def main() -> None:
     p_scode.add_argument("--config", required=True, help="Имя конфигурации (ut11, edo2, edo3, unp)")
     p_scode.add_argument("--limit", type=int, default=10, help="Кол-во результатов")
 
+    # call-graph — граф вызовов методов
+    p_cgraph = sub.add_parser("call-graph", help="Граф вызовов методов конфигурации")
+    p_cgraph.add_argument("--config", required=True, help="Имя конфигурации")
+    p_cgraph.add_argument("action", choices=["stats", "callers", "callees", "dead-code", "cycles", "json"],
+                          default="stats", help="Действие: stats (по умолчанию), callers, callees, dead-code, cycles, json")
+    p_cgraph.add_argument("--module", help="Имя модуля (для callers/callees)")
+    p_cgraph.add_argument("--method", help="Имя метода (для callers/callees)")
+
     # standards
     p_std = sub.add_parser("standards", help="Проверка .bsl на стандарты 1С")
     p_std.add_argument("path", help="Путь к .bsl файлу или директории")
@@ -992,6 +1074,8 @@ def main() -> None:
         cmd_search(project, args)
     elif args.command == "search-code":
         cmd_search_code(project, args)
+    elif args.command == "call-graph":
+        cmd_call_graph(project, args)
     elif args.command == "standards":
         cmd_standards(project, args)
     elif args.command == "backup":

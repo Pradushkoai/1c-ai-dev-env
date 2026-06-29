@@ -45,6 +45,12 @@ def _get_tools_description() -> list[dict]:
             "optional_params": ["limit"],
         },
         {
+            "name": "call_graph",
+            "description": "Граф вызовов методов конфигурации. Кто кого вызывает, мёртвый код, циклы. Action: stats, callers, callees, dead-code, cycles. Пример: call_graph(config_name='obhod', action='callees', module='ОбменДокументы', method='ВыполнитьПолныйОбмен').",
+            "required_params": ["config_name", "action"],
+            "optional_params": ["module", "method"],
+        },
+        {
             "name": "get_api_reference",
             "description": "API-справочник конфигурации — экспортные методы общих модулей. Если module не указан — возвращает список всех модулей с кол-вом методов. Если module указан — возвращает методы конкретного модуля.",
             "required_params": ["config_name"],
@@ -153,6 +159,40 @@ def create_mcp_server() -> Server:
                         },
                     },
                     "required": ["query", "config_name"],
+                },
+            ),
+            types.Tool(
+                name="call_graph",
+                description=(
+                    "Граф вызовов методов конфигурации. "
+                    "Кто кого вызывает, мёртвый код, циклические зависимости. "
+                    "Action: stats (статистика), callers (кто вызывает), "
+                    "callees (кого вызывает), dead-code (мёртвый код), cycles (циклы). "
+                    "Пример: call_graph(config_name='obhod', action='callees', "
+                    "module='ОбменДокументы', method='ВыполнитьПолныйОбмен')"
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "config_name": {
+                            "type": "string",
+                            "description": "Имя конфигурации",
+                        },
+                        "action": {
+                            "type": "string",
+                            "description": "Действие: stats, callers, callees, dead-code, cycles",
+                            "default": "stats",
+                        },
+                        "module": {
+                            "type": "string",
+                            "description": "Имя модуля (для callers/callees)",
+                        },
+                        "method": {
+                            "type": "string",
+                            "description": "Имя метода (для callers/callees)",
+                        },
+                    },
+                    "required": ["config_name", "action"],
                 },
             ),
             types.Tool(
@@ -306,6 +346,39 @@ def create_mcp_server() -> Server:
             return [types.TextContent(
                 type="text",
                 text=json.dumps(results, ensure_ascii=False, indent=2),
+            )]
+
+        elif name == "call_graph":
+            config_name = arguments.get("config_name", "")
+            action = arguments.get("action", "stats")
+            module = arguments.get("module", "")
+            method = arguments.get("method", "")
+            from .services.call_graph import build_call_graph
+            graph = build_call_graph(config_name, project.paths)
+            if action == "stats":
+                result = graph.get_stats()
+            elif action == "callers":
+                result = graph.get_callers(module, method)
+            elif action == "callees":
+                result = graph.get_callees(module, method)
+            elif action == "dead-code":
+                import json as _json
+                api_json = project.paths.config_api_reference_json(config_name)
+                export_methods = []
+                if api_json.exists():
+                    with open(api_json, 'r', encoding='utf-8') as f:
+                        modules = _json.load(f)
+                    for m in modules:
+                        for meth in m.get('methods', []):
+                            export_methods.append((m['name'], meth['name']))
+                result = [{"module": mod, "method": meth} for mod, meth in graph.find_dead_code(export_methods)]
+            elif action == "cycles":
+                result = graph.find_cycles()
+            else:
+                result = graph.to_dict()
+            return [types.TextContent(
+                type="text",
+                text=json.dumps(result, ensure_ascii=False, indent=2),
             )]
 
         elif name == "get_api_reference":
