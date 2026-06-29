@@ -139,7 +139,45 @@ def find_all_modules(config_dir):
                         'form_elements': elements,
                     })
 
-    # 4. ManagedApplicationModule.bsl — модуль приложения
+            # 3e. Commands/<ИмяКоманды>/Ext/CommandModule.bsl — модули команд объекта
+            commands_dir = obj_item / 'Commands'
+            if commands_dir.exists():
+                for cmd_item in sorted(commands_dir.iterdir()):
+                    if not cmd_item.is_dir():
+                        continue
+                    cmd_bsl = cmd_item / 'Ext' / 'CommandModule.bsl'
+                    if cmd_bsl.exists():
+                        modules.append({
+                            'name': f'{safe_name}.Команда.{cmd_item.name}',
+                            'bsl_path': str(cmd_bsl),
+                            'xml_path': str(cmd_item / f'{cmd_item.name}.xml'),
+                            'module_type': 'МодульКоманды',
+                            'parent_type': obj_type,
+                            'parent_name': safe_name,
+                            'form_name': cmd_item.name,
+                            'form_elements': [],
+                        })
+
+    # 4. CommonCommands/<Имя>/Ext/CommandModule.bsl — общие команды
+    common_commands_dir = config_dir / 'CommonCommands'
+    if common_commands_dir.exists():
+        for item in sorted(common_commands_dir.iterdir()):
+            if not item.is_dir():
+                continue
+            cmd_bsl = item / 'Ext' / 'CommandModule.bsl'
+            if cmd_bsl.exists():
+                modules.append({
+                    'name': f'Команда.{item.name}',
+                    'bsl_path': str(cmd_bsl),
+                    'xml_path': str(common_commands_dir / f'{item.name}.xml'),
+                    'module_type': 'МодульКоманды',
+                    'parent_type': 'CommonCommand',
+                    'parent_name': item.name,
+                    'form_name': '',
+                    'form_elements': [],
+                })
+
+    # 5. ManagedApplicationModule.bsl — модуль приложения
     app_module = config_dir / 'Ext' / 'ManagedApplicationModule.bsl'
     if app_module.exists():
         modules.append({
@@ -153,7 +191,7 @@ def find_all_modules(config_dir):
             'form_elements': [],
         })
 
-    # 5. SessionModule.bsl — модуль сеанса (если есть)
+    # 6. SessionModule.bsl — модуль сеанса (если есть)
     session_module = config_dir / 'Ext' / 'SessionModule.bsl'
     if session_module.exists():
         modules.append({
@@ -167,7 +205,7 @@ def find_all_modules(config_dir):
             'form_elements': [],
         })
 
-    # 6. ExternalConnectionModule.bsl — модуль внешнего соединения
+    # 7. ExternalConnectionModule.bsl — модуль внешнего соединения
     ext_conn_module = config_dir / 'Ext' / 'ExternalConnectionModule.bsl'
     if ext_conn_module.exists():
         modules.append({
@@ -180,6 +218,39 @@ def find_all_modules(config_dir):
             'form_name': '',
             'form_elements': [],
         })
+
+    # 8. OrdinaryApplicationModule.bsl — модуль обычного приложения (legacy)
+    ord_app_module = config_dir / 'Ext' / 'OrdinaryApplicationModule.bsl'
+    if ord_app_module.exists():
+        modules.append({
+            'name': 'МодульОбычногоПриложения',
+            'bsl_path': str(ord_app_module),
+            'xml_path': '',
+            'module_type': 'МодульОбычногоПриложения',
+            'parent_type': 'Configuration',
+            'parent_name': '',
+            'form_name': '',
+            'form_elements': [],
+        })
+
+    # 9. SubsystemModule.bsl — модули подсистем
+    subsystems_dir = config_dir / 'Subsystems'
+    if subsystems_dir.exists():
+        for item in sorted(subsystems_dir.iterdir()):
+            if not item.is_dir():
+                continue
+            sub_bsl = item / 'Ext' / 'SubsystemModule.bsl'
+            if sub_bsl.exists():
+                modules.append({
+                    'name': f'Подсистема.{item.name}',
+                    'bsl_path': str(sub_bsl),
+                    'xml_path': str(subsystems_dir / f'{item.name}.xml'),
+                    'module_type': 'МодульПодсистемы',
+                    'parent_type': 'Subsystem',
+                    'parent_name': item.name,
+                    'form_name': '',
+                    'form_elements': [],
+                })
 
     return modules
 
@@ -268,7 +339,16 @@ def add_modules_to_api_reference(config_dir, modules_list, parse_bsl_func):
         methods = parse_bsl_func(bsl_path)
 
         # Определяем категорию
-        category = 'Формы' if mod['module_type'] == 'Форма' else 'Модули объектов'
+        if mod['module_type'] == 'Форма':
+            category = 'Формы'
+        elif mod['module_type'] == 'МодульКоманды':
+            category = 'Команды'
+        elif mod['module_type'] == 'МодульПодсистемы':
+            category = 'Подсистемы'
+        elif mod['module_type'] in ('МодульПриложения', 'МодульСеанса', 'МодульВнешнегоСоединения', 'МодульОбычногоПриложения'):
+            category = 'Модули конфигурации'
+        else:
+            category = 'Модули объектов'
 
         modules_list.append({
             'name': mod['name'],
@@ -278,11 +358,11 @@ def add_modules_to_api_reference(config_dir, modules_list, parse_bsl_func):
             'category': category,
             'properties': {
                 'global': False,
-                'server': mod['module_type'] in ('МодульОбъекта', 'МодульМенеджера', 'МодульВнешнегоСоединения'),
-                'client_managed': mod['module_type'] == 'Форма',
+                'server': mod['module_type'] in ('МодульОбъекта', 'МодульМенеджера', 'МодульВнешнегоСоединения', 'МодульСеанса'),
+                'client_managed': mod['module_type'] in ('Форма', 'МодульПриложения', 'МодульОбычногоПриложения'),
                 'server_call': False,
                 'privileged': False,
-                'external_connection': False,
+                'external_connection': mod['module_type'] == 'МодульВнешнегоСоединения',
             },
             'methods': methods,
             'methods_count': len(methods),

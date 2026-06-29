@@ -1,0 +1,65 @@
+{
+  "version": "2.0",
+  "configs": {
+    "obhod": {
+      "name": "Обход",
+      "version": "1.0.0",
+      "vendor": "",
+      "path": "/home/z/my-project/repo_work/data/configs/obhod",
+      "archive": null,
+      "status": "active",
+      "objects_count": 42,
+      "api_methods_count": 24,
+      "added_at": "2026-06-29",
+      "modules_count": 9
+    },
+    "edo3": {
+      "name": "ЭДО 3",
+      "version": "1.0",
+      "vendor": "",
+      "path": "/home/z/my-project/repo_work/data/configs/edo3",
+      "archive": null,
+      "status": "active",
+      "objects_count": 9441,
+      "api_methods_count": 28201,
+      "added_at": "2026-06-29",
+      "modules_count": 2963
+    },
+    "edo2": {
+      "name": "ЭДО 2",
+      "version": "1.0",
+      "vendor": "",
+      "path": "/home/z/my-project/repo_work/data/configs/edo2",
+      "archive": null,
+      "status": "active",
+      "objects_count": 10659,
+      "api_methods_count": 31759,
+      "added_at": "2026-06-29",
+      "modules_count": 3142
+    },
+    "ut11": {
+      "name": "УТ 11",
+      "version": "1.0",
+      "vendor": "",
+      "path": "/home/z/my-project/repo_work/data/configs/ut11",
+      "archive": null,
+      "status": "active",
+      "objects_count": 20397,
+      "api_methods_count": 21064,
+      "added_at": "2026-06-29",
+      "modules_count": 2633
+    },
+    "unp": {
+      "name": "УНП",
+      "version": "1.0",
+      "vendor": "",
+      "path": "/home/z/my-project/repo_work/data/configs/unp",
+      "archive": null,
+      "status": "active",
+      "objects_count": 23677,
+      "api_methods_count": 74775,
+      "added_at": "2026-06-29",
+      "modules_count": 7197
+    }
+  }
+}
