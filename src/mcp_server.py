@@ -104,6 +104,12 @@ def _get_tools_description() -> list[dict]:
             "required_params": ["config_name"],
             "optional_params": ["report_name"],
         },
+        {
+            "name": "get_form_structure",
+            "description": "Полная структура формы: элементы (InputField, Button, Table, и т.д.), их свойства (data_path, visible, enabled), события и обработчики, дерево элементов (ChildItems). Если form_name не указан — список всех форм. Пример: get_form_structure(config_name='ut11', form_name='ФормаЭлемента').",
+            "required_params": ["config_name"],
+            "optional_params": ["form_name", "parent_name"],
+        },
     ]
 
 
@@ -403,6 +409,34 @@ def create_mcp_server() -> Server:
                         "report_name": {
                             "type": "string",
                             "description": "Имя отчёта или обработки. Если не указан — список всех СКД-схем.",
+                        },
+                    },
+                    "required": ["config_name"],
+                },
+            ),
+            types.Tool(
+                name="get_form_structure",
+                description=(
+                    "Полная структура формы: элементы (InputField, Button, Table, UsualGroup, и т.д.), "
+                    "их свойства (data_path, visible, enabled, read_only), события и обработчики, "
+                    "дерево элементов (ChildItems). "
+                    "Если form_name не указан — список всех форм с краткой информацией. "
+                    "Пример: get_form_structure(config_name='ut11', form_name='ФормаЭлемента', parent_name='Склады')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "config_name": {
+                            "type": "string",
+                            "description": "Имя конфигурации (ut11, edo2, edo3, unp, obhod)",
+                        },
+                        "form_name": {
+                            "type": "string",
+                            "description": "Имя формы. Если не указан — список всех форм.",
+                        },
+                        "parent_name": {
+                            "type": "string",
+                            "description": "Имя родительского объекта (справочника, документа). Опционально для уточнения.",
                         },
                     },
                     "required": ["config_name"],
@@ -862,6 +896,78 @@ def create_mcp_server() -> Server:
                 return [types.TextContent(type="text",
                     text=json.dumps({
                         "error": f"SKD schema for '{report_name}' not found in config '{config_name}'",
+                        "suggestions": suggestions,
+                    }, ensure_ascii=False))]
+
+            return [types.TextContent(type="text",
+                text=json.dumps(found, ensure_ascii=False, indent=2))]
+
+        elif name == "get_form_structure":
+            config_name = arguments.get("config_name", "")
+            form_name = arguments.get("form_name", "")
+            parent_name = arguments.get("parent_name", "")
+
+            if not config_name:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
+
+            # Ищем form-index.json для конфигурации
+            form_index_path = project.paths.root / "derived" / "configs" / config_name / "form-index.json"
+            if not form_index_path.exists():
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "error": f"form-index.json not found for config '{config_name}'",
+                        "hint": "Run: python3 scripts/form_analyzer.py data/configs/" + config_name + " derived/configs/" + config_name + "/form-index.json",
+                    }, ensure_ascii=False))]
+
+            with open(form_index_path, encoding='utf-8') as f:
+                form_data = json.load(f)
+
+            forms = form_data.get('forms', [])
+
+            # Если form_name не указан — список всех форм
+            if not form_name:
+                summary = []
+                for fr in forms:
+                    # Фильтр по parent_name если указан
+                    if parent_name and fr.get('parent_name', '').lower() != parent_name.lower():
+                        continue
+                    summary.append({
+                        'name': fr.get('name', ''),
+                        'parent_type': fr.get('parent_type', ''),
+                        'parent_name': fr.get('parent_name', ''),
+                        'element_count': fr.get('form', {}).get('element_count', 0),
+                        'events_count': len(fr.get('form', {}).get('events', [])),
+                    })
+
+                response = {
+                    'config': config_name,
+                    'stats': form_data.get('stats', {}),
+                    'forms': summary,
+                }
+                return [types.TextContent(type="text",
+                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+
+            # Ищем форму по имени
+            found = None
+            for fr in forms:
+                if fr.get('name', '').lower() == form_name.lower():
+                    # Если parent_name указан — уточняем
+                    if parent_name and fr.get('parent_name', '').lower() != parent_name.lower():
+                        continue
+                    found = fr
+                    break
+
+            if not found:
+                # Fuzzy search
+                suggestions = list(set(
+                    f"{fr.get('parent_name', '')}.{fr.get('name', '')}"
+                    for fr in forms
+                    if form_name.lower() in fr.get('name', '').lower()
+                ))[:10]
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "error": f"Form '{form_name}' not found in config '{config_name}'",
                         "suggestions": suggestions,
                     }, ensure_ascii=False))]
 

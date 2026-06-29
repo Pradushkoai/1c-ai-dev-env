@@ -1,5 +1,67 @@
 # Changelog
 
+## [3.21.0] — 2026-06-29
+
+### Этап 3 роадмапа v4.0: Полный анализ форм
+
+**Проблема:** `form_indexer.parse_form_xml()` извлекал только базовые элементы (имя, тип).
+Не извлекались: DataPath (привязка к данным), события, свойства (Visible, Enabled, ReadOnly),
+дерево элементов (ChildItems).
+
+#### Что добавлено:
+
+##### 1. `form_analyzer.py` — полный парсер форм (новый скрипт)
+- Поиск всех форм: CommonForms, формы объектов (Catalogs, Documents, и т.д.)
+- Рекурсивный парсинг элементов (ChildItems → дерево)
+- Извлечение для каждого элемента:
+  - type (InputField, Button, Table, UsualGroup, Page, и т.д.)
+  - name, id, title
+  - **data_path** — привязка к данным (например, `Список.Description`)
+  - **visible, enabled, read_only** — свойства
+  - **command_name** — для кнопок
+  - **events** — события и обработчики (Event name → handler)
+  - **children** — вложенные элементы (рекурсивно)
+- Извлечение событий формы (на уровне формы)
+- Подсчёт общего количества элементов
+
+##### 2. MCP tool `get_form_structure` (новый, 14-й tool)
+- Полная структура формы с деревом элементов
+- Свойства элементов: data_path, visible, enabled, read_only
+- События и обработчики
+- Если form_name не указан — список всех форм с краткой информацией
+- Фильтр по parent_name для уточнения
+- Fuzzy search с подсказками
+
+#### Статистика форм для УТ11:
+- **3 174 формы** найдено
+- По типам родителей:
+  - CommonForm: 184
+  - Catalogs: 822
+  - Documents: 691
+  - InformationRegisters: 323
+  - DataProcessors: 295
+  - Reports: 83
+  - ChartsOfCharacteristicTypes: 17
+  - ExchangePlans: 85
+  - и др.
+- **59 489 элементов** всего
+- **7 973 событий** (обработчиков)
+- Типы элементов:
+  - InputField: 19 368
+  - UsualGroup: 14 212
+  - LabelField: 9 931
+  - Button: 5 366
+  - Page: 4 729
+  - Table: 2 924
+  - Pages: 1 682
+  - CommandBar: 1 059
+
+Пример: `get_form_structure(config_name='ut11', form_name='ФормаЭлемента', parent_name='Склады')`
+вернёт дерево элементов с DataPath, событиями, свойствами.
+
+#### MCP tools: теперь 14 (было 13)
+- Добавлен: `get_form_structure`
+
 ## [3.20.0] — 2026-06-29
 
 ### Этап 2 роадмапа v4.0: Парсинг СКД-схем
