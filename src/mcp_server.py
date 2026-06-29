@@ -92,6 +92,12 @@ def _get_tools_description() -> list[dict]:
             "required_params": [],
             "optional_params": [],
         },
+        {
+            "name": "get_object_structure",
+            "description": "Полная структура объекта конфигурации: реквизиты, табличные части, формы, команды, предопределённые значения. Если object_name не указан — возвращает список всех объектов с краткой информацией. Пример: get_object_structure(config_name='ut11', object_name='Склады').",
+            "required_params": ["config_name"],
+            "optional_params": ["object_name", "object_type"],
+        },
     ]
 
 
@@ -341,6 +347,35 @@ def create_mcp_server() -> Server:
                 inputSchema={
                     "type": "object",
                     "properties": {},
+                },
+            ),
+            types.Tool(
+                name="get_object_structure",
+                description=(
+                    "Полная структура объекта конфигурации: реквизиты (с типами данных), "
+                    "табличные части (с реквизитами), формы, команды, предопределённые значения. "
+                    "Если object_name не указан — возвращает список всех объектов с краткой информацией. "
+                    "Пример: get_object_structure(config_name='ut11', object_name='Склады'). "
+                    "Возвращает: name, uuid, synonym, attributes[{name, types, synonym}], "
+                    "tabular_sections[{name, attributes}], forms, commands."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "config_name": {
+                            "type": "string",
+                            "description": "Имя конфигурации (ut11, edo2, edo3, unp, obhod)",
+                        },
+                        "object_name": {
+                            "type": "string",
+                            "description": "Имя объекта (справочника, документа, и т.д.). Если не указан — список всех.",
+                        },
+                        "object_type": {
+                            "type": "string",
+                            "description": "Тип объекта (Catalog, Document, InformationRegister, и т.д.) — опциональный фильтр",
+                        },
+                    },
+                    "required": ["config_name"],
                 },
             ),
         ]
@@ -662,6 +697,78 @@ def create_mcp_server() -> Server:
                 type="text",
                 text=json.dumps(response, ensure_ascii=False, indent=2),
             )]
+
+        elif name == "get_object_structure":
+            config_name = arguments.get("config_name", "")
+            object_name = arguments.get("object_name", "")
+            object_type = arguments.get("object_type", "")
+
+            if not config_name:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
+
+            # Ищем metadata-index.json для конфигурации
+            metadata_index_path = project.paths.root / "derived" / "configs" / config_name / "metadata-index.json"
+            if not metadata_index_path.exists():
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "error": f"metadata-index.json not found for config '{config_name}'",
+                        "hint": "Run: python3 scripts/metadata_parser.py data/configs/" + config_name + " derived/configs/" + config_name + "/metadata-index.json",
+                    }, ensure_ascii=False))]
+
+            with open(metadata_index_path, encoding='utf-8') as f:
+                metadata = json.load(f)
+
+            objects = metadata.get('objects', [])
+
+            # Если object_name не указан — возвращаем список всех
+            if not object_name:
+                # Фильтр по типу если указан
+                if object_type:
+                    objects = [o for o in objects if o.get('type') == object_type]
+
+                # Краткая информация
+                summary = []
+                for obj in objects:
+                    summary.append({
+                        'name': obj.get('name', ''),
+                        'type': obj.get('type', ''),
+                        'synonym': obj.get('synonym', ''),
+                        'attributes_count': len(obj.get('attributes', [])),
+                        'tabular_sections_count': len(obj.get('tabular_sections', [])),
+                        'forms_count': len(obj.get('forms', [])),
+                    })
+
+                response = {
+                    'config': config_name,
+                    'total_objects': len(summary),
+                    'stats': metadata.get('stats', {}),
+                    'objects': summary,
+                }
+                return [types.TextContent(type="text",
+                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+
+            # Ищем конкретный объект по имени
+            found = None
+            for obj in objects:
+                if obj.get('name', '').lower() == object_name.lower():
+                    if object_type and obj.get('type') != object_type:
+                        continue
+                    found = obj
+                    break
+
+            if not found:
+                # Fuzzy search
+                suggestions = [o['name'] for o in objects
+                               if object_name.lower() in o.get('name', '').lower()][:10]
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "error": f"Object '{object_name}' not found in config '{config_name}'",
+                        "suggestions": suggestions,
+                    }, ensure_ascii=False))]
+
+            return [types.TextContent(type="text",
+                text=json.dumps(found, ensure_ascii=False, indent=2))]
 
         # Неизвестный tool
         return [types.TextContent(
