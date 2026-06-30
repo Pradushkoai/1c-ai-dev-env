@@ -382,196 +382,146 @@ def cmd_solve(project: Project, args: argparse.Namespace) -> None:
 
 
 def _solve_context(project: Project, args: argparse.Namespace) -> None:
-    """Собирает полный контекст для LLM: все доступные источники."""
-    import json
+    """Собирает полный контекст для LLM через TaskProcessor."""
+    from .services.task_processor import TaskProcessor
 
     query = args.query
-    config_name = getattr(args, 'config', None)
+    config_name = getattr(args, 'config', None) or ""
     limit = getattr(args, 'limit', 5)
+
+    processor = TaskProcessor(project.paths)
+    ctx = processor.solve(query, config_name=config_name, limit=limit)
 
     print(f"╔══════════════════════════════════════════════════════╗")
     print(f"║  1c-ai solve: сбор контекста для задачи              ║")
     print(f"╚══════════════════════════════════════════════════════╝")
     print(f"\nЗадача: {query}")
+    if config_name:
+        print(f"Конфигурация: {config_name}")
+    print(f"Всего находок: {ctx.total_hits}")
     print()
 
-    query_lower = query.lower()
-    query_words = query_lower.split()
-
-    # 1. Поиск методов платформы 1С (если есть индекс)
+    # 1. Методы платформы
     print("=== 1. Методы платформы 1С ===")
-    from .services.search_bm25 import search_auto, detect_index_version
-    index_path = project.paths.fast_search_index
-    if index_path.exists():
-        results = search_auto(index_path, query, limit=limit)
-        if results:
-            for i, r in enumerate(results, 1):
-                print(f"  {i}. [{r['score']:.3f}] {r['name_ru']} ({r.get('name_en', '')})")
-                print(f"     Синтаксис: {r.get('syntax', '')}")
-                if r.get('description'):
-                    print(f"     Описание: {r['description'][:100]}")
-            print()
+    if ctx.platform_methods:
+        for i, r in enumerate(ctx.platform_methods, 1):
+            print(f"  {i}. [{r.score:.3f}] {r.name_ru} ({r.name_en})")
+            print(f"     Синтаксис: {r.syntax}")
+            if r.description:
+                print(f"     Описание: {r.description[:100]}")
+        print()
+    else:
+        if "platform_methods" in " ".join(ctx.missing_sources):
+            print("  ⚠️  Индекс платформы не найден (не критично).\n")
         else:
             print("  Ничего не найдено.\n")
-    else:
-        print("  ⚠️  Индекс платформы не найден (не критично).\n")
 
-    # 2. API-справочник конфигурации
+    # 2. API-справочник
     if config_name:
         print(f"=== 2. API конфигурации '{config_name}' ===")
-        api_json = project.paths.config_api_reference_json(config_name)
-        if api_json.exists():
-            with open(api_json, 'r', encoding='utf-8') as f:
-                modules = json.load(f)
-            relevant = [m for m in modules if any(w in m['name'].lower() for w in query_words)]
-            if relevant:
-                print(f"  Найдено {len(relevant)} релевантных модулей:")
-                for m in relevant[:limit]:
-                    print(f"  • {m['name']}: {m.get('methods_count', 0)} методов")
-                    for method in m.get('methods', [])[:3]:
-                        print(f"    - {method['name']}({', '.join(p['name'] for p in method.get('params', []))})")
-                print()
-            else:
-                print(f"  Релевантных модулей не найдено. Всего: {len(modules)}\n")
+        if ctx.api_modules:
+            print(f"  Найдено {len(ctx.api_modules)} релевантных модулей:")
+            for m in ctx.api_modules:
+                print(f"  • {m.name}: {m.methods_count} методов")
+                for method in m.methods[:3]:
+                    params = method.get('params', [])
+                    print(f"    - {method['name']}({', '.join(p['name'] for p in params)})")
+            print()
         else:
-            print(f"  ⚠️  API-справочник не найден.\n")
+            if any("api_reference" in m for m in ctx.missing_sources):
+                print("  ⚠️  API-справочник не найден.\n")
+            else:
+                print("  Релевантных модулей не найдено.\n")
 
-        # 3. Структура объектов (unified-metadata-index)
+        # 3. Структура объектов
         print(f"=== 3. Структура объектов '{config_name}' ===")
-        unified_path = project.paths.root / "derived" / "configs" / config_name / "unified-metadata-index.json"
-        if unified_path.exists():
-            with open(unified_path, encoding='utf-8') as f:
-                meta = json.load(f)
-            # Ищем объекты по ключевым словам
-            found_objects = []
-            for type_name, objs in meta.get('objects', {}).items():
-                for obj in objs:
-                    obj_name = obj.get('name', '').lower()
-                    if any(w in obj_name for w in query_words):
-                        children = obj.get('child_objects', {})
-                        found_objects.append({
-                            'type': obj.get('type', ''),
-                            'name': obj.get('name', ''),
-                            'synonym': obj.get('synonym', ''),
-                            'attrs': len(children.get('attributes', [])),
-                            'ts': len(children.get('tabular_sections', [])),
-                            'forms': len(children.get('forms', [])),
-                        })
-            if found_objects:
-                print(f"  Найдено {len(found_objects)} объектов:")
-                for o in found_objects[:limit]:
-                    print(f"  • {o['type']}: {o['name']} — {o['synonym']}")
-                    print(f"    Реквизитов: {o['attrs']}, ТЧ: {o['ts']}, Форм: {o['forms']}")
-                print()
-            else:
-                print(f"  Объекты не найдены. Всего типов: {len(meta.get('objects', {}))}\n")
-
-            # 4. Подсистемы
-            subsystems = meta.get('subsystems', [])
-            if subsystems:
-                relevant_ss = [s for s in subsystems if any(w in s.get('name', '').lower() for w in query_words)]
-                if relevant_ss:
-                    print(f"  Подсистемы ({len(relevant_ss)} найдено):")
-                    for s in relevant_ss[:3]:
-                        print(f"  • {s.get('name', '')}: content={len(s.get('content', []))} объектов")
-                    print()
-
-            # 5. Подписки на события
-            event_subs = meta.get('event_subscriptions', [])
-            if event_subs:
-                relevant_es = [e for e in event_subs if any(w in e.get('name', '').lower() or w in e.get('handler', '').lower() for w in query_words)]
-                if relevant_es:
-                    print(f"  Подписки на события ({len(relevant_es)} найдено):")
-                    for e in relevant_es[:3]:
-                        print(f"  • {e.get('name', '')}: event={e.get('event', '')}, handler={e.get('handler', '')}")
-                    print()
-
-            # 6. Регламентные задания
-            scheduled_jobs = meta.get('scheduled_jobs', [])
-            if scheduled_jobs:
-                relevant_sj = [s for s in scheduled_jobs if any(w in s.get('name', '').lower() or w in s.get('method_name', '').lower() for w in query_words)]
-                if relevant_sj:
-                    print(f"  Регламентные задания ({len(relevant_sj)} найдено):")
-                    for s in relevant_sj[:3]:
-                        print(f"  • {s.get('name', '')}: method={s.get('method_name', '')}, use={s.get('use', '')}")
-                    print()
+        if ctx.metadata_objects:
+            print(f"  Найдено {len(ctx.metadata_objects)} объектов:")
+            for o in ctx.metadata_objects:
+                print(f"  • {o.type}: {o.name} — {o.synonym}")
+                print(f"    Реквизитов: {o.attributes_count}, ТЧ: {o.tabular_sections_count}, Форм: {o.forms_count}")
+            print()
         else:
-            print(f"  ⚠️  unified-metadata-index не найден.\n")
+            if any("metadata" in m for m in ctx.missing_sources):
+                print("  ⚠️  unified-metadata-index не найден.\n")
+            else:
+                print("  Объекты не найдены.\n")
 
-        # 7. СКД-схемы
+        if ctx.subsystems:
+            print(f"  Подсистемы ({len(ctx.subsystems)} найдено):")
+            for s in ctx.subsystems[:3]:
+                print(f"  • {s.get('name', '')}: content={len(s.get('content', []))} объектов")
+            print()
+
+        if ctx.event_subscriptions:
+            print(f"  Подписки на события ({len(ctx.event_subscriptions)} найдено):")
+            for e in ctx.event_subscriptions[:3]:
+                print(f"  • {e.get('name', '')}: event={e.get('event', '')}, handler={e.get('handler', '')}")
+            print()
+
+        if ctx.scheduled_jobs:
+            print(f"  Регламентные задания ({len(ctx.scheduled_jobs)} найдено):")
+            for s in ctx.scheduled_jobs[:3]:
+                print(f"  • {s.get('name', '')}: method={s.get('method_name', '')}")
+            print()
+
+        # 4. СКД-схемы
         print(f"=== 4. СКД-схемы '{config_name}' ===")
-        skd_path = project.paths.root / "derived" / "configs" / config_name / "skd-index.json"
-        if skd_path.exists():
-            with open(skd_path, encoding='utf-8') as f:
-                skd = json.load(f)
-            schemas = skd.get('schemas', [])
-            relevant_skd = [s for s in schemas if any(w in s.get('parent_name', '').lower() or w in s.get('name', '').lower() for w in query_words)]
-            if relevant_skd:
-                print(f"  Найдено {len(relevant_skd)} СКД-схем:")
-                for s in relevant_skd[:3]:
-                    schema = s.get('schema', {})
-                    ds = schema.get('data_sets', [])
-                    params = schema.get('parameters', [])
-                    print(f"  • {s.get('parent_name', '')}: {s.get('name', '')}")
-                    print(f"    Наборов данных: {len(ds)}, Параметров: {len(params)}")
-                print()
-            else:
-                print(f"  СКД не найдены. Всего: {len(schemas)}\n")
+        if ctx.skd_schemas:
+            print(f"  Найдено {len(ctx.skd_schemas)} СКД-схем:")
+            for s in ctx.skd_schemas:
+                print(f"  • {s.parent_type}: {s.parent_name}: {s.name}")
+                print(f"    Наборов данных: {s.data_sets_count}, Параметров: {s.parameters_count}")
+            print()
         else:
-            print(f"  ⚠️  skd-index не найден.\n")
+            if any("skd" in m for m in ctx.missing_sources):
+                print("  ⚠️  skd-index не найден.\n")
+            else:
+                print("  СКД не найдены.\n")
 
-        # 8. Формы
+        # 5. Формы
         print(f"=== 5. Формы '{config_name}' ===")
-        form_path = project.paths.root / "derived" / "configs" / config_name / "form-index.json"
-        if form_path.exists():
-            with open(form_path, encoding='utf-8') as f:
-                form_data = json.load(f)
-            forms = form_data.get('forms', [])
-            relevant_forms = [f for f in forms if any(w in f.get('name', '').lower() or w in f.get('parent_name', '').lower() for w in query_words)]
-            if relevant_forms:
-                print(f"  Найдено {len(relevant_forms)} форм:")
-                for f in relevant_forms[:3]:
-                    print(f"  • {f.get('parent_type', '')}: {f.get('parent_name', '')}.{f.get('name', '')}")
-                    print(f"    Элементов: {f.get('form', {}).get('element_count', 0)}")
-                print()
-            else:
-                print(f"  Формы не найдены. Всего: {len(forms)}\n")
+        if ctx.forms:
+            print(f"  Найдено {len(ctx.forms)} форм:")
+            for f in ctx.forms:
+                print(f"  • {f.parent_type}: {f.parent_name}.{f.name}")
+                print(f"    Элементов: {f.element_count}")
+            print()
         else:
-            print(f"  ⚠️  form-index не найден.\n")
+            if any("forms" in m for m in ctx.missing_sources):
+                print("  ⚠️  form-index не найден.\n")
+            else:
+                print("  Формы не найдены.\n")
     else:
         print("=== 2-5. Конфигурация ===")
         print("  ⚠️  Конфигурация не указана (--config). Пропускаем.\n")
 
-    # 9. База знаний (паттерны, антипаттерны, best practices)
+    # 6. База знаний
     print("=== 6. База знаний 1С ===")
-    try:
-        from .services.knowledge_base import KnowledgeBase
-        kb = KnowledgeBase()
-        kb_results = kb.search(query, limit=limit)
-        if kb_results:
-            print(f"  Найдено {len(kb_results)} статей:")
-            for r in kb_results:
-                print(f"  • [{r['category']}] {r['title']} (score={r['score']})")
-            print()
-        else:
-            print("  Статьи не найдены.\n")
-    except Exception:
-        print("  ⚠️  База знаний недоступна.\n")
+    if ctx.knowledge_articles:
+        print(f"  Найдено {len(ctx.knowledge_articles)} статей:")
+        for r in ctx.knowledge_articles:
+            print(f"  • [{r.category}] {r.title} (score={r.score})")
+        print()
+    else:
+        print("  Статьи не найдены.\n")
 
-    # 10. Стандарты (из check_1c_standards.py, не из tools/repos/)
-    print("=== 7. Стандарты 1С (56 правил) ===")
-    print("  Доступные проверки (check_1c_standards.py):")
-    print("  • Стиль: имена, длина строк, нестingVariables, венгерская нотация")
-    print("  • Запросы: конкатенация, LIKE %, функции в WHERE, подзапросы")
-    print("  • Клиент-сервер: DB в &НаКлиенте, серверные вызовы в цикле")
-    print("  • Безопасность: хардкод, Выполнить(), COM-объекты")
-    print("  • Транзакции: без Try/Catch, интерактив в транзакции")
+    # 7. Стандарты
+    print("=== 7. Стандарты 1С ===")
+    ss = ctx.standards_summary
+    print(f"  Всего проверок: {ss.get('total_checks', 0)}")
+    print(f"  • BSL LS: {ss.get('bsl_ls_diagnostics', 0)} диагностик")
+    print(f"  • check_1c_standards: {ss.get('check_1c_standards_rules', 0)} правил")
+    print(f"  • security_auditor: {ss.get('security_rules', 0)} правил")
+    print(f"  • transaction_checker: {ss.get('transaction_rules', 0)} правил")
+    print(f"  • query_analyzer: {ss.get('query_rules', 0)} правил")
+    print(f"  • code_metrics: {ss.get('code_metrics_count', 0)} метрик")
+    print(f"  • metadata_standards: {ss.get('check_metadata_rules', 0)} правил")
     print()
 
-    # 11. Контрольный список после генерации
+    # 8. После генерации
     print("=== 8. После генерации кода — выполните проверки ===")
-    print(f"  1c-ai solve check <file.bsl> --level full")
-    print(f"  (BSL LS + 56 правил + security + metrics + transactions + queries)")
+    print(f"  {ss.get('check_command', '1c-ai solve check <file.bsl> --level full')}")
     print()
     print("─" * 60)
     print("Контекст собран. LLM может генерировать код,")
@@ -580,7 +530,7 @@ def _solve_context(project: Project, args: argparse.Namespace) -> None:
 
 def _solve_check(project: Project, args: argparse.Namespace) -> None:
     """
-    Полная проверка .bsl кода: 7 анализаторов.
+    Полная проверка .bsl кода через TaskProcessor.
 
     Уровни проверки (--level):
     - quick:    check_1c_standards + security + transactions + queries (без Java)
@@ -592,7 +542,7 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
     """
     from pathlib import Path
     import json as json_mod
-    import importlib.util
+    from .services.task_processor import TaskProcessor
 
     level = getattr(args, 'level', 'standard')
     ci_mode = getattr(args, 'ci', False)
@@ -609,209 +559,35 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
             print(f"❌ Файл не найден: {bsl_path}")
         sys.exit(2)
 
-    total_errors = 0
-    total_warnings = 0
-    all_violations = []
-    scripts_dir = project.paths.scripts_dir
+    processor = TaskProcessor(project.paths)
+    result = processor.check(bsl_path, level=level)
 
-    def _load_script(script_name):
-        script_path = scripts_dir / f"{script_name}.py"
-        if not script_path.exists():
-            return None
-        spec = importlib.util.spec_from_file_location(script_name, script_path)
-        mod = importlib.util.module_from_spec(spec)
-        sys.modules[script_name] = mod
-        spec.loader.exec_module(mod)
-        return mod
-
-    # 1. check_1c_standards (56 правил) — все уровни
-    std_mod = _load_script("check_1c_standards")
-    if std_mod:
-        checker = std_mod.StandardsChecker()
-        violations = checker.check_file(bsl_path)
-        for v in violations:
-            sev = v.severity
-            if sev == "error":
-                total_errors += 1
-            else:
-                total_warnings += 1
-            all_violations.append({
-                "source": "check_1c_standards",
-                "rule_id": v.rule_id,
-                "severity": sev,
-                "line": v.line,
-                "message": v.message,
-                "file": v.file,
-            })
-
-    # 2. security_auditor (15 правил) — все уровни
-    sec_mod = _load_script("security_auditor")
-    if sec_mod:
-        auditor = sec_mod.SecurityAuditor()
-        sec_violations = auditor.audit_file(bsl_path)
-        for v in sec_violations:
-            sev = v.severity.lower()
-            if sev in ('critical', 'high'):
-                total_errors += 1
-            else:
-                total_warnings += 1
-            all_violations.append({
-                "source": "security_auditor",
-                "rule_id": v.rule_id,
-                "severity": sev,
-                "line": v.line,
-                "message": v.message,
-                "file": str(bsl_path),
-            })
-
-    # 3. transaction_checker (6 правил) — все уровни
-    tx_mod = _load_script("transaction_checker")
-    if tx_mod:
-        tx_checker = tx_mod.TransactionChecker()
-        tx_violations = tx_checker.check_file(bsl_path)
-        for v in tx_violations:
-            sev = v.severity.lower()
-            if sev in ('critical', 'high'):
-                total_errors += 1
-            else:
-                total_warnings += 1
-            all_violations.append({
-                "source": "transaction_checker",
-                "rule_id": v.rule_id,
-                "severity": sev,
-                "line": v.line,
-                "message": v.message,
-                "file": str(bsl_path),
-            })
-
-    # 4. query_analyzer (10 правил) — все уровни
-    qa_mod = _load_script("query_analyzer")
-    if qa_mod:
-        qa_analyzer = qa_mod.QueryAnalyzer()
-        qa_issues = qa_analyzer.analyze_file(bsl_path)
-        for i in qa_issues:
-            sev = i.severity.lower()
-            if sev in ('critical', 'high'):
-                total_errors += 1
-            else:
-                total_warnings += 1
-            all_violations.append({
-                "source": "query_analyzer",
-                "rule_id": i.rule_id,
-                "severity": sev,
-                "line": i.line,
-                "message": i.message,
-                "file": str(bsl_path),
-            })
-
-    # 5. BSL Language Server (187 диагностик) — standard / full
-    bsl_ls_available = False
-    if level in ('standard', 'full'):
-        if project.paths.bsl_ls_binary.exists():
-            bsl_ls_available = True
-            try:
-                result = project.bsl_analyzer.analyze(bsl_path)
-                for d in result.diagnostics:
-                    sev = d.get('severity', 'warning').lower()
-                    if sev == 'error':
-                        total_errors += 1
-                    else:
-                        total_warnings += 1
-                    all_violations.append({
-                        "source": "bsl_ls",
-                        "rule_id": d.get('code', ''),
-                        "severity": sev,
-                        "line": d.get('line', 0),
-                        "message": d.get('message', ''),
-                        "file": str(bsl_path),
-                    })
-            except Exception:
-                pass
-
-    # 6. code_metrics — только full
-    if level == 'full':
-        cm_mod = _load_script("code_metrics")
-        if cm_mod:
-            analyzer = cm_mod.CodeMetricsAnalyzer()
-            metrics = analyzer.analyze_file(bsl_path)
-            if metrics.is_god_object:
-                total_errors += 1
-                all_violations.append({
-                    "source": "code_metrics",
-                    "rule_id": "GOD_OBJECT",
-                    "severity": "error",
-                    "line": 0,
-                    "message": f"God Object: {metrics.code_lines} строк, {len(metrics.methods)} методов",
-                    "file": str(bsl_path),
-                })
-            for method in metrics.long_methods:
-                total_warnings += 1
-                all_violations.append({
-                    "source": "code_metrics",
-                    "rule_id": "LONG_METHOD",
-                    "severity": "warning",
-                    "line": method.line_start,
-                    "message": f"Длинный метод {method.name}: {method.lloc} строк",
-                    "file": str(bsl_path),
-                })
-
-    # 7. Метаданные (18 правил) — только full
-    if level == 'full':
-        meta_mod = _load_script("check_metadata_standards")
-        if meta_mod:
-            try:
-                checker2 = meta_mod.MetadataStandardsChecker()
-                meta_violations = checker2.check_path(bsl_path.parent if bsl_path.is_file() else bsl_path)
-                for v in meta_violations:
-                    sev = v.severity
-                    if sev == "error":
-                        total_errors += 1
-                    else:
-                        total_warnings += 1
-                    all_violations.append({
-                        "source": "check_metadata_standards",
-                        "rule_id": v.rule_id,
-                        "severity": sev,
-                        "line": v.line,
-                        "message": v.message,
-                        "file": v.file,
-                    })
-            except Exception:
-                pass
-
-    # Verdict
-    if total_errors == 0 and total_warnings == 0:
-        verdict = "ready"
-    elif total_errors == 0:
-        verdict = "warnings"
-    else:
-        verdict = "errors"
-
-    # ─── Вывод ───
+    # JSON-режим
     if json_mode:
-        report = {
-            "file": str(bsl_path),
-            "level": level,
-            "total_errors": total_errors,
-            "total_warnings": total_warnings,
-            "verdict": verdict,
-            "bsl_ls_available": bsl_ls_available,
-            "violations": all_violations if not ci_mode else [v for v in all_violations if v["severity"] in ("error", "critical", "high")],
-        }
+        report = result.to_dict()
+        if ci_mode:
+            report["violations"] = [
+                v for v in report["violations"]
+                if v["severity"] in ("error", "critical", "high")
+            ]
         print(json_mod.dumps(report, ensure_ascii=False, indent=2))
-        sys.exit(1 if total_errors > 0 else 0)
+        sys.exit(1 if result.total_errors > 0 else 0)
 
+    # CI-режим
     if ci_mode:
-        errors_only = [v for v in all_violations if v["severity"] in ("error", "critical", "high")]
+        errors_only = [
+            v for v in result.violations
+            if v.severity in ("error", "critical", "high")
+        ]
         if errors_only:
-            print(f"❌ {total_errors} errors found:")
+            print(f"❌ {result.total_errors} errors found:")
             for v in errors_only[:20]:
-                print(f"  {v['source']:25} {v['rule_id']:25} line {v['line']:4}  {v['message'][:80]}")
+                print(f"  {v.source:25} {v.rule_id:25} line {v.line:4}  {v.message[:80]}")
             if len(errors_only) > 20:
                 print(f"  ... и ещё {len(errors_only) - 20}")
         else:
-            print(f"✅ No errors ({total_warnings} warnings)")
-        sys.exit(1 if total_errors > 0 else 0)
+            print(f"✅ No errors ({result.total_warnings} warnings)")
+        sys.exit(1 if result.total_errors > 0 else 0)
 
     # Человекочитаемый вывод
     print(f"╔══════════════════════════════════════════════════════╗")
@@ -819,30 +595,45 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
     print(f"╚══════════════════════════════════════════════════════╝")
     print(f"\nФайл: {bsl_path}")
     print(f"Уровень: {level}")
-    print(f"Анализаторы: check_1c_standards + security + transactions + queries", end="")
-    if level in ('standard', 'full'):
-        print(f" + BSL_LS", end="")
-    if level == 'full':
-        print(f" + code_metrics + metadata", end="")
-    print("\n")
+    print(f"Анализаторы ({len(result.analyzers_run)}): {' + '.join(result.analyzers_run)}")
+    if result.bsl_ls_available is False and level in ('standard', 'full'):
+        print(f"⚠️  BSL LS не установлен — диагностики Java пропущены")
+    print()
 
-    by_source = {}
-    for v in all_violations:
-        by_source.setdefault(v["source"], []).append(v)
+    by_source: dict[str, list] = {}
+    for v in result.violations:
+        by_source.setdefault(v.source, []).append(v)
 
     for source, violations in by_source.items():
-        errors = [v for v in violations if v["severity"] in ("error", "critical", "high")]
-        warnings = [v for v in violations if v["severity"] not in ("error", "critical", "high")]
+        errors = [v for v in violations if v.severity in ("error", "critical", "high")]
+        warnings = [v for v in violations if v.severity not in ("error", "critical", "high")]
         print(f"=== {source} ({len(errors)} errors, {len(warnings)} warnings) ===")
         for v in violations[:15]:
-            print(f"  {v['severity'].upper():8} {v['rule_id']:25} line {v['line']:4}  {v['message'][:80]}")
+            print(f"  {v.severity.upper():8} {v.rule_id:25} line {v.line:4}  {v.message[:80]}")
         if len(violations) > 15:
             print(f"  ... и ещё {len(violations) - 15}")
         print()
 
+    # Метрики (если full)
+    if result.metrics:
+        m = result.metrics
+        print("=== code_metrics ===")
+        print(f"  LOC: {m.loc}, LLOC: {m.lloc}")
+        print(f"  Cyclomatic: {m.cyclomatic_complexity:.1f}, Cognitive: {m.cognitive_complexity:.1f}")
+        print(f"  Max nesting: {m.max_nesting}, Methods: {m.methods_count}")
+        print(f"  Health score: {m.health_score:.1f}/100")
+        if m.is_god_object:
+            print(f"  ❌ God Object detected!")
+        if m.long_methods:
+            print(f"  Long methods ({len(m.long_methods)}):")
+            for lm in m.long_methods[:5]:
+                print(f"    • {lm['name']} ({lm['lloc']} строк, line {lm['line_start']})")
+        print()
+
     print("─" * 60)
-    print(f"ИТОГО: {total_errors} errors, {total_warnings} warnings")
+    print(f"ИТОГО: {result.total_errors} errors, {result.total_warnings} warnings")
     print()
+    verdict = result.verdict
     if verdict == "ready":
         print("✅ Код прошёл все проверки! Готов к коммиту.")
     elif verdict == "warnings":
@@ -850,7 +641,7 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
     else:
         print("❌ Есть критичные ошибки. Код НЕ готов к коммиту.")
 
-    sys.exit(1 if total_errors > 0 else 0)
+    sys.exit(1 if result.total_errors > 0 else 0)
 
 
 def cmd_mcp(project: Project, args: argparse.Namespace) -> None:

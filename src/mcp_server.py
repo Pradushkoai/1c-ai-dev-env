@@ -77,15 +77,15 @@ def _get_tools_description() -> list[dict]:
         },
         {
             "name": "solve_context",
-            "description": "Сбор контекста для решения задачи 1С. Собирает: TF-IDF/BM25 поиск методов платформы, API-справочник конфигурации, стандарты 1С. Используй ПЕРВЫМ шагом при решении любой задачи.",
+            "description": "Сбор контекста для решения задачи 1С. Собирает 7 источников: методы платформы (BM25), API-справочник, структура объектов (metadata-index), СКД-схемы (skd-index), формы (form-index), база знаний (паттерны/антипаттерны), стандарты 1С (302 проверки). Используй ПЕРВЫМ шагом при решении любой задачи.",
             "required_params": ["query"],
-            "optional_params": ["config"],
+            "optional_params": ["config", "limit"],
         },
         {
             "name": "solve_check",
-            "description": "Полная проверка .bsl кода: BSL LS (187) + 56 правил стандартов. Возвращает: total_errors, total_warnings, violations, verdict. verdict: 'ready' / 'warnings' / 'errors'.",
+            "description": "Полная проверка .bsl кода: 7 анализаторов. Уровни: 'quick' (4 анализатора, без Java), 'standard' (quick + BSL LS), 'full' (standard + code_metrics + metadata_standards). Возвращает: total_errors, total_warnings, violations, verdict, analyzers_run, metrics (для full). verdict: 'ready' / 'warnings' / 'errors'.",
             "required_params": ["file_path"],
-            "optional_params": [],
+            "optional_params": ["level"],
         },
         {
             "name": "data_status",
@@ -386,8 +386,10 @@ def create_mcp_server() -> Server:
                 name="solve_context",
                 description=(
                     "Сбор контекста для решения задачи 1С. "
-                    "Собирает: TF-IDF поиск методов платформы, API-справочник конфигурации, "
-                    "стандарты 1С (ключевые правила), антипаттерны (CRITICAL). "
+                    "Собирает 7 источников: методы платформы (BM25), API-справочник, "
+                    "структура объектов (metadata-index), СКД-схемы (skd-index), "
+                    "формы (form-index), база знаний (паттерны/антипаттерны), "
+                    "стандарты 1С (302 проверки). "
                     "Используй ПЕРВЫМ шагом при решении любой задачи. "
                     "Пример: solve_context(query='создать справочник Товары', config='ut11')"
                 ),
@@ -403,6 +405,11 @@ def create_mcp_server() -> Server:
                             "description": "Имя конфигурации (необязательно)",
                             "default": "",
                         },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Лимит результатов на источник",
+                            "default": 5,
+                        },
                     },
                     "required": ["query"],
                 },
@@ -410,11 +417,15 @@ def create_mcp_server() -> Server:
             types.Tool(
                 name="solve_check",
                 description=(
-                    "Полная проверка .bsl кода: BSL LS (187) + 56 правил стандартов. "
-                    "Возвращает: total_errors, total_warnings, violations, verdict. "
+                    "Полная проверка .bsl кода: 7 анализаторов. "
+                    "Уровни: 'quick' (4 анализатора, без Java), "
+                    "'standard' (quick + BSL LS), "
+                    "'full' (standard + code_metrics + metadata_standards). "
+                    "Возвращает: total_errors, total_warnings, violations, verdict, "
+                    "analyzers_run, metrics (для full). "
                     "verdict: 'ready' (0 errors), 'warnings' (0 errors, есть warnings), "
                     "'errors' (есть errors). "
-                    "Пример: solve_check(file_path='/tmp/module.bsl')"
+                    "Пример: solve_check(file_path='/tmp/module.bsl', level='standard')"
                 ),
                 inputSchema={
                     "type": "object",
@@ -422,6 +433,12 @@ def create_mcp_server() -> Server:
                         "file_path": {
                             "type": "string",
                             "description": "Путь к .bsl файлу",
+                        },
+                        "level": {
+                            "type": "string",
+                            "enum": ["quick", "standard", "full"],
+                            "default": "standard",
+                            "description": "Уровень проверки",
                         },
                     },
                     "required": ["file_path"],
@@ -989,120 +1006,38 @@ def create_mcp_server() -> Server:
         elif name == "solve_context":
             query = arguments.get("query", "")
             config = arguments.get("config", "")
+            limit = arguments.get("limit", 5)
 
-            # Собираем контекст
-            context = {
-                "query": query,
-                "platform_methods": [],
-                "config_info": None,
-                "standards_summary": {},
-            }
-
-            # 1. Поиск методов платформы
-            results = project.search_methods(query, limit=5)
-            context["platform_methods"] = results
-
-            # 2. API конфигурации
-            if config:
-                info = project.get_config_info(config)
-                if info:
-                    context["config_info"] = {
-                        "name": info["name"],
-                        "version": info["version"],
-                        "objects_count": info["objects_count"],
-                        "modules_count": len(info["modules"]),
-                    }
-
-            # 3. Стандарты
-            context["standards_summary"] = {
-                "bsl_ls_diagnostics": 187,
-                "check_1c_standards_rules": 56,
-                "check_metadata_rules": 18,
-                "total_checks": 261,
-            }
+            # Используем TaskProcessor — единая логика с CLI
+            from .services.task_processor import TaskProcessor
+            processor = TaskProcessor(project.paths)
+            ctx = processor.solve(query, config_name=config, limit=limit)
 
             return [types.TextContent(
                 type="text",
-                text=json.dumps(context, ensure_ascii=False, indent=2),
+                text=json.dumps(ctx.to_dict(), ensure_ascii=False, indent=2),
             )]
 
         elif name == "solve_check":
             file_path = arguments.get("file_path", "")
-            total_errors = 0
-            total_warnings = 0
-            violations_list = []
+            level = arguments.get("level", "standard")
 
-            # 1. BSL LS
-            if project.paths.bsl_ls_binary.exists():
-                try:
-                    result = project.bsl_analyzer.analyze(Path(file_path))
-                    bsl_errors = sum(1 for d in result.diagnostics
-                                     if d.get("severity", "").lower() == "error")
-                    bsl_warnings = sum(1 for d in result.diagnostics
-                                       if d.get("severity", "").lower() in ("warning", "information", "hint"))
-                    total_errors += bsl_errors
-                    total_warnings += bsl_warnings
-                    violations_list.append({
-                        "source": "bsl_ls",
-                        "total": result.total,
-                        "errors": bsl_errors,
-                        "warnings": bsl_warnings,
-                    })
-                except Exception as e:
-                    violations_list.append({"source": "bsl_ls", "error": str(e)})
-            else:
-                violations_list.append({"source": "bsl_ls", "error": "BSL LS не установлен"})
+            # Используем TaskProcessor — единая логика с CLI
+            from .services.task_processor import TaskProcessor
+            from pathlib import Path as _Path
 
-            # 2. check_1c_standards
+            processor = TaskProcessor(project.paths)
             try:
-                import importlib.util
-                scripts_dir = project.paths.scripts_dir
-                if not (scripts_dir / "check_1c_standards.py").exists():
-                    scripts_dir = project.paths.root / "setup" / "scripts"
-                spec = importlib.util.spec_from_file_location(
-                    "check_1c_standards", scripts_dir / "check_1c_standards.py"
-                )
-                mod = importlib.util.module_from_spec(spec)
-                sys.modules["check_1c_standards"] = mod
-                spec.loader.exec_module(mod)
-
-                checker = mod.StandardsChecker()
-                violations = checker.check_file(Path(file_path))
-                std_errors = sum(1 for v in violations if v.severity == "error")
-                std_warnings = sum(1 for v in violations if v.severity == "warning")
-                total_errors += std_errors
-                total_warnings += std_warnings
-                violations_list.append({
-                    "source": "check_1c_standards",
-                    "errors": std_errors,
-                    "warnings": std_warnings,
-                    "violations": [
-                        {"rule_id": v.rule_id, "severity": v.severity,
-                         "line": v.line, "message": v.message}
-                        for v in violations[:20]
-                    ],
-                })
-            except Exception as e:
-                violations_list.append({"source": "check_1c_standards", "error": str(e)})
-
-            # Вердикт
-            if total_errors == 0 and total_warnings == 0:
-                verdict = "ready"
-            elif total_errors == 0:
-                verdict = "warnings"
-            else:
-                verdict = "errors"
-
-            response = {
-                "total_errors": total_errors,
-                "total_warnings": total_warnings,
-                "verdict": verdict,
-                "details": violations_list,
-            }
-            return [types.TextContent(
-                type="text",
-                text=json.dumps(response, ensure_ascii=False, indent=2),
-            )]
+                result = processor.check(_Path(file_path), level=level)
+                return [types.TextContent(
+                    type="text",
+                    text=json.dumps(result.to_dict(), ensure_ascii=False, indent=2),
+                )]
+            except FileNotFoundError as e:
+                return [types.TextContent(
+                    type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False),
+                )]
 
         elif name == "data_status":
             # Статус данных проекта

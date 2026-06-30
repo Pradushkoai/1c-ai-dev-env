@@ -234,7 +234,7 @@ def test_call_get_api_reference_unknown_config(mcp_server_with_mock_project):
 
 
 def test_call_solve_context(mcp_server_with_mock_project):
-    """solve_context возвращает собранный контекст."""
+    """solve_context возвращает собранный контекст (через TaskProcessor)."""
     server, project = mcp_server_with_mock_project
     from mcp.types import CallToolRequest
     handler = next(h for req_type, h in server.request_handlers.items() if req_type == CallToolRequest)
@@ -245,10 +245,18 @@ def test_call_solve_context(mcp_server_with_mock_project):
     )))
     data = json.loads(result.root.content[0].text)
     assert data['query'] == 'создать справочник'
+    assert data['config'] == 'ut11'
+    # Новый формат через TaskContext.to_dict()
     assert 'platform_methods' in data
-    assert 'config_info' in data
+    assert 'api_modules' in data
+    assert 'metadata_objects' in data
+    assert 'skd_schemas' in data
+    assert 'forms' in data
+    assert 'knowledge_articles' in data
     assert 'standards_summary' in data
-    assert data['standards_summary']['total_checks'] == 261
+    assert 'missing_sources' in data
+    # 7 источников → 302 проверки
+    assert data['standards_summary']['total_checks'] == 302
 
 
 def test_call_analyze_bsl(mcp_server_with_mock_project):
