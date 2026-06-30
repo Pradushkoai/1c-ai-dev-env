@@ -16,8 +16,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-from v8_metadata_parser import V8MetadataParser, V8Object, TYPE_MAP, TYPE_MAP_V2
-
+from v8_metadata_parser import TYPE_MAP, TYPE_MAP_V2, V8MetadataParser, V8Object
 
 # ============================================================================
 # ФИКСТУРЫ ДЛЯ СОЗДАНИЯ СИНТЕТИЧЕСКИХ ДАННЫХ

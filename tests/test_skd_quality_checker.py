@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Тесты для skd_quality_checker.py."""
-import os, sys
+import os
+import sys
 from pathlib import Path
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
-from skd_quality_checker import SKDQualityChecker, SKDIssue
+from skd_quality_checker import SKDIssue, SKDQualityChecker
 
 
 @pytest.fixture

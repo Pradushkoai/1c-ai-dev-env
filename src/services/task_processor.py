@@ -24,19 +24,18 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 from ..models.task import (
-    TaskContext,
-    PlatformMethodHit,
-    ModuleApiHit,
-    MetadataObjectHit,
-    SkdSchemaHit,
+    CheckResult,
+    CodeMetric,
     FormHit,
     KnowledgeArticleHit,
-    CheckResult,
+    MetadataObjectHit,
+    ModuleApiHit,
+    PlatformMethodHit,
+    SkdSchemaHit,
+    TaskContext,
     Violation,
-    CodeMetric,
 )
 from .path_manager import PathManager
 

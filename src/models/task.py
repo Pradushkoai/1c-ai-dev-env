@@ -9,8 +9,6 @@ CheckResult — что нашли анализаторы (violations + verdict +
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -166,7 +164,7 @@ class CheckResult:
     file: str = ""
     level: str = "standard"   # quick | standard | full
     violations: list[Violation] = field(default_factory=list)
-    metrics: Optional[CodeMetric] = None
+    metrics: CodeMetric | None = None
     bsl_ls_available: bool = False
     analyzers_run: list[str] = field(default_factory=list)
 

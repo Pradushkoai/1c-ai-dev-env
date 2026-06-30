@@ -9,14 +9,13 @@ import json
 import sys
 import types
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.models.task import CheckResult, TaskContext, Violation
 from src.services.path_manager import PathManager
 from src.services.task_processor import TaskProcessor
-from src.models.task import TaskContext, CheckResult, Violation
-
 
 # Модули, которые тесты кладут в sys.modules — нужно чистить между прогонами
 _ANALYZER_MODULES = (

@@ -13,13 +13,11 @@ from __future__ import annotations
 
 import json
 import math
-import re
 from collections import Counter, defaultdict
-from pathlib import Path
 from typing import Any
 
 from .path_manager import PathManager
-from .search_bm25 import tokenize_stemmed, BM25_K1, BM25_B
+from .search_bm25 import BM25_B, BM25_K1, tokenize_stemmed
 
 
 def _build_index_for_config(config_name: str, paths: PathManager) -> dict | None:
@@ -28,7 +26,7 @@ def _build_index_for_config(config_name: str, paths: PathManager) -> dict | None
     if not api_json.exists():
         return None
 
-    with open(api_json, 'r', encoding='utf-8') as f:
+    with open(api_json, encoding='utf-8') as f:
         modules = json.load(f)
 
     documents = []
@@ -133,7 +131,7 @@ def search_code(config_name: str, query: str, limit: int = 10, paths: PathManage
         with open(index_path, 'w', encoding='utf-8') as f:
             json.dump(index_data, f, ensure_ascii=False)
     else:
-        with open(index_path, 'r', encoding='utf-8') as f:
+        with open(index_path, encoding='utf-8') as f:
             index_data = json.load(f)
 
     documents = index_data['documents']

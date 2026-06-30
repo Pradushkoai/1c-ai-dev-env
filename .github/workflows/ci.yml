@@ -11,22 +11,33 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install linters
-        run: pip install flake8 mypy
+      - name: Install ruff + mypy
+        run: |
+          pip install ruff>=0.5.0 mypy>=1.10
 
       - name: Check syntax (py_compile)
         run: |
           find scripts src -name "*.py" -exec python3 -m py_compile {} \;
 
-      - name: flake8 (style + unused imports)
+      - name: Ruff lint (errors break CI)
         run: |
-          flake8 scripts/ src/ --max-line-length=120 --extend-ignore=E203,W503,E501 --exclude=scripts/__pycache__
+          ruff check src/ tests/
+        continue-on-error: false
+
+      - name: Ruff lint scripts (warnings only)
+        run: |
+          ruff check scripts/ --exit-zero
         continue-on-error: true
 
-      - name: mypy (type checking)
+      - name: Ruff format check
         run: |
-          mypy src/ --ignore-missing-imports --no-strict-optional
-        continue-on-error: true
+          ruff format --check src/ tests/
+        continue-on-error: true  # пока не приводим к общему стилю
+
+      - name: Mypy type checking
+        run: |
+          mypy src/ --config-file pyproject.toml
+        continue-on-error: true  # пока не все типы выправлены
 
   version-check:
     runs-on: ubuntu-latest
@@ -39,7 +50,7 @@ jobs:
       - name: Verify version consistency
         run: |
           MANIFEST_VER=$(python3 -c "import json; print(json.load(open('manifest.json'))['version'])")
-          PYPROJECT_VER=$(python3 -c "import configparser; c=configparser.ConfigParser(); c.read('pyproject.toml'); print(c['project']['version'])")
+          PYPROJECT_VER=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
           README_VER=$(grep -oP 'version-\K[0-9.]+' README.md | head -1)
           echo "manifest: $MANIFEST_VER, pyproject: $PYPROJECT_VER, readme: $README_VER"
           if [ "$MANIFEST_VER" != "$PYPROJECT_VER" ] || [ "$MANIFEST_VER" != "$README_VER" ]; then
@@ -68,3 +79,52 @@ jobs:
       - name: Run pytest (unit + integration + e2e + benchmarks)
         run: |
           python3 -m pytest tests/ -v --benchmark-min-rounds=1 --benchmark-warmup=off -k "not IntegrationRealData"
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+          pip install pytest-cov
+
+      - name: Run tests with coverage
+        run: |
+          python3 -m pytest tests/ \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-report=html:coverage_html \
+            --cov-fail-under=30 \
+            -k "not IntegrationRealData and not test_benchmarks and not test_e2e and not test_integration" \
+            --benchmark-min-rounds=1 --benchmark-warmup=off
+
+      - name: Coverage summary
+        run: |
+          python3 -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('coverage.xml')
+          root = tree.getroot()
+          line_rate = float(root.attrib['line-rate']) * 100
+          print(f'📊 Coverage: {line_rate:.2f}%')
+          print(f'   Threshold: 30% (target: 85%)')
+          if line_rate < 30:
+              print('❌ Below threshold!')
+              exit(1)
+          print('✅ Above threshold')
+          "
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
+            coverage_html/
+          retention-days: 14

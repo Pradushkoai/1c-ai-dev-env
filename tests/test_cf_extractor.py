@@ -21,13 +21,19 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 from cf_extractor import (
-    V8Container, V8_SIGNATURE, V8_SIGNATURE_64,
-    END_MARKER, END_MARKER_64,
-    HEADER_SIZE, BLOCK_HEADER_SIZE, DEFAULT_BLOCK_SIZE,
-    HEADER_SIZE_64, BLOCK_HEADER_SIZE_64, DEFAULT_BLOCK_SIZE_64,
-    extract_cf
+    BLOCK_HEADER_SIZE,
+    BLOCK_HEADER_SIZE_64,
+    DEFAULT_BLOCK_SIZE,
+    DEFAULT_BLOCK_SIZE_64,
+    END_MARKER,
+    END_MARKER_64,
+    HEADER_SIZE,
+    HEADER_SIZE_64,
+    V8_SIGNATURE,
+    V8_SIGNATURE_64,
+    V8Container,
+    extract_cf,
 )
-
 
 # ============================================================================
 # ХЕЛПЕРЫ ДЛЯ СОЗДАНИЯ СИНТЕТИЧЕСКИХ КОНТЕЙНЕРОВ

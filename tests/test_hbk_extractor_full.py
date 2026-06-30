@@ -9,8 +9,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
-import pytest
 import hbk_extractor
+import pytest
 
 
 def _make_local_file_header(name: bytes, compressed_data: bytes, uncompressed_data: bytes, method: int = 8):

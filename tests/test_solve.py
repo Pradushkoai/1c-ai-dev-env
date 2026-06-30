@@ -10,7 +10,7 @@ BSL LS тесты помечены @requires_bsl_ls — пропускаются
 """
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -63,6 +63,7 @@ def test_solve_check_with_errors(tmp_path):
     args.config = None
     args.ci = False
     args.json = False
+    args.sarif = None
     args.level = 'quick'
 
     # solve check должен вызвать sys.exit(1) т.к. есть errors (no-vypolnit, no-underscore-vars)
@@ -112,6 +113,7 @@ def test_solve_check_clean_file(tmp_path):
     args.config = None
     args.ci = False
     args.json = False
+    args.sarif = None
     args.level = 'quick'
 
     # solve check должен вызвать sys.exit(0) — нет errors
@@ -136,6 +138,7 @@ def test_solve_check_nonexistent_file(tmp_path):
     args.config = None
     args.ci = False
     args.json = False
+    args.sarif = None
     args.level = 'quick'
 
     with pytest.raises(SystemExit) as exc_info:
@@ -146,9 +149,10 @@ def test_solve_check_nonexistent_file(tmp_path):
 
 def test_solve_context_no_config(tmp_path):
     """solve context без --config — должен работать, но пропустить API."""
-    from src.cli import _solve_context
     import io
     from contextlib import redirect_stdout
+
+    from src.cli import _solve_context
 
     pm = PathManager(project_root=tmp_path)
 

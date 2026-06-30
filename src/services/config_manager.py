@@ -4,20 +4,17 @@
 from __future__ import annotations
 
 import logging
-import os
-import re
 import shutil
 import subprocess
 import sys
 import time
-import zipfile
 import xml.etree.ElementTree as ET
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
-from ..models.configuration import Configuration
 from ..models.config_registry import ConfigurationRegistry
+from ..models.configuration import Configuration
 from .path_manager import PathManager
 
 logger = logging.getLogger(__name__)
@@ -59,9 +56,9 @@ class SourceValidation:
 class IndexStatus:
     """Статус одного индекса конфигурации."""
     name: str            # metadata | api | skd | forms
-    path: Optional[Path]
+    path: Path | None
     exists: bool
-    mtime: Optional[float]      # время модификации индекса (epoch)
+    mtime: float | None      # время модификации индекса (epoch)
     size_bytes: int = 0
     is_stale: bool = False      # True если source новее индекса
     stale_reason: str = ""      # объяснение почему stale
@@ -71,7 +68,7 @@ class IndexStatus:
 class IndexFreshnessReport:
     """Полный отчёт об актуальности всех индексов конфигурации."""
     config_name: str
-    source_mtime: Optional[float]      # самый свежий .xml/.bsl в исходниках
+    source_mtime: float | None      # самый свежий .xml/.bsl в исходниках
     indexes: list[IndexStatus] = field(default_factory=list)
     all_fresh: bool = True
     missing_indexes: list[str] = field(default_factory=list)
@@ -369,9 +366,9 @@ class ConfigManager:
         return report
 
     @staticmethod
-    def _latest_source_mtime(config_dir: Path) -> Optional[float]:
+    def _latest_source_mtime(config_dir: Path) -> float | None:
         """Найти самый свежий mtime среди .xml и .bsl файлов исходников."""
-        latest: Optional[float] = None
+        latest: float | None = None
         try:
             for pattern in ("*.xml", "*.bsl"):
                 for f in config_dir.rglob(pattern):

@@ -8,13 +8,14 @@ import shutil
 import sys
 import zipfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-from src.services.path_manager import PathManager
-from src.services.config_manager import ConfigManager
+
 from src.models.config_registry import ConfigurationRegistry
 from src.models.configuration import Configuration
+from src.services.config_manager import ConfigManager
+from src.services.path_manager import PathManager
 
 
 @pytest.fixture
@@ -337,8 +338,8 @@ def test_check_freshness_stale_index(setup):
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     # Сначала создаём индексы (старые)
-    import time as _time
     import os as _os
+    import time as _time
     derived_dir = pm.config_derived_dir("ut11")
     derived_dir.mkdir(parents=True, exist_ok=True)
     past_time = _time.time() - 1000  # на 1000 сек старше
@@ -389,8 +390,8 @@ def test_build_skips_when_all_fresh(setup):
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     # Создаём все 4 индекса свежими (новее source)
-    import time as _time
     import os as _os
+    import time as _time
     derived_dir = pm.config_derived_dir("ut11")
     derived_dir.mkdir(parents=True, exist_ok=True)
     future_time = _time.time() + 100
@@ -426,8 +427,8 @@ def test_build_force_rebuilds_even_when_fresh(setup):
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     # Создаём свежие индексы
-    import time as _time
     import os as _os
+    import time as _time
     derived_dir = pm.config_derived_dir("ut11")
     derived_dir.mkdir(parents=True, exist_ok=True)
     future_time = _time.time() + 100

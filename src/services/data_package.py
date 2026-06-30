@@ -31,12 +31,10 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from .path_manager import PathManager
 
@@ -68,7 +66,7 @@ class PackageManifest:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "PackageManifest":
+    def from_dict(cls, data: dict) -> PackageManifest:
         return cls(
             version=data.get("version", "1.0"),
             created_at=data.get("created_at", ""),
@@ -127,7 +125,7 @@ class DataPackage:
         # Информация о конфигурациях
         registry_path = self._paths.config_registry_path
         if registry_path.exists():
-            with open(registry_path, 'r', encoding='utf-8') as f:
+            with open(registry_path, encoding='utf-8') as f:
                 registry = json.load(f)
             for name, cfg in registry.get("configs", {}).items():
                 manifest.configs.append({
@@ -291,7 +289,7 @@ class DataPackage:
             description=description or "Autosave",
         )
 
-    def autoload(self) -> Optional[dict]:
+    def autoload(self) -> dict | None:
         """
         Автоматически восстановить из стандартного места, если пакет существует.
 
@@ -330,7 +328,7 @@ class DataPackage:
         # Конфигурации
         registry_path = self._paths.config_registry_path
         if registry_path.exists():
-            with open(registry_path, 'r', encoding='utf-8') as f:
+            with open(registry_path, encoding='utf-8') as f:
                 registry = json.load(f)
             for name, cfg in registry.get("configs", {}).items():
                 derived_dir = self._paths.config_derived_dir(name)

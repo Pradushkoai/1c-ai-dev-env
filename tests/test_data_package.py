@@ -2,10 +2,11 @@
 Тесты для DataPackage — persistence данных проекта между сессиями.
 """
 import json
-import pytest
 import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from src.services.data_package import DataPackage, PackageManifest
 
@@ -231,7 +232,7 @@ class TestDataPackageLoad:
         assert stats["configs_loaded"] == 1
         assert project_with_data.config_registry_path.exists()
 
-        with open(project_with_data.config_registry_path, 'r') as f:
+        with open(project_with_data.config_registry_path) as f:
             data = json.load(f)
         assert "ut11" in data["configs"]
 

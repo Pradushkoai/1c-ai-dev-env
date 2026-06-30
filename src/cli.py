@@ -151,7 +151,7 @@ def cmd_validate(project: Project, args: argparse.Namespace) -> None:
 
 def cmd_search(project: Project, args: argparse.Namespace) -> None:
     """Семантический поиск по методам 1С (BM25/TF-IDF авто)."""
-    from .services.search_bm25 import search_auto, detect_index_version
+    from .services.search_bm25 import detect_index_version, search_auto
 
     index_path = project.paths.fast_search_index
     if not index_path.exists():
@@ -209,8 +209,9 @@ def cmd_search_code(project: Project, args: argparse.Namespace) -> None:
 
 def cmd_call_graph(project: Project, args: argparse.Namespace) -> None:
     """Граф вызовов методов конфигурации."""
-    from .services.call_graph import build_call_graph
     import json as json_mod
+
+    from .services.call_graph import build_call_graph
 
     config_name = args.config
     configs = {c.name for c in project.list_configs()}
@@ -255,7 +256,7 @@ def cmd_call_graph(project: Project, args: argparse.Namespace) -> None:
         api_json = project.paths.config_api_reference_json(config_name)
         export_methods = []
         if api_json.exists():
-            with open(api_json, 'r', encoding='utf-8') as f:
+            with open(api_json, encoding='utf-8') as f:
                 modules = json_mod.load(f)
             for m in modules:
                 for method in m.get('methods', []):
@@ -320,8 +321,9 @@ def cmd_standards(project: Project, args: argparse.Namespace) -> None:
 
 def cmd_backup(project: Project, args: argparse.Namespace) -> None:
     """Управление backup/restore данных проекта."""
-    from .services.backup_manager import BackupManager
     from pathlib import Path
+
+    from .services.backup_manager import BackupManager
 
     bm = BackupManager(project.paths)
 
@@ -373,7 +375,6 @@ def cmd_solve(project: Project, args: argparse.Namespace) -> None:
     - context: собирает контекст для LLM (методы + API + стандарты)
     - check: проверяет сгенерированный .bsl код (BSL LS + 22 правила)
     """
-    from pathlib import Path
 
     if args.solve_command == 'context':
         _solve_context(project, args)
@@ -392,9 +393,9 @@ def _solve_context(project: Project, args: argparse.Namespace) -> None:
     processor = TaskProcessor(project.paths)
     ctx = processor.solve(query, config_name=config_name, limit=limit)
 
-    print(f"╔══════════════════════════════════════════════════════╗")
-    print(f"║  1c-ai solve: сбор контекста для задачи              ║")
-    print(f"╚══════════════════════════════════════════════════════╝")
+    print("╔══════════════════════════════════════════════════════╗")
+    print("║  1c-ai solve: сбор контекста для задачи              ║")
+    print("╚══════════════════════════════════════════════════════╝")
     print(f"\nЗадача: {query}")
     if config_name:
         print(f"Конфигурация: {config_name}")
@@ -540,8 +541,9 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
     CI-режим (--ci): только errors, exit code 1 при errors
     JSON-режим (--json): полный JSON-отчёт
     """
-    from pathlib import Path
     import json as json_mod
+    from pathlib import Path
+
     from .services.task_processor import TaskProcessor
 
     level = getattr(args, 'level', 'standard')
@@ -603,14 +605,14 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
         sys.exit(1 if result.total_errors > 0 else 0)
 
     # Человекочитаемый вывод
-    print(f"╔══════════════════════════════════════════════════════╗")
+    print("╔══════════════════════════════════════════════════════╗")
     print(f"║  1c-ai solve: проверка кода [level={level}]            ║")
-    print(f"╚══════════════════════════════════════════════════════╝")
+    print("╚══════════════════════════════════════════════════════╝")
     print(f"\nФайл: {bsl_path}")
     print(f"Уровень: {level}")
     print(f"Анализаторы ({len(result.analyzers_run)}): {' + '.join(result.analyzers_run)}")
     if result.bsl_ls_available is False and level in ('standard', 'full'):
-        print(f"⚠️  BSL LS не установлен — диагностики Java пропущены")
+        print("⚠️  BSL LS не установлен — диагностики Java пропущены")
     print()
 
     by_source: dict[str, list] = {}
@@ -636,7 +638,7 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
         print(f"  Max nesting: {m.max_nesting}, Methods: {m.methods_count}")
         print(f"  Health score: {m.health_score:.1f}/100")
         if m.is_god_object:
-            print(f"  ❌ God Object detected!")
+            print("  ❌ God Object detected!")
         if m.long_methods:
             print(f"  Long methods ({len(m.long_methods)}):")
             for lm in m.long_methods[:5]:
@@ -661,8 +663,9 @@ def cmd_mcp(project: Project, args: argparse.Namespace) -> None:
     """Управление MCP-сервером."""
     if args.mcp_command == 'serve':
         try:
-            from .mcp_server import run_mcp_server
             import asyncio
+
+            from .mcp_server import run_mcp_server
             asyncio.run(run_mcp_server())
         except ImportError as e:
             print(f"❌ MCP SDK не установлен: {e}")
@@ -671,8 +674,9 @@ def cmd_mcp(project: Project, args: argparse.Namespace) -> None:
     elif args.mcp_command == 'tools':
         # Выводим список tools без запуска сервера
         try:
-            from .mcp_server import create_mcp_server
             import asyncio
+
+            from .mcp_server import create_mcp_server
 
             async def _list():
                 server = create_mcp_server()
@@ -706,7 +710,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
 
         print(f"Сохранение данных в: {output}")
         print(f"  Включая raw (data/): {'да' if args.include_raw else 'нет'}")
-        print(f"  Включая derived: да")
+        print("  Включая derived: да")
         print()
 
         result = dp.save(
@@ -777,7 +781,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
         if info["manifest"]:
             m = info["manifest"]
             print()
-            print(f"Манифест:")
+            print("Манифест:")
             print(f"  Версия: {m.get('version', '?')}")
             print(f"  Создан: {m.get('created_at', '?')[:19]}")
             print(f"  Включая raw: {m.get('include_raw', False)}")
@@ -843,7 +847,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
             print(f"  Файлов: {ai['total_files']}")
             if ai["manifest"]:
                 print(f"  Создан: {ai['manifest'].get('created_at', '?')[:19]}")
-                print(f"  Восстановить: 1c-ai data autoload")
+                print("  Восстановить: 1c-ai data autoload")
 
     elif args.data_command == 'release-push':
         # Загрузить в GitHub Releases
@@ -860,7 +864,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
             print("   1c-ai data autosave --include-raw")
             sys.exit(1)
 
-        print(f"Загрузка в GitHub Releases...")
+        print("Загрузка в GitHub Releases...")
         print(f"   Repo: {gh._repo}")
         print(f"   Пакет: {dp.default_package_path}")
         print()
@@ -887,7 +891,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
             print("   Установите GITHUB_TOKEN: export GITHUB_TOKEN=ghp_xxx")
             sys.exit(1)
 
-        print(f"Скачивание из GitHub Releases...")
+        print("Скачивание из GitHub Releases...")
         print(f"   Repo: {gh._repo}")
         print(f"   Target: {dp.default_package_path}")
         print()

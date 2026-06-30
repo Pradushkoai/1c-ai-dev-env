@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Тесты для diff_analyzer.py."""
-import os, sys
+import os
+import sys
 from pathlib import Path
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
-from diff_analyzer import DiffAnalyzer, ConfigDiff, ObjectChange
+from diff_analyzer import ConfigDiff, DiffAnalyzer, ObjectChange
 
 
 @pytest.fixture

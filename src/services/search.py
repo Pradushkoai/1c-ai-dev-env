@@ -9,7 +9,6 @@ import math
 import re
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Optional
 
 
 def tokenize(text: str) -> list[str]:
@@ -36,7 +35,7 @@ def build_index(methods_json_path: Path, output_path: Path) -> int:
     Returns:
         Кол-во проиндексированных методов
     """
-    with open(methods_json_path, 'r', encoding='utf-8') as f:
+    with open(methods_json_path, encoding='utf-8') as f:
         methods = json.load(f)
 
     # Подготовим документы
@@ -119,7 +118,7 @@ def search(index_path: Path, query: str, limit: int = 10) -> list[dict]:
     Returns:
         Список результатов с score, name_ru, name_en, context, syntax, description
     """
-    with open(index_path, 'r', encoding='utf-8') as f:
+    with open(index_path, encoding='utf-8') as f:
         index = json.load(f)
 
     methods = index['methods']

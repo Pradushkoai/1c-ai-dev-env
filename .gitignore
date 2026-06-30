@@ -26,3 +26,15 @@ upload/
 download/
 skills/
 runtime/bsl-baseline.json
+
+# Coverage
+.coverage
+coverage.xml
+coverage_html/
+.sarif-reports/
+sarif-reports/
+
+# Ruff / Mypy кэш
+.ruff_cache/
+.mypy_cache/
+

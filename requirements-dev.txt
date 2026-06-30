@@ -1,3 +1,19 @@
 # Зависимости для разработки и тестов
 # Устанавливать: pip install -r requirements-dev.txt
+# Или (рекомендуется): pip install -e ".[dev]"
+
+# ─── Тестирование ───
 pytest>=7.0
+pytest-cov>=4.0
+pytest-benchmark>=4.0
+hypothesis>=6.0
+
+# ─── Линтеры и тайп-чекинг ───
+ruff>=0.5.0
+mypy>=1.10
+
+# ─── Pre-commit hooks ───
+pre-commit>=3.7
+
+# ─── MCP SDK (для запуска mcp_server.py) ───
+mcp>=1.0.0

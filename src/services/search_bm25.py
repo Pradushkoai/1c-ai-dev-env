@@ -35,8 +35,6 @@ import math
 import re
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Optional
-
 
 # ============================================================================
 # СТЕММЕР (минимальный, без внешних зависимостей)
@@ -215,7 +213,7 @@ def tokenize_stemmed(text: str) -> list[str]:
     # Сначала разбиваем mixed-case CamelCase на слова
     # "НайтиПоКоду" → "Найти", "По", "Коду"
     camelcase_parts = re.findall(r'[А-ЯA-Z][а-яёa-z]+|[А-ЯA-Z]+(?=[А-ЯA-Z][а-яёa-z])|\d+|[а-яёa-zA-Z]+', text)
-    
+
     result = []
     for part in camelcase_parts:
         t = part.lower()
@@ -224,10 +222,10 @@ def tokenize_stemmed(text: str) -> list[str]:
         stemmed = stem(t)
         if len(stemmed) >= 2:
             result.append(stemmed)
-    
+
     # Применяем BSL-синонимы (ru↔en)
     result = _apply_synonyms(result)
-    
+
     return result
 
 
@@ -267,13 +265,13 @@ def build_index_bm25(methods_json_path: Path, output_path: Path) -> int:
     
     Returns: кол-во проиндексированных методов
     """
-    with open(methods_json_path, 'r', encoding='utf-8') as f:
+    with open(methods_json_path, encoding='utf-8') as f:
         methods = json.load(f)
 
     documents = []
     doc_lengths = []
     method_trigrams = {}  # doc_id → set of trigrams (от всех слов)
-    
+
     for i, m in enumerate(methods):
         name_ru = m.get('name_ru', '')
         name_en = m.get('name_en', '')
@@ -281,17 +279,17 @@ def build_index_bm25(methods_json_path: Path, output_path: Path) -> int:
         syntax = m.get('syntax', '')
         description = m.get('description', '')
         returns = m.get('returns', '')
-        
+
         # Имя метода — больший вес (повторяем 3 раза)
         doc_text = f'{name_ru} {name_ru} {name_ru} {name_en} {name_en} {context} {syntax} {description} {returns}'
         tokens = tokenize_stemmed(doc_text)
-        
+
         # Триграммы из имени метода (только имя — для fuzzy match)
         trigrams = set()
         for word in (name_ru + ' ' + name_en).split():
             trigrams |= make_trigrams(word.lower())
         method_trigrams[i] = trigrams
-        
+
         documents.append({
             'id': i,
             'tokens': tokens,
@@ -304,44 +302,44 @@ def build_index_bm25(methods_json_path: Path, output_path: Path) -> int:
             'file': m.get('file', ''),
         })
         doc_lengths.append(len(tokens))
-    
+
     # DF — document frequency
     df: dict[str, int] = defaultdict(int)
     for doc in documents:
         for t in set(doc['tokens']):
             df[t] += 1
-    
+
     # IDF для BM25: ln(1 + (N - df + 0.5) / (df + 0.5))
     N = len(documents)
     idf_bm25 = {t: math.log(1 + (N - df_t + 0.5) / (df_t + 0.5)) for t, df_t in df.items()}
-    
+
     # Частоты термина в каждом документе
     tf_per_doc: dict[int, Counter] = {}
     for doc in documents:
         tf_per_doc[doc['id']] = Counter(doc['tokens'])
-    
+
     # Инвертированный индекс: токен → [(doc_id, tf)]
     inverted_index: dict[str, list] = defaultdict(list)
     for doc in documents:
         for t, tf in tf_per_doc[doc['id']].items():
             inverted_index[t].append((doc['id'], tf))
-    
+
     # Средняя длина документа
     avg_doc_length = sum(doc_lengths) / max(N, 1)
-    
+
     # Триграммный индекс: trigram → [doc_ids]
     trigrams_index: dict[str, list] = defaultdict(list)
     for doc_id, trigrams in method_trigrams.items():
         for trigram in trigrams:
             trigrams_index[trigram].append(doc_id)
-    
+
     # Удаляем tokens из документов (для экономии места)
     for doc in documents:
         del doc['tokens']
-    
+
     # Длины документов в dict
     doc_lengths_dict = {i: length for i, length in enumerate(doc_lengths)}
-    
+
     index_data = {
         'version': 2,
         'algorithm': 'bm25',
@@ -355,11 +353,11 @@ def build_index_bm25(methods_json_path: Path, output_path: Path) -> int:
         'method_trigrams': {str(k): list(v) for k, v in method_trigrams.items()},
         'bm25_params': {'k1': BM25_K1, 'b': BM25_B},
     }
-    
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(index_data, f, ensure_ascii=False)
-    
+
     return N
 
 
@@ -384,24 +382,24 @@ def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = Tr
     Returns:
         Список результатов с score, name_ru, name_en, context, syntax, description
     """
-    with open(index_path, 'r', encoding='utf-8') as f:
+    with open(index_path, encoding='utf-8') as f:
         index = json.load(f)
-    
+
     methods = index['methods']
     idf = index['idf']
     inverted_index = index['inverted_index']
     doc_lengths = index.get('doc_lengths', {})
     avg_doc_length = index.get('avg_doc_length', 1.0)
-    
+
     # Токенизуем запрос (со стеммингом)
     query_tokens = tokenize_stemmed(query)
     if not query_tokens:
         return []
-    
+
     # BM25 scoring
     bm25_scores: dict[int, float] = defaultdict(float)
     query_tf = Counter(query_tokens)
-    
+
     for t, q_tf in query_tf.items():
         if t not in inverted_index:
             continue
@@ -410,18 +408,18 @@ def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = Tr
             doc_len = doc_lengths.get(str(doc_id), doc_lengths.get(doc_id, avg_doc_length))
             score = _bm25_score(doc_tf, idf_t, doc_len, avg_doc_length)
             bm25_scores[doc_id] += score
-    
+
     # Гибридный режим: добавляем триграммы
     if hybrid and 'trigrams_index' in index:
         # Если BM25 что-то нашёл — ограничиваем триграммы кандидатами (оптимизация).
         # Если ничего не нашёл — триграммы ищут по всему индексу (важно для опечаток).
         candidates = bm25_scores.keys() if bm25_scores else None
         trigram_scores = _trigram_search(index, query, candidates)
-        
+
         # Нормализуем обе скоринговые системы к [0, 1]
         max_bm25 = max(bm25_scores.values()) if bm25_scores else 1.0
         max_trigram = max(trigram_scores.values()) if trigram_scores else 1.0
-        
+
         all_doc_ids = set(bm25_scores.keys()) | set(trigram_scores.keys())
         combined = {}
         for doc_id in all_doc_ids:
@@ -429,11 +427,11 @@ def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = Tr
             trig_norm = trigram_scores.get(doc_id, 0) / max_trigram if max_trigram > 0 else 0
             # Веса: BM25 — основной, триграммы — корректировка
             combined[doc_id] = 0.75 * bm25_norm + 0.25 * trig_norm
-        
+
         ranked = sorted(combined.items(), key=lambda x: -x[1])[:limit]
     else:
         ranked = sorted(bm25_scores.items(), key=lambda x: -x[1])[:limit]
-    
+
     results = []
     for doc_id, score in ranked:
         m = methods[doc_id]
@@ -445,7 +443,7 @@ def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = Tr
             'syntax': m['syntax'][:120],
             'description': m['description'][:150],
         })
-    
+
     return results
 
 
@@ -464,36 +462,36 @@ def _trigram_search(index: dict, query: str, candidate_ids=None) -> dict[int, fl
     """
     trigrams_index = index.get('trigrams_index', {})
     method_trigrams = index.get('method_trigrams', {})
-    
+
     # Строим триграммы запроса (только существенные слова)
     query_words = re.findall(r'[а-яёА-ЯЁa-zA-Z]{3,}', query)
     if not query_words:
         return {}
-    
+
     query_trigrams = set()
     for w in query_words:
         query_trigrams |= make_trigrams(w.lower())
-    
+
     if not query_trigrams:
         return {}
-    
+
     # Находим candidate doc_ids (через инвертированный триграммный индекс)
     candidate_docs = set()
     for trigram in query_trigrams:
         if trigram in trigrams_index:
             candidate_docs.update(trigrams_index[trigram])
-    
+
     # Если уже есть candidate_ids от BM25 — пересекаем (оптимизация)
     if candidate_ids is not None:
         candidate_docs = candidate_docs & set(candidate_ids)
-    
+
     # Считаем Жаккар для каждого кандидата
     scores = {}
     for doc_id in candidate_docs:
         doc_trigrams = set(method_trigrams.get(str(doc_id), []))
         if doc_trigrams:
             scores[doc_id] = trigram_similarity(query_trigrams, doc_trigrams)
-    
+
     return scores
 
 # ============================================================================
@@ -505,7 +503,7 @@ def detect_index_version(index_path: Path) -> int:
     if not index_path.exists():
         return 0
     try:
-        with open(index_path, 'r', encoding='utf-8') as f:
+        with open(index_path, encoding='utf-8') as f:
             head = f.read(500)
         if '"version": 2' in head:
             return 2
@@ -522,7 +520,7 @@ def search_auto(index_path: Path, query: str, limit: int = 10) -> list[dict]:
     v2 (BM25) → search_bm25()
     """
     version = detect_index_version(index_path)
-    
+
     if version == 2:
         return search_bm25(index_path, query, limit, hybrid=True)
     elif version == 1:
