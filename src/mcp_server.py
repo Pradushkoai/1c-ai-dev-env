@@ -1051,6 +1051,176 @@ def create_mcp_server() -> Server:
                     text=json.dumps({"error": str(e)}, ensure_ascii=False),
                 )]
 
+        elif name == "dsl_compile_meta":
+            from .services.dsl_compiler import DslCompiler
+            definition = arguments.get("definition", {})
+            output_dir = arguments.get("output_dir", "")
+
+            if not output_dir:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "output_dir required"}, ensure_ascii=False))]
+
+            try:
+                compiler = DslCompiler()
+                result = compiler.compile_meta(definition, output_dir)
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "object_type": result.object_type,
+                        "object_name": result.object_name,
+                        "xml_path": str(result.xml_path) if result.xml_path else None,
+                        "module_paths": [str(p) for p in result.module_paths],
+                        "registered_in_config": result.registered_in_config,
+                        "warnings": result.warnings,
+                    }, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+        elif name == "dsl_compile_form":
+            from .services.dsl_compiler import DslCompiler
+            definition = arguments.get("definition", {})
+            output_path = arguments.get("output_path", "")
+
+            if not output_path:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "output_path required"}, ensure_ascii=False))]
+
+            try:
+                compiler = DslCompiler()
+                result = compiler.compile_form(definition, output_path)
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "object_type": result.object_type,
+                        "object_name": result.object_name,
+                        "xml_path": str(result.xml_path) if result.xml_path else None,
+                    }, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+        elif name == "dsl_compile_skd":
+            from .services.dsl_compiler import DslCompiler
+            definition = arguments.get("definition", {})
+            output_path = arguments.get("output_path", "")
+
+            if not output_path:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "output_path required"}, ensure_ascii=False))]
+
+            try:
+                compiler = DslCompiler()
+                result = compiler.compile_skd(definition, output_path)
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "object_type": result.object_type,
+                        "object_name": result.object_name,
+                        "xml_path": str(result.xml_path) if result.xml_path else None,
+                    }, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+        elif name == "cfe_borrow":
+            from .services.cfe_manager import CfeManager
+            extension_path = arguments.get("extension_path", "")
+            config_path = arguments.get("config_path", "")
+            object_ref = arguments.get("object_ref", "")
+
+            if not all([extension_path, config_path, object_ref]):
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "extension_path, config_path, object_ref required"}, ensure_ascii=False))]
+
+            try:
+                manager = CfeManager()
+                result = manager.borrow_object(Path(extension_path), Path(config_path), object_ref)
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "object_ref": result.object_ref,
+                        "object_type": result.object_type,
+                        "object_name": result.object_name,
+                        "xml_created": [str(p) for p in result.xml_created],
+                        "registered_in_config": result.registered_in_config,
+                        "warnings": result.warnings,
+                    }, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+        elif name == "cfe_patch_method":
+            from .services.cfe_manager import CfeManager
+            extension_path = arguments.get("extension_path", "")
+            module_path = arguments.get("module_path", "")
+            method_name = arguments.get("method_name", "")
+            interceptor_type = arguments.get("interceptor_type", "Before")
+            context = arguments.get("context", "НаСервере")
+            is_function = arguments.get("is_function", False)
+
+            if not all([extension_path, module_path, method_name]):
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "extension_path, module_path, method_name required"}, ensure_ascii=False))]
+
+            try:
+                manager = CfeManager()
+                result = manager.patch_method(
+                    Path(extension_path), module_path, method_name,
+                    interceptor_type, context, is_function
+                )
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "module_path": result.module_path,
+                        "method_name": result.method_name,
+                        "interceptor_type": result.interceptor_type,
+                        "bsl_file": str(result.bsl_file) if result.bsl_file else None,
+                        "bsl_content": result.bsl_content,
+                    }, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+        elif name == "cfe_diff":
+            from .services.cfe_manager import CfeManager
+            extension_path = arguments.get("extension_path", "")
+            config_path = arguments.get("config_path", "")
+
+            if not all([extension_path, config_path]):
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "extension_path, config_path required"}, ensure_ascii=False))]
+
+            try:
+                manager = CfeManager()
+                result = manager.diff(Path(extension_path), Path(config_path))
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "extension_path": str(result.extension_path),
+                        "config_path": str(result.config_path),
+                        "borrowed_objects": result.borrowed_objects,
+                        "patch_methods": result.patch_methods,
+                        "not_in_config": result.not_in_config,
+                        "warnings": result.warnings,
+                    }, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+        elif name == "skd_trace":
+            import sys as _sys
+            _sys.path.insert(0, str(project.paths.scripts_dir))
+            from skd_parser import trace_field as _trace_field
+            template_path = arguments.get("template_path", "")
+            field_name = arguments.get("field_name", "")
+
+            if not all([template_path, field_name]):
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "template_path, field_name required"}, ensure_ascii=False))]
+
+            try:
+                result = _trace_field(Path(template_path), field_name)
+                return [types.TextContent(type="text",
+                    text=json.dumps(result, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
         elif name == "data_status":
             # Статус данных проекта
             from .services.data_package import DataPackage
