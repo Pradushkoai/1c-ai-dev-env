@@ -132,17 +132,17 @@ class TestBuildGraph:
         assert "ТЧ Товары" in edge.detail
 
     def test_build_with_register_recorder(self, setup):
-        """Регистратор регистра → ребро."""
+        """Регистратор регистра → ребро (через RegisterRecords в документе)."""
         pm, tmp = setup
         _write_metadata(tmp, "test", {
             "objects": {
-                "Document": [{
+                "Documents": [{
                     "name": "Поступление",
                     "child_objects": {"attributes": [], "tabular_sections": []},
+                    "properties": {"RegisterRecords": ["AccumulationRegister.ТоварыНаСкладах"]},
                 }],
-                "AccumulationRegister": [{
+                "AccumulationRegisters": [{
                     "name": "ТоварыНаСкладах",
-                    "recorders": ["Document.Поступление"],
                 }],
             },
         })

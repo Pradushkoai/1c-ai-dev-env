@@ -251,18 +251,31 @@ class UniversalObjectParser:
             if child.text and child.text.strip():
                 props[tag] = child.text.strip()
             else:
-                # Проверяем есть ли вложенный v8:item
-                items = XMLUtils.get_children(child, 'item')
+                # Проверяем есть ли вложенные Item (RegisterRecords)
+                items = XMLUtils.get_children(child, 'Item')
                 if items:
-                    # Это локализованное поле
+                    # Это список (например RegisterRecords → Item)
+                    item_list = []
                     for item in items:
-                        content = XMLUtils.get_text(item, 'content')
-                        if content:
-                            props[tag] = content
-                            break
+                        if item.text and item.text.strip():
+                            item_list.append(item.text.strip())
+                    if item_list:
+                        props[tag] = item_list
+                    else:
+                        props[tag] = ''
                 else:
-                    # Пустой тег
-                    props[tag] = ''
+                    # Проверяем есть ли вложенный v8:item
+                    items = XMLUtils.get_children(child, 'item')
+                    if items:
+                        # Это локализованное поле
+                        for item in items:
+                            content = XMLUtils.get_text(item, 'content')
+                            if content:
+                                props[tag] = content
+                                break
+                    else:
+                        # Пустой тег
+                        props[tag] = ''
 
         return props
 

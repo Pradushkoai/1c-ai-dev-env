@@ -276,11 +276,14 @@ class DependencyGraph:
     def _scan_register_recorders(
         self, metadata: dict, result: DependencyGraphResult
     ) -> None:
-        """Регистраторы регистров: Document.X → Register.Y."""
+        """Регистраторы регистров: Document.X → Register.Y.
+
+        В 1С XML регистраторы хранятся в <RegisterRecords> внутри Properties документа.
+        Каждый документ указывает список регистров, по которым он делает движения.
+        """
         objects_by_type = metadata.get("objects", {})
 
-        # Информационные регистры и регистры накопления
-        # Поддерживаем оба формата: единственное (InformationRegister) и множественное (InformationRegisters)
+        # Сначала добавляем все регистры как узлы
         for reg_type_plural in ("InformationRegisters", "AccumulationRegisters",
                                  "AccountingRegisters", "CalculationRegisters"):
             reg_type = PLURAL_TO_SINGULAR.get(reg_type_plural, reg_type_plural)
@@ -289,18 +292,26 @@ class DependencyGraph:
                 if reg_full not in self._graph:
                     self._graph.add_node(reg_full)
 
-                # Регистраторы
-                recorders = reg.get("recorders", [])
-                if not recorders:
-                    # Sometimes in properties
-                    props = reg.get("properties", {})
-                    recorders = props.get("register_records", [])
+        # Обходим документы и ищем RegisterRecords в properties
+        for doc_type_plural in ("Documents",):
+            doc_type = PLURAL_TO_SINGULAR.get(doc_type_plural, doc_type_plural)
+            for doc in objects_by_type.get(doc_type_plural, []):
+                doc_full = f"{doc_type}.{doc.get('name', '')}"
+                if doc_full not in self._graph:
+                    self._graph.add_node(doc_full)
 
-                for recorder in recorders:
-                    if isinstance(recorder, str):
-                        # "Document.ЗаказКлиента"
-                        self._add_edge(recorder, reg_full, "registered_by",
-                                       "регистратор")
+                # Ищем RegisterRecords в properties
+                props = doc.get("properties", {})
+                register_records = props.get("RegisterRecords", "")
+
+                if isinstance(register_records, list):
+                    for reg_ref in register_records:
+                        if isinstance(reg_ref, str) and reg_ref:
+                            self._add_edge(doc_full, reg_ref, "registered_by",
+                                           "регистратор")
+                elif isinstance(register_records, str) and register_records:
+                    self._add_edge(doc_full, register_records, "registered_by",
+                                   "регистратор")
 
     def _scan_subsystems(
         self, metadata: dict, result: DependencyGraphResult
