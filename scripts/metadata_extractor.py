@@ -296,8 +296,8 @@ class UniversalObjectParser:
             elif tag == 'EnumValue':
                 enum_props = XMLUtils.get_child(child, 'Properties')
                 result['enum_values'].append({
-                    'name': XMLUtils.get_text(enum_props, 'Name') if enum_props else '',
-                    'synonym': XMLUtils.get_synonym(enum_props) if enum_props else '',
+                    'name': XMLUtils.get_text(enum_props, 'Name') if enum_props is not None else '',
+                    'synonym': XMLUtils.get_synonym(enum_props) if enum_props is not None else '',
                     'uuid': child.get('uuid', ''),
                 })
             elif tag == 'Template':
@@ -572,9 +572,9 @@ class RoleParser:
         properties = XMLUtils.get_child(role_elem, 'Properties')
         return {
             'type': 'Role',
-            'name': XMLUtils.get_text(properties, 'Name') if properties else '',
+            'name': XMLUtils.get_text(properties, 'Name') if properties is not None else '',
             'uuid': role_elem.get('uuid', ''),
-            'synonym': XMLUtils.get_synonym(properties) if properties else '',
+            'synonym': XMLUtils.get_synonym(properties) if properties is not None else '',
         }
 
     def parse_rights(self, xml_path: Path) -> dict | None:
@@ -651,16 +651,16 @@ class SubsystemParser:
 
         result = {
             'type': 'Subsystem',
-            'name': XMLUtils.get_text(properties, 'Name') if properties else '',
+            'name': XMLUtils.get_text(properties, 'Name') if properties is not None else '',
             'uuid': subsys_elem.get('uuid', ''),
-            'synonym': XMLUtils.get_synonym(properties) if properties else '',
-            'comment': XMLUtils.get_text(properties, 'Comment') if properties else '',
+            'synonym': XMLUtils.get_synonym(properties) if properties is not None else '',
+            'comment': XMLUtils.get_text(properties, 'Comment') if properties is not None else '',
             'content': [],
             'child_subsystems': [],
         }
 
         # Content — список объектов в подсистеме
-        content_elem = XMLUtils.get_child(properties, 'Content') if properties else None
+        content_elem = XMLUtils.get_child(properties, 'Content') if properties is not None else None
         if content_elem is not None:
             for item in content_elem:
                 result['content'].append(item.text or '')

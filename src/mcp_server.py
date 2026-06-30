@@ -153,6 +153,42 @@ def _get_tools_description() -> list[dict]:
             "required_params": ["file_path"],
             "optional_params": [],
         },
+        {
+            "name": "check_transactions",
+            "description": "Проверка транзакций BSL: несбалансированные, без Try/Catch, интерактив в транзакции, длинные/вложенные. Пример: check_transactions(file_path='module.bsl').",
+            "required_params": ["file_path"],
+            "optional_params": [],
+        },
+        {
+            "name": "analyze_architecture",
+            "description": "Анализ архитектуры: циклические зависимости, God Object, мёртвый код, layering, regions, queries in forms. Пример: analyze_architecture(config_dir='data/configs/ut11').",
+            "required_params": ["config_dir"],
+            "optional_params": [],
+        },
+        {
+            "name": "analyze_queries",
+            "description": "Анализ запросов 1С: SELECT *, LIKE %, функции в WHERE, JOIN без ON, временные таблицы без индексов. Пример: analyze_queries(file_path='module.bsl').",
+            "required_params": ["file_path"],
+            "optional_params": [],
+        },
+        {
+            "name": "check_form_quality",
+            "description": "Проверка качества форм: пустые, перегруженные, элементы без DataPath, кнопки без команд, дубли. Пример: check_form_quality(config_name='ut11').",
+            "required_params": ["config_name"],
+            "optional_params": [],
+        },
+        {
+            "name": "check_skd_quality",
+            "description": "Проверка качества СКД: без параметров, без отборов, пустые запросы, перегруженные. Пример: check_skd_quality(config_name='ut11').",
+            "required_params": ["config_name"],
+            "optional_params": [],
+        },
+        {
+            "name": "diff_configs",
+            "description": "Сравнение версий конфигурации: добавленные/удалённые/изменённые объекты, реквизиты, формы, роли. Пример: diff_configs(old_path='old.json', new_path='new.json').",
+            "required_params": ["old_path", "new_path"],
+            "optional_params": [],
+        },
     ]
 
 
@@ -680,6 +716,97 @@ def create_mcp_server() -> Server:
                         },
                     },
                     "required": ["file_path"],
+                },
+            ),
+            types.Tool(
+                name="check_transactions",
+                description=(
+                    "Проверка транзакций BSL: несбалансированные, без Try/Catch, "
+                    "интерактив в транзакции, длинные/вложенные транзакции. "
+                    "Пример: check_transactions(file_path='module.bsl')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "file_path": {"type": "string", "description": "Путь к .bsl файлу"},
+                    },
+                    "required": ["file_path"],
+                },
+            ),
+            types.Tool(
+                name="analyze_architecture",
+                description=(
+                    "Анализ архитектуры конфигурации: циклические зависимости, God Object, "
+                    "мёртвый код, layering, regions, queries in forms. "
+                    "Пример: analyze_architecture(config_dir='data/configs/ut11')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "config_dir": {"type": "string", "description": "Путь к директории конфигурации"},
+                    },
+                    "required": ["config_dir"],
+                },
+            ),
+            types.Tool(
+                name="analyze_queries",
+                description=(
+                    "Анализ запросов 1С в BSL коде: SELECT *, LIKE %, функции в WHERE, "
+                    "JOIN без ON, временные таблицы без индексов. "
+                    "Пример: analyze_queries(file_path='module.bsl')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "file_path": {"type": "string", "description": "Путь к .bsl файлу"},
+                    },
+                    "required": ["file_path"],
+                },
+            ),
+            types.Tool(
+                name="check_form_quality",
+                description=(
+                    "Проверка качества форм: пустые формы, перегруженные, элементы без DataPath, "
+                    "кнопки без команд, дублирующие имена. "
+                    "Пример: check_form_quality(config_name='ut11')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "config_name": {"type": "string", "description": "Имя конфигурации"},
+                    },
+                    "required": ["config_name"],
+                },
+            ),
+            types.Tool(
+                name="check_skd_quality",
+                description=(
+                    "Проверка качества СКД-схем: без параметров, без отборов, пустые запросы, "
+                    "перегруженные. "
+                    "Пример: check_skd_quality(config_name='ut11')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "config_name": {"type": "string", "description": "Имя конфигурации"},
+                    },
+                    "required": ["config_name"],
+                },
+            ),
+            types.Tool(
+                name="diff_configs",
+                description=(
+                    "Сравнение версий конфигурации: добавленные/удалённые/изменённые объекты, "
+                    "реквизиты, формы, команды, роли, подсистемы. "
+                    "Пример: diff_configs(old_path='old.json', new_path='new.json')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "old_path": {"type": "string", "description": "Путь к старому unified-metadata-index.json"},
+                        "new_path": {"type": "string", "description": "Путь к новому unified-metadata-index.json"},
+                    },
+                    "required": ["old_path", "new_path"],
                 },
             ),
         ]
@@ -1555,6 +1682,178 @@ def create_mcp_server() -> Server:
             except Exception as e:
                 return [types.TextContent(type="text",
                     text=json.dumps({"error": f"Metrics failed: {str(e)}"}, ensure_ascii=False))]
+
+        elif name in ("check_transactions", "analyze_queries"):
+            file_path = arguments.get("file_path", "")
+            if not file_path:
+                return [types.TextContent(type="text", text=json.dumps({"error": "file_path required"}, ensure_ascii=False))]
+            if not os.path.isabs(file_path):
+                file_path = str(project.paths.root / file_path)
+            if not os.path.exists(file_path):
+                return [types.TextContent(type="text", text=json.dumps({"error": f"File not found: {file_path}"}, ensure_ascii=False))]
+
+            import importlib.util
+            scripts_dir = project.paths.root / "scripts"
+            script_name = "transaction_checker" if name == "check_transactions" else "query_analyzer"
+            script_path = scripts_dir / f"{script_name}.py"
+            if not script_path.exists():
+                return [types.TextContent(type="text", text=json.dumps({"error": f"{script_name}.py not found"}, ensure_ascii=False))]
+
+            spec = importlib.util.spec_from_file_location(script_name, script_path)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[script_name] = mod
+            spec.loader.exec_module(mod)
+
+            try:
+                if name == "check_transactions":
+                    checker = mod.TransactionChecker()
+                    violations = checker.check_file(Path(file_path))
+                    stats = checker.get_stats(violations)
+                    response = {
+                        "file_path": file_path,
+                        "total_violations": stats["total"],
+                        "by_severity": stats["by_severity"],
+                        "violations": [{"rule_id": v.rule_id, "severity": v.severity, "line": v.line, "message": v.message, "recommendation": v.recommendation} for v in violations],
+                    }
+                else:  # analyze_queries
+                    analyzer = mod.QueryAnalyzer()
+                    issues = analyzer.analyze_file(Path(file_path))
+                    stats = analyzer.get_stats(issues)
+                    response = {
+                        "file_path": file_path,
+                        "total_issues": stats["total"],
+                        "by_severity": stats["by_severity"],
+                        "issues": [{"rule_id": i.rule_id, "severity": i.severity, "line": i.line, "message": i.message, "recommendation": i.recommendation} for i in issues],
+                    }
+                return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text", text=json.dumps({"error": f"Analysis failed: {str(e)}"}, ensure_ascii=False))]
+
+        elif name == "analyze_architecture":
+            config_dir = arguments.get("config_dir", "")
+            if not config_dir:
+                return [types.TextContent(type="text", text=json.dumps({"error": "config_dir required"}, ensure_ascii=False))]
+            if not os.path.isabs(config_dir):
+                config_dir = str(project.paths.root / config_dir)
+            if not os.path.exists(config_dir):
+                return [types.TextContent(type="text", text=json.dumps({"error": f"Directory not found: {config_dir}"}, ensure_ascii=False))]
+
+            import importlib.util
+            scripts_dir = project.paths.root / "scripts"
+            script_path = scripts_dir / "architecture_analyzer.py"
+            if not script_path.exists():
+                return [types.TextContent(type="text", text=json.dumps({"error": "architecture_analyzer.py not found"}, ensure_ascii=False))]
+
+            spec = importlib.util.spec_from_file_location("architecture_analyzer", script_path)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules["architecture_analyzer"] = mod
+            spec.loader.exec_module(mod)
+
+            try:
+                analyzer = mod.ArchitectureAnalyzer()
+                issues, modules = analyzer.analyze_config(Path(config_dir))
+                stats = analyzer.get_stats(issues)
+                response = {
+                    "config_dir": config_dir,
+                    "total_modules": len(modules),
+                    "total_issues": stats["total_issues"],
+                    "by_severity": stats["by_severity"],
+                    "by_rule": stats["by_rule"],
+                    "issues": [{"rule_id": i.rule_id, "severity": i.severity, "module": i.module, "line": i.line, "message": i.message} for i in issues[:50]],
+                }
+                return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text", text=json.dumps({"error": f"Analysis failed: {str(e)}"}, ensure_ascii=False))]
+
+        elif name in ("check_form_quality", "check_skd_quality"):
+            config_name = arguments.get("config_name", "")
+            if not config_name:
+                return [types.TextContent(type="text", text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
+
+            import importlib.util
+            scripts_dir = project.paths.root / "scripts"
+
+            if name == "check_form_quality":
+                index_path = project.paths.root / "derived" / "configs" / config_name / "form-index.json"
+                script_name = "form_quality_checker"
+                checker_class = "FormQualityChecker"
+            else:  # check_skd_quality
+                index_path = project.paths.root / "derived" / "configs" / config_name / "skd-index.json"
+                script_name = "skd_quality_checker"
+                checker_class = "SKDQualityChecker"
+
+            if not index_path.exists():
+                return [types.TextContent(type="text", text=json.dumps({"error": f"Index not found: {index_path}"}, ensure_ascii=False))]
+
+            script_path = scripts_dir / f"{script_name}.py"
+            if not script_path.exists():
+                return [types.TextContent(type="text", text=json.dumps({"error": f"{script_name}.py not found"}, ensure_ascii=False))]
+
+            spec = importlib.util.spec_from_file_location(script_name, script_path)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[script_name] = mod
+            spec.loader.exec_module(mod)
+
+            try:
+                checker = getattr(mod, checker_class)()
+                issues = checker.check_form_index(index_path) if name == "check_form_quality" else checker.check_skd_index(index_path)
+                stats = checker.get_stats(issues)
+                response = {
+                    "config_name": config_name,
+                    "total_issues": stats["total"],
+                    "by_severity": stats["by_severity"],
+                    "by_rule": stats["by_rule"],
+                    "issues": [{"rule_id": i.rule_id, "severity": i.severity, "form_name": getattr(i, 'form_name', getattr(i, 'schema_name', '')), "message": i.message} for i in issues[:50]],
+                }
+                return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text", text=json.dumps({"error": f"Check failed: {str(e)}"}, ensure_ascii=False))]
+
+        elif name == "diff_configs":
+            old_path = arguments.get("old_path", "")
+            new_path = arguments.get("new_path", "")
+            if not old_path or not new_path:
+                return [types.TextContent(type="text", text=json.dumps({"error": "old_path and new_path required"}, ensure_ascii=False))]
+            if not os.path.isabs(old_path):
+                old_path = str(project.paths.root / old_path)
+            if not os.path.isabs(new_path):
+                new_path = str(project.paths.root / new_path)
+            if not os.path.exists(old_path):
+                return [types.TextContent(type="text", text=json.dumps({"error": f"Old index not found: {old_path}"}, ensure_ascii=False))]
+            if not os.path.exists(new_path):
+                return [types.TextContent(type="text", text=json.dumps({"error": f"New index not found: {new_path}"}, ensure_ascii=False))]
+
+            import importlib.util
+            scripts_dir = project.paths.root / "scripts"
+            script_path = scripts_dir / "diff_analyzer.py"
+            if not script_path.exists():
+                return [types.TextContent(type="text", text=json.dumps({"error": "diff_analyzer.py not found"}, ensure_ascii=False))]
+
+            spec = importlib.util.spec_from_file_location("diff_analyzer", script_path)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules["diff_analyzer"] = mod
+            spec.loader.exec_module(mod)
+
+            try:
+                analyzer = mod.DiffAnalyzer()
+                diff = analyzer.compare(Path(old_path), Path(new_path))
+                response = {
+                    "summary": diff.summary,
+                    "added_objects": [{"type": c.object_type, "name": c.object_name} for c in diff.added_objects[:50]],
+                    "removed_objects": [{"type": c.object_type, "name": c.object_name} for c in diff.removed_objects[:50]],
+                    "modified_objects": [{"type": c.object_type, "name": c.object_name, "details": c.details} for c in diff.modified_objects[:50]],
+                    "added_roles": diff.added_roles,
+                    "removed_roles": diff.removed_roles,
+                    "added_subsystems": diff.added_subsystems,
+                    "removed_subsystems": diff.removed_subsystems,
+                    "added_event_subscriptions": diff.added_event_subscriptions,
+                    "removed_event_subscriptions": diff.removed_event_subscriptions,
+                    "added_scheduled_jobs": diff.added_scheduled_jobs,
+                    "removed_scheduled_jobs": diff.removed_scheduled_jobs,
+                }
+                return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text", text=json.dumps({"error": f"Diff failed: {str(e)}"}, ensure_ascii=False))]
 
         # Неизвестный tool
         return [types.TextContent(

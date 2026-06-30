@@ -1,5 +1,77 @@
 # Changelog
 
+
+## [4.9.0] — 2026-06-30
+
+### Технический долг: синхронизация версий + MCP tools
+
+**Исправлено:**
+- Version mismatch: manifest.json (4.1.0 → 4.9.0), pyproject.toml (3.17.0 → 4.9.0), README badge (3.12.0 → 4.9.0)
+- DeprecationWarnings в metadata_extractor.py (6 строк `if properties else` → `if properties is not None else`)
+- config-registry.json был пустой (0 конфигов) — восстановлен с УТ11
+
+**Добавлено 6 новых MCP tools (всего 27):**
+- `check_transactions` — проверка транзакций BSL
+- `analyze_architecture` — анализ архитектуры конфигурации
+- `analyze_queries` — анализ запросов 1С в BSL коде
+- `check_form_quality` — проверка качества форм
+- `check_skd_quality` — проверка качества СКД-схем
+- `diff_configs` — сравнение версий конфигурации
+
+**Статистика:**
+- MCP tools: 27 (было 21)
+- Тестов: 504 (0 warnings)
+
+## [4.8.0] — 2026-06-30
+
+### SKD Quality Checker + Diff Analyzer
+- skd_quality_checker.py: 10 правил качества СКД-схем
+- diff_analyzer.py: сравнение версий конфигурации (добавлено/удалено/изменено)
+- 23 теста
+
+## [4.7.0] — 2026-06-30
+
+### Form Quality Checker
+- form_quality_checker.py: 10 правил качества форм
+- 13 тестов
+
+## [4.6.0] — 2026-06-30
+
+### Query Analyzer
+- query_analyzer.py: 10 правил анализа запросов 1С внутри BSL
+- 16 тестов
+
+## [4.5.0] — 2026-06-30
+
+### Architecture Analyzer
+- architecture_analyzer.py: 10 правил архитектуры (циклы, God Object, мёртвый код, layering)
+- 10 тестов
+
+## [4.4.0] — 2026-06-30
+
+### Transaction Checker
+- transaction_checker.py: 6 правил проверки транзакций
+- 18 тестов
+
+## [4.3.0] — 2026-06-30
+
+### Code Metrics
+- code_metrics.py: 10 метрик (LOC, complexity, дублирование, God Object, health score)
+- 28 тестов
+
+## [4.2.0] — 2026-06-30
+
+### Security Audit
+- security_auditor.py: 15 правил безопасности (SQL-инъекции, хардкод, COM, RLS)
+- 37 тестов
+
+## [4.1.0] — 2026-06-30
+
+### Единый универсальный парсер метаданных
+- metadata_extractor.py: парсит 35 типов объектов 1С
+- Configuration.xml, ConfigDumpInfo.xml, Roles, Subsystems, EventSubscriptions, ScheduledJobs
+- 29 тестов
+
 ## [3.25.0] — 2026-06-29
 
 ### Этап 7 роадмапа v4.0: Обучающий контент (финальный этап!)
