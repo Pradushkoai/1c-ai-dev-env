@@ -961,42 +961,62 @@ def create_mcp_server() -> Server:
                 return [types.TextContent(type="text",
                     text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
 
-            # Ищем metadata-index.json для конфигурации
-            metadata_index_path = project.paths.root / "derived" / "configs" / config_name / "metadata-index.json"
-            if not metadata_index_path.exists():
+            # Ищем unified-metadata-index.json (v4.1+) или metadata-index.json (fallback)
+            unified_path = project.paths.root / "derived" / "configs" / config_name / "unified-metadata-index.json"
+            old_path = project.paths.root / "derived" / "configs" / config_name / "metadata-index.json"
+
+            if unified_path.exists():
+                with open(unified_path, encoding='utf-8') as f:
+                    metadata = json.load(f)
+                # unified format: objects is dict by type, each value is list
+                all_objects = []
+                for type_name, objs in metadata.get('objects', {}).items():
+                    all_objects.extend(objs)
+
+                # Также добавляем roles, subsystems, event_subscriptions, scheduled_jobs
+                for section in ('roles', 'subsystems', 'event_subscriptions', 'scheduled_jobs'):
+                    for obj in metadata.get(section, []):
+                        all_objects.append(obj)
+
+                stats = metadata.get('stats', {})
+                config_info = metadata.get('configuration', {})
+            elif old_path.exists():
+                with open(old_path, encoding='utf-8') as f:
+                    metadata = json.load(f)
+                all_objects = metadata.get('objects', [])
+                stats = metadata.get('stats', {})
+                config_info = {}
+            else:
                 return [types.TextContent(type="text",
                     text=json.dumps({
-                        "error": f"metadata-index.json not found for config '{config_name}'",
-                        "hint": "Run: python3 scripts/metadata_parser.py data/configs/" + config_name + " derived/configs/" + config_name + "/metadata-index.json",
+                        "error": f"unified-metadata-index.json not found for config '{config_name}'",
+                        "hint": "Run: python3 scripts/metadata_extractor.py data/configs/" + config_name + " derived/configs/" + config_name + "/unified-metadata-index.json",
                     }, ensure_ascii=False))]
-
-            with open(metadata_index_path, encoding='utf-8') as f:
-                metadata = json.load(f)
-
-            objects = metadata.get('objects', [])
 
             # Если object_name не указан — возвращаем список всех
             if not object_name:
                 # Фильтр по типу если указан
                 if object_type:
-                    objects = [o for o in objects if o.get('type') == object_type]
+                    all_objects = [o for o in all_objects if o.get('type') == object_type]
 
                 # Краткая информация
                 summary = []
-                for obj in objects:
+                for obj in all_objects:
+                    children = obj.get('child_objects', {})
                     summary.append({
                         'name': obj.get('name', ''),
                         'type': obj.get('type', ''),
                         'synonym': obj.get('synonym', ''),
-                        'attributes_count': len(obj.get('attributes', [])),
-                        'tabular_sections_count': len(obj.get('tabular_sections', [])),
-                        'forms_count': len(obj.get('forms', [])),
+                        'attributes_count': len(children.get('attributes', [])),
+                        'tabular_sections_count': len(children.get('tabular_sections', [])),
+                        'forms_count': len(children.get('forms', [])),
                     })
 
                 response = {
                     'config': config_name,
                     'total_objects': len(summary),
-                    'stats': metadata.get('stats', {}),
+                    'stats': stats,
+                    'configuration': config_info.get('properties', {}) if config_info else {},
                     'objects': summary,
                 }
                 return [types.TextContent(type="text",
@@ -1004,7 +1024,7 @@ def create_mcp_server() -> Server:
 
             # Ищем конкретный объект по имени
             found = None
-            for obj in objects:
+            for obj in all_objects:
                 if obj.get('name', '').lower() == object_name.lower():
                     if object_type and obj.get('type') != object_type:
                         continue
@@ -1013,7 +1033,7 @@ def create_mcp_server() -> Server:
 
             if not found:
                 # Fuzzy search
-                suggestions = [o['name'] for o in objects
+                suggestions = [o['name'] for o in all_objects
                                if object_name.lower() in o.get('name', '').lower()][:10]
                 return [types.TextContent(type="text",
                     text=json.dumps({
