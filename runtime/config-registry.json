@@ -1,1 +1,21 @@
-{"version": "2.0", "configs": {}}
+{
+  "version": "2.0",
+  "configs": {
+    "ut11": {
+      "name": "Управление торговлей 11",
+      "version": "11.3.4.197",
+      "vendor": "ОАО МинскСортСемОвощ",
+      "path": "/home/z/my-project/repo_work/data/configs/ut11",
+      "status": "active",
+      "objects_count": 20411,
+      "modules_count": 6729,
+      "api_methods_count": 28089,
+      "has_metadata_index": true,
+      "has_skd_index": true,
+      "has_form_index": true,
+      "has_unified_metadata_index": true,
+      "data_source": "xml_export",
+      "added_at": "2026-06-30"
+    }
+  }
+}
