@@ -1,6 +1,6 @@
 # Подключение 1C AI Development Environment к IDE / LLM через MCP
 
-[MCP (Model Context Protocol)](https://modelcontextprotocol.io) — открытый протокол Anthropic, который позволяет IDE/LLM получать доступ к внешним источникам данных и инструментов. 1C AI Development Environment поставляет MCP-сервер, который экспортирует 7 tools для работы с конфигурациями 1С, методами платформы, стандартами разработки и анализом `.bsl` кода.
+[MCP (Model Context Protocol)](https://modelcontextprotocol.io) — открытый протокол Anthropic, который позволяет IDE/LLM получать доступ к внешним источникам данных и инструментов. 1C AI Development Environment поставляет MCP-сервер, который экспортирует 27 tools для работы с конфигурациями 1С, методами платформы, стандартами разработки и анализом `.bsl` кода.
 
 Поддерживается любой MCP-совместимый клиент: **Cursor**, **Claude Desktop**, **VS Code** (с расширением), **Continue**, **Cline** и др.
 
@@ -9,7 +9,7 @@
 ## Содержание
 
 1. [Установка](#установка)
-2. [Доступные tools (7)]#доступные-tools-7)
+2. [Доступные tools (27)]#доступные-tools-7)
 3. [Подключение к Cursor](#подключение-к-cursor)
 4. [Подключение к Claude Desktop](#подключение-к-claude-desktop)
 5. [Подключение к VS Code (Continue / Cline)](#подключение-к-vs-code-continue--cline)
@@ -37,7 +37,7 @@ pip install -r requirements-optional.txt
 1c-ai mcp tools
 ```
 
-Должны увидеть список из 7 tools. Если команда не найдена — используйте `python3 -m src.cli mcp tools`.
+Должны увидеть список из 27 tools. Если команда не найдена — используйте `python3 -m src.cli mcp tools`.
 
 ### 3. Подготовьте данные
 
@@ -58,7 +58,7 @@ python3 scripts/fast_search_1c.py build
 
 ---
 
-## Доступные tools (7)
+## Доступные tools (27)
 
 | Tool | Что делает | Возвращает |
 |------|-----------|------------|
@@ -118,7 +118,7 @@ python3 scripts/fast_search_1c.py build
 }
 ```
 
-После сохранения файла перезапустите Cursor. В панели чата появится иконка молотка (Tools) — нажмите её и убедитесь, что 7 tools от `1c-ai-dev-env` активны.
+После сохранения файла перезапустите Cursor. В панели чата появится иконка молотка (Tools) — нажмите её и убедитесь, что 227 tools от `1c-ai-dev-env` активны.
 
 ### Использование в Cursor
 
@@ -264,7 +264,7 @@ python3 scripts/test_mcp_e2e.py
 Вывод:
 ```
 ✅ initialize OK
-✅ tools/list OK (7 tools)
+✅ tools/list OK (27 tools)
 ✅ tools/call list_configs OK
 ```
 
@@ -430,4 +430,4 @@ cat mcp.log
 
 ## Changelog
 
-- **v3.7.0** (2026-06-28): первичная реализация MCP-сервера с 7 tools
+- **v3.7.0** (2026-06-28): первичная реализация MCP-сервера с 27 tools
