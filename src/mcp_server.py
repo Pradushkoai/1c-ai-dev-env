@@ -147,6 +147,12 @@ def _get_tools_description() -> list[dict]:
             "required_params": ["file_path"],
             "optional_params": [],
         },
+        {
+            "name": "get_code_metrics",
+            "description": "Метрики кода BSL: LOC, цикломатическая/когнитивная сложность, вложенность, дублирование, God Object, Long Method, Too Many Params, техдолг, health score. Пример: get_code_metrics(file_path='module.bsl').",
+            "required_params": ["file_path"],
+            "optional_params": [],
+        },
     ]
 
 
@@ -652,6 +658,25 @@ def create_mcp_server() -> Server:
                         "file_path": {
                             "type": "string",
                             "description": "Путь к .bsl файлу для аудита",
+                        },
+                    },
+                    "required": ["file_path"],
+                },
+            ),
+            types.Tool(
+                name="get_code_metrics",
+                description=(
+                    "Метрики кода BSL: LOC (строки кода), цикломатическая/когнитивная сложность, "
+                    "вложенность, дублирование кода, God Object, Long Method, Too Many Params, "
+                    "технический долг, health score (0-100). "
+                    "Пример: get_code_metrics(file_path='module.bsl')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Путь к .bsl файлу",
                         },
                     },
                     "required": ["file_path"],
@@ -1455,6 +1480,81 @@ def create_mcp_server() -> Server:
             except Exception as e:
                 return [types.TextContent(type="text",
                     text=json.dumps({"error": f"Audit failed: {str(e)}"}, ensure_ascii=False))]
+
+        elif name == "get_code_metrics":
+            file_path = arguments.get("file_path", "")
+
+            if not file_path:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "file_path is required"}, ensure_ascii=False))]
+
+            if not os.path.isabs(file_path):
+                file_path = str(project.paths.root / file_path)
+
+            if not os.path.exists(file_path):
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": f"File not found: {file_path}"}, ensure_ascii=False))]
+
+            # Загружаем code_metrics
+            import importlib.util
+            scripts_dir = project.paths.root / "scripts"
+            cm_path = scripts_dir / "code_metrics.py"
+            if not cm_path.exists():
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "code_metrics.py not found"}, ensure_ascii=False))]
+
+            spec = importlib.util.spec_from_file_location("code_metrics", cm_path)
+            cm_mod = importlib.util.module_from_spec(spec)
+            sys.modules["code_metrics"] = cm_mod
+            spec.loader.exec_module(cm_mod)
+
+            try:
+                analyzer = cm_mod.CodeMetricsAnalyzer()
+                metrics = analyzer.analyze_file(Path(file_path))
+
+                response = {
+                    "file_path": file_path,
+                    "total_lines": metrics.total_lines,
+                    "code_lines": metrics.code_lines,
+                    "comment_lines": metrics.comment_lines,
+                    "blank_lines": metrics.blank_lines,
+                    "procedures_count": metrics.procedures_count,
+                    "functions_count": metrics.functions_count,
+                    "export_count": metrics.export_count,
+                    "total_cyclomatic": metrics.total_cyclomatic,
+                    "avg_cyclomatic": round(metrics.avg_cyclomatic, 2),
+                    "max_cyclomatic": metrics.max_cyclomatic,
+                    "total_cognitive": metrics.total_cognitive,
+                    "max_cognitive": metrics.max_cognitive,
+                    "max_nesting": metrics.max_nesting,
+                    "duplicate_blocks": metrics.duplicate_blocks,
+                    "duplicate_lines": metrics.duplicate_lines,
+                    "is_god_object": metrics.is_god_object,
+                    "long_methods_count": len(metrics.long_methods),
+                    "too_many_params_count": len(metrics.too_many_params),
+                    "technical_debt_minutes": metrics.technical_debt_minutes,
+                    "health_score": round(metrics.health_score, 1),
+                    "issues": metrics.issues,
+                    "methods": [
+                        {
+                            "name": m.name,
+                            "type": m.method_type,
+                            "loc": m.loc,
+                            "lloc": m.lloc,
+                            "cyclomatic": m.cyclomatic_complexity,
+                            "cognitive": m.cognitive_complexity,
+                            "nesting": m.max_nesting_depth,
+                            "params": m.param_count,
+                            "export": m.is_export,
+                        }
+                        for m in metrics.methods[:20]  # первые 20 методов
+                    ],
+                }
+                return [types.TextContent(type="text",
+                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": f"Metrics failed: {str(e)}"}, ensure_ascii=False))]
 
         # Неизвестный tool
         return [types.TextContent(
