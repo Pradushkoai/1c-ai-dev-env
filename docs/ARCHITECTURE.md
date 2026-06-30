@@ -51,7 +51,7 @@ src/
 │   ├── search_bm25.py     BM25 + триграммы + стеммер (v2)
 │   ├── data_package.py    Persistence (autosave/autoload)
 │   └── github_releases.py Push/pull через GitHub REST API
-├── mcp_server.py          MCP-сервер (8 tools)
+├── mcp_server.py          MCP-сервер (27 tools)
 ├── project.py             Project — оркестратор
 ├── cli.py                 Единый CLI
 └── exceptions.py          Кастомные исключения
@@ -181,7 +181,7 @@ data-package/
 
 Файл: `src/mcp_server.py`
 
-Экспортирует **8 tools** через Model Context Protocol:
+Экспортирует **27 tools** через Model Context Protocol:
 
 | Tool | Назначение |
 |------|-----------|
@@ -229,7 +229,7 @@ tests/
 ├── test_check_standards.py       56 правил check_1c_standards
 ├── test_metadata_standards.py    18 правил check_metadata_standards
 ├── test_project_api.py           API-методы Project
-├── test_mcp_server.py            MCP-сервер (8 tools)
+├── test_mcp_server.py            MCP-сервер (27 tools)
 ├── test_solve.py                 solve context/check
 ├── test_backup_manager.py        backup/restore
 └── test_integration.py           интеграционные тесты с BSL LS
