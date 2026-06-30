@@ -1189,6 +1189,39 @@ def cmd_dsl(project: Project, args: argparse.Namespace) -> None:
         print(f"✅ SKD: {result.object_name}")
         print(f"   XML: {result.xml_path}")
 
+    elif args.dsl_command == "mxl":
+        import json as json_mod
+        if args.json_file:
+            with open(args.json_file, encoding="utf-8") as f:
+                definition = json_mod.load(f)
+        elif args.json_string:
+            definition = json_mod.loads(args.json_string)
+        else:
+            print("❌ Укажите --json-file или --json-string")
+            sys.exit(2)
+
+        result = compiler.compile_mxl(definition, args.output_path)
+        print(f"✅ MXL: {result.object_name}")
+        print(f"   XML: {result.xml_path}")
+        print(f"   Колонок: {len(getattr(result, 'warnings', []))}")
+
+    elif args.dsl_command == "role":
+        import json as json_mod
+        if args.json_file:
+            with open(args.json_file, encoding="utf-8") as f:
+                definition = json_mod.load(f)
+        elif args.json_string:
+            definition = json_mod.loads(args.json_string)
+        else:
+            print("❌ Укажите --json-file или --json-string")
+            sys.exit(2)
+
+        result = compiler.compile_role(definition, args.output_dir)
+        print(f"✅ Role: {result.object_name}")
+        print(f"   Metadata: {result.xml_path}")
+        if result.module_paths:
+            print(f"   Rights.xml: {result.module_paths[0]}")
+
 
 # ============================================================================
 # CFE — работа с расширениями конфигураций
