@@ -16,10 +16,10 @@ from src.mcp_server import _get_tools_description, create_mcp_server
 
 # ============ _get_tools_description ============
 
-def test_get_tools_description_returns_19_tools():
-    """Должно быть 19 tools (v3.25.0 — с генерацией и анализом)."""
+def test_get_tools_description_returns_20_tools():
+    """Должно быть 20 tools (v4.2 — с security audit)."""
     tools = _get_tools_description()
-    assert len(tools) == 19
+    assert len(tools) == 20
 
 
 def test_get_tools_description_names():
@@ -31,7 +31,8 @@ def test_get_tools_description_names():
         'data_status',
         'get_object_structure', 'get_skd_schema', 'get_form_structure',
         'generate_processing', 'generate_report',
-        'build_epf', 'validate_generated', 'get_knowledge'
+        'build_epf', 'validate_generated', 'get_knowledge',
+        'audit_security'
     }
     actual = {t['name'] for t in tools}
     assert actual == expected
@@ -281,7 +282,7 @@ def test_call_list_tools(mcp_server_with_mock_project):
     assert handler is not None
 
     result = asyncio.run(handler(ListToolsRequest(method='tools/list')))
-    assert len(result.root.tools) == 19
+    assert len(result.root.tools) == 20
     names = {t.name for t in result.root.tools}
     assert 'list_configs' in names
     assert 'solve_check' in names
