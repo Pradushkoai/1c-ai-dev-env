@@ -34,6 +34,28 @@ def cmd_config_list(project: Project, args: argparse.Namespace) -> None:
         print(f"{c.name:<15} {c.version:<15} {c.status:<10} {c.objects_count:<10} {path}")
 
 
+def _print_build_report(report: dict) -> None:
+    """Унифицированный вывод отчёта build()."""
+    name = report.get('name', '?')
+    skipped = report.get('skipped', [])
+    if skipped == ['all']:
+        print(f"✅ {name}: все индексы уже свежие (skip)")
+        return
+    parts = []
+    for key in ('metadata', 'api', 'skd', 'forms'):
+        val = report.get(key)
+        if val is True:
+            tag = '✅'
+            if key in skipped:
+                tag = '⏭️'
+        else:
+            tag = '❌'
+        parts.append(f"{key}={tag}")
+    print(f"✅ {name}: {' '.join(parts)}")
+    if skipped and skipped != ['all']:
+        print(f"   ⏭️ Пропущено (уже свежие): {', '.join(skipped)}")
+
+
 def cmd_config_add(project: Project, args: argparse.Namespace) -> None:
     """Добавить конфигурацию из ZIP или .cf файла."""
     if args.cf:
@@ -43,20 +65,56 @@ def cmd_config_add(project: Project, args: argparse.Namespace) -> None:
     print(f"✅ Добавлена: {config.name} v{config.version} ({config.objects_count} объектов)")
     if not args.skip_build:
         print("Индексация...")
-        report = project.config_manager.build(args.name)
-        print(f"  Индекс: {'✅' if report['index'] else '❌'}")
-        print(f"  API:    {'✅' if report['api'] else '—'}")
+        report = project.config_manager.build(args.name, force=True)
+        _print_build_report(report)
 
 
 def cmd_config_build(project: Project, args: argparse.Namespace) -> None:
-    report = project.config_manager.build(args.name)
-    print(f"✅ {args.name}: index={'✅' if report['index'] else '❌'} api={'✅' if report['api'] else '—'}")
+    if getattr(args, 'check_freshness', False):
+        report = project.config_manager.check_freshness(args.name)
+        print(f"Конфигурация: {report.config_name}")
+        print(f"Все индексы свежие: {'✅ да' if report.all_fresh else '❌ нет'}")
+        if report.source_mtime:
+            import time as _t
+            print(f"Исходники изменены: {_t.ctime(report.source_mtime)}")
+        if report.missing_indexes:
+            print(f"Отсутствуют: {', '.join(report.missing_indexes)}")
+        if report.stale_indexes:
+            print(f"Устарели: {', '.join(report.stale_indexes)}")
+        for idx in report.indexes:
+            mark = '✅' if (idx.exists and not idx.is_stale) else '❌'
+            print(f"  {mark} {idx.name}: exists={idx.exists}, stale={idx.is_stale}")
+            if idx.stale_reason:
+                print(f"      {idx.stale_reason}")
+        return
+    if getattr(args, 'validate', False):
+        result = project.config_manager.validate_sources(args.name)
+        print(f"Конфигурация: {args.name}")
+        print(f"Валидна: {'✅ да' if result.is_valid else '❌ нет'}")
+        print(f"  Configuration.xml: {'✅' if result.has_configuration_xml else '❌'}")
+        print(f"  Метаданные-директории: {'✅' if result.has_metadata_dirs else '❌'}")
+        print(f"  .bsl файлы: {'✅' if result.has_bsl_files else '—'}")
+        if result.found_type_dirs:
+            print(f"  Найденные типы: {', '.join(result.found_type_dirs)}")
+        if result.errors:
+            print("  Ошибки:")
+            for e in result.errors:
+                print(f"    ❌ {e}")
+        if result.warnings:
+            print("  Предупреждения:")
+            for w in result.warnings:
+                print(f"    ⚠️ {w}")
+        return
+    force = getattr(args, 'force', False)
+    report = project.config_manager.build(args.name, force=force)
+    _print_build_report(report)
 
 
 def cmd_config_build_all(project: Project, args: argparse.Namespace) -> None:
-    results = project.config_manager.build_all()
+    force = getattr(args, 'force', False)
+    results = project.config_manager.build_all(force=force)
     for r in results:
-        print(f"✅ {r['name']}: index={'✅' if r['index'] else '❌'} api={'✅' if r['api'] else '—'}")
+        _print_build_report(r)
 
 
 def cmd_bsl_analyze(project: Project, args: argparse.Namespace) -> None:
@@ -1086,8 +1144,12 @@ def main() -> None:
 
     p_build = cfg_sub.add_parser("build", help="Индексы для одной")
     p_build.add_argument("--name", required=True)
+    p_build.add_argument("--force", action="store_true", help="Перестроить даже если индексы свежие")
+    p_build.add_argument("--check-freshness", action="store_true", help="Только проверить актуальность индексов")
+    p_build.add_argument("--validate", action="store_true", help="Только проверить исходники")
 
-    cfg_sub.add_parser("build-all", help="Индексы для всех")
+    p_build_all = cfg_sub.add_parser("build-all", help="Индексы для всех")
+    p_build_all.add_argument("--force", action="store_true", help="Перестроить даже если свежие")
 
     # bsl
     p_bsl = sub.add_parser("bsl", help="Анализ .bsl")
