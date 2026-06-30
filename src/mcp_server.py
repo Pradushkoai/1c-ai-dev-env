@@ -141,6 +141,12 @@ def _get_tools_description() -> list[dict]:
             "required_params": [],
             "optional_params": ["query", "item_id", "category"],
         },
+        {
+            "name": "audit_security",
+            "description": "Аудит безопасности BSL кода: SQL-инъекции, Выполнить(), хардкод паролей/токенов, COM-объекты, привилегированный режим, path traversal, небезопасная десериализация. 15 правил. Пример: audit_security(file_path='module.bsl').",
+            "required_params": ["file_path"],
+            "optional_params": [],
+        },
     ]
 
 
@@ -630,6 +636,25 @@ def create_mcp_server() -> Server:
                         },
                     },
                     "required": [],
+                },
+            ),
+            types.Tool(
+                name="audit_security",
+                description=(
+                    "Аудит безопасности BSL кода: SQL-инъекции, Выполнить(), "
+                    "хардкод паролей/токенов, COM-объекты, привилегированный режим, "
+                    "path traversal, небезопасная десериализация. 15 правил. "
+                    "Пример: audit_security(file_path='module.bsl')."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Путь к .bsl файлу для аудита",
+                        },
+                    },
+                    "required": ["file_path"],
                 },
             ),
         ]
@@ -1373,6 +1398,63 @@ def create_mcp_server() -> Server:
             except Exception as e:
                 return [types.TextContent(type="text",
                     text=json.dumps({"error": f"Knowledge base error: {str(e)}"}, ensure_ascii=False))]
+
+        elif name == "audit_security":
+            file_path = arguments.get("file_path", "")
+
+            if not file_path:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "file_path is required"}, ensure_ascii=False))]
+
+            if not os.path.isabs(file_path):
+                file_path = str(project.paths.root / file_path)
+
+            if not os.path.exists(file_path):
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": f"File not found: {file_path}"}, ensure_ascii=False))]
+
+            # Загружаем security_auditor
+            import importlib.util
+            scripts_dir = project.paths.root / "scripts"
+            sa_path = scripts_dir / "security_auditor.py"
+            if not sa_path.exists():
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "security_auditor.py not found"}, ensure_ascii=False))]
+
+            spec = importlib.util.spec_from_file_location("security_auditor", sa_path)
+            sa_mod = importlib.util.module_from_spec(spec)
+            sys.modules["security_auditor"] = sa_mod
+            spec.loader.exec_module(sa_mod)
+
+            try:
+                auditor = sa_mod.SecurityAuditor()
+                violations = auditor.audit_file(Path(file_path))
+                stats = auditor.get_stats(violations)
+
+                response = {
+                    "file_path": file_path,
+                    "total_violations": stats["total_violations"],
+                    "by_severity": stats["by_severity"],
+                    "critical_count": stats["critical_count"],
+                    "high_count": stats["high_count"],
+                    "medium_count": stats["medium_count"],
+                    "low_count": stats["low_count"],
+                    "violations": [
+                        {
+                            "rule_id": v.rule_id,
+                            "severity": v.severity,
+                            "line": v.line,
+                            "message": v.message,
+                            "recommendation": v.recommendation,
+                        }
+                        for v in violations
+                    ],
+                }
+                return [types.TextContent(type="text",
+                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": f"Audit failed: {str(e)}"}, ensure_ascii=False))]
 
         # Неизвестный tool
         return [types.TextContent(
