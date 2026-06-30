@@ -296,7 +296,7 @@ def test_call_list_tools(mcp_server_with_mock_project):
     assert handler is not None
 
     result = asyncio.run(handler(ListToolsRequest(method='tools/list')))
-    assert len(result.root.tools) == 27
+    assert len(result.root.tools) == 43
     names = {t.name for t in result.root.tools}
     assert 'list_configs' in names
     assert 'solve_check' in names
