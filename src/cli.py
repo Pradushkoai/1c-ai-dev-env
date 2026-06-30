@@ -1116,6 +1116,170 @@ def main() -> None:
         cmd_mcp(project, args)
     elif args.command == "data":
         cmd_data(project, args)
+    elif args.command == "dsl":
+        cmd_dsl(project, args)
+    elif args.command == "cfe":
+        cmd_cfe(project, args)
+    elif args.command == "skd-trace":
+        cmd_skd_trace(project, args)
+
+
+# ============================================================================
+# DSL — JSON DSL → XML компиляторы
+# ============================================================================
+
+def cmd_dsl(project: Project, args: argparse.Namespace) -> None:
+    """JSON DSL → XML компиляторы для 1С."""
+    from .services.dsl_compiler import DslCompiler
+
+    compiler = DslCompiler()
+
+    if args.dsl_command == "meta":
+        # Compile metadata object
+        import json as json_mod
+        if args.json_file:
+            with open(args.json_file, encoding="utf-8") as f:
+                definition = json_mod.load(f)
+        elif args.json_string:
+            definition = json_mod.loads(args.json_string)
+        else:
+            print("❌ Укажите --json-file или --json-string")
+            sys.exit(2)
+
+        result = compiler.compile_meta(definition, args.output_dir)
+        print(f"✅ {result.object_type}.{result.object_name}")
+        print(f"   XML: {result.xml_path}")
+        if result.module_paths:
+            print(f"   Modules: {len(result.module_paths)}")
+            for p in result.module_paths:
+                print(f"     • {p}")
+        if result.registered_in_config:
+            print(f"   Registered in Configuration.xml: ✅")
+        if result.warnings:
+            for w in result.warnings:
+                print(f"   ⚠️ {w}")
+
+    elif args.dsl_command == "form":
+        import json as json_mod
+        if args.json_file:
+            with open(args.json_file, encoding="utf-8") as f:
+                definition = json_mod.load(f)
+        elif args.json_string:
+            definition = json_mod.loads(args.json_string)
+        else:
+            print("❌ Укажите --json-file или --json-string")
+            sys.exit(2)
+
+        result = compiler.compile_form(definition, args.output_path)
+        print(f"✅ Form: {result.object_name}")
+        print(f"   XML: {result.xml_path}")
+
+    elif args.dsl_command == "skd":
+        import json as json_mod
+        if args.json_file:
+            with open(args.json_file, encoding="utf-8") as f:
+                definition = json_mod.load(f)
+        elif args.json_string:
+            definition = json_mod.loads(args.json_string)
+        else:
+            print("❌ Укажите --json-file или --json-string")
+            sys.exit(2)
+
+        result = compiler.compile_skd(definition, args.output_path)
+        print(f"✅ SKD: {result.object_name}")
+        print(f"   XML: {result.xml_path}")
+
+
+# ============================================================================
+# CFE — работа с расширениями конфигураций
+# ============================================================================
+
+def cmd_cfe(project: Project, args: argparse.Namespace) -> None:
+    """Работа с расширениями конфигураций 1С (CFE)."""
+    from .services.cfe_manager import CfeManager
+
+    manager = CfeManager()
+
+    if args.cfe_command == "borrow":
+        result = manager.borrow_object(
+            Path(args.extension_path),
+            Path(args.config_path),
+            args.object_ref,
+        )
+        print(f"✅ Заимствован: {result.object_ref}")
+        print(f"   XML созданы: {len(result.xml_created)}")
+        for p in result.xml_created:
+            print(f"     • {p}")
+        if result.registered_in_config:
+            print(f"   Регистрация в Configuration.xml: ✅")
+        for w in result.warnings:
+            print(f"   ⚠️ {w}")
+
+    elif args.cfe_command == "patch":
+        result = manager.patch_method(
+            Path(args.extension_path),
+            args.module_path,
+            args.method_name,
+            args.interceptor_type,
+            args.context,
+            args.is_function,
+        )
+        print(f"✅ Перехватчик: {result.interceptor_type} {result.method_name}")
+        print(f"   BSL: {result.bsl_file}")
+
+    elif args.cfe_command == "diff":
+        result = manager.diff(
+            Path(args.extension_path),
+            Path(args.config_path),
+        )
+        print(f"=== CFE Diff ===")
+        print(f"Расширение: {result.extension_path}")
+        print(f"Конфигурация: {result.config_path}")
+        print()
+        print(f"Заимствованные объекты: {len(result.borrowed_objects)}")
+        for obj in result.borrowed_objects:
+            status = "✅" if obj["found_in_config"] else "⚠️"
+            mod = "+" if obj["has_modifications"] else " "
+            print(f"  {status} {obj['object_ref']} {mod}")
+        print()
+        print(f"Методы перехвата: {len(result.patch_methods)}")
+        for patch in result.patch_methods:
+            print(f"  • {patch['interceptor_type']:25} {patch['method_name']}  ({patch['module_path']})")
+        if result.not_in_config:
+            print()
+            print(f"⚠️ Не найдены в конфигурации: {len(result.not_in_config)}")
+            for ref in result.not_in_config:
+                print(f"  • {ref}")
+
+
+# ============================================================================
+# SKD Trace — трассировка поля СКД
+# ============================================================================
+
+def cmd_skd_trace(project: Project, args: argparse.Namespace) -> None:
+    """Трассировка поля СКД через всю цепочку."""
+    import sys as sys_mod
+    sys_mod.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+    from skd_parser import trace_field
+
+    schema_path = Path(args.template_path)
+    if not schema_path.exists():
+        print(f"❌ Файл не найден: {schema_path}")
+        sys.exit(2)
+
+    result = trace_field(schema_path, args.field_name)
+    if "error" in result:
+        print(f"❌ {result['error']}")
+        if "available_fields" in result:
+            print(f"\nДоступные поля ({len(result['available_fields'])}):")
+            for p in result["available_fields"][:20]:
+                print(f"  • {p}")
+        sys.exit(1)
+
+    print(result["trace_text"])
+
+
+# Добавляем в main() обработку новых команд
 
 
 if __name__ == "__main__":
