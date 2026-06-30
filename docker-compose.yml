@@ -1,0 +1,132 @@
+# Docker Compose — полный стек 1C AI Dev Environment
+#
+# Запуск:
+#   docker compose up mcp-server      # MCP-сервер (для Cursor/Claude Desktop)
+#   docker compose run --rm cli validate
+#   docker compose run --rm cli config add --name ut11 --zip /data/ut11.zip
+#
+# Конфигурация через .env:
+#   GITHUB_TOKEN=ghp_xxx  # для data release-pull/push
+#   LOG_LEVEL=INFO
+#   LOG_FORMAT=json        # для CI/production
+
+services:
+  # ─── CLI (однострочник) ───
+  # Использование:
+  #   docker compose run --rm cli validate
+  #   docker compose run --rm cli config list
+  #   docker compose run --rm cli solve check /data/file.bsl --level full
+  cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: 1c-ai-dev-env:latest
+    container_name: 1c-ai-cli
+    volumes:
+      # Persist данных между запусками
+      - ./data:/app/data
+      - ./derived:/app/derived
+      - ./runtime:/app/runtime
+      - ./learned-skills:/app/learned-skills
+      # Для доступа к .bsl файлам пользователя
+      - ${HOME}:/host:ro
+    environment:
+      - LOG_FORMAT=${LOG_FORMAT:-console}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+    entrypoint: ["1c-ai"]
+    command: ["--help"]
+
+  # ─── MCP-сервер (для IDE/LLM) ───
+  # Использование:
+  #   docker compose up mcp-server
+  #   Подключиться из Cursor/Claude Desktop к stdio
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: 1c-ai-dev-env:latest
+    container_name: 1c-ai-mcp
+    stdin_open: true
+    volumes:
+      - ./data:/app/data
+      - ./derived:/app/derived
+      - ./runtime:/app/runtime
+      - ./learned-skills:/app/learned-skills
+    environment:
+      - LOG_FORMAT=json
+      - LOG_LEVEL=INFO
+    entrypoint: ["1c-ai"]
+    command: ["mcp", "serve"]
+    # MCP-сервер работает через stdio — нельзя отключать stdin
+    tty: false
+
+  # ─── Tests (для CI локально) ───
+  # Использование:
+  #   docker compose run --rm tests
+  #   docker compose run --rm tests pytest tests/test_config_manager.py -v
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: 1c-ai-dev-env:latest
+    container_name: 1c-ai-tests
+    volumes:
+      - ./tests:/app/tests:ro
+      - ./src:/app/src:ro
+      - ./scripts:/app/scripts:ro
+    environment:
+      - LOG_FORMAT=json
+      - LOG_LEVEL=WARNING
+    entrypoint: ["python", "-m", "pytest"]
+    command: ["tests/", "-q", "--tb=short"]
+
+  # ─── Coverage (отчёт) ───
+  # Использование:
+  #   docker compose run --rm coverage
+  #   Отчёт: coverage_html/index.html
+  coverage:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: 1c-ai-dev-env:latest
+    container_name: 1c-ai-coverage
+    volumes:
+      - ./tests:/app/tests:ro
+      - ./src:/app/src:ro
+      - ./scripts:/app/scripts:ro
+      - ./coverage_html:/app/coverage_html
+      - ./coverage.xml:/app/coverage.xml
+    environment:
+      - LOG_FORMAT=json
+    entrypoint: ["python", "-m", "pytest"]
+    command: ["tests/", "--cov=src", "--cov-report=html:coverage_html", "--cov-report=xml:coverage.xml", "-q"]
+
+  # ─── Lint (ruff + mypy) ───
+  # Использование:
+  #   docker compose run --rm lint
+  lint:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: 1c-ai-dev-env:latest
+    container_name: 1c-ai-lint
+    volumes:
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+      - ./scripts:/app/scripts:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        echo "=== Ruff check ===" && \
+        ruff check src/ tests/ && \
+        echo "=== Ruff format check ===" && \
+        ruff format --check src/ tests/ && \
+        echo "=== Mypy ===" && \
+        mypy src/ --config-file pyproject.toml || true
+
+# ─── Volumes (named, для persist между пересборками) ───
+volumes:
+  cli_data:
+  cli_derived:
+  cli_runtime:

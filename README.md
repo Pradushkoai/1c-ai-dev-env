@@ -59,6 +59,39 @@ bash install.sh
 1c-ai validate
 ```
 
+### Установка через Docker (рекомендуется для production)
+
+```bash
+# 1. Клонировать
+git clone https://github.com/Pradushkoai/1c-ai-dev-env.git
+cd 1c-ai-dev-env
+
+# 2. Собрать образ (multi-stage, ~5 минут первый раз)
+docker compose build cli
+
+# 3. Проверить окружение (CLI + BSL LS внутри контейнера)
+docker compose run --rm cli validate
+
+# 4. Запустить MCP-сервер для Cursor / Claude Desktop
+docker compose up mcp-server
+# → stdio MCP-сервер готов к подключению
+
+# 5. Запустить тесты
+docker compose run --rm tests
+
+# 6. Получить coverage отчёт (coverage_html/index.html)
+docker compose run --rm coverage
+
+# 7. Запустить линтеры (ruff + mypy)
+docker compose run --rm lint
+```
+
+**Преимущества Docker**:
+- Полная изоляция — Java/Python/BSL LS внутри контейнера
+- Воспроизводимость — одинаково работает на любой ОС
+- Persist данных через volumes (`./data`, `./derived`, `./runtime`)
+- Multi-stage build — финальный образ ~450 МБ (вместо ~1.5 ГБ)
+
 ### Добавить конфигурацию 1С
 
 ```bash
