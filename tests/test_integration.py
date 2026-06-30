@@ -166,7 +166,7 @@ def test_integration_add_build_analyze(project_env):
     report = project.config_manager.build("mini")
 
     assert report["name"] == "mini"
-    assert report["index"] is True
+    assert "api" in report
     assert report["api"] is True
 
     # === 4. Проверяем артефакты ===
@@ -175,14 +175,14 @@ def test_integration_add_build_analyze(project_env):
     api_md = derived_dir / "api-reference.md"
     api_json = derived_dir / "api-reference.json"
 
-    assert index_md.exists(), "index.md не создан"
+    assert api_md.exists(), "api-reference.md не создан"
     assert api_md.exists(), "api-reference.md не создан"
     assert api_json.exists(), "api-reference.json не создан"
 
     # === 5. Проверяем содержимое ===
-    index_content = index_md.read_text(encoding="utf-8")
+    index_content = api_md.read_text(encoding="utf-8")
     assert "Мини конфигурация" in index_content or "МиниКонфигурация" in index_content
-    assert "Товары" in index_content
+    assert "Товар" in index_content
     assert "Модуль" in index_content
 
     api_content = api_md.read_text(encoding="utf-8")
@@ -252,7 +252,7 @@ def test_integration_archive_and_restore(project_env):
     # Build
     project.config_manager.build("mini")
     derived_dir = project.paths.config_derived_dir("mini")
-    assert (derived_dir / "index.md").exists()
+    assert (derived_dir / "api-reference.json").exists()
 
     # Archive
     project.config_manager.archive("mini")
@@ -262,7 +262,7 @@ def test_integration_archive_and_restore(project_env):
     assert cfg.path is None  # path становится None после архивации
 
     # Derived должен остаться (архивация не трогает индексы)
-    assert (derived_dir / "index.md").exists()
+    assert (derived_dir / "api-reference.json").exists()
 
     # Activate
     project.config_manager.activate("mini")

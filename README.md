@@ -2,7 +2,7 @@
 
 > **Универсальная среда разработки на 1С с ИИ-ассистентом**: семантический поиск по 124 000+ методам, API-справочники конфигураций, анализ кода через BSL Language Server, проверка на 261 правило стандартов 1С, и **MCP-сервер** для интеграции с любой IDE/LLM (Cursor, Claude Desktop, VS Code, JetBrains).
 
-[![Version](https://img.shields.io/badge/version-4.9.0-brightgreen.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.10.0-brightgreen.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Java 17+](https://img.shields.io/badge/Java-17+-orange.svg)](https://openjdk.org/)
