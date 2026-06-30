@@ -987,34 +987,564 @@ class SkdCompiler:
 # ФАСАД — DslCompiler
 # ============================================================================
 
+# Старый DslCompiler заменён на DslCompilerFull (см. ниже)
+
+
+# ============================================================================
+# MXL COMPILE — компиляция табличных документов (печатных форм)
+# ============================================================================
+
+# Namespace для MXL
+NS_SSD = "http://v8.1c.ru/8.1/data/spreadsheet"
+NS_SSDX = "http://v8.1c.ru/8.1/data/spreadsheet/auxiliary"
+NS_V8 = "http://v8.1c.ru/8.1/data/core"
+
+
+class MxlCompiler:
+    """Компилятор JSON DSL → Template.xml для табличных документов 1С (MXL).
+
+    Поддерживает: columns, columnWidths, fonts, styles, areas (rows/cells),
+    params, text, span, detail.
+    """
+
+    def compile(
+        self,
+        definition: Union[str, dict, Path],
+        output_path: Union[str, Path],
+    ) -> CommitResult if False else "CompileResult":  # type: ignore
+        """Скомпилировать JSON DSL → MXL Template.xml.
+
+        Args:
+            definition: JSON-определение MXL-макета
+            output_path: путь к выходному Template.xml
+        """
+        if isinstance(definition, (str, Path)):
+            def_path = Path(definition)
+            if def_path.exists():
+                import json as _json
+                with open(def_path, encoding="utf-8") as f:
+                    def_dict = _json.load(f)
+            else:
+                import json as _json
+                def_dict = _json.loads(str(definition))
+        elif isinstance(definition, dict):
+            def_dict = definition
+        else:
+            raise ValueError(f"Неверный тип definition: {type(definition)}")
+
+        result = CompileResult(
+            object_type="SpreadsheetDocument",
+            object_name=def_dict.get("name", "Макет"),
+        )
+
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Регистрируем namespaces
+        for prefix, uri in [
+            ("ssd", NS_SSD), ("ssdx", NS_SSDX), ("v8", NS_V8),
+        ]:
+            ET.register_namespace(prefix, uri)
+
+        root = ET.Element(f"{{{NS_SSD}}}spreadsheetDocument")
+
+        # Columns
+        columns = def_dict.get("columns", 10)
+        # Page width (auto-calc defaultWidth)
+        if "page" in def_dict:
+            page_map = {"A4-landscape": 780, "A4-portrait": 540}
+            page = def_dict["page"]
+            total_width = page_map.get(page, page) if isinstance(page, str) else page
+        else:
+            total_width = None
+
+        # Default column width
+        default_width = def_dict.get("defaultWidth", 10)
+
+        # Column widths (dict with keys like "1", "2-8", "5,7,9")
+        column_widths = def_dict.get("columnWidths", {})
+
+        # Parse column widths into per-column widths
+        widths_list = self._parse_column_widths(column_widths, columns, default_width, total_width)
+
+        # Write columns
+        cols_elem = ET.SubElement(root, f"{{{NS_SSD}}}columns")
+        for i, w in enumerate(widths_list, 1):
+            col = ET.SubElement(cols_elem, f"{{{NS_SSD}}}column")
+            col.set("index", str(i))
+            w_elem = ET.SubElement(col, f"{{{NS_SSD}}}width")
+            w_elem.text = str(w)
+
+        # Fonts
+        fonts = def_dict.get("fonts", {})
+        if not fonts:
+            fonts = {"default": {"face": "Arial", "size": 10}}
+        fonts_elem = ET.SubElement(root, f"{{{NS_SSD}}}fonts")
+        for fname, fdef in fonts.items():
+            font_elem = ET.SubElement(fonts_elem, f"{{{NS_SSD}}}font")
+            font_elem.set("name", fname)
+            face = ET.SubElement(font_elem, f"{{{NS_SSD}}}face")
+            face.text = fdef.get("face", "Arial")
+            size = ET.SubElement(font_elem, f"{{{NS_SSD}}}size")
+            size.text = str(fdef.get("size", 10))
+            if fdef.get("bold"):
+                bold = ET.SubElement(font_elem, f"{{{NS_SSD}}}bold")
+                bold.text = "true"
+            if fdef.get("italic"):
+                italic = ET.SubElement(font_elem, f"{{{NS_SSD}}}italic")
+                italic.text = "true"
+
+        # Styles
+        styles = def_dict.get("styles", {})
+        if not styles:
+            styles = {"default": {}}
+        styles_elem = ET.SubElement(root, f"{{{NS_SSD}}}styles")
+        for sname, sdef in styles.items():
+            style_elem = ET.SubElement(styles_elem, f"{{{NS_SSD}}}style")
+            style_elem.set("name", sname)
+            if sdef.get("font"):
+                style_elem.set("font", sdef["font"])
+            if sdef.get("align"):
+                align = ET.SubElement(style_elem, f"{{{NS_SSD}}}horizontalAlign")
+                align.text = sdef["align"]
+            if sdef.get("border"):
+                self._add_borders(style_elem, sdef["border"])
+
+        # Areas
+        areas = def_dict.get("areas", [])
+        areas_elem = ET.SubElement(root, f"{{{NS_SSD}}}areas")
+        for area_def in areas:
+            self._write_area(areas_elem, area_def)
+
+        # Записываем
+        tree = ET.ElementTree(root)
+        tree.write(output_path, encoding="utf-8", xml_declaration=True)
+        result.xml_path = output_path
+
+        return result
+
+    def _parse_column_widths(
+        self, column_widths: dict, columns: int, default_width: int, total_width
+    ) -> list[int]:
+        """Парсит columnWidths dict в список ширин по колонкам."""
+        widths = [default_width] * columns
+        for key, val in column_widths.items():
+            # Ключи: "1", "2-8", "5,7,9"
+            indices = self._parse_column_keys(key, columns)
+            # Значение: число или "Nx"
+            if isinstance(val, str) and val.endswith("x"):
+                w = int(float(val[:-1]) * default_width)
+            else:
+                w = int(val)
+            for idx in indices:
+                if 1 <= idx <= columns:
+                    widths[idx - 1] = w
+        # Если total_width задан — масштабируем
+        if total_width and sum(widths) != total_width:
+            scale = total_width / sum(widths) if sum(widths) > 0 else 1
+            widths = [max(1, int(w * scale)) for w in widths]
+        return widths
+
+    @staticmethod
+    def _parse_column_keys(key: str, columns: int) -> list[int]:
+        """Парсит '1', '2-8', '5,7,9' в список индексов."""
+        result = []
+        for part in key.split(","):
+            part = part.strip()
+            if "-" in part:
+                start, end = part.split("-", 1)
+                result.extend(range(int(start), int(end) + 1))
+            elif part.isdigit():
+                result.append(int(part))
+        return result
+
+    def _add_borders(self, style_elem: ET.Element, border: str) -> None:
+        """Добавить границы в стиль."""
+        border_map = {
+            "all": ["left", "top", "right", "bottom"],
+            "top": ["top"],
+            "bottom": ["bottom"],
+            "left": ["left"],
+            "right": ["right"],
+        }
+        sides = border_map.get(border, [border])
+        borders_elem = ET.SubElement(style_elem, f"{{{NS_SSD}}}border")
+        for side in sides:
+            b = ET.SubElement(borders_elem, f"{{{NS_SSD}}}{side}")
+            b.set("style", "Single")
+
+    def _write_area(self, parent: ET.Element, area_def: dict) -> None:
+        """Записать область MXL-макета."""
+        area_elem = ET.SubElement(parent, f"{{{NS_SSD}}}area")
+        area_elem.set("name", area_def.get("name", ""))
+
+        rows = area_def.get("rows", [])
+        rows_elem = ET.SubElement(area_elem, f"{{{NS_SSD}}}rows")
+        for row_def in rows:
+            self._write_row(rows_elem, row_def)
+
+    def _write_row(self, parent: ET.Element, row_def: dict) -> None:
+        """Записать строку области."""
+        row_elem = ET.SubElement(parent, f"{{{NS_SSD}}}row")
+        if "height" in row_def:
+            h = ET.SubElement(row_elem, f"{{{NS_SSD}}}height")
+            h.text = str(row_def["height"])
+        if "rowStyle" in row_def:
+            row_elem.set("style", row_def["rowStyle"])
+
+        cells = row_def.get("cells", [])
+        cells_elem = ET.SubElement(row_elem, f"{{{NS_SSD}}}cells")
+        for cell_def in cells:
+            self._write_cell(cells_elem, cell_def)
+
+    def _write_cell(self, parent: ET.Element, cell_def: dict) -> None:
+        """Записать ячейку."""
+        cell_elem = ET.SubElement(parent, f"{{{NS_SSD}}}cell")
+        cell_elem.set("col", str(cell_def.get("col", 1)))
+        if "span" in cell_def:
+            cell_elem.set("span", str(cell_def["span"]))
+        if "style" in cell_def:
+            cell_elem.set("style", cell_def["style"])
+
+        # Text content
+        if "text" in cell_def:
+            text_elem = ET.SubElement(cell_elem, f"{{{NS_SSD}}}text")
+            text_elem.text = cell_def["text"]
+        elif "param" in cell_def:
+            param_elem = ET.SubElement(cell_elem, f"{{{NS_SSD}}}parameter")
+            param_elem.set("name", cell_def["param"])
+            # Detail (для расшифровки)
+            if "detail" in cell_def:
+                detail = ET.SubElement(cell_elem, f"{{{NS_SSD}}}detail")
+                detail.text = cell_def["detail"]
+
+
+# ============================================================================
+# ROLE COMPILE — компиляция ролей 1С
+# ============================================================================
+
+NS_RIGHTS = "http://v8.1c.ru/8.1/data/rights"
+
+# Русские синонимы типов объектов для ролей
+RU_OBJECT_TYPE_SYNONYMS: dict[str, str] = {
+    "Справочник": "Catalog",
+    "Документ": "Document",
+    "Перечисление": "Enum",
+    "Константа": "Constant",
+    "РегистрСведений": "InformationRegister",
+    "РегистрНакопления": "AccumulationRegister",
+    "РегистрБухгалтерии": "AccountingRegister",
+    "РегистрРасчёта": "CalculationRegister",
+    "РегистрРасчета": "CalculationRegister",
+    "ПланСчетов": "ChartOfAccounts",
+    "ПланВидовХарактеристик": "ChartOfCharacteristicTypes",
+    "ПланВидовРасчёта": "ChartOfCalculationTypes",
+    "ПланВидовРасчета": "ChartOfCalculationTypes",
+    "Обработка": "DataProcessor",
+    "Отчёт": "Report",
+    "Отчет": "Report",
+    "ОбщийМодуль": "CommonModule",
+    "РегистрСведений": "InformationRegister",
+}
+
+# Русские синонимы прав
+RU_RIGHT_SYNONYMS: dict[str, str] = {
+    "Чтение": "Read",
+    "Просмотр": "View",
+    "Добавление": "Insert",
+    "Изменение": "Update",
+    "Удаление": "Delete",
+    "Проведение": "Posting",
+    "ОтменаПроведения": "Unposting",
+    "ВводПоСтроке": "InputByString",
+    "Использование": "Use",
+    "ИнтерактивноеДобавление": "InteractiveInsert",
+    "ИнтерактивноеИзменение": "InteractiveUpdate",
+    "ИнтерактивноеУдаление": "InteractiveDelete",
+    "ИнтерактивноеПроведение": "InteractivePosting",
+    "ИнтерактивнаяОтменаПроведения": "InteractiveUnposting",
+    "ИнтерактивныйВводПоСтроке": "InteractiveInputByString",
+    "ЧтениеВОП": "ReadMain",
+    "ИзменениеВОП": "UpdateMain",
+}
+
+# Пресеты прав (базовые наборы)
+RIGHTS_PRESETS: dict[str, dict[str, list[str]]] = {
+    "view": {
+        "Catalog": ["Read", "View", "InputByString"],
+        "Document": ["Read", "View", "InputByString"],
+        "InformationRegister": ["Read", "View"],
+        "AccumulationRegister": ["Read", "View"],
+        "Constant": ["Read"],
+        "Enum": ["Read", "View"],
+        "DataProcessor": ["Use", "View"],
+        "Report": ["Use", "View"],
+        "CommonModule": ["Use"],
+        "_default": ["Read", "View"],
+    },
+    "edit": {
+        "Catalog": ["Read", "View", "Insert", "Update", "Delete", "InputByString",
+                    "InteractiveInsert", "InteractiveUpdate", "InteractiveDelete", "InteractiveInputByString"],
+        "Document": ["Read", "View", "Insert", "Update", "Delete", "Posting", "Unposting",
+                     "InputByString", "InteractiveInsert", "InteractiveUpdate", "InteractiveDelete",
+                     "InteractivePosting", "InteractiveUnposting", "InteractiveInputByString"],
+        "InformationRegister": ["Read", "View", "Insert", "Update", "Delete",
+                                "InteractiveInsert", "InteractiveUpdate", "InteractiveDelete"],
+        "AccumulationRegister": ["Read", "View"],
+        "Constant": ["Read", "Update"],
+        "Enum": ["Read", "View"],
+        "DataProcessor": ["Use", "View"],
+        "Report": ["Use", "View"],
+        "CommonModule": ["Use"],
+        "_default": ["Read", "View", "Insert", "Update", "Delete"],
+    },
+}
+
+
+class RoleCompiler:
+    """Компилятор JSON DSL → Rights.xml для ролей 1С.
+
+    Поддерживает: objects с правами, пресеты (view/edit), RLS шаблоны,
+    русские синонимы типов и прав.
+    """
+
+    def compile(
+        self,
+        definition: Union[str, dict, Path],
+        output_dir: Union[str, Path],
+    ) -> CompileResult:
+        """Скомпилировать JSON DSL → Rights.xml + метаданные роли.
+
+        Args:
+            definition: JSON-определение роли
+            output_dir: каталог Roles/ в исходниках конфигурации
+        """
+        if isinstance(definition, (str, Path)):
+            def_path = Path(definition)
+            if def_path.exists():
+                import json as _json
+                with open(def_path, encoding="utf-8") as f:
+                    def_dict = _json.load(f)
+            else:
+                import json as _json
+                def_dict = _json.loads(str(definition))
+        elif isinstance(definition, dict):
+            def_dict = definition
+        else:
+            raise ValueError(f"Неверный тип definition: {type(definition)}")
+
+        role_name = def_dict.get("name", "")
+        if not role_name:
+            raise ValueError("Имя роли не указано (поле 'name')")
+
+        result = CompileResult(
+            object_type="Role",
+            object_name=role_name,
+        )
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. Создаём метаданные роли: Roles/<Name>.xml
+        meta_path = output_dir / f"{role_name}.xml"
+        self._write_role_metadata(meta_path, role_name, def_dict)
+        result.xml_path = meta_path
+
+        # 2. Создаём Rights.xml: Roles/<Name>/Ext/Rights.xml
+        rights_dir = output_dir / role_name / "Ext"
+        rights_dir.mkdir(parents=True, exist_ok=True)
+        rights_path = rights_dir / "Rights.xml"
+        self._write_rights_xml(rights_path, def_dict)
+        result.module_paths = [rights_path]
+
+        return result
+
+    def _write_role_metadata(
+        self, meta_path: Path, role_name: str, def_dict: dict
+    ) -> None:
+        """Записать метаданные роли (Roles/<Name>.xml)."""
+        for prefix, uri in [("md", NS_MD), ("xr", NS_XR), ("v8", NS_V8)]:
+            ET.register_namespace(prefix, uri)
+
+        root = ET.Element(f"{{{NS_MD}}}Role")
+        root.set("uuid", _gen_uuid())
+        root.set("name", role_name)
+
+        props = ET.SubElement(root, f"{{{NS_MD}}}Properties")
+        name_elem = ET.SubElement(props, f"{{{NS_XR}}}Name")
+        name_elem.text = role_name
+
+        synonym = def_dict.get("synonym", role_name)
+        syn_elem = ET.SubElement(props, f"{{{NS_XR}}}Synonym")
+        item = ET.SubElement(syn_elem, f"{{{NS_V8}}}item")
+        content = ET.SubElement(item, f"{{{NS_V8}}}content")
+        content.text = synonym
+
+        if def_dict.get("comment"):
+            c = ET.SubElement(props, f"{{{NS_XR}}}Comment")
+            c.text = def_dict["comment"]
+
+        # SetForNewObjects
+        if "setForNewObjects" in def_dict:
+            sfno = ET.SubElement(props, f"{{{NS_XR}}}SetForNewObjects")
+            sfno.text = "true" if def_dict["setForNewObjects"] else "false"
+
+        # SetForAttributesByDefault
+        sfabd = ET.SubElement(props, f"{{{NS_XR}}}SetForAttributesByDefault")
+        sfabd.text = "true" if def_dict.get("setForAttributesByDefault", True) else "false"
+
+        tree = ET.ElementTree(root)
+        tree.write(meta_path, encoding="utf-8", xml_declaration=True)
+
+    def _write_rights_xml(self, rights_path: Path, def_dict: dict) -> None:
+        """Записать Rights.xml с правами на объекты."""
+        for prefix, uri in [("r", NS_RIGHTS)]:
+            ET.register_namespace(prefix, uri)
+
+        root = ET.Element(f"{{{NS_RIGHTS}}}Rights")
+
+        # SetForNewObjects, SetForAttributesByDefault (на уровне rights)
+        if "setForNewObjects" in def_dict:
+            sfno = ET.SubElement(root, f"{{{NS_RIGHTS}}}SetForNewObjects")
+            sfno.text = "true" if def_dict["setForNewObjects"] else "false"
+        sfabd = ET.SubElement(root, f"{{{NS_RIGHTS}}}SetForAttributesByDefault")
+        sfabd.text = "true" if def_dict.get("setForAttributesByDefault", True) else "false"
+        iroco = ET.SubElement(root, f"{{{NS_RIGHTS}}}IndependentRightsOfChildObjects")
+        iroco.text = "true" if def_dict.get("independentRightsOfChildObjects") else "false"
+
+        # Objects
+        for obj_def in def_dict.get("objects", []):
+            self._write_object_rights(root, obj_def)
+
+        # Templates (RLS)
+        for tmpl_def in def_dict.get("templates", []):
+            self._write_rls_template(root, tmpl_def)
+
+        tree = ET.ElementTree(root)
+        tree.write(rights_path, encoding="utf-8", xml_declaration=True)
+
+    def _write_object_rights(self, parent: ET.Element, obj_def) -> None:
+        """Записать права на один объект."""
+        # Парсим obj_def (строка или dict)
+        if isinstance(obj_def, str):
+            parsed = self._parse_object_shorthand(obj_def)
+        elif isinstance(obj_def, dict):
+            parsed = obj_def
+        else:
+            return
+
+        object_name = parsed.get("name", "")
+        if not object_name or "." not in object_name:
+            return
+
+        # Разделяем Type.Name
+        type_str, name = object_name.split(".", 1)
+        # Нормализуем тип
+        type_en = RU_OBJECT_TYPE_SYNONYMS.get(type_str, type_str)
+
+        obj_elem = ET.SubElement(parent, f"{{{NS_RIGHTS}}}Object")
+        obj_elem.set("name", f"{type_en}.{name}")
+
+        # Определяем набор прав
+        rights_set: set[str] = set()
+
+        # Пресет
+        preset = parsed.get("preset")
+        if preset and preset in RIGHTS_PRESETS:
+            preset_rights = RIGHTS_PRESETS[preset].get(type_en) or RIGHTS_PRESETS[preset].get("_default", [])
+            rights_set.update(preset_rights)
+
+        # Явные права
+        explicit_rights = parsed.get("rights", [])
+        if isinstance(explicit_rights, dict):
+            # Форма {"Right": bool}
+            for right, val in explicit_rights.items():
+                right_en = RU_RIGHT_SYNONYMS.get(right, right)
+                if val:
+                    rights_set.add(right_en)
+                else:
+                    rights_set.discard(right_en)
+        elif isinstance(explicit_rights, list):
+            for right in explicit_rights:
+                right_en = RU_RIGHT_SYNONYMS.get(right, right)
+                rights_set.add(right_en)
+
+        # Записываем права
+        for right in sorted(rights_set):
+            r_elem = ET.SubElement(obj_elem, f"{{{NS_RIGHTS}}}{right}")
+            r_elem.text = "true"
+
+        # RLS
+        rls = parsed.get("rls", {})
+        if rls:
+            for right_name, condition in rls.items():
+                right_en = RU_RIGHT_SYNONYMS.get(right_name, right_name)
+                rls_elem = ET.SubElement(obj_elem, f"{{{NS_RIGHTS}}}{right_en}")
+                rls_elem.set("rls", condition.replace("&", "&amp;"))
+
+    def _parse_object_shorthand(self, shorthand: str) -> dict:
+        """Парсит 'Тип.Имя: @пресет' или 'Тип.Имя: Право1, Право2'."""
+        if ":" in shorthand:
+            obj_part, rights_part = shorthand.split(":", 1)
+            obj_part = obj_part.strip()
+            rights_part = rights_part.strip()
+        else:
+            return {"name": shorthand.strip()}
+
+        if rights_part.startswith("@"):
+            return {"name": obj_part, "preset": rights_part[1:]}
+        elif rights_part:
+            rights = [r.strip() for r in rights_part.split(",")]
+            return {"name": obj_part, "rights": rights}
+        return {"name": obj_part}
+
+    def _write_rls_template(self, parent: ET.Element, tmpl_def: dict) -> None:
+        """Записать шаблон RLS."""
+        tmpl_elem = ET.SubElement(parent, f"{{{NS_RIGHTS}}}Template")
+        tmpl_elem.set("name", tmpl_def.get("name", ""))
+        condition = tmpl_def.get("condition", "")
+        cond_elem = ET.SubElement(tmpl_elem, f"{{{NS_RIGHTS}}}Condition")
+        cond_elem.text = condition.replace("&", "&amp;")
+
+
+# ============================================================================
+# Расширяем DslCompiler фасад
+# ============================================================================
+
+# Переписываем DslCompiler чтобы включить все 5 компиляторов
 class DslCompiler:
-    """Единый фасад для всех компиляторов DSL."""
+    """Единый фасад для всех 5 компиляторов DSL.
+
+    1. MetaCompiler — метаданные 1С (23 типа объектов)
+    2. FormCompiler — управляемые формы (Form.xml)
+    3. SkdCompiler — схемы компоновки данных (СКД)
+    4. MxlCompiler — табличные документы (MXL, печатные формы)
+    5. RoleCompiler — роли 1С (Rights.xml)
+    """
 
     def __init__(self):
         self.meta = MetaCompiler()
         self.form = FormCompiler()
         self.skd = SkdCompiler()
+        self.mxl = MxlCompiler()
+        self.role = RoleCompiler()
 
-    def compile_meta(
-        self,
-        definition: Union[str, dict, Path],
-        output_dir: Union[str, Path],
-    ) -> CompileResult:
+    def compile_meta(self, definition, output_dir):
         """Компилировать объект метаданных (Catalog, Document, и т.д.)."""
         return self.meta.compile(definition, output_dir)
 
-    def compile_form(
-        self,
-        definition: Union[str, dict, Path],
-        output_path: Union[str, Path],
-    ) -> CompileResult:
+    def compile_form(self, definition, output_path):
         """Компилировать управляемую форму."""
         return self.form.compile(definition, output_path)
 
-    def compile_skd(
-        self,
-        definition: Union[str, dict, Path],
-        output_path: Union[str, Path],
-    ) -> CompileResult:
+    def compile_skd(self, definition, output_path):
         """Компилировать схему компоновки данных (СКД)."""
         return self.skd.compile(definition, output_path)
+
+    def compile_mxl(self, definition, output_path):
+        """Компилировать табличный документ (MXL, печатная форма)."""
+        return self.mxl.compile(definition, output_path)
+
+    def compile_role(self, definition, output_dir):
+        """Компилировать роль 1С (Rights.xml + метаданные)."""
+        return self.role.compile(definition, output_dir)

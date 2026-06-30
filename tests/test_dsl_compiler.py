@@ -613,3 +613,407 @@ class TestTypeMap:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+# ─────────────────────────────────────────────
+# MxlCompiler tests
+# ─────────────────────────────────────────────
+
+class TestMxlCompiler:
+    """Тесты компилятора MXL (табличные документы)."""
+
+    def test_compile_mxl_basic(self, tmp_path):
+        """Базовая компиляция MXL-макета."""
+        from src.services.dsl_compiler import MxlCompiler
+        compiler = MxlCompiler()
+        result = compiler.compile(
+            {
+                "columns": 5,
+                "defaultWidth": 20,
+                "areas": [
+                    {"name": "Заголовок", "rows": [
+                        {"cells": [{"col": 1, "span": 5, "text": "Печатная форма"}]}
+                    ]},
+                ],
+            },
+            tmp_path / "Template.xml"
+        )
+
+        assert result.object_type == "SpreadsheetDocument"
+        assert result.xml_path.exists()
+
+    def test_compile_mxl_has_columns(self, tmp_path):
+        """MXL содержит колонки."""
+        from src.services.dsl_compiler import MxlCompiler
+        compiler = MxlCompiler()
+        result = compiler.compile(
+            {"columns": 3, "defaultWidth": 15},
+            tmp_path / "Template.xml"
+        )
+
+        root = _parse_xml(result.xml_path)
+        cols = _find_all_tags(root, "column")
+        assert len(cols) == 3
+
+    def test_compile_mxl_column_widths_dict(self, tmp_path):
+        """columnWidths dict правильно парсится."""
+        from src.services.dsl_compiler import MxlCompiler
+        compiler = MxlCompiler()
+        result = compiler.compile(
+            {
+                "columns": 5,
+                "defaultWidth": 10,
+                "columnWidths": {"1": 20, "2-4": 30, "5": 15},
+            },
+            tmp_path / "Template.xml"
+        )
+
+        root = _parse_xml(result.xml_path)
+        cols = _find_all_tags(root, "column")
+        widths = []
+        for col in cols:
+            w = _find_tag(col, "width")
+            if w is not None:
+                widths.append(int(w.text))
+        assert widths == [20, 30, 30, 30, 15]
+
+    def test_compile_mxl_fonts(self, tmp_path):
+        """Шрифты добавляются в XML."""
+        from src.services.dsl_compiler import MxlCompiler
+        compiler = MxlCompiler()
+        result = compiler.compile(
+            {
+                "columns": 3,
+                "fonts": {
+                    "default": {"face": "Arial", "size": 10},
+                    "bold": {"face": "Arial", "size": 10, "bold": True},
+                },
+            },
+            tmp_path / "Template.xml"
+        )
+
+        root = _parse_xml(result.xml_path)
+        fonts = _find_all_tags(root, "font")
+        assert len(fonts) == 2
+
+    def test_compile_mxl_styles(self, tmp_path):
+        """Стили добавляются."""
+        from src.services.dsl_compiler import MxlCompiler
+        compiler = MxlCompiler()
+        result = compiler.compile(
+            {
+                "columns": 3,
+                "styles": {
+                    "header": {"font": "bold", "align": "center"},
+                    "bordered": {"border": "all"},
+                },
+            },
+            tmp_path / "Template.xml"
+        )
+
+        root = _parse_xml(result.xml_path)
+        styles = _find_all_tags(root, "style")
+        assert len(styles) == 2
+
+    def test_compile_mxl_areas(self, tmp_path):
+        """Области добавляются."""
+        from src.services.dsl_compiler import MxlCompiler
+        compiler = MxlCompiler()
+        result = compiler.compile(
+            {
+                "columns": 3,
+                "areas": [
+                    {"name": "Заголовок", "rows": []},
+                    {"name": "Шапка", "rows": []},
+                    {"name": "Строка", "rows": []},
+                ],
+            },
+            tmp_path / "Template.xml"
+        )
+
+        root = _parse_xml(result.xml_path)
+        areas = _find_all_tags(root, "area")
+        assert len(areas) == 3
+
+    def test_compile_mxl_cell_with_text(self, tmp_path):
+        """Ячейка с text."""
+        from src.services.dsl_compiler import MxlCompiler
+        compiler = MxlCompiler()
+        result = compiler.compile(
+            {
+                "columns": 3,
+                "areas": [
+                    {"name": "Шапка", "rows": [
+                        {"cells": [{"col": 1, "text": "№"}]}
+                    ]},
+                ],
+            },
+            tmp_path / "Template.xml"
+        )
+
+        root = _parse_xml(result.xml_path)
+        texts = _find_all_tags(root, "text")
+        text_values = [t.text for t in texts]
+        assert "№" in text_values
+
+    def test_compile_mxl_cell_with_param(self, tmp_path):
+        """Ячейка с param (параметр печатной формы)."""
+        from src.services.dsl_compiler import MxlCompiler
+        compiler = MxlCompiler()
+        result = compiler.compile(
+            {
+                "columns": 3,
+                "areas": [
+                    {"name": "Строка", "rows": [
+                        {"cells": [{"col": 1, "param": "НомерСтроки"}]}
+                    ]},
+                ],
+            },
+            tmp_path / "Template.xml"
+        )
+
+        root = _parse_xml(result.xml_path)
+        params = _find_all_tags(root, "parameter")
+        assert len(params) == 1
+        assert params[0].get("name") == "НомерСтроки"
+
+
+# ─────────────────────────────────────────────
+# RoleCompiler tests
+# ─────────────────────────────────────────────
+
+class TestRoleCompiler:
+    """Тесты компилятора ролей 1С."""
+
+    def test_compile_role_basic(self, tmp_path):
+        """Базовая компиляция роли."""
+        from src.services.dsl_compiler import RoleCompiler
+        compiler = RoleCompiler()
+        result = compiler.compile(
+            {"name": "МенеджерПродаж", "synonym": "Менеджер продаж"},
+            tmp_path / "Roles"
+        )
+
+        assert result.object_type == "Role"
+        assert result.object_name == "МенеджерПродаж"
+        # Метаданные роли
+        assert (tmp_path / "Roles" / "МенеджерПродаж.xml").exists()
+        # Rights.xml
+        assert (tmp_path / "Roles" / "МенеджерПродаж" / "Ext" / "Rights.xml").exists()
+
+    def test_compile_role_metadata_has_name(self, tmp_path):
+        """Метаданные роли содержат Name."""
+        from src.services.dsl_compiler import RoleCompiler
+        compiler = RoleCompiler()
+        result = compiler.compile(
+            {"name": "Менеджер", "synonym": "Менеджер"},
+            tmp_path / "Roles"
+        )
+
+        meta_path = tmp_path / "Roles" / "Менеджер.xml"
+        root = _parse_xml(meta_path)
+        local_tag = root.tag.split("}")[-1]
+        assert local_tag == "Role"
+
+        names = []
+        for elem in root.iter():
+            local = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
+            if local == "Name":
+                names.append(elem.text)
+        assert "Менеджер" in names
+
+    def test_compile_role_synonym(self, tmp_path):
+        """Синоним записан в метаданных."""
+        from src.services.dsl_compiler import RoleCompiler
+        compiler = RoleCompiler()
+        compiler.compile(
+            {"name": "R1", "synonym": "Моя роль"},
+            tmp_path / "Roles"
+        )
+
+        meta_path = tmp_path / "Roles" / "R1.xml"
+        root = _parse_xml(meta_path)
+        contents = []
+        for elem in root.iter():
+            local = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
+            if local == "content":
+                contents.append(elem.text)
+        assert "Моя роль" in contents
+
+    def test_compile_role_objects_with_preset_view(self, tmp_path):
+        """Объекты с пресетом view."""
+        from src.services.dsl_compiler import RoleCompiler
+        compiler = RoleCompiler()
+        result = compiler.compile(
+            {
+                "name": "Viewer",
+                "objects": [
+                    {"name": "Catalog.Товары", "preset": "view"}
+                ],
+            },
+            tmp_path / "Roles"
+        )
+
+        rights_path = tmp_path / "Roles" / "Viewer" / "Ext" / "Rights.xml"
+        root = _parse_xml(rights_path)
+        objects = _find_all_tags(root, "Object")
+        assert len(objects) == 1
+        # Должны быть права Read, View (минимум)
+        object_elem = objects[0]
+        rights_found = []
+        for child in object_elem:
+            local = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+            rights_found.append(local)
+        assert "Read" in rights_found
+        assert "View" in rights_found
+
+    def test_compile_role_objects_with_explicit_rights(self, tmp_path):
+        """Объекты с явными правами."""
+        from src.services.dsl_compiler import RoleCompiler
+        compiler = RoleCompiler()
+        result = compiler.compile(
+            {
+                "name": "Editor",
+                "objects": [
+                    {"name": "Catalog.Товары", "rights": ["Read", "Insert", "Update"]}
+                ],
+            },
+            tmp_path / "Roles"
+        )
+
+        rights_path = tmp_path / "Roles" / "Editor" / "Ext" / "Rights.xml"
+        root = _parse_xml(rights_path)
+        objects = _find_all_tags(root, "Object")
+        object_elem = objects[0]
+        rights_found = []
+        for child in object_elem:
+            local = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+            rights_found.append(local)
+        assert "Read" in rights_found
+        assert "Insert" in rights_found
+        assert "Update" in rights_found
+
+    def test_compile_role_russian_rights(self, tmp_path):
+        """Русские синонимы прав работают."""
+        from src.services.dsl_compiler import RoleCompiler
+        compiler = RoleCompiler()
+        compiler.compile(
+            {
+                "name": "R",
+                "objects": [
+                    {"name": "Catalog.Товары", "rights": ["Чтение", "Просмотр"]}
+                ],
+            },
+            tmp_path / "Roles"
+        )
+
+        rights_path = tmp_path / "Roles" / "R" / "Ext" / "Rights.xml"
+        root = _parse_xml(rights_path)
+        objects = _find_all_tags(root, "Object")
+        rights_found = []
+        for child in objects[0]:
+            local = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+            rights_found.append(local)
+        assert "Read" in rights_found
+        assert "View" in rights_found
+
+    def test_compile_role_russian_object_type(self, tmp_path):
+        """Русский тип объекта работает."""
+        from src.services.dsl_compiler import RoleCompiler
+        compiler = RoleCompiler()
+        compiler.compile(
+            {
+                "name": "R",
+                "objects": [
+                    {"name": "Справочник.Товары", "preset": "view"}
+                ],
+            },
+            tmp_path / "Roles"
+        )
+
+        rights_path = tmp_path / "Roles" / "R" / "Ext" / "Rights.xml"
+        root = _parse_xml(rights_path)
+        objects = _find_all_tags(root, "Object")
+        # Имя объекта должно быть нормализовано: Catalog.Товары
+        assert objects[0].get("name") == "Catalog.Товары"
+
+    def test_compile_role_shorthand_string(self, tmp_path):
+        """Строковый shorthand 'Тип.Имя: @пресет'."""
+        from src.services.dsl_compiler import RoleCompiler
+        compiler = RoleCompiler()
+        result = compiler.compile(
+            {
+                "name": "R",
+                "objects": ["Catalog.Товары: @view"],
+            },
+            tmp_path / "Roles"
+        )
+
+        rights_path = tmp_path / "Roles" / "R" / "Ext" / "Rights.xml"
+        root = _parse_xml(rights_path)
+        objects = _find_all_tags(root, "Object")
+        assert len(objects) == 1
+
+    def test_compile_role_rls_templates(self, tmp_path):
+        """Шаблоны RLS добавляются."""
+        from src.services.dsl_compiler import RoleCompiler
+        compiler = RoleCompiler()
+        result = compiler.compile(
+            {
+                "name": "R",
+                "templates": [
+                    {"name": "ДляОбъекта(Модификатор)", "condition": "Таблица.Организация = &Организация"}
+                ],
+            },
+            tmp_path / "Roles"
+        )
+
+        rights_path = tmp_path / "Roles" / "R" / "Ext" / "Rights.xml"
+        root = _parse_xml(rights_path)
+        templates = _find_all_tags(root, "Template")
+        assert len(templates) == 1
+
+    def test_compile_role_missing_name_raises(self, tmp_path):
+        """Отсутствует name → ValueError."""
+        from src.services.dsl_compiler import RoleCompiler
+        compiler = RoleCompiler()
+        with pytest.raises(ValueError):
+            compiler.compile({"synonym": "X"}, tmp_path / "Roles")
+
+
+# ─────────────────────────────────────────────
+# DslCompiler facade (расширенный) tests
+# ─────────────────────────────────────────────
+
+class TestDslCompilerFacadeExtended:
+    """Тесты расширенного фасада DslCompiler (5 компиляторов)."""
+
+    def test_facade_has_5_compilers(self):
+        """Фасад имеет все 5 компиляторов."""
+        from src.services.dsl_compiler import DslCompiler
+        compiler = DslCompiler()
+        assert hasattr(compiler, "meta")
+        assert hasattr(compiler, "form")
+        assert hasattr(compiler, "skd")
+        assert hasattr(compiler, "mxl")
+        assert hasattr(compiler, "role")
+
+    def test_facade_compile_mxl(self, tmp_path):
+        """Фасад компилирует mxl."""
+        from src.services.dsl_compiler import DslCompiler
+        compiler = DslCompiler()
+        result = compiler.compile_mxl(
+            {"columns": 3, "defaultWidth": 15},
+            tmp_path / "Template.xml"
+        )
+        assert result.object_type == "SpreadsheetDocument"
+
+    def test_facade_compile_role(self, tmp_path):
+        """Фасад компилирует role."""
+        from src.services.dsl_compiler import DslCompiler
+        compiler = DslCompiler()
+        result = compiler.compile_role(
+            {"name": "R1"},
+            tmp_path / "Roles"
+        )
+        assert result.object_type == "Role"

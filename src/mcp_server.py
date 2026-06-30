@@ -1120,6 +1120,51 @@ def create_mcp_server() -> Server:
                 return [types.TextContent(type="text",
                     text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
+        elif name == "dsl_compile_mxl":
+            from .services.dsl_compiler import DslCompiler
+            definition = arguments.get("definition", {})
+            output_path = arguments.get("output_path", "")
+
+            if not output_path:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "output_path required"}, ensure_ascii=False))]
+
+            try:
+                compiler = DslCompiler()
+                result = compiler.compile_mxl(definition, output_path)
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "object_type": result.object_type,
+                        "object_name": result.object_name,
+                        "xml_path": str(result.xml_path) if result.xml_path else None,
+                    }, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+        elif name == "dsl_compile_role":
+            from .services.dsl_compiler import DslCompiler
+            definition = arguments.get("definition", {})
+            output_dir = arguments.get("output_dir", "")
+
+            if not output_dir:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "output_dir required"}, ensure_ascii=False))]
+
+            try:
+                compiler = DslCompiler()
+                result = compiler.compile_role(definition, output_dir)
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "object_type": result.object_type,
+                        "object_name": result.object_name,
+                        "xml_path": str(result.xml_path) if result.xml_path else None,
+                        "module_paths": [str(p) for p in result.module_paths],
+                    }, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
         elif name == "cfe_borrow":
             from .services.cfe_manager import CfeManager
             extension_path = arguments.get("extension_path", "")
