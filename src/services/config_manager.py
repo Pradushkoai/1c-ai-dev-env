@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -175,33 +176,87 @@ class ConfigManager:
     # --- Индексация ---
 
     def build(self, name: str) -> dict:
-        """Построить все индексы для конфигурации. Возвращает отчёт."""
+        """Построить ВСЕ индексы для конфигурации. Возвращает отчёт.
+
+        Запускает 4 парсера:
+        1. metadata_extractor.py → unified-metadata-index.json
+        2. build_api_reference.py → api-reference.json + api-reference.md
+        3. skd_parser.py → skd-index.json
+        4. form_analyzer.py → form-index.json
+        """
         config = self._registry.get(name)
         if not config or not config.is_active():
             raise ValueError(f"Конфигурация '{name}' не активна")
 
-        report = {"name": name, "index": False, "api": False}
+        report = {
+            "name": name,
+            "metadata": False,
+            "api": False,
+            "skd": False,
+            "forms": False,
+        }
 
         derived_dir = self._paths.config_derived_dir(name)
         derived_dir.mkdir(parents=True, exist_ok=True)
 
-        # 1. Индекс метаданных
-        index_path = self._paths.config_index_path(name)
-        self._build_metadata_index(config, index_path)
-        report["index"] = True
+        config_dir = config.path
+        scripts_dir = self._paths.scripts_dir
 
-        # 2. API справочник
+        # 1. Unified metadata index (metadata_extractor.py)
+        try:
+            self._run_script(
+                scripts_dir / "metadata_extractor.py",
+                [str(config_dir), str(derived_dir / "unified-metadata-index.json")],
+            )
+            report["metadata"] = True
+        except Exception as e:
+            print(f"  ⚠️ metadata_extractor: {e}")
+
+        # 2. API reference (build_api_reference.py)
         if config.common_modules_dir:
             api_md = self._paths.config_api_reference_md(name)
             api_json = self._paths.config_api_reference_json(name)
-            self._build_api_reference(config, api_md, api_json)
-            report["api"] = True
+            try:
+                self._build_api_reference(config, api_md, api_json)
+                report["api"] = True
+            except Exception as e:
+                print(f"  ⚠️ build_api_reference: {e}")
+
+        # 3. SKD index (skd_parser.py)
+        try:
+            self._run_script(
+                scripts_dir / "skd_parser.py",
+                [str(config_dir), str(derived_dir / "skd-index.json")],
+            )
+            report["skd"] = True
+        except Exception as e:
+            print(f"  ⚠️ skd_parser: {e}")
+
+        # 4. Form index (form_analyzer.py)
+        try:
+            self._run_script(
+                scripts_dir / "form_analyzer.py",
+                [str(config_dir), str(derived_dir / "form-index.json")],
+            )
+            report["forms"] = True
+        except Exception as e:
+            print(f"  ⚠️ form_analyzer: {e}")
 
         # Обновить реестр
         config.objects_count = self._count_objects(config.path)
         self._registry.add(config)
 
         return report
+
+    def _run_script(self, script_path: Path, args: list[str]) -> None:
+        """Запускает Python скрипт с аргументами."""
+        import subprocess
+        result = subprocess.run(
+            [sys.executable, str(script_path)] + args,
+            capture_output=True, text=True, timeout=600,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"{script_path.name} failed: {result.stderr[-500:]}")
 
     def build_all(self) -> list[dict]:
         """Индексы для всех активных конфигураций."""

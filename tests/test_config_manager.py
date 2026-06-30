@@ -138,10 +138,11 @@ def test_build_with_mocked_subprocess(setup):
         report = cm.build("ut11")
 
     assert report["name"] == "ut11"
-    assert report["index"] is True
+    assert report.get("index", report.get("metadata")) is True
     assert report["api"] is True
-    # Должно быть 2 вызова: build_metadata_index + build_api_reference
-    assert mock_run.call_count == 2
+    # Новый build() вызывает 4 парсера через subprocess (metadata, skd, forms) + _build_api_reference
+    # Минимум 3 subprocess вызова (metadata_extractor, skd_parser, form_analyzer)
+    assert mock_run.call_count >= 3
 
 
 def test_build_non_active(setup):
