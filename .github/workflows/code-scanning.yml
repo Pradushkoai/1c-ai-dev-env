@@ -1,0 +1,110 @@
+name: Code Scanning (SARIF)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**.py'
+      - 'src/**.py'
+      - 'tests/**.py'
+      - '.github/workflows/code-scanning.yml'
+  pull_request:
+    paths:
+      - 'scripts/**.py'
+      - 'src/**.py'
+      - 'tests/**.py'
+
+permissions:
+  contents: read
+  security-events: write  # нужно для загрузки SARIF
+
+jobs:
+  sarif:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install package (без BSL LS — он не нужен для quick уровня)
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Run 1C analyzers on changed .bsl files
+        run: |
+          mkdir -p sarif-reports
+
+          # Если в PR — берём изменённые .bsl файлы, иначе — все .bsl в репо
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+            BSL_FILES=$(git diff --name-only "$BASE" "$HEAD" -- '*.bsl' || true)
+          else
+            BSL_FILES=$(find . -name '*.bsl' -not -path './.git/*' || true)
+          fi
+
+          if [ -z "$BSL_FILES" ]; then
+            echo "No .bsl files to scan"
+            # Создаём пустой SARIF для валидности шага
+            python3 -c "
+            import json
+            sarif = {'\$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/Schemata/sarif-schema-2.1.0.json', 'version': '2.1.0', 'runs': [{'tool': {'tool': {'driver': {'name': '1C AI Dev Env', 'version': '4.11.0'}}}, 'results': []}]}
+            print(json.dumps(sarif, indent=2))
+            " > sarif-reports/1c-ai.sarif
+          else
+            echo "Scanning files:"
+            echo "$BSL_FILES"
+
+            # Запускаем check на каждом файле, объединяем SARIF
+            python3 -c "
+            import sys
+            import json
+            from pathlib import Path
+            from src.services.task_processor import TaskProcessor
+            from src.services.sarif_reporter import SarifReporter
+            from src.project import Project
+
+            project = Project.from_cwd()
+            processor = TaskProcessor(project.paths)
+            reporter = SarifReporter()
+
+            bsl_files = '''$BSL_FILES'''.strip().split('\n')
+            bsl_files = [f for f in bsl_files if f]
+
+            results = []
+            for f in bsl_files:
+                p = Path(f)
+                if not p.exists():
+                    continue
+                try:
+                    r = processor.check(p, level='quick')  # без BSL LS (нет Java)
+                    results.append(r)
+                except Exception as e:
+                    print(f'  ⚠️  {f}: {e}')
+
+            if results:
+                sarif = reporter.convert_multiple(results)
+            else:
+                sarif = {'\$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/Schemata/sarif-schema-2.1.0.json', 'version': '2.1.0', 'runs': [{'tool': {'tool': {'driver': {'name': '1C AI Dev Env', 'version': '4.11.0'}}}, 'results': []}]}
+
+            Path('sarif-reports/1c-ai.sarif').write_text(json.dumps(sarif, ensure_ascii=False, indent=2), encoding='utf-8')
+
+            total_errors = sum(r.total_errors for r in results)
+            total_warnings = sum(r.total_warnings for r in results)
+            print(f'SARIF: {len(results)} files, {total_errors} errors, {total_warnings} warnings')
+            "
+          fi
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sarif-reports/1c-ai.sarif
+          category: 1c-ai-analyzers
+
+      - name: Upload SARIF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sarif-report
+          path: sarif-reports/1c-ai.sarif
+          retention-days: 14

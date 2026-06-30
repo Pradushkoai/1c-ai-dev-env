@@ -562,6 +562,19 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
     processor = TaskProcessor(project.paths)
     result = processor.check(bsl_path, level=level)
 
+    # SARIF-режим (приоритет над другими форматами)
+    sarif_path = getattr(args, 'sarif', None)
+    if sarif_path:
+        from .services.sarif_reporter import SarifReporter
+        sarif_out = Path(sarif_path)
+        if not sarif_out.is_absolute():
+            sarif_out = project.paths.root / sarif_out
+        SarifReporter().write(result, sarif_out)
+        print(f"✅ SARIF: {sarif_out} ({result.total_errors} errors, {result.total_warnings} warnings)")
+        # Также краткий вывод в stdout
+        print(f"   Verdict: {result.verdict}")
+        sys.exit(1 if result.total_errors > 0 else 0)
+
     # JSON-режим
     if json_mode:
         report = result.to_dict()
@@ -1020,6 +1033,9 @@ def main() -> None:
                          help="CI-режим: только errors, exit code 1 при errors")
     p_s_chk.add_argument("--json", action="store_true",
                          help="JSON-вывод для парсинга в CI/CD")
+    p_s_chk.add_argument("--sarif", metavar="PATH",
+                         help="Записать SARIF 2.1.0 отчёт по указанному пути "
+                              "(для GitHub Code Scanning)")
 
     # mcp
     p_mcp = sub.add_parser("mcp", help="MCP-сервер для IDE/LLM")
