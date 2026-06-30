@@ -15,7 +15,6 @@ python3 -m src.cli validate
 
 ### Шаг 2: Восстановить данные (если диск пересоздан)
 ```bash
-export GITHUB_TOKEN=<YOUR_GITHUB_TOKEN>
 python3 -m src.cli data release-pull   # скачать data-package
 python3 -m src.cli data autoload       # восстановить 4 configs + BM25
 python3 -m src.cli config list         # проверка: 4 конфигурации

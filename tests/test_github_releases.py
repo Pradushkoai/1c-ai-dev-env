@@ -69,9 +69,9 @@ class TestIsConfigured:
         assert gh.is_configured() is False
 
     def test_from_env(self, mock_paths):
-        with patch.dict('os.environ', {'GITHUB_TOKEN': '<ENV_TOKEN>'}):
+        with patch.dict('os.environ', {'GITHUB_TOKEN': '<TEST_ENV_TOKEN>'}):
             gh = GitHubReleases(mock_paths, repo="user/repo")
-            assert gh._token == '<ENV_TOKEN>'
+            assert gh._token == '<TEST_ENV_TOKEN>'
 
 
 # ============ _detect_repo ============

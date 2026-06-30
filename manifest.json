@@ -1,7 +1,7 @@
 {
-  "version": "4.11.0",
+  "version": "5.0.0",
   "name": "1C AI Development Environment",
-  "description": "Среда разработки 1С с ИИ-ассистентом: BM25 поиск, API-справочники, BSL LS, MCP-сервер",
+  "description": "Среда разработки 1С с ИИ-ассистентом: 36 MCP tools, 11 анализаторов BSL, JSON DSL компиляторы, CFE, граф зависимостей, SARIF",
   "system_dependencies": {
     "java": ">=17 (для BSL Language Server, опционально)",
     "python": ">=3.10",
@@ -181,14 +181,38 @@
     }
   ],
   "mcp_tools": [
-    {"name": "list_configs", "description": "Список загруженных конфигураций 1С"},
-    {"name": "search_1c_methods", "description": "BM25 поиск по 8141 методам платформы"},
-    {"name": "get_api_reference", "description": "API-справочник общих модулей конфигурации"},
-    {"name": "analyze_bsl", "description": "Анализ .bsl через BSL LS (187 диагностик)"},
-    {"name": "check_standards", "description": "Проверка на 56 правил стандартов 1С"},
-    {"name": "solve_context", "description": "Сбор контекста для решения задачи"},
-    {"name": "solve_check", "description": "Полная проверка .bsl кода"},
-    {"name": "data_status", "description": "Статус данных проекта"}
+    {
+      "name": "list_configs",
+      "description": "Список загруженных конфигураций 1С"
+    },
+    {
+      "name": "search_1c_methods",
+      "description": "BM25 поиск по 8141 методам платформы"
+    },
+    {
+      "name": "get_api_reference",
+      "description": "API-справочник общих модулей конфигурации"
+    },
+    {
+      "name": "analyze_bsl",
+      "description": "Анализ .bsl через BSL LS (187 диагностик)"
+    },
+    {
+      "name": "check_standards",
+      "description": "Проверка на 56 правил стандартов 1С"
+    },
+    {
+      "name": "solve_context",
+      "description": "Сбор контекста для решения задачи"
+    },
+    {
+      "name": "solve_check",
+      "description": "Полная проверка .bsl кода"
+    },
+    {
+      "name": "data_status",
+      "description": "Статус данных проекта"
+    }
   ],
   "user_data": {
     "description": "Пользователь предоставляет:",
@@ -244,7 +268,12 @@
     "data_package": {
       "size_mb": 146.2,
       "files": 60191,
-      "configs": ["edo2", "edo3", "ut11", "unp"],
+      "configs": [
+        "edo2",
+        "edo3",
+        "ut11",
+        "unp"
+      ],
       "total_methods": 115666
     },
     "github_release": {
@@ -256,5 +285,9 @@
     "user": "Pradushkoai",
     "forked_at": "2026-06-24",
     "count": 15
-  }
+  },
+  "mcp_tools_count": 36,
+  "analyzers_count": 11,
+  "dsl_compilers_count": 5,
+  "cli_commands_count": 18
 }

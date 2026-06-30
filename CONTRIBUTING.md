@@ -177,7 +177,6 @@ PR не может быть смёрджен, если CI красный.
 
 ```bash
 # 1. Восстановить данные из GitHub Release
-export GITHUB_TOKEN=<YOUR_GITHUB_TOKEN>
 1c-ai data release-pull
 1c-ai data autoload
 

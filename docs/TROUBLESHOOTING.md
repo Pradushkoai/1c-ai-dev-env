@@ -53,7 +53,6 @@ bash install.sh
 
 **Решение:**
 ```bash
-export GITHUB_TOKEN=<YOUR_GITHUB_TOKEN>
 1c-ai data release-pull    # скачать data-package
 1c-ai data autoload        # восстановить
 1c-ai config list          # проверить
