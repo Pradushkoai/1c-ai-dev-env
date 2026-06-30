@@ -53,7 +53,6 @@ bash install.sh
 
 **Решение:**
 ```bash
-export GITHUB_TOKEN=ghp_xxx
 1c-ai data release-pull    # скачать data-package
 1c-ai data autoload        # восстановить
 1c-ai config list          # проверить
@@ -216,7 +215,7 @@ ls data/configs/ut11/Roles/     # 641+ папок
 **Решение:** проверьте токен:
 ```bash
 echo $GITHUB_TOKEN
-# Должен быть ghp_xxx...
+# Должен быть <YOUR_GITHUB_TOKEN>...
 
 # Проверить права:
 curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user

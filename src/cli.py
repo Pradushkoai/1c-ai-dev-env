@@ -856,7 +856,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
         if not gh.is_configured():
             print("❌ GitHub Releases не настроен")
             print("   Установите GITHUB_TOKEN в окружении:")
-            print("   export GITHUB_TOKEN=ghp_xxx")
+            print("   export GITHUB_TOKEN=<YOUR_GITHUB_TOKEN>")
             sys.exit(1)
 
         if not dp.has_autosave():
@@ -888,7 +888,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
         gh = GitHubReleases(project.paths)
         if not gh.is_configured():
             print("❌ GitHub Releases не настроен")
-            print("   Установите GITHUB_TOKEN: export GITHUB_TOKEN=ghp_xxx")
+            print("   Установите GITHUB_TOKEN: export GITHUB_TOKEN=<YOUR_GITHUB_TOKEN>")
             sys.exit(1)
 
         print("Скачивание из GitHub Releases...")
@@ -1078,6 +1078,139 @@ def main() -> None:
     data_sub.add_parser("release-pull", help="Скачать пакет из GitHub Releases")
 
     data_sub.add_parser("release-status", help="Статус GitHub Releases интеграции")
+
+    # dsl — JSON DSL компиляторы
+    p_dsl = sub.add_parser("dsl", help="JSON DSL → XML компиляторы для 1С")
+    dsl_sub = p_dsl.add_subparsers(dest="dsl_command", required=True)
+
+    p_dsl_meta = dsl_sub.add_parser("meta", help="Скомпилировать объект метаданных")
+    p_dsl_meta.add_argument("--json-file", help="Путь к JSON-файлу")
+    p_dsl_meta.add_argument("--json-string", help="JSON-строка")
+    p_dsl_meta.add_argument("--output-dir", required=True)
+
+    p_dsl_form = dsl_sub.add_parser("form", help="Скомпилировать форму")
+    p_dsl_form.add_argument("--json-file", help="Путь к JSON-файлу")
+    p_dsl_form.add_argument("--json-string", help="JSON-строка")
+    p_dsl_form.add_argument("--output-path", required=True)
+
+    p_dsl_skd = dsl_sub.add_parser("skd", help="Скомпилировать СКД")
+    p_dsl_skd.add_argument("--json-file", help="Путь к JSON-файлу")
+    p_dsl_skd.add_argument("--json-string", help="JSON-строка")
+    p_dsl_skd.add_argument("--output-path", required=True)
+
+    p_dsl_mxl = dsl_sub.add_parser("mxl", help="Скомпилировать MXL-макет")
+    p_dsl_mxl.add_argument("--json-file", help="Путь к JSON-файлу")
+    p_dsl_mxl.add_argument("--json-string", help="JSON-строка")
+    p_dsl_mxl.add_argument("--output-path", required=True)
+
+    p_dsl_role = dsl_sub.add_parser("role", help="Скомпилировать роль")
+    p_dsl_role.add_argument("--json-file", help="Путь к JSON-файлу")
+    p_dsl_role.add_argument("--json-string", help="JSON-строка")
+    p_dsl_role.add_argument("--output-dir", required=True)
+
+    # cfe — работа с расширениями
+    p_cfe = sub.add_parser("cfe", help="Работа с расширениями конфигураций (CFE)")
+    cfe_sub = p_cfe.add_subparsers(dest="cfe_command", required=True)
+
+    p_cfe_borrow = cfe_sub.add_parser("borrow", help="Заимствовать объект")
+    p_cfe_borrow.add_argument("--extension-path", required=True)
+    p_cfe_borrow.add_argument("--config-path", required=True)
+    p_cfe_borrow.add_argument("--object-ref", required=True)
+
+    p_cfe_patch = cfe_sub.add_parser("patch", help="Сгенерировать перехватчик метода")
+    p_cfe_patch.add_argument("--extension-path", required=True)
+    p_cfe_patch.add_argument("--module-path", required=True)
+    p_cfe_patch.add_argument("--method-name", required=True)
+    p_cfe_patch.add_argument("--interceptor-type", required=True,
+        choices=["Before", "After", "ModificationAndControl"])
+    p_cfe_patch.add_argument("--context", default="НаСервере")
+    p_cfe_patch.add_argument("--is-function", action="store_true")
+
+    p_cfe_diff = cfe_sub.add_parser("diff", help="Анализ расширения")
+    p_cfe_diff.add_argument("--extension-path", required=True)
+    p_cfe_diff.add_argument("--config-path", required=True)
+
+    # skd-trace — трассировка поля СКД
+    p_skd_trace = sub.add_parser("skd-trace", help="Трассировка поля СКД")
+    p_skd_trace.add_argument("template_path")
+    p_skd_trace.add_argument("field_name")
+
+    # depgraph — граф зависимостей
+    p_depgraph = sub.add_parser("depgraph", help="Граф зависимостей метаданных")
+    depgraph_sub = p_depgraph.add_subparsers(dest="depgraph_command", required=True)
+
+    p_dg_build = depgraph_sub.add_parser("build", help="Построить граф")
+    p_dg_build.add_argument("--name", required=True)
+    p_dg_build.add_argument("--output")
+
+    p_dg_query = depgraph_sub.add_parser("query", help="Запрос к графу")
+    p_dg_query.add_argument("--name", required=True)
+    p_dg_query.add_argument("--query-type", required=True,
+        choices=["what_depends_on", "dependencies_of", "transitive_dependencies",
+                 "transitive_dependents", "find_cycles", "find_unused_objects",
+                 "find_root_objects", "shortest_path", "stats"])
+    p_dg_query.add_argument("--object")
+    p_dg_query.add_argument("--target")
+
+    p_dg_validate = depgraph_sub.add_parser("validate", help="Проверить что граф DAG")
+    p_dg_validate.add_argument("--name", required=True)
+
+    # openspec
+    p_openspec = sub.add_parser("openspec", help="OpenSpec — управление изменениями")
+    openspec_sub = p_openspec.add_subparsers(dest="openspec_command", required=True)
+
+    p_os_init = openspec_sub.add_parser("init", help="Инициализировать openspec/")
+    p_os_init.add_argument("--project-name")
+
+    p_os_proposal = openspec_sub.add_parser("proposal", help="Создать proposal")
+    p_os_proposal.add_argument("--change-id", required=True)
+    p_os_proposal.add_argument("--title", required=True)
+    p_os_proposal.add_argument("--context")
+    p_os_proposal.add_argument("--approach")
+    p_os_proposal.add_argument("--tasks")
+    p_os_proposal.add_argument("--files")
+
+    p_os_list = openspec_sub.add_parser("list", help="Список changes")
+    p_os_list.add_argument("--archived", action="store_true")
+
+    p_os_update = openspec_sub.add_parser("update", help="Обновить задачу")
+    p_os_update.add_argument("--change-id", required=True)
+    p_os_update.add_argument("--task-index", type=int, required=True)
+    p_os_update.add_argument("--completed", action="store_true")
+    p_os_update.add_argument("--not-completed", action="store_true")
+    p_os_update.add_argument("--notes")
+
+    p_os_archive = openspec_sub.add_parser("archive", help="Архивировать")
+    p_os_archive.add_argument("--change-id", required=True)
+
+    p_os_validate = openspec_sub.add_parser("validate", help="Валидация")
+    p_os_validate.add_argument("--change-id", required=True)
+
+    # session
+    p_session = sub.add_parser("session", help="Управление AI-сессиями")
+    session_sub = p_session.add_subparsers(dest="session_command", required=True)
+
+    p_s_save = session_sub.add_parser("save", help="Сохранить сессию")
+    p_s_save.add_argument("--task")
+    p_s_save.add_argument("--completed")
+    p_s_save.add_argument("--pending")
+    p_s_save.add_argument("--next-action")
+    p_s_save.add_argument("--decisions")
+    p_s_save.add_argument("--modified")
+    p_s_save.add_argument("--summary")
+
+    session_sub.add_parser("restore", help="Восстановить сессию")
+    session_sub.add_parser("retro", help="Ретроспектива")
+    session_sub.add_parser("clear", help="Очистить сессию")
+
+    # inspect — единый анализ
+    p_inspect = sub.add_parser("inspect", help="Единый анализ объектов 1С")
+    p_inspect.add_argument("target",
+        choices=["cf", "meta", "form", "skd", "mxl", "role", "subsystem", "depgraph"])
+    p_inspect.add_argument("path")
+    p_inspect.add_argument("--mode", default="overview",
+        choices=["overview", "brief", "full", "trace"])
+    p_inspect.add_argument("--name")
 
     args = parser.parse_args()
     project = Project()

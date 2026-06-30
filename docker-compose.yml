@@ -6,7 +6,6 @@
 #   docker compose run --rm cli config add --name ut11 --zip /data/ut11.zip
 #
 # Конфигурация через .env:
-#   GITHUB_TOKEN=ghp_xxx  # для data release-pull/push
 #   LOG_LEVEL=INFO
 #   LOG_FORMAT=json        # для CI/production
 

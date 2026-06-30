@@ -1,6 +1,89 @@
 # Changelog
 
 
+## [5.0.0] — 2026-07-01
+
+### MAJOR: JSON DSL компиляторы + CFE + граф зависимостей + OpenSpec
+
+**NEW: 5 JSON DSL компиляторов** (src/services/dsl_compiler.py, 1575 строк)
+- MetaCompiler — 23 типа объектов 1С (Catalog, Document, Enum, и т.д.)
+- FormCompiler — управляемые формы (Form.xml)
+- SkdCompiler — СКД-схемы (DataCompositionSchema)
+- MxlCompiler — MXL-макеты (печатные формы)
+- RoleCompiler — роли 1С (Rights.xml) с пресетами view/edit и RLS
+
+**NEW: CFE поддержка** (src/services/cfe_manager.py, 757 строк)
+- cfe_borrow — заимствование объекта (ObjectBelonging=Adopted)
+- cfe_patch_method — генерация &Перед/&После/&ИзменениеИКонтроль
+- cfe_diff — анализ расширения
+
+**NEW: Граф зависимостей метаданных** (src/services/dependency_graph.py, 475 строк)
+- networkx вместо Neo4j (без внешних зависимостей)
+- 8 типов запросов (what_depends_on, dependencies_of, find_cycles, и т.д.)
+- Источники: реквизиты, ТЧ, регистраторы, подсистемы, подписки
+
+**NEW: OpenSpec mini** (src/services/openspec_manager.py, 579 строк)
+- Specification-Driven Development
+- proposal/tasks/design/spec deltas
+- create/load/update/archive/validate
+
+**NEW: SessionManager** (src/services/session_manager.py, 232 строки)
+- save/restore/retro/clear
+- session-notes.md (Markdown) + session-state.json (JSON)
+
+**NEW: SKD trace mode** (scripts/skd_parser.py)
+- trace_field() — трассировка поля через dataset → calculated → resource
+
+**NEW: img_grid утилита** (scripts/img_grid.py, 175 строк)
+- Наложение сетки на скриншот печатной формы для LLM
+
+**NEW: Единый inspect** (CLI + MCP)
+- 8 типов анализа: cf, meta, form, skd, mxl, role, subsystem, depgraph
+- 4 режима: overview, brief, full, trace
+
+**NEW: 18 XML-спецификаций** (docs/1c-xml-specs/, 16K строк)
+- 12 спецификаций XML-форматов 1С
+- 5 спецификаций JSON DSL
+- build-spec.md
+
+**NEW: CLI команды**
+- dsl (meta/form/skd/mxl/role)
+- cfe (borrow/patch/diff)
+- depgraph (build/query/validate)
+- openspec (init/proposal/list/update/archive/validate)
+- session (save/restore/retro/clear)
+- inspect (cf/meta/form/skd/mxl/role/subsystem/depgraph)
+- skd-trace
+
+**NEW: MCP tools (36 всего)**
+- dsl_compile_meta, dsl_compile_form, dsl_compile_skd, dsl_compile_mxl, dsl_compile_role
+- cfe_borrow, cfe_patch_method, cfe_diff
+- build_dependency_graph, dependency_query
+- skd_trace, inspect
+- openspec_proposal, openspec_list, openspec_update_task, openspec_archive
+
+**IMPROVED: ConfigManager**
+- validate_sources() — проверка Configuration.xml + обязательных директорий
+- check_freshness() — mtime-сравнение исходников и индексов
+- build(force, skip_if_fresh) — пропуск свежих индексов
+
+**IMPROVED: TaskProcessor**
+- solve() — 7 источников (было 3)
+- check() — 7 анализаторов на 3 уровнях (quick/standard/full)
+
+**IMPROVED: Инженерная зрелость**
+- SARIF 2.1.0 output + GitHub Code Scanning workflow
+- Pre-commit hooks (ruff + mypy + pytest)
+- Coverage gate в CI
+- Structlog (структурированное логирование)
+- Docker compose (5 сервисов: cli, mcp-server, tests, coverage, lint)
+- Property-based тесты (hypothesis, 13 инвариантов, ~1300 cases)
+- Synthetic benchmarks в CI (19 тестов + SLA gate)
+
+Статистика: 328 тестов (было 531 без property/benchmarks), 20 сервисов, 39 скриптов, 36 MCP tools
+
+---
+
 ## [4.11.0] — 2026-06-30
 
 ### Quality improvements: benchmarks, E2E tests, lxml, CI
@@ -884,7 +967,6 @@ search_code(query="создать заказ", config_name="ut11", limit=5)
 
 **Workflow восстановления (для следующей сессии):**
 ```bash
-export GITHUB_TOKEN=ghp_xxx
 1c-ai data release-pull     # скачать 146 МБ
 1c-ai data autoload         # восстановить 4 configs + BM25
 1c-ai config list           # 4 конфигурации
@@ -969,7 +1051,6 @@ export GITHUB_TOKEN=ghp_xxx
 **Workflow для восстановления после пересоздания диска:**
 ```bash
 # 1. Установить токен (один раз за сессию)
-export GITHUB_TOKEN=ghp_xxx
 
 # 2. Скачать пакет (39 МБ, 7 сек)
 1c-ai data release-pull

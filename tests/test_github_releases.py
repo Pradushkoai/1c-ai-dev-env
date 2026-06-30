@@ -22,7 +22,7 @@ def mock_paths(tmp_path):
 @pytest.fixture
 def gh(mock_paths):
     """GitHubReleases с замоканным repo и token."""
-    return GitHubReleases(mock_paths, repo="user/repo", token="ghp_test_token")
+    return GitHubReleases(mock_paths, repo="user/repo", token="<TEST_TOKEN>")
 
 
 # ============ ReleaseInfo ============
@@ -65,13 +65,13 @@ class TestIsConfigured:
         assert gh.is_configured() is False
 
     def test_no_repo(self, mock_paths):
-        gh = GitHubReleases(mock_paths, repo="", token="ghp_xxx")
+        gh = GitHubReleases(mock_paths, repo="", token="<YOUR_GITHUB_TOKEN>")
         assert gh.is_configured() is False
 
     def test_from_env(self, mock_paths):
-        with patch.dict('os.environ', {'GITHUB_TOKEN': 'ghp_env_token'}):
+        with patch.dict('os.environ', {'GITHUB_TOKEN': '<TEST_ENV_TOKEN>'}):
             gh = GitHubReleases(mock_paths, repo="user/repo")
-            assert gh._token == 'ghp_env_token'
+            assert gh._token == '<TEST_ENV_TOKEN>'
 
 
 # ============ _detect_repo ============
@@ -83,7 +83,7 @@ class TestDetectRepo:
                 returncode=0,
                 stdout="https://github.com/Pradushkoai/1c-ai-dev-env.git\n",
             )
-            gh = GitHubReleases(mock_paths, token="ghp_xxx")
+            gh = GitHubReleases(mock_paths, token="<YOUR_GITHUB_TOKEN>")
             assert gh._repo == "Pradushkoai/1c-ai-dev-env"
 
     def test_detect_ssh(self, mock_paths):
@@ -92,22 +92,22 @@ class TestDetectRepo:
                 returncode=0,
                 stdout="git@github.com:Pradushkoai/1c-ai-dev-env.git\n",
             )
-            gh = GitHubReleases(mock_paths, token="ghp_xxx")
+            gh = GitHubReleases(mock_paths, token="<YOUR_GITHUB_TOKEN>")
             assert gh._repo == "Pradushkoai/1c-ai-dev-env"
 
     def test_detect_with_token_in_url(self, mock_paths):
         with patch('subprocess.run') as mock_run:
             mock_run.return_value = MagicMock(
                 returncode=0,
-                stdout="https://ghp_xxx@github.com/Pradushkoai/1c-ai-dev-env.git\n",
+                stdout="https://<YOUR_GITHUB_TOKEN>@github.com/Pradushkoai/1c-ai-dev-env.git\n",
             )
-            gh = GitHubReleases(mock_paths, token="ghp_xxx")
+            gh = GitHubReleases(mock_paths, token="<YOUR_GITHUB_TOKEN>")
             assert gh._repo == "Pradushkoai/1c-ai-dev-env"
 
     def test_detect_failure_returns_empty(self, mock_paths):
         with patch('subprocess.run') as mock_run:
             mock_run.return_value = MagicMock(returncode=1, stdout="")
-            gh = GitHubReleases(mock_paths, token="ghp_xxx")
+            gh = GitHubReleases(mock_paths, token="<YOUR_GITHUB_TOKEN>")
             assert gh._repo == ""
 
 
