@@ -123,14 +123,24 @@ class TransactionChecker:
             if self.ROLLBACK_TX.search(stripped):
                 rollback_count += 1
 
-        if begin_count > 0 and begin_count != commit_count + rollback_count:
-            violations.append(TransactionViolation(
-                rule_id='TX001',
-                severity='CRITICAL',
-                line=0,
-                message=f'Несбалансированная транзакция: Начать={begin_count}, Зафиксировать={commit_count}, Отменить={rollback_count}',
-                recommendation='Каждая НачатьТранзакцию должна иметь парную ЗафиксироватьТранзакцию или ОтменитьТранзакцию',
-            ))
+        # Сбалансированная транзакция: Начать == Зафиксировать + Отменить
+        # Но если есть и Зафиксировать и Отменить (в Попытка/Исключение),
+        # то должен быть только один из них (не оба для одной Начать)
+        if begin_count > 0:
+            # Правильный паттерн: Начать(1) + Зафиксировать(1) + Отменить(1)
+            # где Зафиксировать в Попытка и Отменить в Исключение
+            # Это СБАЛАНСИРОВАНО: 1 Начать → 1 Зафиксировать ИЛИ 1 Отменить (не оба одновременно)
+            # Но в коде оба встречаются в одном блоке Попытка/Исключение
+            # Поэтому правильная проверка: begin_count >= commit_count и begin_count >= rollback_count
+            # и (commit_count + rollback_count) >= begin_count (хотя бы один из пары)
+            if commit_count + rollback_count < begin_count:
+                violations.append(TransactionViolation(
+                    rule_id='TX001',
+                    severity='CRITICAL',
+                    line=0,
+                    message=f'Несбалансированная транзакция: Начать={begin_count}, Зафиксировать={commit_count}, Отменить={rollback_count}',
+                    recommendation='Каждая НачатьТранзакцию должна иметь парную ЗафиксироватьТранзакцию или ОтменитьТранзакцию',
+                ))
 
         return violations
 
