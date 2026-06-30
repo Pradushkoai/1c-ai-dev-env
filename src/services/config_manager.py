@@ -480,7 +480,7 @@ class ConfigManager:
                 )
                 report["metadata"] = True
             except Exception as e:
-                print(f"  ⚠️ metadata_extractor: {e}")
+                logger.warning("parser_failed", parser="metadata_extractor", config=name, error=str(e))
         else:
             report["metadata"] = True
             skipped.append("metadata")
@@ -494,7 +494,7 @@ class ConfigManager:
                     self._build_api_reference(config, api_md, api_json)
                     report["api"] = True
                 except Exception as e:
-                    print(f"  ⚠️ build_api_reference: {e}")
+                    logger.warning("parser_failed", parser="build_api_reference", config=name, error=str(e))
             else:
                 report["api"] = True
                 skipped.append("api")
@@ -511,7 +511,7 @@ class ConfigManager:
                 )
                 report["skd"] = True
             except Exception as e:
-                print(f"  ⚠️ skd_parser: {e}")
+                logger.warning("parser_failed", parser="skd_parser", config=name, error=str(e))
         else:
             report["skd"] = True
             skipped.append("skd")
@@ -525,7 +525,7 @@ class ConfigManager:
                 )
                 report["forms"] = True
             except Exception as e:
-                print(f"  ⚠️ form_analyzer: {e}")
+                logger.warning("parser_failed", parser="form_analyzer", config=name, error=str(e))
         else:
             report["forms"] = True
             skipped.append("forms")
