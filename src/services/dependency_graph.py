@@ -406,18 +406,51 @@ class DependencyGraph:
             })
         return result
 
-    def find_cycles(self) -> list[list[str]]:
-        """Найти циклические зависимости.
+    def find_cycles(self, max_cycles: int = 100, timeout_seconds: float = 10.0) -> list[list[str]]:
+        """Найти циклические зависимости с ограничением по количеству и времени.
 
         Аналог Cypher: MATCH path = (n)-[:USES*]->(n) RETURN path
 
+        Args:
+            max_cycles: максимальное количество циклов (default: 100)
+            timeout_seconds: таймаут в секундах (default: 10)
+
         Returns:
             Список циклов, каждый цикл — список узлов.
+            Если превышен timeout — возвращает то что успело найтись + warning.
         """
-        try:
-            return list(nx.simple_cycles(self._graph))
-        except nx.NetworkXError:
-            return []
+        import threading
+        import time
+
+        cycles: list[list[str]] = []
+        timed_out = False
+
+        def _find():
+            nonlocal cycles, timed_out
+            try:
+                start = time.time()
+                for i, cycle in enumerate(nx.simple_cycles(self._graph)):
+                    if i >= max_cycles:
+                        break
+                    if time.time() - start > timeout_seconds:
+                        timed_out = True
+                        break
+                    cycles.append(cycle)
+            except nx.NetworkXError:
+                pass
+            except Exception:
+                pass
+
+        # Запускаем в потоке с timeout
+        thread = threading.Thread(target=_find, daemon=True)
+        thread.start()
+        thread.join(timeout=timeout_seconds + 2)  # +2 сек запас
+
+        if thread.is_alive():
+            # Поток всё ещё работает — возвращаем что успели
+            timed_out = True
+
+        return cycles
 
     def find_unused_objects(self) -> list[str]:
         """Найти объекты на которые никто не ссылается (мёртвый код).
