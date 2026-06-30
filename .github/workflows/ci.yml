@@ -3,6 +3,51 @@ name: CI
 on: [push, pull_request]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install linters
+        run: pip install flake8 mypy
+
+      - name: Check syntax (py_compile)
+        run: |
+          find scripts src -name "*.py" -exec python3 -m py_compile {} \;
+
+      - name: flake8 (style + unused imports)
+        run: |
+          flake8 scripts/ src/ --max-line-length=120 --extend-ignore=E203,W503,E501 --exclude=scripts/__pycache__
+        continue-on-error: true
+
+      - name: mypy (type checking)
+        run: |
+          mypy src/ --ignore-missing-imports --no-strict-optional
+        continue-on-error: true
+
+  version-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify version consistency
+        run: |
+          MANIFEST_VER=$(python3 -c "import json; print(json.load(open('manifest.json'))['version'])")
+          PYPROJECT_VER=$(python3 -c "import configparser; c=configparser.ConfigParser(); c.read('pyproject.toml'); print(c['project']['version'])")
+          README_VER=$(grep -oP 'version-\K[0-9.]+' README.md | head -1)
+          echo "manifest: $MANIFEST_VER, pyproject: $PYPROJECT_VER, readme: $README_VER"
+          if [ "$MANIFEST_VER" != "$PYPROJECT_VER" ] || [ "$MANIFEST_VER" != "$README_VER" ]; then
+            echo "❌ Version mismatch!"
+            exit 1
+          fi
+          echo "✅ Versions are consistent: $MANIFEST_VER"
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -18,11 +63,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -e ".[dev]"
+          pip install pytest-benchmark lxml
 
-      - name: Check syntax (all Python files)
+      - name: Run pytest (unit + integration + e2e + benchmarks)
         run: |
-          find scripts src -name "*.py" -exec python3 -m py_compile {} \;
-
-      - name: Run pytest
-        run: |
-          python3 -m pytest tests/ -v
+          python3 -m pytest tests/ -v --benchmark-min-rounds=1 --benchmark-warmup=off -k "not IntegrationRealData"

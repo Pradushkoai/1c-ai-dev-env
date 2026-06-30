@@ -5,3 +5,4 @@ qdrant-client>=1.0.0
 # MCP-сервер — для интеграции с IDE/LLM (Cursor, Claude Desktop, VS Code)
 # Команда: 1c-ai mcp serve
 mcp>=1.0.0
+lxml>=4.9.0  # Опционально: быстрый XML парсер (3-5x быстрее xml.etree)

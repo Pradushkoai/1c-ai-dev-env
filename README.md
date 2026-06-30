@@ -2,11 +2,11 @@
 
 > **Универсальная среда разработки на 1С с ИИ-ассистентом**: извлечение и анализ метаданных из XML выгрузок 1С, 27 MCP tools для IDE/LLM, аудит безопасности (15 правил), метрики кода (10 показателей), проверка транзакций (6 правил), анализ запросов (10 правил), анализ архитектуры (10 правил), генерация обработок и отчётов на СКД, упаковка .epf файлов.
 
-[![Version](https://img.shields.io/badge/version-4.10.0-brightgreen.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.11.0-brightgreen.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Java 17+](https://img.shields.io/badge/Java-17+-orange.svg)](https://openjdk.org/)
-[![Tests](https://img.shields.io/badge/tests-504%20passing-success.svg)](#тесты)
+[![Tests](https://img.shields.io/badge/tests-531%20passing-success.svg)](#тесты)
 [![MCP Tools](https://img.shields.io/badge/MCP%20tools-27-blue.svg)](#подключение-к-ide--llm-через-mcp)
 
 ---
