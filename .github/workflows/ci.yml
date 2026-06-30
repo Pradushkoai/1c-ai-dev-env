@@ -128,3 +128,47 @@ jobs:
             coverage.xml
             coverage_html/
           retention-days: 14
+
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+          pip install pytest-benchmark
+
+      - name: Run synthetic benchmarks
+        run: |
+          # Synthetic benchmarks — работают всегда (не нужны UT11 данные)
+          python3 -m pytest tests/test_benchmarks_synthetic.py \
+            --benchmark-only \
+            --benchmark-min-rounds=5 \
+            --benchmark-warmup=off \
+            --benchmark-sort=name \
+            --benchmark-storage=github://Pradushkoai/1c-ai-dev-env \
+            --benchmark-autosave \
+            -v
+
+      - name: Compare with baseline (если есть)
+        run: |
+          # Сравнение с предыдущим baseline — ловит регрессии
+          python3 -m pytest tests/test_benchmarks_synthetic.py \
+            --benchmark-only \
+            --benchmark-min-rounds=5 \
+            --benchmark-warmup=off \
+            --benchmark-compare=0001 \
+            --benchmark-compare-fail=mean:30% \
+            || echo "⚠️ Baseline не найден или есть регрессии >30%"
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: .benchmarks/
+          retention-days: 30

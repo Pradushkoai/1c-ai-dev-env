@@ -58,6 +58,11 @@ include = ["src*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+# pytest-benchmark настройки (только поддерживаемые INI опции)
+benchmark_min_rounds = 5
+benchmark_min_time = "0.000005"
+benchmark_warmup = "off"
+benchmark_sort = "name"
 
 # ─── Ruff ───
 # Современный linter + formatter (заменяет flake8 + black + isort)

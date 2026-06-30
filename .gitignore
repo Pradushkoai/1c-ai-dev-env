@@ -38,3 +38,6 @@ sarif-reports/
 .ruff_cache/
 .mypy_cache/
 
+# pytest-benchmark
+.benchmarks/
+
