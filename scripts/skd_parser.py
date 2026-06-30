@@ -40,6 +40,21 @@ def strip_ns(tag: str) -> str:
     return tag.split('}')[1] if '}' in tag else tag
 
 
+
+
+def get_mltext(elem):
+    """Извлечь текст из MLText элемента (v8:item/v8:content или просто text)."""
+    if elem is None:
+        return ''
+    # Структура: elem > item > content
+    for child in elem:
+        if strip_ns(child.tag) == 'item':
+            for sub in child:
+                if strip_ns(sub.tag) == 'content':
+                    return sub.text or ''
+    # Fallback — простой text
+    return elem.text or ''
+
 def get_child(elem, tag: str):
     if elem is None:
         return None
@@ -421,3 +436,230 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# ============================================================================
+# TRACE MODE — трассировка поля СКД через всю цепочку
+# ============================================================================
+
+def trace_field(skd_schema_path: Path, field_name: str) -> dict:
+    """Отследить происхождение поля СКД от dataset через calculated до resource.
+
+    Возвращает цепочку:
+        dataset → calculated_field → total_field (resource)
+
+    Args:
+        skd_schema_path: путь к Template.xml (СКД-схема)
+        field_name: имя поля (dataPath) или синоним (title)
+
+    Returns:
+        dict с ключами:
+            - target_field: найденное имя поля (dataPath)
+            - title: синоним если есть
+            - dataset_origin: список наборов данных где встречается
+            - calculated: выражение если это вычисляемое поле
+            - resources: список итоговых полей (выражение + группа)
+            - trace_text: человекочитаемая трассировка
+    """
+    skd_schema_path = Path(skd_schema_path)
+    if not skd_schema_path.exists():
+        raise FileNotFoundError(f"СКД-схема не найдена: {skd_schema_path}")
+
+    tree = ET.parse(skd_schema_path)
+    root = tree.getroot()
+
+    # Индексы
+    ds_fields: dict[str, dict] = {}      # dataPath → {datasets, title}
+    calc_fields: dict[str, dict] = {}    # dataPath → {expression, title}
+    res_fields: dict[str, list] = {}     # dataPath → [{expression, group}]
+    title_map: dict[str, str] = {}       # title → dataPath
+
+    # 1. Сканируем поля наборов данных (включая Union items)
+    for ds in root.iter():
+        if strip_ns(ds.tag) != 'dataSet':
+            continue
+        ds_name_elem = get_child(ds, 'name')
+        ds_name = ds_name_elem.text if ds_name_elem is not None else '?'
+        ds_type = ds.get('type', '').split(':')[-1] if ds.get('type') else ''
+        # Убираем namespace из xsi:type
+        if '}' in (ds.get('{http://www.w3.org/2001/XMLSchema-instance}type', '') or ''):
+            ds_type = ds.get('{http://www.w3.org/2001/XMLSchema-instance}type', '').split(':')[-1]
+
+        # Поля набора данных
+        for f in ds:
+            if strip_ns(f.tag) != 'field':
+                continue
+            dp = get_child(f, 'dataPath')
+            if dp is None:
+                continue
+            dp_str = dp.text or ''
+            if dp_str not in ds_fields:
+                ds_fields[dp_str] = {'datasets': [], 'title': ''}
+            ds_fields[dp_str]['datasets'].append(f"{ds_name} [{ds_type}]" if ds_type else ds_name)
+
+            title_node = get_child(f, 'title')
+            if title_node is not None:
+                # MLText — берём content (v8:item/v8:content)
+                content_text = get_mltext(title_node)
+                if content_text:
+                    if not ds_fields[dp_str]['title']:
+                        ds_fields[dp_str]['title'] = content_text
+                    if content_text not in title_map:
+                        title_map[content_text] = dp_str
+
+        # Union items — вложенные наборы
+        for item in ds:
+            if strip_ns(item.tag) != 'item':
+                continue
+            sub_name_elem = get_child(item, 'name')
+            sub_name = sub_name_elem.text if sub_name_elem is not None else '?'
+            for f in item:
+                if strip_ns(f.tag) != 'field':
+                    continue
+                dp = get_child(f, 'dataPath')
+                if dp is None:
+                    continue
+                dp_str = dp.text or ''
+                if dp_str not in ds_fields:
+                    ds_fields[dp_str] = {'datasets': [], 'title': ''}
+                ds_fields[dp_str]['datasets'].append(f"{sub_name} [Union item]")
+
+                title_node = get_child(f, 'title')
+                if title_node is not None:
+                    content_text = get_mltext(title_node)
+                    if content_text:
+                        if not ds_fields[dp_str]['title']:
+                            ds_fields[dp_str]['title'] = content_text
+                        if content_text not in title_map:
+                            title_map[content_text] = dp_str
+
+    # 2. Сканируем вычисляемые поля
+    for cf in root.iter():
+        if strip_ns(cf.tag) != 'calculatedField':
+            continue
+        dp = get_child(cf, 'dataPath')
+        if dp is None:
+            continue
+        dp_str = dp.text or ''
+        expr = get_child(cf, 'expression')
+        expr_text = expr.text if expr is not None else ''
+        title_node = get_child(cf, 'title')
+        title_text = get_mltext(title_node) if title_node is not None else ''
+        calc_fields[dp_str] = {'expression': expr_text, 'title': title_text}
+        if title_text and title_text not in title_map:
+            title_map[title_text] = dp_str
+
+    # 3. Сканируем итоговые поля (resources)
+    for tf in root.iter():
+        if strip_ns(tf.tag) != 'totalField':
+            continue
+        dp = get_child(tf, 'dataPath')
+        if dp is None:
+            continue
+        dp_str = dp.text or ''
+        expr = get_child(tf, 'expression')
+        expr_text = expr.text if expr is not None else ''
+        grp = get_child(tf, 'group')
+        group_str = grp.text if grp is not None else '(overall)'
+        if dp_str not in res_fields:
+            res_fields[dp_str] = []
+        res_fields[dp_str].append({'expression': expr_text, 'group': group_str})
+
+    # 4. Резолвим имя: пробуем dataPath → точный title → substring title
+    target_path = field_name
+    known_paths = set(ds_fields.keys()) | set(calc_fields.keys()) | set(res_fields.keys())
+
+    if field_name not in known_paths:
+        if field_name in title_map:
+            target_path = title_map[field_name]
+        else:
+            # Substring match в titles
+            matched = None
+            for title, path in title_map.items():
+                if field_name.lower() in title.lower():
+                    matched = path
+                    break
+            if matched:
+                target_path = matched
+            else:
+                return {
+                    'target_field': None,
+                    'error': f"Поле '{field_name}' не найдено по dataPath или title",
+                    'available_fields': sorted(known_paths)[:50],
+                }
+
+    # 5. Строим трассировку
+    title = ''
+    if target_path in calc_fields and calc_fields[target_path]['title']:
+        title = calc_fields[target_path]['title']
+    elif target_path in ds_fields and ds_fields[target_path]['title']:
+        title = ds_fields[target_path]['title']
+
+    trace_lines = [f"=== Trace: {target_path}" + (f' "{title}"' if title else '') + " ===", ""]
+
+    # Dataset origin
+    if target_path in ds_fields:
+        unique_ds = list(dict.fromkeys(ds_fields[target_path]['datasets']))
+        trace_lines.append(f"Dataset: {', '.join(unique_ds)}")
+    else:
+        trace_lines.append("Dataset: (только на уровне схемы, не в полях набора)")
+
+    # Calculated field
+    if target_path in calc_fields:
+        cf = calc_fields[target_path]
+        trace_lines.append("")
+        trace_lines.append("Calculated:")
+        trace_lines.append(f"  Expression: {cf['expression']}")
+
+    # Resources
+    if target_path in res_fields:
+        trace_lines.append("")
+        trace_lines.append(f"Resources ({len(res_fields[target_path])}):")
+        for i, r in enumerate(res_fields[target_path], 1):
+            trace_lines.append(f"  {i}. Group: {r['group']}")
+            trace_lines.append(f"     Expression: {r['expression']}")
+    else:
+        trace_lines.append("")
+        trace_lines.append("Resources: (не используется в итогах)")
+
+    return {
+        'target_field': target_path,
+        'title': title,
+        'dataset_origin': ds_fields.get(target_path, {}).get('datasets', []),
+        'calculated': calc_fields.get(target_path),
+        'resources': res_fields.get(target_path, []),
+        'trace_text': '\n'.join(trace_lines),
+    }
+
+
+# ============================================================================
+# CLI для trace mode
+# ============================================================================
+
+def main_trace():
+    """CLI: python3 skd_parser.py trace <Template.xml> <field_name>"""
+    if len(sys.argv) < 4 or sys.argv[1] != 'trace':
+        print("Использование trace mode:")
+        print("  python3 skd_parser.py trace <Template.xml> <field_name>")
+        print()
+        print("Пример:")
+        print("  python3 skd_parser.py trace Reports/Отчет1/Ext/Template.xml Сумма")
+        sys.exit(1)
+
+    schema_path = Path(sys.argv[2])
+    field_name = sys.argv[3]
+
+    result = trace_field(schema_path, field_name)
+    if 'error' in result:
+        print(f"❌ {result['error']}")
+        if 'available_fields' in result:
+            print(f"\nДоступные поля ({len(result['available_fields'])}):")
+            for p in result['available_fields'][:20]:
+                print(f"  • {p}")
+        sys.exit(1)
+
+    print(result['trace_text'])
+
+
+if __name__ == '__main__' and len(sys.argv) > 1 and sys.argv[1] == 'trace':
+    main_trace()
