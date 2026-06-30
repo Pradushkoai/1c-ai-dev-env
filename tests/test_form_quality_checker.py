@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Тесты для form_quality_checker.py."""
-import os, sys, json, tempfile
+import json
+import os
+import sys
+import tempfile
 from pathlib import Path
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))

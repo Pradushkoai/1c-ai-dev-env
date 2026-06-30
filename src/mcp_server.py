@@ -13,9 +13,9 @@ import os
 import sys
 from pathlib import Path
 
+import mcp.types as types
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-import mcp.types as types
 
 from .project import Project
 
@@ -877,7 +877,7 @@ def create_mcp_server() -> Server:
                 api_json = project.paths.config_api_reference_json(config_name)
                 export_methods = []
                 if api_json.exists():
-                    with open(api_json, 'r', encoding='utf-8') as f:
+                    with open(api_json, encoding='utf-8') as f:
                         modules = _json.load(f)
                     for m in modules:
                         for meth in m.get('methods', []):
@@ -901,7 +901,7 @@ def create_mcp_server() -> Server:
                     type="text",
                     text=json.dumps({"error": f"API reference not found for '{config_name}'"}, ensure_ascii=False),
                 )]
-            with open(api_json, 'r', encoding='utf-8') as f:
+            with open(api_json, encoding='utf-8') as f:
                 modules = json.load(f)
             forms = [m for m in modules if m.get('type') == 'Форма']
             if not form_name:
@@ -1023,8 +1023,9 @@ def create_mcp_server() -> Server:
             level = arguments.get("level", "standard")
 
             # Используем TaskProcessor — единая логика с CLI
-            from .services.task_processor import TaskProcessor
             from pathlib import Path as _Path
+
+            from .services.task_processor import TaskProcessor
 
             processor = TaskProcessor(project.paths)
             try:

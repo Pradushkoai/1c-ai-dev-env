@@ -2,13 +2,18 @@
 Тесты для графа вызовов методов (call_graph.py).
 """
 import json
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 from src.services.call_graph import (
-    CallGraph, CallEdge, build_call_graph,
-    _get_module_name_from_path, _strip_comments, _find_current_procedure,
+    CallEdge,
+    CallGraph,
+    _find_current_procedure,
+    _get_module_name_from_path,
+    _strip_comments,
+    build_call_graph,
 )
 
 

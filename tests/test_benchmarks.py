@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Performance / benchmark тесты для критических операций."""
+import json
 import os
 import sys
-import json
 from pathlib import Path
 
 import pytest

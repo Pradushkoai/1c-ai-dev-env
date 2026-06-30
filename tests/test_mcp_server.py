@@ -4,15 +4,14 @@
 - create_mcp_server() — создание сервера
 - call_tool handler — вызов каждого tool
 """
-import json
 import asyncio
+import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.mcp_server import _get_tools_description, create_mcp_server
-
 
 # ============ _get_tools_description ============
 

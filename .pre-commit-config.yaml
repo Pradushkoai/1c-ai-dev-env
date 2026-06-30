@@ -1,0 +1,78 @@
+# Pre-commit hooks для 1c-ai-dev-env
+#
+# Установка:
+#   pip install pre-commit
+#   pre-commit install
+#
+# Запуск вручную:
+#   pre-commit run --all-files
+#
+# Хуки срабатывают на git commit. Если хук падает — коммит отменяется,
+# нужно исправить и закоммитить снова.
+
+repos:
+  # ─── Базовые проверки ───
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '^data/|^derived/|^runtime/|^setup/'
+      - id: end-of-file-fixer
+        exclude: '^data/|^derived/|^runtime/|^setup/'
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+        exclude: '^data/|^derived/|^runtime/|^setup/|\.vscode/'
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+        exclude: '^data/|^derived/|^runtime/|^download/'
+      - id: debug-statements
+      - id: requirements-txt-fixer
+
+  # ─── Ruff (lint + format) ───
+  # Заменяет flake8 + black + isort одним инструментом
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.7
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^(src|tests|scripts)/.*\.py$
+      - id: ruff-format
+        files: ^(src|tests|scripts)/.*\.py$
+
+  # ─── Mypy (type checking) ───
+  # Только на src/ — scripts/ и tests/ слишком динамичные
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.1
+    hooks:
+      - id: mypy
+        files: ^src/.*\.py$
+        args: [--config-file=pyproject.toml]
+        additional_dependencies:
+          - types-PyYAML
+          - pytest
+
+  # ─── Pytest (быстрый smoke) ───
+  # Только key-тесты (без benchmarks, e2e, integration с реальными данными)
+  - repo: local
+    hooks:
+      - id: pytest-fast
+        name: pytest (fast subset)
+        entry: python -m pytest
+        args:
+          - tests/test_config_manager.py
+          - tests/test_path_manager.py
+          - tests/test_task_processor.py
+          - tests/test_sarif_reporter.py
+          - tests/test_mcp_server.py
+          - tests/test_configuration.py
+          - tests/test_solve.py
+          - -q
+          - --no-header
+          - --tb=short
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [commit]

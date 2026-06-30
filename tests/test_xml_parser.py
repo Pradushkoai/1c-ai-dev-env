@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 
-from xml_parser import parse_xml, fromstring, strip_ns, get_parser_name, has_lxml
+from xml_parser import fromstring, get_parser_name, has_lxml, parse_xml, strip_ns
 
 
 class TestXMLParser:

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """E2E тест: полный цикл от генерации обработки до валидации и упаковки .epf."""
 import os
-import sys
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 
@@ -198,11 +198,11 @@ class TestE2EFullSolveCheck:
 
     def test_solve_check_quick_on_generated(self):
         """solve_check --level quick на сгенерированном коде — verdict perfect или warnings."""
-        from code_generator import generate_processing
         from check_1c_standards import StandardsChecker
+        from code_generator import generate_processing
+        from query_analyzer import QueryAnalyzer
         from security_auditor import SecurityAuditor
         from transaction_checker import TransactionChecker
-        from query_analyzer import QueryAnalyzer
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)

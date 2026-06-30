@@ -5,7 +5,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -13,11 +13,16 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 
 from metadata_extractor import (
-    XMLUtils, UniversalObjectParser, ConfigParser, RoleParser,
-    SubsystemParser, EventSubscriptionParser, ScheduledJobParser,
-    MetadataExtractor, TYPE_MAPPING,
+    TYPE_MAPPING,
+    ConfigParser,
+    EventSubscriptionParser,
+    MetadataExtractor,
+    RoleParser,
+    ScheduledJobParser,
+    SubsystemParser,
+    UniversalObjectParser,
+    XMLUtils,
 )
-
 
 # ============================================================================
 # ТЕСТЫ XMLUtils

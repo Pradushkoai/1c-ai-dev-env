@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import Any
 
 from .models.config_registry import ConfigurationRegistry
-from .services.path_manager import PathManager
-from .services.config_manager import ConfigManager
 from .services.bsl_analyzer import BSLAnalyzer
+from .services.config_manager import ConfigManager
+from .services.path_manager import PathManager
 
 
 class Project:
@@ -69,7 +69,7 @@ class Project:
             if api_json.exists():
                 has_api = True
                 try:
-                    with open(api_json, 'r', encoding='utf-8') as f:
+                    with open(api_json, encoding='utf-8') as f:
                         modules = json.load(f)
                     api_methods = sum(m.get('methods_count', 0) for m in modules)
                 except Exception:
@@ -98,7 +98,7 @@ class Project:
         modules = []
         if api_json.exists():
             try:
-                with open(api_json, 'r', encoding='utf-8') as f:
+                with open(api_json, encoding='utf-8') as f:
                     modules = json.load(f)
             except Exception:
                 pass
@@ -133,7 +133,7 @@ class Project:
             return []
 
         try:
-            with open(api_json, 'r', encoding='utf-8') as f:
+            with open(api_json, encoding='utf-8') as f:
                 modules = json.load(f)
         except Exception:
             return []

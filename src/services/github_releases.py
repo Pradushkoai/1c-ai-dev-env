@@ -27,13 +27,10 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from .path_manager import PathManager
-
 
 GITHUB_API = "https://api.github.com"
 DEFAULT_RELEASE_TAG = "data-package"
@@ -53,7 +50,7 @@ class ReleaseInfo:
     size_mb: float = 0.0
 
     @classmethod
-    def from_api(cls, data: dict) -> "ReleaseInfo":
+    def from_api(cls, data: dict) -> ReleaseInfo:
         return cls(
             tag=data.get("tag_name", ""),
             name=data.get("name", ""),
@@ -179,7 +176,7 @@ class GitHubReleases:
         """Есть ли token и repo?"""
         return bool(self._token) and bool(self._repo)
 
-    def get_release(self, tag: str = DEFAULT_RELEASE_TAG) -> Optional[ReleaseInfo]:
+    def get_release(self, tag: str = DEFAULT_RELEASE_TAG) -> ReleaseInfo | None:
         """Получить информацию о релизе по тегу."""
         if not self.is_configured():
             return None

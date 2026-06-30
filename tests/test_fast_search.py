@@ -7,7 +7,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from src.services.search import tokenize, build_index, search
+
+from src.services.search import build_index, search, tokenize
 
 
 def test_tokenize_camel_case():

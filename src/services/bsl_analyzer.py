@@ -8,7 +8,6 @@ import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Set
 
 
 @dataclass
@@ -32,7 +31,7 @@ class AnalysisResult:
     diagnostics: list = field(default_factory=list)
 
     @property
-    def diagnostic_set(self) -> Set[str]:
+    def diagnostic_set(self) -> set[str]:
         return {d["key"] for d in self.diagnostics}
 
     @classmethod
@@ -74,9 +73,9 @@ class BSLAnalyzer:
         self._config = config_path
         self._project_root = project_root or Path.cwd()
         self._baseline_path = self._project_root / self.BASELINE_FILE
-        self._baseline: Optional[Set[str]] = None
+        self._baseline: set[str] | None = None
 
-    def analyze(self, source: Path, output_dir: Optional[Path] = None) -> AnalysisResult:
+    def analyze(self, source: Path, output_dir: Path | None = None) -> AnalysisResult:
         """Анализ файла или директории."""
         import tempfile
         if output_dir is None:
@@ -159,5 +158,5 @@ class BSLAnalyzer:
         """Загрузить baseline из JSON файла."""
         import json
         if self._baseline_path.exists():
-            with open(self._baseline_path, "r", encoding="utf-8") as f:
+            with open(self._baseline_path, encoding="utf-8") as f:
                 self._baseline = set(json.load(f))

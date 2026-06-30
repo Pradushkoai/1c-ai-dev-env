@@ -3,12 +3,13 @@
 Мокаем subprocess.run чтобы не делать реальные запросы к GitHub API.
 """
 import json
-import pytest
 import subprocess
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from src.services.github_releases import GitHubReleases, ReleaseInfo, DEFAULT_RELEASE_TAG
+import pytest
+
+from src.services.github_releases import DEFAULT_RELEASE_TAG, GitHubReleases, ReleaseInfo
 
 
 @pytest.fixture

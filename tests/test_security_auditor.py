@@ -8,8 +8,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 
-from security_auditor import SecurityAuditor, SecurityViolation, SECURITY_RULES
-
+from security_auditor import SECURITY_RULES, SecurityAuditor, SecurityViolation
 
 # ============================================================================
 # ФИКССТУРЫ

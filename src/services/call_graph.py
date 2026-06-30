@@ -17,7 +17,6 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from .path_manager import PathManager
 
@@ -291,7 +290,7 @@ def build_call_graph(config_name: str, paths: PathManager | None = None) -> Call
     export_methods: set[str] = set()  # "ИмяМодуля.ИмяМетода"
     module_names: set[str] = set()
     if api_json.exists():
-        with open(api_json, 'r', encoding='utf-8') as f:
+        with open(api_json, encoding='utf-8') as f:
             modules = json.load(f)
         for mod in modules:
             mod_name = mod.get('name', '')

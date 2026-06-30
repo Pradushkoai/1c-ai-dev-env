@@ -4,9 +4,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Optional
 from datetime import date
+from pathlib import Path
 
 
 @dataclass
@@ -17,8 +16,8 @@ class Configuration:
     title: str
     version: str = "unknown"
     vendor: str = ""
-    path: Optional[Path] = None
-    archive: Optional[Path] = None
+    path: Path | None = None
+    archive: Path | None = None
     status: str = "active"  # active | archived
     objects_count: int = 0
     api_methods_count: int = 0
@@ -27,7 +26,7 @@ class Configuration:
     # --- Свойства ---
 
     @property
-    def common_modules_dir(self) -> Optional[Path]:
+    def common_modules_dir(self) -> Path | None:
         """Папка CommonModules если есть."""
         if self.path and (self.path / "CommonModules").exists():
             return self.path / "CommonModules"
@@ -41,7 +40,7 @@ class Configuration:
         return any(self.path.rglob("*.bsl"))
 
     @property
-    def configuration_xml(self) -> Optional[Path]:
+    def configuration_xml(self) -> Path | None:
         """Путь к Configuration.xml."""
         if self.path:
             f = self.path / "Configuration.xml"

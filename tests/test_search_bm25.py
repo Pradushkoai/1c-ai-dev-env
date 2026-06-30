@@ -2,18 +2,24 @@
 Тесты для BM25+триграммы поиска (services/search_bm25.py).
 """
 import json
-import pytest
 from pathlib import Path
 
-from src.services.search_bm25 import (
-    stem_russian, stem_english, stem,
-    tokenize_stemmed,
-    make_trigrams, trigram_similarity,
-    build_index_bm25, search_bm25,
-    detect_index_version, search_auto,
-    BM25_K1, BM25_B,
-)
+import pytest
 
+from src.services.search_bm25 import (
+    BM25_B,
+    BM25_K1,
+    build_index_bm25,
+    detect_index_version,
+    make_trigrams,
+    search_auto,
+    search_bm25,
+    stem,
+    stem_english,
+    stem_russian,
+    tokenize_stemmed,
+    trigram_similarity,
+)
 
 # ============ СТЕММЕР ============
 
@@ -184,13 +190,13 @@ def bm25_index(methods_fixture, tmp_path):
 
 class TestBuildIndexBM25:
     def test_creates_v2_index(self, bm25_index):
-        with open(bm25_index, 'r', encoding='utf-8') as f:
+        with open(bm25_index, encoding='utf-8') as f:
             index = json.load(f)
         assert index['version'] == 2
         assert index['algorithm'] == 'bm25'
 
     def test_has_required_fields(self, bm25_index):
-        with open(bm25_index, 'r', encoding='utf-8') as f:
+        with open(bm25_index, encoding='utf-8') as f:
             index = json.load(f)
         assert 'methods' in index
         assert 'idf' in index
@@ -202,19 +208,19 @@ class TestBuildIndexBM25:
         assert 'bm25_params' in index
 
     def test_bm25_params(self, bm25_index):
-        with open(bm25_index, 'r', encoding='utf-8') as f:
+        with open(bm25_index, encoding='utf-8') as f:
             index = json.load(f)
         assert index['bm25_params']['k1'] == BM25_K1
         assert index['bm25_params']['b'] == BM25_B
 
     def test_methods_count(self, bm25_index):
-        with open(bm25_index, 'r', encoding='utf-8') as f:
+        with open(bm25_index, encoding='utf-8') as f:
             index = json.load(f)
         assert index['total_methods'] == 4
         assert len(index['methods']) == 4
 
     def test_trigrams_built(self, bm25_index):
-        with open(bm25_index, 'r', encoding='utf-8') as f:
+        with open(bm25_index, encoding='utf-8') as f:
             index = json.load(f)
         # Должны быть триграммы
         assert len(index['trigrams_index']) > 0

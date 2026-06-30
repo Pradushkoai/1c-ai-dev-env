@@ -5,10 +5,11 @@ subprocess мокируется (чтобы не запускать Java/BSL LS)
 import json
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-from src.services.bsl_analyzer import BSLAnalyzer, AnalysisResult, Diagnostic
+
+from src.services.bsl_analyzer import AnalysisResult, BSLAnalyzer, Diagnostic
 
 
 def _fake_bsl_json(output_dir: Path) -> None:

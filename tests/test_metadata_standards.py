@@ -10,8 +10,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 from check_metadata_standards import (
-    check_metadata, MetadataViolation,
-    _parse_object_xml, _get_synonym, _strip_ns,
+    MetadataViolation,
+    _get_synonym,
+    _parse_object_xml,
+    _strip_ns,
+    check_metadata,
 )
 
 
@@ -275,8 +278,9 @@ def test_format_violations_text():
 
 def test_format_violations_json():
     """JSON формат вывода."""
-    from check_metadata_standards import format_violations
     import json
+
+    from check_metadata_standards import format_violations
     violations = [
         MetadataViolation(
             file="test.xml", object_type="Catalog",

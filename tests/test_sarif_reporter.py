@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from src.models.task import CheckResult, Violation, CodeMetric
-from src.services.sarif_reporter import SarifReporter, SEVERITY_TO_LEVEL
+from src.models.task import CheckResult, CodeMetric, Violation
+from src.services.sarif_reporter import SEVERITY_TO_LEVEL, SarifReporter
 
 
 @pytest.fixture

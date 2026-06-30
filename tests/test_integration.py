@@ -9,12 +9,13 @@ import json
 import shutil
 import zipfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
+
+from src.models.config_registry import ConfigurationRegistry
 from src.project import Project
 from src.services.path_manager import PathManager
-from src.models.config_registry import ConfigurationRegistry
 
 
 def _make_mini_config_zip(zip_path: Path) -> None:

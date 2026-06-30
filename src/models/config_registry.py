@@ -4,8 +4,8 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, List, Optional
 
 from .configuration import Configuration
 
@@ -23,7 +23,7 @@ class ConfigurationRegistry:
 
     def _load(self) -> None:
         if self._path.exists():
-            with open(self._path, "r", encoding="utf-8") as f:
+            with open(self._path, encoding="utf-8") as f:
                 data = json.load(f)
             for name, cfg_data in data.get("configs", {}).items():
                 self._configs[name] = Configuration.from_dict(name, cfg_data, self._project_root)
@@ -52,16 +52,16 @@ class ConfigurationRegistry:
             return True
         return False
 
-    def get(self, name: str) -> Optional[Configuration]:
+    def get(self, name: str) -> Configuration | None:
         return self._configs.get(name)
 
-    def list_all(self) -> List[Configuration]:
+    def list_all(self) -> list[Configuration]:
         return list(self._configs.values())
 
-    def list_active(self) -> List[Configuration]:
+    def list_active(self) -> list[Configuration]:
         return [c for c in self._configs.values() if c.is_active()]
 
-    def list_archived(self) -> List[Configuration]:
+    def list_archived(self) -> list[Configuration]:
         return [c for c in self._configs.values() if c.is_archived()]
 
     def __contains__(self, name: str) -> bool:
