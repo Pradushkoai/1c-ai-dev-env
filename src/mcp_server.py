@@ -1266,6 +1266,160 @@ def create_mcp_server() -> Server:
                 return [types.TextContent(type="text",
                     text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
+        elif name == "build_dependency_graph":
+            from .services.dependency_graph import DependencyGraph
+            config_name = arguments.get("config_name", "")
+
+            if not config_name:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
+
+            try:
+                dg = DependencyGraph()
+                result = dg.build_from_metadata_index(config_name, project.paths)
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "config_name": result.config_name,
+                        "nodes": result.nodes,
+                        "edges": [
+                            {"source": e.source, "target": e.target,
+                             "relation": e.relation, "detail": e.detail}
+                            for e in result.edges
+                        ],
+                        "warnings": result.warnings,
+                        "stats": dg.get_stats(),
+                    }, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+        elif name == "dependency_query":
+            from .services.dependency_graph import DependencyGraph
+            config_name = arguments.get("config_name", "")
+            query_type = arguments.get("query_type", "")
+            object_ref = arguments.get("object_ref", "")
+
+            if not all([config_name, query_type, object_ref]):
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "config_name, query_type, object_ref required"}, ensure_ascii=False))]
+
+            try:
+                dg = DependencyGraph()
+                dg.build_from_metadata_index(config_name, project.paths)
+
+                if query_type == "what_depends_on":
+                    result = dg.what_depends_on(object_ref)
+                elif query_type == "dependencies_of":
+                    result = dg.dependencies_of(object_ref)
+                elif query_type == "transitive_dependencies":
+                    result = dg.transitive_dependencies(object_ref)
+                elif query_type == "transitive_dependents":
+                    result = dg.transitive_dependents(object_ref)
+                elif query_type == "find_cycles":
+                    result = dg.find_cycles()
+                elif query_type == "find_unused_objects":
+                    result = dg.find_unused_objects()
+                elif query_type == "find_root_objects":
+                    result = dg.find_root_objects()
+                elif query_type == "shortest_path":
+                    target = arguments.get("target", "")
+                    result = dg.shortest_path(object_ref, target)
+                else:
+                    return [types.TextContent(type="text",
+                        text=json.dumps({"error": f"Unknown query_type: {query_type}"}, ensure_ascii=False))]
+
+                return [types.TextContent(type="text",
+                    text=json.dumps({"result": result}, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+        elif name == "openspec_proposal":
+            from .services.openspec_manager import OpenSpecManager, SpecDelta
+            change_id = arguments.get("change_id", "")
+            title = arguments.get("title", "")
+            context = arguments.get("context", "")
+            approach = arguments.get("approach", "")
+            tasks = arguments.get("tasks", [])
+            files = arguments.get("files", [])
+
+            if not all([change_id, title]):
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "change_id, title required"}, ensure_ascii=False))]
+
+            try:
+                osm = OpenSpecManager(project_root=project.paths.root)
+                if not osm.exists():
+                    osm.init_project()
+                change = osm.create_proposal(
+                    change_id=change_id,
+                    title=title,
+                    context=context,
+                    approach=approach,
+                    tasks=tasks,
+                    files=files,
+                )
+                return [types.TextContent(type="text",
+                    text=json.dumps({
+                        "change_id": change.change_id,
+                        "title": change.title,
+                        "status": change.status,
+                        "tasks_count": len(change.tasks),
+                    }, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+        elif name == "openspec_list":
+            from .services.openspec_manager import OpenSpecManager
+            include_archived = arguments.get("include_archived", False)
+
+            try:
+                osm = OpenSpecManager(project_root=project.paths.root)
+                changes = osm.list_changes(include_archived=include_archived)
+                return [types.TextContent(type="text",
+                    text=json.dumps({"changes": changes}, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+        elif name == "openspec_update_task":
+            from .services.openspec_manager import OpenSpecManager
+            change_id = arguments.get("change_id", "")
+            task_index = arguments.get("task_index", 0)
+            completed = arguments.get("completed", None)
+            notes = arguments.get("notes", "")
+
+            if not change_id:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "change_id required"}, ensure_ascii=False))]
+
+            try:
+                osm = OpenSpecManager(project_root=project.paths.root)
+                result = osm.update_task(change_id, task_index, completed, notes)
+                return [types.TextContent(type="text",
+                    text=json.dumps({"updated": result}, ensure_ascii=False))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+        elif name == "openspec_archive":
+            from .services.openspec_manager import OpenSpecManager
+            change_id = arguments.get("change_id", "")
+
+            if not change_id:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "change_id required"}, ensure_ascii=False))]
+
+            try:
+                osm = OpenSpecManager(project_root=project.paths.root)
+                result = osm.archive(change_id)
+                return [types.TextContent(type="text",
+                    text=json.dumps({"archived": result}, ensure_ascii=False))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
         elif name == "data_status":
             # Статус данных проекта
             from .services.data_package import DataPackage
