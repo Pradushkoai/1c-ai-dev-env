@@ -1807,16 +1807,17 @@ def _inspect_cf(config_path: Path, mode: str) -> None:
     def _strip_ns(tag):
         return tag.split("}")[-1] if "}" in tag else tag
 
-    # Поиск Configuration
-    config = None
-    for elem in root.iter():
-        if _strip_ns(elem.tag) == "Configuration":
-            config = elem
-            break
-
-    if config is None:
-        print("❌ Configuration элемент не найден")
-        return
+    # Configuration.xml имеет root <MetaDataObject> или <Configuration>
+    # Ищем Properties внутри
+    config = root
+    config_type = _strip_ns(root.tag)
+    
+    if config_type == "MetaDataObject":
+        # Ищем Configuration внутри MetaDataObject
+        for child in root:
+            if _strip_ns(child.tag) == "Configuration":
+                config = child
+                break
 
     props = None
     for elem in config:
@@ -1825,11 +1826,11 @@ def _inspect_cf(config_path: Path, mode: str) -> None:
             break
 
     print(f"=== Configuration ===")
-    if props:
+    if props is not None:
         for prop in props:
             tag = _strip_ns(prop.tag)
-            text = prop.text or ""
-            if text:
+            text = (prop.text or "").strip()
+            if text and len(text) < 100:
                 print(f"  {tag}: {text}")
 
     # ChildObjects — счётчики по типам
@@ -1839,7 +1840,7 @@ def _inspect_cf(config_path: Path, mode: str) -> None:
             child_objects = elem
             break
 
-    if child_objects:
+    if child_objects is not None and len(child_objects) > 0:
         type_counts: dict[str, int] = {}
         for child in child_objects:
             tag = _strip_ns(child.tag)
@@ -1854,16 +1855,23 @@ def _inspect_meta(meta_path: Path, mode: str, name: str | None = None) -> None:
     import xml.etree.ElementTree as ET
 
     if meta_path.is_dir():
-        # Ищем <Name>.xml
-        if name:
-            candidate = meta_path / f"{name}.xml"
-            if candidate.exists():
-                meta_path = candidate
+        # В 1С выгрузке структура: Catalogs/<Name>/<Name>.xml ИЛИ Catalogs/<Name>.xml
+        # Если передали директорию — ищем .xml рядом (на уровень выше)
+        obj_name = meta_path.name  # например "Контрагенты"
+        candidate = meta_path.parent / f"{obj_name}.xml"
+        if candidate.exists():
+            meta_path = candidate
         else:
-            # Берём первый .xml
-            xmls = list(meta_path.glob("*.xml"))
-            if xmls:
-                meta_path = xmls[0]
+            # Ищем внутри директории
+            if name:
+                candidate = meta_path / f"{name}.xml"
+                if candidate.exists():
+                    meta_path = candidate
+            if meta_path.is_dir():
+                # Берём первый .xml внутри
+                xmls = list(meta_path.glob("*.xml"))
+                if xmls:
+                    meta_path = xmls[0]
 
     if not meta_path.exists():
         print(f"❌ Файл не найден: {meta_path}")
@@ -1875,32 +1883,43 @@ def _inspect_meta(meta_path: Path, mode: str, name: str | None = None) -> None:
     def _strip_ns(tag):
         return tag.split("}")[-1] if "}" in tag else tag
 
-    # Определяем тип объекта по корневому тегу
+    # Реальные файлы 1С имеют обёртку <MetaDataObject><Catalog>...</Catalog></MetaDataObject>
+    obj_elem = root
     obj_type = _strip_ns(root.tag)
+
+    if obj_type == "MetaDataObject":
+        # Ищем первый дочерний элемент (Catalog, Document, и т.д.)
+        for child in root:
+            child_tag = _strip_ns(child.tag)
+            if child_tag not in ("ConfigDumpInfo",):
+                obj_elem = child
+                obj_type = child_tag
+                break
+
     print(f"=== {obj_type} ===")
 
-    # Properties
+    # Properties — внутри объекта
     props = None
-    for elem in root:
+    for elem in obj_elem:
         if _strip_ns(elem.tag) == "Properties":
             props = elem
             break
 
-    if props:
+    if props is not None:
         for prop in props:
             tag = _strip_ns(prop.tag)
-            text = prop.text or ""
+            text = (prop.text or "").strip()
             if text and len(text) < 100:
                 print(f"  {tag}: {text}")
 
     # ChildObjects
     child_objects = None
-    for elem in root:
+    for elem in obj_elem:
         if _strip_ns(elem.tag) == "ChildObjects":
             child_objects = elem
             break
 
-    if child_objects:
+    if child_objects is not None and len(child_objects) > 0:
         print(f"\n=== Дочерние объекты ===")
         type_counts: dict[str, int] = {}
         for child in child_objects:
@@ -2086,15 +2105,22 @@ def _inspect_role(role_path: Path, mode: str) -> None:
     import xml.etree.ElementTree as ET
 
     if role_path.is_dir():
-        # Ищем Rights.xml
         candidate = role_path / "Ext" / "Rights.xml"
         if candidate.exists():
             role_path = candidate
         else:
-            # Ищем <Name>.xml
-            xmls = list(role_path.glob("*.xml"))
-            if xmls:
-                role_path = xmls[0]
+            obj_name = role_path.name
+            candidate = role_path.parent / f"{obj_name}.xml"
+            if candidate.exists():
+                role_path = candidate
+            else:
+                xmls = list(role_path.glob("*.xml"))
+                if xmls:
+                    role_path = xmls[0]
+
+    if not role_path.exists():
+        print(f"❌ Файл не найден: {role_path}")
+        return
 
     tree = ET.parse(role_path)
     root = tree.getroot()
@@ -2104,23 +2130,52 @@ def _inspect_role(role_path: Path, mode: str) -> None:
 
     print(f"=== Role ===")
 
-    # Objects
+    # Реальный формат Rights.xml: <object><name>...</name><right><name>View</name><value>true</value></right></object>
+    # Ищем все <object> (с маленькой буквы) или <Object>
     objects = []
     for elem in root.iter():
-        if _strip_ns(elem.tag) == "Object":
-            name = elem.get("name", "?")
+        tag = _strip_ns(elem.tag).lower()
+        if tag == "object":
+            obj_name = ""
             rights = []
             for child in elem:
-                tag = _strip_ns(child.tag)
-                if child.text == "true":
-                    rights.append(tag)
-            objects.append((name, rights))
+                ctag = _strip_ns(child.tag).lower()
+                if ctag == "name" and child.text:
+                    obj_name = child.text.strip()
+                elif ctag == "right":
+                    right_name = ""
+                    right_value = ""
+                    for sub in child:
+                        st = _strip_ns(sub.tag).lower()
+                        if st == "name" and sub.text:
+                            right_name = sub.text.strip()
+                        elif st == "value" and sub.text:
+                            right_value = sub.text.strip()
+                    if right_value == "true":
+                        rights.append(right_name)
+            if obj_name:
+                objects.append((obj_name, rights))
 
-    print(f"Объектов с правами: {len(objects)}")
-    for name, rights in objects[:20]:
-        print(f"  • {name}: {', '.join(rights) if rights else '(нет прав)'}")
-    if len(objects) > 20:
-        print(f"  ... и ещё {len(objects) - 20}")
+    if objects:
+        print(f"Объектов с правами: {len(objects)}")
+        for name, rights in objects[:20]:
+            print(f"  • {name}: {', '.join(rights) if rights else '(нет прав)'}")
+        if len(objects) > 20:
+            print(f"  ... и ещё {len(objects) - 20}")
+    else:
+        # Возможно это файл метаданных роли (Role.xml), не Rights.xml
+        print("(Rights.xml не найден — это файл метаданных роли)")
+        props = None
+        for elem in root.iter():
+            if _strip_ns(elem.tag) == "Properties":
+                props = elem
+                break
+        if props is not None:
+            for prop in props:
+                tag = _strip_ns(prop.tag)
+                text = (prop.text or "").strip()
+                if text and len(text) < 100:
+                    print(f"  {tag}: {text}")
 
 
 def _inspect_subsystem(subsystem_path: Path, mode: str) -> None:
@@ -2128,9 +2183,18 @@ def _inspect_subsystem(subsystem_path: Path, mode: str) -> None:
     import xml.etree.ElementTree as ET
 
     if subsystem_path.is_dir():
-        xmls = list(subsystem_path.glob("*.xml"))
-        if xmls:
-            subsystem_path = xmls[0]
+        obj_name = subsystem_path.name
+        candidate = subsystem_path.parent / f"{obj_name}.xml"
+        if candidate.exists():
+            subsystem_path = candidate
+        else:
+            xmls = list(subsystem_path.glob("*.xml"))
+            if xmls:
+                subsystem_path = xmls[0]
+
+    if not subsystem_path.exists():
+        print(f"❌ Файл не найден: {subsystem_path}")
+        return
 
     tree = ET.parse(subsystem_path)
     root = tree.getroot()
@@ -2138,30 +2202,38 @@ def _inspect_subsystem(subsystem_path: Path, mode: str) -> None:
     def _strip_ns(tag):
         return tag.split("}")[-1] if "}" in tag else tag
 
+    # Поддержка обёртки MetaDataObject
+    obj_elem = root
+    if _strip_ns(root.tag) == "MetaDataObject":
+        for child in root:
+            if _strip_ns(child.tag) not in ("ConfigDumpInfo",):
+                obj_elem = child
+                break
+
     print(f"=== Subsystem ===")
 
     # Properties
     props = None
-    for elem in root:
+    for elem in obj_elem:
         if _strip_ns(elem.tag) == "Properties":
             props = elem
             break
 
-    if props:
+    if props is not None:
         for prop in props:
             tag = _strip_ns(prop.tag)
-            text = prop.text or ""
+            text = (prop.text or "").strip()
             if text and len(text) < 100:
                 print(f"  {tag}: {text}")
 
     # ChildObjects (content)
     child_objects = None
-    for elem in root:
+    for elem in obj_elem:
         if _strip_ns(elem.tag) == "ChildObjects":
             child_objects = elem
             break
 
-    if child_objects:
+    if child_objects is not None and len(child_objects) > 0:
         print(f"\n=== Содержимое ===")
         type_counts: dict[str, int] = {}
         for child in child_objects:
