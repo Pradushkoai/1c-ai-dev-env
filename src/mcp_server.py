@@ -18,6 +18,12 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 
 from .project import Project
+from .services.logger import get_logger, configure_logging
+
+# MCP-сервер пишет логи в stderr (stdout занят под MCP-протокол)
+# JSON-формат включается через LOG_FORMAT=json
+configure_logging()
+log = get_logger("src.mcp_server")
 
 
 def _get_tools_description() -> list[dict]:
@@ -831,6 +837,12 @@ def create_mcp_server() -> Server:
     @server.call_tool()
     async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
         """Выполняет tool и возвращает результат."""
+        # Структурированный лог каждого вызова — для отладки и аудита
+        log.info(
+            "mcp_tool_called",
+            tool=name,
+            args_keys=list(arguments.keys()) if arguments else [],
+        )
 
         if name == "list_configs":
             configs = project.list_configs_info()
