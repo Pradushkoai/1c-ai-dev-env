@@ -1344,7 +1344,7 @@ def cmd_dsl(project: Project, args: argparse.Namespace) -> None:
         result = compiler.compile_mxl(definition, args.output_path)
         print(f"✅ MXL: {result.object_name}")
         print(f"   XML: {result.xml_path}")
-        print(f"   Колонок: {len(getattr(result, 'warnings', []))}")
+        print(f"   XML: {result.xml_path}")
 
     elif args.dsl_command == "role":
         import json as json_mod

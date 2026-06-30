@@ -1397,35 +1397,53 @@ class RoleCompiler:
         tree.write(meta_path, encoding="utf-8", xml_declaration=True)
 
     def _write_rights_xml(self, rights_path: Path, def_dict: dict) -> None:
-        """Записать Rights.xml с правами на объекты."""
-        for prefix, uri in [("r", NS_RIGHTS)]:
-            ET.register_namespace(prefix, uri)
+        """Записать Rights.xml с правами на объекты.
 
-        root = ET.Element(f"{{{NS_RIGHTS}}}Rights")
+        Формат: реальный 1C Rights.xml (version 2.18):
+        <Rights xmlns="http://v8.1c.ru/8.2/roles">
+          <setForNewObjects>false</setForNewObjects>
+          <object>
+            <name>Catalog.Номенклатура</name>
+            <right>
+              <name>Read</name>
+              <value>true</value>
+            </right>
+          </object>
+        </Rights>
+        """
+        NS_RIGHTS_REAL = "http://v8.1c.ru/8.2/roles"
+        ET.register_namespace("", NS_RIGHTS_REAL)
 
-        # SetForNewObjects, SetForAttributesByDefault (на уровне rights)
-        if "setForNewObjects" in def_dict:
-            sfno = ET.SubElement(root, f"{{{NS_RIGHTS}}}SetForNewObjects")
-            sfno.text = "true" if def_dict["setForNewObjects"] else "false"
-        sfabd = ET.SubElement(root, f"{{{NS_RIGHTS}}}SetForAttributesByDefault")
+        root = ET.Element(f"{{{NS_RIGHTS_REAL}}}Rights")
+        root.set("{http://www.w3.org/2001/XMLSchema-instance}type", "Rights")
+
+        # SetForNewObjects, SetForAttributesByDefault
+        sfno = ET.SubElement(root, f"{{{NS_RIGHTS_REAL}}}setForNewObjects")
+        sfno.text = "true" if def_dict.get("setForNewObjects") else "false"
+        sfabd = ET.SubElement(root, f"{{{NS_RIGHTS_REAL}}}setForAttributesByDefault")
         sfabd.text = "true" if def_dict.get("setForAttributesByDefault", True) else "false"
-        iroco = ET.SubElement(root, f"{{{NS_RIGHTS}}}IndependentRightsOfChildObjects")
+        iroco = ET.SubElement(root, f"{{{NS_RIGHTS_REAL}}}independentRightsOfChildObjects")
         iroco.text = "true" if def_dict.get("independentRightsOfChildObjects") else "false"
 
         # Objects
         for obj_def in def_dict.get("objects", []):
-            self._write_object_rights(root, obj_def)
+            self._write_object_rights(root, obj_def, NS_RIGHTS_REAL)
 
         # Templates (RLS)
         for tmpl_def in def_dict.get("templates", []):
-            self._write_rls_template(root, tmpl_def)
+            tmpl_elem = ET.SubElement(root, f"{{{NS_RIGHTS_REAL}}}template")
+            tmpl_name = ET.SubElement(tmpl_elem, f"{{{NS_RIGHTS_REAL}}}name")
+            tmpl_name.text = tmpl_def.get("name", "")
+            condition = tmpl_def.get("condition", "")
+            cond_elem = ET.SubElement(tmpl_elem, f"{{{NS_RIGHTS_REAL}}}condition")
+            # Экранируем & → &amp; только один раз (ET делает это сам)
+            cond_elem.text = condition
 
         tree = ET.ElementTree(root)
         tree.write(rights_path, encoding="utf-8", xml_declaration=True)
 
-    def _write_object_rights(self, parent: ET.Element, obj_def) -> None:
-        """Записать права на один объект."""
-        # Парсим obj_def (строка или dict)
+    def _write_object_rights(self, parent: ET.Element, obj_def, ns: str) -> None:
+        """Записать права на один объект в реальном формате 1C."""
         if isinstance(obj_def, str):
             parsed = self._parse_object_shorthand(obj_def)
         elif isinstance(obj_def, dict):
@@ -1439,25 +1457,24 @@ class RoleCompiler:
 
         # Разделяем Type.Name
         type_str, name = object_name.split(".", 1)
-        # Нормализуем тип
         type_en = RU_OBJECT_TYPE_SYNONYMS.get(type_str, type_str)
 
-        obj_elem = ET.SubElement(parent, f"{{{NS_RIGHTS}}}Object")
-        obj_elem.set("name", f"{type_en}.{name}")
+        obj_elem = ET.SubElement(parent, f"{{{ns}}}object")
+
+        # name как child element (не атрибут!)
+        name_elem = ET.SubElement(obj_elem, f"{{{ns}}}name")
+        name_elem.text = f"{type_en}.{name}"
 
         # Определяем набор прав
         rights_set: set[str] = set()
 
-        # Пресет
         preset = parsed.get("preset")
         if preset and preset in RIGHTS_PRESETS:
             preset_rights = RIGHTS_PRESETS[preset].get(type_en) or RIGHTS_PRESETS[preset].get("_default", [])
             rights_set.update(preset_rights)
 
-        # Явные права
         explicit_rights = parsed.get("rights", [])
         if isinstance(explicit_rights, dict):
-            # Форма {"Right": bool}
             for right, val in explicit_rights.items():
                 right_en = RU_RIGHT_SYNONYMS.get(right, right)
                 if val:
@@ -1469,18 +1486,26 @@ class RoleCompiler:
                 right_en = RU_RIGHT_SYNONYMS.get(right, right)
                 rights_set.add(right_en)
 
-        # Записываем права
+        # Записываем права в реальном формате: <right><name>Read</name><value>true</value></right>
         for right in sorted(rights_set):
-            r_elem = ET.SubElement(obj_elem, f"{{{NS_RIGHTS}}}{right}")
-            r_elem.text = "true"
+            right_elem = ET.SubElement(obj_elem, f"{{{ns}}}right")
+            r_name = ET.SubElement(right_elem, f"{{{ns}}}name")
+            r_name.text = right
+            r_value = ET.SubElement(right_elem, f"{{{ns}}}value")
+            r_value.text = "true"
 
         # RLS
         rls = parsed.get("rls", {})
         if rls:
             for right_name, condition in rls.items():
                 right_en = RU_RIGHT_SYNONYMS.get(right_name, right_name)
-                rls_elem = ET.SubElement(obj_elem, f"{{{NS_RIGHTS}}}{right_en}")
-                rls_elem.set("rls", condition.replace("&", "&amp;"))
+                right_elem = ET.SubElement(obj_elem, f"{{{ns}}}right")
+                r_name = ET.SubElement(right_elem, f"{{{ns}}}name")
+                r_name.text = right_en
+                r_value = ET.SubElement(right_elem, f"{{{ns}}}value")
+                r_value.text = "true"
+                rls_elem = ET.SubElement(right_elem, f"{{{ns}}}restriction")
+                rls_elem.text = condition  # ET сам экранирует &
 
     def _parse_object_shorthand(self, shorthand: str) -> dict:
         """Парсит 'Тип.Имя: @пресет' или 'Тип.Имя: Право1, Право2'."""
@@ -1498,13 +1523,7 @@ class RoleCompiler:
             return {"name": obj_part, "rights": rights}
         return {"name": obj_part}
 
-    def _write_rls_template(self, parent: ET.Element, tmpl_def: dict) -> None:
-        """Записать шаблон RLS."""
-        tmpl_elem = ET.SubElement(parent, f"{{{NS_RIGHTS}}}Template")
-        tmpl_elem.set("name", tmpl_def.get("name", ""))
-        condition = tmpl_def.get("condition", "")
-        cond_elem = ET.SubElement(tmpl_elem, f"{{{NS_RIGHTS}}}Condition")
-        cond_elem.text = condition.replace("&", "&amp;")
+# _write_rls_template удалён — интегрирован в _write_rights_xml
 
 
 # ============================================================================

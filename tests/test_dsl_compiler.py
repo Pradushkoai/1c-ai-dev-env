@@ -856,14 +856,18 @@ class TestRoleCompiler:
 
         rights_path = tmp_path / "Roles" / "Viewer" / "Ext" / "Rights.xml"
         root = _parse_xml(rights_path)
-        objects = _find_all_tags(root, "Object")
+        # Новый формат: <object> (lowercase)
+        objects = _find_all_tags(root, "object")
         assert len(objects) == 1
-        # Должны быть права Read, View (минимум)
-        object_elem = objects[0]
+        # Ищем права: <right><name>Read</name><value>true</value></right>
         rights_found = []
-        for child in object_elem:
+        for child in objects[0]:
             local = child.tag.split("}")[-1] if "}" in child.tag else child.tag
-            rights_found.append(local)
+            if local == "right":
+                for sub in child:
+                    st = sub.tag.split("}")[-1] if "}" in sub.tag else sub.tag
+                    if st == "name" and sub.text:
+                        rights_found.append(sub.text)
         assert "Read" in rights_found
         assert "View" in rights_found
 
@@ -883,12 +887,15 @@ class TestRoleCompiler:
 
         rights_path = tmp_path / "Roles" / "Editor" / "Ext" / "Rights.xml"
         root = _parse_xml(rights_path)
-        objects = _find_all_tags(root, "Object")
-        object_elem = objects[0]
+        objects = _find_all_tags(root, "object")
         rights_found = []
-        for child in object_elem:
+        for child in objects[0]:
             local = child.tag.split("}")[-1] if "}" in child.tag else child.tag
-            rights_found.append(local)
+            if local == "right":
+                for sub in child:
+                    st = sub.tag.split("}")[-1] if "}" in sub.tag else sub.tag
+                    if st == "name" and sub.text:
+                        rights_found.append(sub.text)
         assert "Read" in rights_found
         assert "Insert" in rights_found
         assert "Update" in rights_found
@@ -909,11 +916,15 @@ class TestRoleCompiler:
 
         rights_path = tmp_path / "Roles" / "R" / "Ext" / "Rights.xml"
         root = _parse_xml(rights_path)
-        objects = _find_all_tags(root, "Object")
+        objects = _find_all_tags(root, "object")
         rights_found = []
         for child in objects[0]:
             local = child.tag.split("}")[-1] if "}" in child.tag else child.tag
-            rights_found.append(local)
+            if local == "right":
+                for sub in child:
+                    st = sub.tag.split("}")[-1] if "}" in sub.tag else sub.tag
+                    if st == "name" and sub.text:
+                        rights_found.append(sub.text)
         assert "Read" in rights_found
         assert "View" in rights_found
 
@@ -933,9 +944,16 @@ class TestRoleCompiler:
 
         rights_path = tmp_path / "Roles" / "R" / "Ext" / "Rights.xml"
         root = _parse_xml(rights_path)
-        objects = _find_all_tags(root, "Object")
-        # Имя объекта должно быть нормализовано: Catalog.Товары
-        assert objects[0].get("name") == "Catalog.Товары"
+        objects = _find_all_tags(root, "object")
+        # Имя объекта в child <name> должно быть нормализовано: Catalog.Товары
+        name_elem = None
+        for child in objects[0]:
+            local = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+            if local == "name":
+                name_elem = child
+                break
+        assert name_elem is not None
+        assert name_elem.text == "Catalog.Товары"
 
     def test_compile_role_shorthand_string(self, tmp_path):
         """Строковый shorthand 'Тип.Имя: @пресет'."""
@@ -951,7 +969,7 @@ class TestRoleCompiler:
 
         rights_path = tmp_path / "Roles" / "R" / "Ext" / "Rights.xml"
         root = _parse_xml(rights_path)
-        objects = _find_all_tags(root, "Object")
+        objects = _find_all_tags(root, "object")
         assert len(objects) == 1
 
     def test_compile_role_rls_templates(self, tmp_path):
@@ -970,7 +988,8 @@ class TestRoleCompiler:
 
         rights_path = tmp_path / "Roles" / "R" / "Ext" / "Rights.xml"
         root = _parse_xml(rights_path)
-        templates = _find_all_tags(root, "Template")
+        # Новый формат: <template> (lowercase)
+        templates = _find_all_tags(root, "template")
         assert len(templates) == 1
 
     def test_compile_role_missing_name_raises(self, tmp_path):
