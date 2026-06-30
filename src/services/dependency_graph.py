@@ -78,6 +78,53 @@ class DependencyGraphResult:
     warnings: list[str] = field(default_factory=list)
 
 
+# Маппинг множественного числа (из metadata-index) → единственное (TYPE_MAP)
+PLURAL_TO_SINGULAR: dict[str, str] = {
+    "Catalogs": "Catalog",
+    "Documents": "Document",
+    "Enums": "Enum",
+    "Constants": "Constant",
+    "InformationRegisters": "InformationRegister",
+    "AccumulationRegisters": "AccumulationRegister",
+    "AccountingRegisters": "AccountingRegister",
+    "CalculationRegisters": "CalculationRegister",
+    "ChartsOfAccounts": "ChartOfAccounts",
+    "ChartsOfCharacteristicTypes": "ChartOfCharacteristicTypes",
+    "ChartsOfCalculationTypes": "ChartOfCalculationTypes",
+    "BusinessProcesses": "BusinessProcess",
+    "Tasks": "Task",
+    "ExchangePlans": "ExchangePlan",
+    "DocumentJournals": "DocumentJournal",
+    "Reports": "Report",
+    "DataProcessors": "DataProcessor",
+    "CommonModules": "CommonModule",
+    "CommonForms": "CommonForm",
+    "CommonCommands": "CommonCommand",
+    "CommonTemplates": "CommonTemplate",
+    "CommonPictures": "CommonPicture",
+    "CommonAttributes": "CommonAttribute",
+    "CommandGroups": "CommandGroup",
+    "DefinedTypes": "DefinedType",
+    "DocumentNumerators": "DocumentNumerator",
+    "EventSubscriptions": "EventSubscription",
+    "FilterCriteria": "FilterCriterion",
+    "FunctionalOptions": "FunctionalOption",
+    "FunctionalOptionsParameters": "FunctionalOptionParameter",
+    "HTTPServices": "HTTPService",
+    "ScheduledJobs": "ScheduledJob",
+    "Sequences": "Sequence",
+    "SessionParameters": "SessionParameter",
+    "SettingsStorages": "SettingsStorage",
+    "Styles": "Style",
+    "StyleItems": "StyleItem",
+    "Subsystems": "Subsystem",
+    "Roles": "Role",
+    "WebServices": "WebService",
+    "WSReferences": "WSReference",
+    "XDTOPackages": "XDTOPackage",
+}
+
+
 class DependencyGraph:
     """Граф зависимостей метаданных 1С на networkx.
 
@@ -152,8 +199,10 @@ class DependencyGraph:
         """Сканировать реквизиты ссылочных типов."""
         objects_by_type = metadata.get("objects", {})
         for type_name, objs in objects_by_type.items():
+            # Нормализуем множественное → единственное (Catalogs → Catalog)
+            singular = PLURAL_TO_SINGULAR.get(type_name, type_name)
             for obj in objs:
-                obj_full = f"{type_name}.{obj.get('name', '')}"
+                obj_full = f"{singular}.{obj.get('name', '')}"
                 if obj_full not in self._graph:
                     self._graph.add_node(obj_full)
 
@@ -175,10 +224,19 @@ class DependencyGraph:
     ) -> None:
         """Проверить тип реквизита на ссылочный."""
         attr_name = attr.get("name", "")
-        attr_type = attr.get("type", "")
+        # metadata_extractor хранит типы в 'types' (список), не в 'type' (строка)
+        # Поддерживаем оба формата для совместимости
+        attr_types = attr.get("types", [])
+        if not attr_types:
+            type_str = attr.get("type", "")
+            if type_str:
+                attr_types = [type_str]
 
-        # Парсим типы: CatalogRef.Контрагенты, DocumentRef.Заказ, и т.д.
-        refs = self._extract_refs(attr_type)
+        # Объединяем все типы в одну строку для парсинга
+        # (составной тип: CatalogRef.А, CatalogRef.Б)
+        combined_type = ", ".join(str(t) for t in attr_types if t)
+
+        refs = self._extract_refs(combined_type)
         for ref_type, ref_name in refs:
             target = f"{ref_type}.{ref_name}"
             if target != source_obj:  # не ссылка на себя
@@ -222,9 +280,11 @@ class DependencyGraph:
         objects_by_type = metadata.get("objects", {})
 
         # Информационные регистры и регистры накопления
-        for reg_type in ("InformationRegister", "AccumulationRegister",
-                         "AccountingRegister", "CalculationRegister"):
-            for reg in objects_by_type.get(reg_type, []):
+        # Поддерживаем оба формата: единственное (InformationRegister) и множественное (InformationRegisters)
+        for reg_type_plural in ("InformationRegisters", "AccumulationRegisters",
+                                 "AccountingRegisters", "CalculationRegisters"):
+            reg_type = PLURAL_TO_SINGULAR.get(reg_type_plural, reg_type_plural)
+            for reg in objects_by_type.get(reg_type, []) + objects_by_type.get(reg_type_plural, []):
                 reg_full = f"{reg_type}.{reg.get('name', '')}"
                 if reg_full not in self._graph:
                     self._graph.add_node(reg_full)
