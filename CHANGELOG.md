@@ -1,6 +1,33 @@
 # Changelog
 
 
+## [4.11.0] — 2026-06-30
+
+### Quality improvements: benchmarks, E2E tests, lxml, CI
+
+NEW: tests/test_benchmarks.py — 13 performance тестов
+- XML parsing: single Catalog (0.2ms), Configuration (11ms), 100 Catalogs (118ms)
+- BSL analysis: security_audit, code_metrics, transaction_check, query_analyzer
+- Index loading: unified-metadata (3.8s), api-reference (1.3s), form-index (0.5s)
+
+NEW: tests/test_e2e.py — 7 end-to-end тестов
+- Full cycle: generate_processing → validate → build_epf
+- Full cycle: generate_report → validate → build_epf
+- Security audit on generated code (0 CRITICAL)
+- Code metrics on generated code (health >= 80)
+- Full solve_check (quick) on generated code (0 errors)
+
+NEW: scripts/xml_parser.py — безопасный XML парсер с lxml fallback
+NEW: tests/test_xml_parser.py — 6 тестов (включая XXE защиту)
+NEW: scripts/check_versions.py — pre-commit hook для проверки версий
+NEW: docs/API.md — программный API
+NEW: docs/TROUBLESHOOTING.md — решение типичных проблем
+
+UPDATE: .github/workflows/ci.yml — 3 jobs (lint + version-check + test)
+UPDATE: requirements-optional.txt — lxml>=4.9.0
+
+Статистика: 531 тест (было 504), 0 warnings
+
 ## [4.9.0] — 2026-06-30
 
 ### Технический долг: синхронизация версий + MCP tools
