@@ -1122,6 +1122,14 @@ def main() -> None:
         cmd_cfe(project, args)
     elif args.command == "skd-trace":
         cmd_skd_trace(project, args)
+    elif args.command == "depgraph":
+        cmd_depgraph(project, args)
+    elif args.command == "openspec":
+        cmd_openspec(project, args)
+    elif args.command == "session":
+        cmd_session(project, args)
+    elif args.command == "inspect":
+        cmd_inspect(project, args)
 
 
 # ============================================================================
@@ -1313,6 +1321,707 @@ def cmd_skd_trace(project: Project, args: argparse.Namespace) -> None:
 
 
 # Добавляем в main() обработку новых команд
+
+
+# ============================================================================
+# DEPGRAPH — граф зависимостей метаданных
+# ============================================================================
+
+def cmd_depgraph(project: Project, args: argparse.Namespace) -> None:
+    """Граф зависимостей метаданных 1С (networkx, без Neo4j)."""
+    from .services.dependency_graph import DependencyGraph
+
+    if args.depgraph_command == "build":
+        dg = DependencyGraph()
+        result = dg.build_from_metadata_index(args.name, project.paths)
+        print(f"✅ Граф зависимостей: {result.config_name}")
+        print(f"   Узлов: {len(result.nodes)}")
+        print(f"   Рёбер: {len(result.edges)}")
+        if result.warnings:
+            for w in result.warnings:
+                print(f"   ⚠️ {w}")
+        # Сохраняем в файл
+        output = args.output or f"derived/configs/{args.name}/dependency-graph.json"
+        out_path = Path(output)
+        if not out_path.is_absolute():
+            out_path = project.paths.root / output
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        import json as json_mod
+        out_path.write_text(
+            json_mod.dumps(dg.to_dict(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        print(f"   Сохранено: {out_path}")
+
+    elif args.depgraph_command == "query":
+        dg = DependencyGraph()
+        dg.build_from_metadata_index(args.name, project.paths)
+
+        if args.query_type == "what_depends_on":
+            result = dg.what_depends_on(args.object)
+            print(f"=== Что зависит от {args.object} ===")
+            for r in result:
+                print(f"  ← {r['source']} ({r['relation']}) {r['detail']}")
+            print(f"\nИтого: {len(result)} зависимых")
+
+        elif args.query_type == "dependencies_of":
+            result = dg.dependencies_of(args.object)
+            print(f"=== На что ссылается {args.object} ===")
+            for r in result:
+                print(f"  → {r['target']} ({r['relation']}) {r['detail']}")
+            print(f"\nИтого: {len(result)} зависимостей")
+
+        elif args.query_type == "transitive_dependencies":
+            result = dg.transitive_dependencies(args.object)
+            print(f"=== Транзитивные зависимости {args.object} ===")
+            for r in result:
+                print(f"  → {r}")
+            print(f"\nИтого: {len(result)}")
+
+        elif args.query_type == "transitive_dependents":
+            result = dg.transitive_dependents(args.object)
+            print(f"=== Кто зависит от {args.object} (транзитивно) ===")
+            for r in result:
+                print(f"  ← {r}")
+            print(f"\nИтого: {len(result)}")
+
+        elif args.query_type == "find_cycles":
+            result = dg.find_cycles()
+            print(f"=== Циклические зависимости ===")
+            for i, cycle in enumerate(result, 1):
+                print(f"  {i}. {' → '.join(cycle)}")
+            print(f"\nИтого: {len(result)} циклов")
+
+        elif args.query_type == "find_unused_objects":
+            result = dg.find_unused_objects()
+            print(f"=== Мёртвый код (на кого не ссылаются) ===")
+            for r in result:
+                print(f"  • {r}")
+            print(f"\nИтого: {len(result)} объектов")
+
+        elif args.query_type == "find_root_objects":
+            result = dg.find_root_objects()
+            print(f"=== Корневые объекты (на них ссылаются, сами ни на кого) ===")
+            for r in result:
+                print(f"  • {r}")
+            print(f"\nИтого: {len(result)} объектов")
+
+        elif args.query_type == "shortest_path":
+            if not args.target:
+                print("❌ Укажите --target")
+                sys.exit(2)
+            result = dg.shortest_path(args.object, args.target)
+            if result:
+                print(f"=== Кратчайший путь {args.object} → {args.target} ===")
+                print(f"  {' → '.join(result)}")
+            else:
+                print(f"❌ Путь не найден: {args.object} → {args.target}")
+
+        elif args.query_type == "stats":
+            stats = dg.get_stats()
+            print(f"=== Статистика графа ===")
+            for k, v in stats.items():
+                print(f"  {k}: {v}")
+
+    elif args.depgraph_command == "validate":
+        """Проверить что граф DAG (нет циклов)."""
+        dg = DependencyGraph()
+        dg.build_from_metadata_index(args.name, project.paths)
+        stats = dg.get_stats()
+        if stats["is_dag"]:
+            print(f"✅ Граф — DAG (нет циклов)")
+        else:
+            print(f"❌ Граф содержит циклы: {stats['cycles']}")
+            cycles = dg.find_cycles()
+            for i, cycle in enumerate(cycles, 1):
+                print(f"  {i}. {' → '.join(cycle)}")
+
+
+# ============================================================================
+# OPENSPEC — Specification-Driven Development
+# ============================================================================
+
+def cmd_openspec(project: Project, args: argparse.Namespace) -> None:
+    """OpenSpec — управление изменениями."""
+    from .services.openspec_manager import OpenSpecManager, SpecDelta
+
+    osm = OpenSpecManager(project_root=project.paths.root)
+
+    if args.openspec_command == "init":
+        osm.init_project(args.project_name or "1C AI Dev Environment")
+        print(f"✅ OpenSpec инициализирован: {project.paths.root / 'openspec'}")
+
+    elif args.openspec_command == "proposal":
+        tasks = args.tasks.split(",") if args.tasks else []
+        files = args.files.split(",") if args.files else []
+        change = osm.create_proposal(
+            change_id=args.change_id,
+            title=args.title,
+            context=args.context or "",
+            approach=args.approach or "",
+            tasks=tasks,
+            files=files,
+        )
+        print(f"✅ Proposal создан: {change.change_id}")
+        print(f"   Title: {change.title}")
+        print(f"   Tasks: {len(change.tasks)}")
+        print(f"   Путь: {project.paths.root / 'openspec' / 'changes' / change.change_id}")
+
+    elif args.openspec_command == "list":
+        changes = osm.list_changes(include_archived=args.archived)
+        if not changes:
+            print("Нет changes.")
+            return
+        print(f"{'ID':<30} {'Title':<40} {'Status':<15} {'Progress':<10}")
+        print("-" * 95)
+        for c in changes:
+            archived = " (arch)" if c["archived"] else ""
+            print(f"{c['change_id']:<30} {c['title']:<40} {c['status']:<15} {c['progress']:<10}{archived}")
+
+    elif args.openspec_command == "update":
+        completed = None
+        if args.completed:
+            completed = True
+        elif args.not_completed:
+            completed = False
+        result = osm.update_task(args.change_id, args.task_index, completed, args.notes or "")
+        if result:
+            print(f"✅ Задача {args.task_index} обновлена в '{args.change_id}'")
+        else:
+            print(f"❌ Не удалось обновить задачу {args.task_index} в '{args.change_id}'")
+
+    elif args.openspec_command == "archive":
+        result = osm.archive(args.change_id)
+        if result:
+            print(f"✅ Change '{args.change_id}' архивирован")
+        else:
+            print(f"❌ Не удалось архивировать '{args.change_id}'")
+
+    elif args.openspec_command == "validate":
+        errors = osm.validate(args.change_id)
+        if not errors:
+            print(f"✅ Change '{args.change_id}' валиден")
+        else:
+            print(f"❌ Ошибки в '{args.change_id}':")
+            for e in errors:
+                print(f"  • {e}")
+
+
+# ============================================================================
+# SESSION — управление контекстом AI-сессий
+# ============================================================================
+
+def cmd_session(project: Project, args: argparse.Namespace) -> None:
+    """Управление контекстом AI-сессий."""
+    from .services.session_manager import SessionManager
+
+    sm = SessionManager(project_root=project.paths.root)
+
+    if args.session_command == "save":
+        completed = args.completed.split(",") if args.completed else []
+        pending = args.pending.split(",") if args.pending else []
+        files = args.modified.split(",") if args.modified else []
+        decisions = args.decisions.split(",") if args.decisions else []
+        path = sm.save(
+            current_task=args.task or "",
+            completed=completed,
+            pending=pending,
+            next_action=args.next_action or "",
+            key_decisions=decisions,
+            modified_files=files,
+            context_summary=args.summary or "",
+        )
+        print(f"✅ Сессия сохранена: {path}")
+
+    elif args.session_command == "restore":
+        state = sm.restore()
+        if not state:
+            print("Нет сохранённой сессии.")
+            return
+        print(f"📅 Сессия от {state.date}")
+        print(f"\n📋 Задача: {state.current_task}")
+        if state.completed:
+            print(f"\n✅ Выполнено ({len(state.completed)}):")
+            for item in state.completed:
+                print(f"  • {item}")
+        if state.pending:
+            print(f"\n⏳ Осталось ({len(state.pending)}):")
+            for item in state.pending:
+                print(f"  • {item}")
+        if state.next_action:
+            print(f"\n➡️ Следующий шаг: {state.next_action}")
+        if state.key_decisions:
+            print(f"\n🎯 Решения ({len(state.key_decisions)}):")
+            for d in state.key_decisions:
+                print(f"  • {d}")
+        if state.modified_files:
+            print(f"\n📁 Изменено файлов: {len(state.modified_files)}")
+
+    elif args.session_command == "retro":
+        print(sm.retro())
+
+    elif args.session_command == "clear":
+        if sm.clear():
+            print("✅ Сессия очищена")
+        else:
+            print("Нет сохранённой сессии для очистки")
+
+
+# ============================================================================
+# INSPECT — единый анализ объектов 1С (как у конкурента)
+# ============================================================================
+
+def cmd_inspect(project: Project, args: argparse.Namespace) -> None:
+    """Единый inspect — анализ объектов 1С с режимами.
+
+    Аналог /inspect из 1c-ai-development-kit — объединяет:
+    - cf-info (обзор конфигурации)
+    - meta-info (объект метаданных)
+    - form-info (форма)
+    - skd-info (СКД с режимом trace)
+    - mxl-info (MXL макет)
+    - role-info (роль)
+    - subsystem-info (подсистема)
+    - depgraph-info (граф зависимостей)
+    """
+    import json as json_mod
+
+    target = args.target
+    mode = args.mode
+    path = Path(args.path)
+
+    if not path.exists():
+        print(f"❌ Файл/каталог не найден: {path}")
+        sys.exit(2)
+
+    if target == "cf":
+        # Обзор конфигурации (Configuration.xml)
+        _inspect_cf(path, mode)
+
+    elif target == "meta":
+        # Объект метаданных
+        _inspect_meta(path, mode, args.name)
+
+    elif target == "form":
+        # Форма
+        _inspect_form(path, mode)
+
+    elif target == "skd":
+        # СКД (с trace mode)
+        if mode == "trace":
+            if not args.name:
+                print("❌ Для trace mode укажите --name <поле>")
+                sys.exit(2)
+            import sys as sys_mod
+            sys_mod.path.insert(0, str(project.paths.scripts_dir))
+            from skd_parser import trace_field
+            result = trace_field(path, args.name)
+            if "error" in result:
+                print(f"❌ {result['error']}")
+                if "available_fields" in result:
+                    print(f"\nДоступные поля ({len(result['available_fields'])}):")
+                    for p in result["available_fields"][:20]:
+                        print(f"  • {p}")
+            else:
+                print(result["trace_text"])
+        else:
+            _inspect_skd(path, mode)
+
+    elif target == "mxl":
+        _inspect_mxl(path, mode)
+
+    elif target == "role":
+        _inspect_role(path, mode)
+
+    elif target == "subsystem":
+        _inspect_subsystem(path, mode)
+
+    elif target == "depgraph":
+        # Граф зависимостей
+        from .services.dependency_graph import DependencyGraph
+        config_name = args.name
+        if not config_name:
+            print("❌ Для depgraph укажите --name <config_name>")
+            sys.exit(2)
+        dg = DependencyGraph()
+        result = dg.build_from_metadata_index(config_name, project.paths)
+        print(f"=== Граф зависимостей: {result.config_name} ===")
+        print(f"Узлов: {len(result.nodes)}")
+        print(f"Рёбер: {len(result.edges)}")
+        stats = dg.get_stats()
+        for k, v in stats.items():
+            print(f"  {k}: {v}")
+
+    else:
+        print(f"❌ Неизвестный target: {target}")
+        print("Доступные: cf, meta, form, skd, mxl, role, subsystem, depgraph")
+        sys.exit(2)
+
+
+def _inspect_cf(config_path: Path, mode: str) -> None:
+    """Обзор конфигурации."""
+    import xml.etree.ElementTree as ET
+
+    if config_path.is_dir():
+        config_path = config_path / "Configuration.xml"
+    if not config_path.exists():
+        print(f"❌ Configuration.xml не найден: {config_path}")
+        return
+
+    tree = ET.parse(config_path)
+    root = tree.getroot()
+
+    def _strip_ns(tag):
+        return tag.split("}")[-1] if "}" in tag else tag
+
+    # Поиск Configuration
+    config = None
+    for elem in root.iter():
+        if _strip_ns(elem.tag) == "Configuration":
+            config = elem
+            break
+
+    if config is None:
+        print("❌ Configuration элемент не найден")
+        return
+
+    props = None
+    for elem in config:
+        if _strip_ns(elem.tag) == "Properties":
+            props = elem
+            break
+
+    print(f"=== Configuration ===")
+    if props:
+        for prop in props:
+            tag = _strip_ns(prop.tag)
+            text = prop.text or ""
+            if text:
+                print(f"  {tag}: {text}")
+
+    # ChildObjects — счётчики по типам
+    child_objects = None
+    for elem in config:
+        if _strip_ns(elem.tag) == "ChildObjects":
+            child_objects = elem
+            break
+
+    if child_objects:
+        type_counts: dict[str, int] = {}
+        for child in child_objects:
+            tag = _strip_ns(child.tag)
+            type_counts[tag] = type_counts.get(tag, 0) + 1
+        print(f"\n=== Объекты по типам ===")
+        for t, count in sorted(type_counts.items()):
+            print(f"  {t}: {count}")
+
+
+def _inspect_meta(meta_path: Path, mode: str, name: str | None = None) -> None:
+    """Обзор объекта метаданных."""
+    import xml.etree.ElementTree as ET
+
+    if meta_path.is_dir():
+        # Ищем <Name>.xml
+        if name:
+            candidate = meta_path / f"{name}.xml"
+            if candidate.exists():
+                meta_path = candidate
+        else:
+            # Берём первый .xml
+            xmls = list(meta_path.glob("*.xml"))
+            if xmls:
+                meta_path = xmls[0]
+
+    if not meta_path.exists():
+        print(f"❌ Файл не найден: {meta_path}")
+        return
+
+    tree = ET.parse(meta_path)
+    root = tree.getroot()
+
+    def _strip_ns(tag):
+        return tag.split("}")[-1] if "}" in tag else tag
+
+    # Определяем тип объекта по корневому тегу
+    obj_type = _strip_ns(root.tag)
+    print(f"=== {obj_type} ===")
+
+    # Properties
+    props = None
+    for elem in root:
+        if _strip_ns(elem.tag) == "Properties":
+            props = elem
+            break
+
+    if props:
+        for prop in props:
+            tag = _strip_ns(prop.tag)
+            text = prop.text or ""
+            if text and len(text) < 100:
+                print(f"  {tag}: {text}")
+
+    # ChildObjects
+    child_objects = None
+    for elem in root:
+        if _strip_ns(elem.tag) == "ChildObjects":
+            child_objects = elem
+            break
+
+    if child_objects:
+        print(f"\n=== Дочерние объекты ===")
+        type_counts: dict[str, int] = {}
+        for child in child_objects:
+            tag = _strip_ns(child.tag)
+            type_counts[tag] = type_counts.get(tag, 0) + 1
+        for t, count in sorted(type_counts.items()):
+            print(f"  {t}: {count}")
+
+
+def _inspect_form(form_path: Path, mode: str) -> None:
+    """Обзор формы."""
+    import xml.etree.ElementTree as ET
+
+    tree = ET.parse(form_path)
+    root = tree.getroot()
+
+    def _strip_ns(tag):
+        return tag.split("}")[-1] if "}" in tag else tag
+
+    print(f"=== Form ===")
+
+    # Считаем элементы
+    item_counts: dict[str, int] = {}
+    for elem in root.iter():
+        tag = _strip_ns(elem.tag)
+        if tag in ("InputField", "Button", "Group", "Label", "Table",
+                    "Pages", "Page", "CheckBox", "RadioButton",
+                    "Hyperlink", "ProgressBar", "TextDocField",
+                    "SpreadSheetDocField", "Picture", "CalendarField",
+                    "TrackBar", "CommandBar", "UsualGroup"):
+            item_counts[tag] = item_counts.get(tag, 0) + 1
+
+    print(f"Элементы:")
+    for t, count in sorted(item_counts.items(), key=lambda x: -x[1]):
+        print(f"  {t}: {count}")
+
+
+def _inspect_skd(skd_path: Path, mode: str) -> None:
+    """Обзор СКД."""
+    import xml.etree.ElementTree as ET
+
+    if skd_path.is_dir():
+        candidate = skd_path / "Ext" / "Template.xml"
+        if candidate.exists():
+            skd_path = candidate
+
+    tree = ET.parse(skd_path)
+    root = tree.getroot()
+
+    def _strip_ns(tag):
+        return tag.split("}")[-1] if "}" in tag else tag
+
+    print(f"=== СКД ===")
+
+    # DataSets
+    data_sets = []
+    for elem in root.iter():
+        if _strip_ns(elem.tag) == "dataSet":
+            name_elem = None
+            for child in elem:
+                if _strip_ns(child.tag) == "name":
+                    name_elem = child
+                    break
+            data_sets.append(name_elem.text if name_elem is not None else "?")
+
+    print(f"Наборов данных: {len(data_sets)}")
+    for ds in data_sets:
+        print(f"  • {ds}")
+
+    # Parameters
+    params = []
+    for elem in root.iter():
+        if _strip_ns(elem.tag) == "parameter":
+            name_elem = None
+            for child in elem:
+                if _strip_ns(child.tag) == "name":
+                    name_elem = child
+                    break
+            params.append(name_elem.text if name_elem is not None else "?")
+
+    print(f"\nПараметров: {len(params)}")
+    for p in params:
+        print(f"  • {p}")
+
+    # Calculated fields
+    calc_fields = []
+    for elem in root.iter():
+        if _strip_ns(elem.tag) == "calculatedField":
+            name_elem = None
+            for child in elem:
+                if _strip_ns(child.tag) == "dataPath":
+                    name_elem = child
+                    break
+            calc_fields.append(name_elem.text if name_elem is not None else "?")
+
+    if calc_fields:
+        print(f"\nВычисляемых полей: {len(calc_fields)}")
+        for cf in calc_fields:
+            print(f"  • {cf}")
+
+    # Total fields (resources)
+    totals = []
+    for elem in root.iter():
+        if _strip_ns(elem.tag) == "totalField":
+            name_elem = None
+            for child in elem:
+                if _strip_ns(child.tag) == "dataPath":
+                    name_elem = child
+                    break
+            totals.append(name_elem.text if name_elem is not None else "?")
+
+    if totals:
+        print(f"\nИтоговых полей (ресурсов): {len(totals)}")
+        for t in totals:
+            print(f"  • {t}")
+
+
+def _inspect_mxl(mxl_path: Path, mode: str) -> None:
+    """Обзор MXL макета."""
+    import xml.etree.ElementTree as ET
+
+    if mxl_path.is_dir():
+        candidate = mxl_path / "Ext" / "Template.xml"
+        if candidate.exists():
+            mxl_path = candidate
+
+    tree = ET.parse(mxl_path)
+    root = tree.getroot()
+
+    def _strip_ns(tag):
+        return tag.split("}")[-1] if "}" in tag else tag
+
+    print(f"=== MXL Макет ===")
+
+    # Areas
+    areas = []
+    for elem in root.iter():
+        if _strip_ns(elem.tag) == "area":
+            name = elem.get("name", "?")
+            areas.append(name)
+
+    print(f"Областей: {len(areas)}")
+    for a in areas:
+        print(f"  • {a}")
+
+    # Columns
+    cols = 0
+    for elem in root.iter():
+        if _strip_ns(elem.tag) == "column":
+            cols += 1
+    print(f"\nКолонок: {cols}")
+
+    # Parameters
+    params = []
+    for elem in root.iter():
+        if _strip_ns(elem.tag) == "parameter":
+            name = elem.get("name", "?")
+            params.append(name)
+    if params:
+        print(f"Параметров: {len(params)}")
+        for p in params[:20]:
+            print(f"  • {p}")
+
+
+def _inspect_role(role_path: Path, mode: str) -> None:
+    """Обзор роли."""
+    import xml.etree.ElementTree as ET
+
+    if role_path.is_dir():
+        # Ищем Rights.xml
+        candidate = role_path / "Ext" / "Rights.xml"
+        if candidate.exists():
+            role_path = candidate
+        else:
+            # Ищем <Name>.xml
+            xmls = list(role_path.glob("*.xml"))
+            if xmls:
+                role_path = xmls[0]
+
+    tree = ET.parse(role_path)
+    root = tree.getroot()
+
+    def _strip_ns(tag):
+        return tag.split("}")[-1] if "}" in tag else tag
+
+    print(f"=== Role ===")
+
+    # Objects
+    objects = []
+    for elem in root.iter():
+        if _strip_ns(elem.tag) == "Object":
+            name = elem.get("name", "?")
+            rights = []
+            for child in elem:
+                tag = _strip_ns(child.tag)
+                if child.text == "true":
+                    rights.append(tag)
+            objects.append((name, rights))
+
+    print(f"Объектов с правами: {len(objects)}")
+    for name, rights in objects[:20]:
+        print(f"  • {name}: {', '.join(rights) if rights else '(нет прав)'}")
+    if len(objects) > 20:
+        print(f"  ... и ещё {len(objects) - 20}")
+
+
+def _inspect_subsystem(subsystem_path: Path, mode: str) -> None:
+    """Обзор подсистемы."""
+    import xml.etree.ElementTree as ET
+
+    if subsystem_path.is_dir():
+        xmls = list(subsystem_path.glob("*.xml"))
+        if xmls:
+            subsystem_path = xmls[0]
+
+    tree = ET.parse(subsystem_path)
+    root = tree.getroot()
+
+    def _strip_ns(tag):
+        return tag.split("}")[-1] if "}" in tag else tag
+
+    print(f"=== Subsystem ===")
+
+    # Properties
+    props = None
+    for elem in root:
+        if _strip_ns(elem.tag) == "Properties":
+            props = elem
+            break
+
+    if props:
+        for prop in props:
+            tag = _strip_ns(prop.tag)
+            text = prop.text or ""
+            if text and len(text) < 100:
+                print(f"  {tag}: {text}")
+
+    # ChildObjects (content)
+    child_objects = None
+    for elem in root:
+        if _strip_ns(elem.tag) == "ChildObjects":
+            child_objects = elem
+            break
+
+    if child_objects:
+        print(f"\n=== Содержимое ===")
+        type_counts: dict[str, int] = {}
+        for child in child_objects:
+            tag = _strip_ns(child.tag)
+            type_counts[tag] = type_counts.get(tag, 0) + 1
+        for t, count in sorted(type_counts.items()):
+            print(f"  {t}: {count}")
+
+
 
 
 if __name__ == "__main__":
