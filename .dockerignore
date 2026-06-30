@@ -1,0 +1,65 @@
+# Docker ignore — не копировать в образ
+# Уменьшает размер build context и ускоряет сборку
+
+# Git
+.git
+.gitignore
+
+# Данные пользователя (большие, генерируются)
+data/
+derived/
+runtime/
+learned-skills/
+
+# Python кэш
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+
+# Виртуальные окружения
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage / тесты
+.coverage
+coverage.xml
+coverage_html/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.sarif-reports/
+
+# Build artifacts
+build/
+dist/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Документация (не нужна в runtime)
+*.md
+docs/
+.github/
+
+# CI / tools
+*.yml
+*.yaml
+!pyproject.toml
+
+# Временные файлы
+*.tmp
+*.bak
+*.log
