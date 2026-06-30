@@ -1970,20 +1970,36 @@ def _inspect_skd(skd_path: Path, mode: str) -> None:
     for ds in data_sets:
         print(f"  • {ds}")
 
-    # Parameters
+    # Parameters — ищем в dataParameters (реальные параметры СКД)
+    # Формат: dataParameters → item → parameter (с именем параметра)
     params = []
     for elem in root.iter():
-        if _strip_ns(elem.tag) == "parameter":
-            name_elem = None
-            for child in elem:
-                if _strip_ns(child.tag) == "name":
-                    name_elem = child
-                    break
-            params.append(name_elem.text if name_elem is not None else "?")
+        if _strip_ns(elem.tag) == "dataParameters":
+            for item in elem:
+                if _strip_ns(item.tag) == "item":
+                    for child in item:
+                        if _strip_ns(child.tag) == "parameter":
+                            if child.text:
+                                params.append(child.text)
+            break
+
+    # Fallback: если dataParameters пустой, ищем parameter с name
+    if not params:
+        for elem in root.iter():
+            if _strip_ns(elem.tag) == "parameter":
+                name_elem = None
+                for child in elem:
+                    if _strip_ns(child.tag) == "name":
+                        name_elem = child
+                        break
+                if name_elem is not None and name_elem.text:
+                    params.append(name_elem.text)
 
     print(f"\nПараметров: {len(params)}")
-    for p in params:
+    for p in params[:20]:
         print(f"  • {p}")
+    if len(params) > 20:
+        print(f"  ... и ещё {len(params) - 20}")
 
     # Calculated fields
     calc_fields = []
