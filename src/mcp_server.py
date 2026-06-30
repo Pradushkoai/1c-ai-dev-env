@@ -1420,6 +1420,123 @@ def create_mcp_server() -> Server:
                 return [types.TextContent(type="text",
                     text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
+        elif name == "inspect":
+            """Единый inspect — анализ объектов 1С с режимами (как у конкурента).
+
+            target: cf | meta | form | skd | mxl | role | subsystem
+            mode: overview | brief | full | trace (для skd)
+            """
+            import xml.etree.ElementTree as _ET
+
+            target = arguments.get("target", "cf")
+            mode = arguments.get("mode", "overview")
+            path_str = arguments.get("path", "")
+            field_name = arguments.get("name", "")
+
+            if not path_str:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": "path required"}, ensure_ascii=False))]
+
+            path = Path(path_str)
+            if not path.exists():
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": f"File not found: {path}"}, ensure_ascii=False))]
+
+            def _strip_ns(tag):
+                return tag.split("}")[-1] if "}" in tag else tag
+
+            try:
+                if target == "cf":
+                    if path.is_dir():
+                        path = path / "Configuration.xml"
+                    tree = _ET.parse(path)
+                    root = tree.getroot()
+
+                    config = None
+                    for elem in root.iter():
+                        if _strip_ns(elem.tag) == "Configuration":
+                            config = elem
+                            break
+
+                    result = {"target": "cf", "path": str(path)}
+                    if config is not None:
+                        props = None
+                        for elem in config:
+                            if _strip_ns(elem.tag) == "Properties":
+                                props = elem
+                                break
+                        if props is not None:
+                            result["properties"] = {
+                                _strip_ns(p.tag): p.text for p in props
+                                if p.text and len(p.text) < 200
+                            }
+
+                        # ChildObjects
+                        child_objects = None
+                        for elem in config:
+                            if _strip_ns(elem.tag) == "ChildObjects":
+                                child_objects = elem
+                                break
+                        if child_objects is not None:
+                            type_counts = {}
+                            for child in child_objects:
+                                tag = _strip_ns(child.tag)
+                                type_counts[tag] = type_counts.get(tag, 0) + 1
+                            result["objects_by_type"] = type_counts
+                            result["total_objects"] = sum(type_counts.values())
+
+                    return [types.TextContent(type="text",
+                        text=json.dumps(result, ensure_ascii=False, indent=2))]
+
+                elif target == "skd" and mode == "trace":
+                    # SKD trace mode
+                    import sys as _sys
+                    _sys.path.insert(0, str(project.paths.scripts_dir))
+                    from skd_parser import trace_field as _trace
+
+                    if path.is_dir():
+                        path = path / "Ext" / "Template.xml"
+
+                    if not field_name:
+                        return [types.TextContent(type="text",
+                            text=json.dumps({"error": "name required for trace mode"}, ensure_ascii=False))]
+
+                    result = _trace(path, field_name)
+                    return [types.TextContent(type="text",
+                        text=json.dumps(result, ensure_ascii=False, indent=2))]
+
+                elif target == "depgraph":
+                    # Граф зависимостей
+                    config_name = arguments.get("config_name", "")
+                    if not config_name:
+                        return [types.TextContent(type="text",
+                            text=json.dumps({"error": "config_name required for depgraph"}, ensure_ascii=False))]
+
+                    from .services.dependency_graph import DependencyGraph
+                    dg = DependencyGraph()
+                    build_result = dg.build_from_metadata_index(config_name, project.paths)
+
+                    return [types.TextContent(type="text",
+                        text=json.dumps({
+                            "target": "depgraph",
+                            "config_name": build_result.config_name,
+                            "nodes": len(build_result.nodes),
+                            "edges": len(build_result.edges),
+                            "stats": dg.get_stats(),
+                            "warnings": build_result.warnings,
+                        }, ensure_ascii=False, indent=2))]
+
+                else:
+                    return [types.TextContent(type="text",
+                        text=json.dumps({
+                            "error": f"target '{target}' with mode '{mode}' not yet implemented",
+                            "available": ["cf", "skd+trace", "depgraph"]
+                        }, ensure_ascii=False))]
+
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
         elif name == "data_status":
             # Статус данных проекта
             from .services.data_package import DataPackage
