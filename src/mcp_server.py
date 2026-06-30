@@ -838,11 +838,10 @@ def create_mcp_server() -> Server:
     async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
         """Выполняет tool и возвращает результат."""
         # Структурированный лог каждого вызова — для отладки и аудита
-        log.info(
-            "mcp_tool_called",
-            tool=name,
-            args_keys=list(arguments.keys()) if arguments else [],
-        )
+        try:
+            log.info(f"mcp_tool_called: {name} args={list(arguments.keys()) if arguments else []}")
+        except Exception:
+            pass  # лог не должен ломать выполнение
 
         if name == "list_configs":
             configs = project.list_configs_info()
