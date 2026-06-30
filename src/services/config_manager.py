@@ -9,15 +9,92 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import zipfile
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional
 
 from ..models.configuration import Configuration
 from ..models.config_registry import ConfigurationRegistry
 from .path_manager import PathManager
 
 logger = logging.getLogger(__name__)
+
+
+# --- Директории 1С, которые считаются валидными метаданными ---
+
+REQUIRED_TYPE_DIRS: tuple[str, ...] = (
+    "Catalogs", "Documents", "Enums", "Constants", "CommonModules",
+    "InformationRegisters", "AccumulationRegisters", "Reports",
+    "DataProcessors", "CommonForms", "CommonTemplates", "CommonCommands",
+    "CommonPictures", "Roles", "Subsystems", "EventSubscriptions",
+    "ScheduledJobs", "DefinedTypes", "FunctionalOptions",
+    "ExchangePlans", "ChartsOfCharacteristicTypes", "HTTPServices",
+    "WebServices", "XDTOPackages", "FilterCriteria", "SessionParameters",
+    "CommandGroups", "SettingsStorages", "BusinessProcesses", "Tasks",
+    "DocumentJournals", "DocumentNumerators", "Sequences",
+    "FunctionalOptionsParameters", "CommonAttributes", "WSReferences",
+)
+
+# Минимум одна из этих директорий должна быть, чтобы считать выгрузку валидной
+MIN_REQUIRED_DIRS: tuple[str, ...] = ("CommonModules", "Catalogs", "Documents", "Subsystems")
+
+
+@dataclass
+class SourceValidation:
+    """Результат валидации исходников конфигурации."""
+    is_valid: bool
+    has_configuration_xml: bool = False
+    has_metadata_dirs: bool = False
+    has_bsl_files: bool = False
+    found_type_dirs: list[str] = field(default_factory=list)
+    missing_critical: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+
+@dataclass
+class IndexStatus:
+    """Статус одного индекса конфигурации."""
+    name: str            # metadata | api | skd | forms
+    path: Optional[Path]
+    exists: bool
+    mtime: Optional[float]      # время модификации индекса (epoch)
+    size_bytes: int = 0
+    is_stale: bool = False      # True если source новее индекса
+    stale_reason: str = ""      # объяснение почему stale
+
+
+@dataclass
+class IndexFreshnessReport:
+    """Полный отчёт об актуальности всех индексов конфигурации."""
+    config_name: str
+    source_mtime: Optional[float]      # самый свежий .xml/.bsl в исходниках
+    indexes: list[IndexStatus] = field(default_factory=list)
+    all_fresh: bool = True
+    missing_indexes: list[str] = field(default_factory=list)
+    stale_indexes: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "config": self.config_name,
+            "source_mtime": self.source_mtime,
+            "all_fresh": self.all_fresh,
+            "missing": self.missing_indexes,
+            "stale": self.stale_indexes,
+            "indexes": [
+                {
+                    "name": i.name,
+                    "exists": i.exists,
+                    "is_stale": i.is_stale,
+                    "stale_reason": i.stale_reason,
+                    "size_bytes": i.size_bytes,
+                }
+                for i in self.indexes
+            ],
+        }
 
 
 class ConfigManager:
@@ -175,7 +252,141 @@ class ConfigManager:
 
     # --- Индексация ---
 
-    def build(self, name: str) -> dict:
+    def validate_sources(self, name: str) -> SourceValidation:
+        """Проверить что исходники конфигурации валидны для индексации.
+
+        Проверяет:
+        - Configuration.xml (обязателен для полной XML выгрузки)
+        - Хотя бы одну из MIN_REQUIRED_DIRS директорий
+        - Наличие .bsl файлов (предупреждение если нет)
+        """
+        config = self._registry.get(name)
+        if not config or not config.is_active():
+            return SourceValidation(
+                is_valid=False,
+                errors=[f"Конфигурация '{name}' не активна"],
+            )
+
+        result = SourceValidation(is_valid=True)
+        config_dir = config.path
+
+        # 1. Configuration.xml
+        cfg_xml = config_dir / "Configuration.xml"
+        result.has_configuration_xml = cfg_xml.exists()
+        if not result.has_configuration_xml:
+            result.errors.append("Configuration.xml не найден — это не полная XML выгрузка")
+            result.is_valid = False
+
+        # 2. Метаданные-директории
+        for type_dir in REQUIRED_TYPE_DIRS:
+            d = config_dir / type_dir
+            if d.is_dir() and any(d.iterdir()):
+                result.found_type_dirs.append(type_dir)
+
+        # Хотя бы одна критическая директория
+        has_critical = any(d in result.found_type_dirs for d in MIN_REQUIRED_DIRS)
+        result.has_metadata_dirs = has_critical
+        if not has_critical:
+            result.missing_critical = list(MIN_REQUIRED_DIRS)
+            result.errors.append(
+                "Ни одна из критических директорий не найдена: "
+                + ", ".join(MIN_REQUIRED_DIRS)
+            )
+            result.is_valid = False
+
+        # 3. .bsl файлы (предупреждение)
+        try:
+            bsl_count = sum(1 for _ in config_dir.rglob("*.bsl"))
+            result.has_bsl_files = bsl_count > 0
+            if not result.has_bsl_files:
+                result.warnings.append(
+                    ".bsl файлы не найдены — api-reference будет пустым. "
+                    "Возможно это .cf распаковка без адаптации."
+                )
+        except (OSError, PermissionError) as e:
+            result.warnings.append(f"Не удалось проверить .bsl файлы: {e}")
+
+        return result
+
+    def check_freshness(self, name: str) -> IndexFreshnessReport:
+        """Проверить актуальность индексов конфигурации.
+
+        Для каждого из 4 индексов (metadata/api/skd/forms):
+        - существует ли файл?
+        - новее ли source чем index? (по mtime)
+        """
+        config = self._registry.get(name)
+        if not config or not config.is_active():
+            return IndexFreshnessReport(
+                config_name=name,
+                source_mtime=None,
+                all_fresh=False,
+                missing_indexes=["metadata", "api", "skd", "forms"],
+            )
+
+        # Самый свежий файл исходников
+        source_mtime = self._latest_source_mtime(config.path)
+
+        derived_dir = self._paths.config_derived_dir(name)
+        index_files = {
+            "metadata": derived_dir / "unified-metadata-index.json",
+            "api": self._paths.config_api_reference_json(name),
+            "skd": derived_dir / "skd-index.json",
+            "forms": derived_dir / "form-index.json",
+        }
+
+        report = IndexFreshnessReport(
+            config_name=name,
+            source_mtime=source_mtime,
+        )
+
+        for idx_name, idx_path in index_files.items():
+            status = IndexStatus(name=idx_name, path=idx_path, exists=False, mtime=None)
+
+            if idx_path and idx_path.exists():
+                status.exists = True
+                status.mtime = idx_path.stat().st_mtime
+                status.size_bytes = idx_path.stat().st_size
+
+                # Сравнение: если source новее индекса — устарел
+                if source_mtime is not None and source_mtime > status.mtime:
+                    status.is_stale = True
+                    delta = int(source_mtime - status.mtime)
+                    status.stale_reason = (
+                        f"исходники новее на {delta} сек "
+                        f"(source={time.ctime(source_mtime)}, index={time.ctime(status.mtime)})"
+                    )
+                    report.stale_indexes.append(idx_name)
+                    report.all_fresh = False
+            else:
+                status.is_stale = True
+                status.stale_reason = "индекс отсутствует"
+                report.missing_indexes.append(idx_name)
+                report.all_fresh = False
+
+            report.indexes.append(status)
+
+        return report
+
+    @staticmethod
+    def _latest_source_mtime(config_dir: Path) -> Optional[float]:
+        """Найти самый свежий mtime среди .xml и .bsl файлов исходников."""
+        latest: Optional[float] = None
+        try:
+            for pattern in ("*.xml", "*.bsl"):
+                for f in config_dir.rglob(pattern):
+                    if f.is_file():
+                        try:
+                            m = f.stat().st_mtime
+                            if latest is None or m > latest:
+                                latest = m
+                        except (OSError, PermissionError):
+                            continue
+        except (OSError, PermissionError):
+            pass
+        return latest
+
+    def build(self, name: str, force: bool = False, skip_if_fresh: bool = True) -> dict:
         """Построить ВСЕ индексы для конфигурации. Возвращает отчёт.
 
         Запускает 4 парсера:
@@ -183,10 +394,39 @@ class ConfigManager:
         2. build_api_reference.py → api-reference.json + api-reference.md
         3. skd_parser.py → skd-index.json
         4. form_analyzer.py → form-index.json
+
+        Args:
+            name: имя конфигурации
+            force: если True — пересобрать даже если индексы свежие
+            skip_if_fresh: если True (default) — пропустить индексы которые свежие
+                          (только когда force=False)
         """
         config = self._registry.get(name)
         if not config or not config.is_active():
             raise ValueError(f"Конфигурация '{name}' не активна")
+
+        # Валидация исходников перед индексацией
+        validation = self.validate_sources(name)
+        if not validation.is_valid:
+            raise ValueError(
+                f"Исходники конфигурации '{name}' невалидны: "
+                + "; ".join(validation.errors)
+            )
+
+        # Проверка актуальности (если не force)
+        skipped: list[str] = []
+        if not force and skip_if_fresh:
+            freshness = self.check_freshness(name)
+            if freshness.all_fresh:
+                return {
+                    "name": name,
+                    "metadata": True,
+                    "api": True,
+                    "skd": True,
+                    "forms": True,
+                    "skipped": ["all"],
+                    "reason": "all indexes fresh",
+                }
 
         report = {
             "name": name,
@@ -194,6 +434,7 @@ class ConfigManager:
             "api": False,
             "skd": False,
             "forms": False,
+            "skipped": skipped,
         }
 
         derived_dir = self._paths.config_derived_dir(name)
@@ -202,45 +443,97 @@ class ConfigManager:
         config_dir = config.path
         scripts_dir = self._paths.scripts_dir
 
-        # 1. Unified metadata index (metadata_extractor.py)
-        try:
-            self._run_script(
+        # Список парсеров: (ключ отчёта, путь к скрипту, индекс-файл, аргументы)
+        parsers: list[tuple[str, Path, Path, list[str]]] = [
+            (
+                "metadata",
                 scripts_dir / "metadata_extractor.py",
+                derived_dir / "unified-metadata-index.json",
                 [str(config_dir), str(derived_dir / "unified-metadata-index.json")],
-            )
+            ),
+            (
+                "skd",
+                scripts_dir / "skd_parser.py",
+                derived_dir / "skd-index.json",
+                [str(config_dir), str(derived_dir / "skd-index.json")],
+            ),
+            (
+                "forms",
+                scripts_dir / "form_analyzer.py",
+                derived_dir / "form-index.json",
+                [str(config_dir), str(derived_dir / "form-index.json")],
+            ),
+        ]
+
+        # Определяем какие индексы нужно перестроить
+        freshness_map: dict[str, bool] = {}  # name → нужно перестроить
+        if not force and skip_if_fresh:
+            freshness = self.check_freshness(name)
+            for idx in freshness.indexes:
+                freshness_map[idx.name] = idx.is_stale or not idx.exists
+        else:
+            freshness_map = {"metadata": True, "api": True, "skd": True, "forms": True}
+
+        # 1. metadata_extractor
+        if freshness_map.get("metadata", True):
+            try:
+                self._run_script(
+                    scripts_dir / "metadata_extractor.py",
+                    [str(config_dir), str(derived_dir / "unified-metadata-index.json")],
+                )
+                report["metadata"] = True
+            except Exception as e:
+                print(f"  ⚠️ metadata_extractor: {e}")
+        else:
             report["metadata"] = True
-        except Exception as e:
-            print(f"  ⚠️ metadata_extractor: {e}")
+            skipped.append("metadata")
 
         # 2. API reference (build_api_reference.py)
         if config.common_modules_dir:
-            api_md = self._paths.config_api_reference_md(name)
-            api_json = self._paths.config_api_reference_json(name)
-            try:
-                self._build_api_reference(config, api_md, api_json)
+            if freshness_map.get("api", True):
+                api_md = self._paths.config_api_reference_md(name)
+                api_json = self._paths.config_api_reference_json(name)
+                try:
+                    self._build_api_reference(config, api_md, api_json)
+                    report["api"] = True
+                except Exception as e:
+                    print(f"  ⚠️ build_api_reference: {e}")
+            else:
                 report["api"] = True
-            except Exception as e:
-                print(f"  ⚠️ build_api_reference: {e}")
+                skipped.append("api")
+        else:
+            report["api"] = False
+            report.setdefault("skipped_reasons", {})["api"] = "no CommonModules dir"
 
         # 3. SKD index (skd_parser.py)
-        try:
-            self._run_script(
-                scripts_dir / "skd_parser.py",
-                [str(config_dir), str(derived_dir / "skd-index.json")],
-            )
+        if freshness_map.get("skd", True):
+            try:
+                self._run_script(
+                    scripts_dir / "skd_parser.py",
+                    [str(config_dir), str(derived_dir / "skd-index.json")],
+                )
+                report["skd"] = True
+            except Exception as e:
+                print(f"  ⚠️ skd_parser: {e}")
+        else:
             report["skd"] = True
-        except Exception as e:
-            print(f"  ⚠️ skd_parser: {e}")
+            skipped.append("skd")
 
         # 4. Form index (form_analyzer.py)
-        try:
-            self._run_script(
-                scripts_dir / "form_analyzer.py",
-                [str(config_dir), str(derived_dir / "form-index.json")],
-            )
+        if freshness_map.get("forms", True):
+            try:
+                self._run_script(
+                    scripts_dir / "form_analyzer.py",
+                    [str(config_dir), str(derived_dir / "form-index.json")],
+                )
+                report["forms"] = True
+            except Exception as e:
+                print(f"  ⚠️ form_analyzer: {e}")
+        else:
             report["forms"] = True
-        except Exception as e:
-            print(f"  ⚠️ form_analyzer: {e}")
+            skipped.append("forms")
+
+        report["skipped"] = skipped
 
         # Обновить реестр
         config.objects_count = self._count_objects(config.path)
@@ -258,11 +551,11 @@ class ConfigManager:
         if result.returncode != 0:
             raise RuntimeError(f"{script_path.name} failed: {result.stderr[-500:]}")
 
-    def build_all(self) -> list[dict]:
+    def build_all(self, force: bool = False) -> list[dict]:
         """Индексы для всех активных конфигураций."""
         results = []
         for config in self._registry.list_active():
-            results.append(self.build(config.name))
+            results.append(self.build(config.name, force=force))
         return results
 
     # --- Удаление ---
