@@ -118,19 +118,37 @@ def cmd_config_build_all(project: Project, args: argparse.Namespace) -> None:
 
 
 def cmd_bsl_analyze(project: Project, args: argparse.Namespace) -> None:
-    result = project.bsl_analyzer.analyze(Path(args.path))
-    print(f"Всего: {result.total}")
-    for code, count in sorted(result.by_code.items(), key=lambda x: -x[1])[:15]:
-        print(f"  {count:4d}  {code}")
+    try:
+        result = project.bsl_analyzer.analyze(Path(args.path))
+        print(f"Всего: {result.total}")
+        for code, count in sorted(result.by_code.items(), key=lambda x: -x[1])[:15]:
+            print(f"  {count:4d}  {code}")
+    except FileNotFoundError as e:
+        print(f"❌ BSL Language Server не установлен: {e}")
+        print("   Установите: bash install.sh")
+    except Exception as e:
+        print(f"❌ Ошибка анализа: {e}")
 
 
 def cmd_bsl_baseline(project: Project, args: argparse.Namespace) -> None:
-    result = project.bsl_analyzer.save_baseline(Path(args.path))
-    print(f"✅ Baseline: {result.total} диагностик")
+    try:
+        result = project.bsl_analyzer.save_baseline(Path(args.path))
+        print(f"✅ Baseline: {result.total} диагностик")
+    except FileNotFoundError as e:
+        print(f"❌ BSL Language Server не установлен: {e}")
+    except Exception as e:
+        print(f"❌ Ошибка: {e}")
 
 
 def cmd_bsl_diff(project: Project, args: argparse.Namespace) -> None:
-    diff = project.bsl_analyzer.diff(Path(args.path))
+    try:
+        diff = project.bsl_analyzer.diff(Path(args.path))
+    except FileNotFoundError as e:
+        print(f"❌ BSL Language Server не установлен: {e}")
+        return
+    except Exception as e:
+        print(f"❌ Ошибка: {e}")
+        return
     print(f"\n🆕 НОВЫЕ ({len(diff.new)}):")
     for d in diff.new[:20]:
         print(f"  + {d['code']} (строка {d['line']}): {d['message']}")
@@ -672,29 +690,23 @@ def cmd_mcp(project: Project, args: argparse.Namespace) -> None:
             print("   Установите: pip install mcp")
             sys.exit(1)
     elif args.mcp_command == 'tools':
-        # Выводим список tools без запуска сервера
-        try:
-            import asyncio
-
-            from .mcp_server import create_mcp_server
-
-            async def _list():
-                server = create_mcp_server()
-                # Достаём handler через декоратор
-                # Простой путь — повторно вызвать описание
-                from .mcp_server import _get_tools_description
-                return _get_tools_description()
-
-            tools = asyncio.run(_list())
-            print(f"MCP tools ({len(tools)}):")
-            print()
-            for t in tools:
-                print(f"  • {t['name']}")
-                print(f"    {t['description']}")
-                print()
-        except ImportError as e:
-            print(f"❌ MCP SDK не установлен: {e}")
-            sys.exit(1)
+        # Выводим список tools — парсим из mcp_server.py
+        import re
+        mcp_src = Path(__file__).parent / "mcp_server.py"
+        src = mcp_src.read_text(encoding="utf-8")
+        # Извлекаем все name="..." из types.Tool( блоков
+        tools = re.findall(r'name="([a-z_0-9]+)"', src)
+        # Убираем дубликаты сохраняя порядок
+        seen = set()
+        unique_tools = []
+        for t in tools:
+            if t not in seen:
+                seen.add(t)
+                unique_tools.append(t)
+        print(f"MCP tools ({len(unique_tools)}):")
+        print()
+        for t in unique_tools:
+            print(f"  • {t}")
 
 
 def cmd_data(project: Project, args: argparse.Namespace) -> None:
