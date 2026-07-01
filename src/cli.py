@@ -1224,6 +1224,28 @@ def main() -> None:
         choices=["overview", "brief", "full", "trace"])
     p_inspect.add_argument("--name")
 
+    # epf-factory — полный цикл создания внешней обработки 1С (.epf)
+    p_epf = sub.add_parser("epf-factory",
+        help="Создание внешней обработки 1С (.epf) из шаблонов")
+    epf_sub = p_epf.add_subparsers(dest="epf_command", required=True)
+
+    p_epf_create = epf_sub.add_parser("create", help="Создать .epf из BSL-кода")
+    p_epf_create.add_argument("--name", required=True,
+        help="Имя обработки (латиница/кириллица, без пробелов)")
+    p_epf_create.add_argument("--synonym", help="Синоним (по умолчанию = name)")
+    p_epf_create.add_argument("--bsl", required=True,
+        help="Путь к .bsl файлу с модулем формы")
+    p_epf_create.add_argument("--output", required=True,
+        help="Путь к выходному .epf файлу")
+    p_epf_create.add_argument("--form-name", default="Форма",
+        help="Имя формы (по умолчанию Форма)")
+    p_epf_create.add_argument("--save-sources", action="store_true",
+        help="Сохранить v8unpack-исходники в work_dir (не удалять)")
+    p_epf_create.add_argument("--skip-bsl-validation", action="store_true",
+        help="Пропустить проверку BSL через BSL LS")
+
+    epf_sub.add_parser("templates", help="Список доступных шаблонов")
+
     args = parser.parse_args()
     project = Project()
 
@@ -1275,6 +1297,73 @@ def main() -> None:
         cmd_session(project, args)
     elif args.command == "inspect":
         cmd_inspect(project, args)
+    elif args.command == "epf-factory":
+        cmd_epf_factory(project, args)
+
+
+# ============================================================================
+# EPF Factory — полный цикл создания внешней обработки 1С
+# ============================================================================
+
+def cmd_epf_factory(project: Project, args: argparse.Namespace) -> None:
+    """Полный цикл создания внешней обработки 1С (.epf) из шаблонов.
+
+    Подход:
+        1. Шаблоны ExternalDataProcessor.json / Form.json / Form.id.json /
+           Form.elem.json (извлечены из реального EPF через v8unpack)
+        2. Подстановка name, synonym, новых UUID (обработка + форма + file)
+        3. Запись BSL-модуля формы
+        4. Проверка BSL через BSL LS (опционально)
+        5. Сборка .epf через v8unpack
+        6. Проверка round-trip: распаковка и сравнение BSL-модуля
+    """
+    from .services.epf_factory import EpfFactory
+
+    factory = EpfFactory()
+
+    if args.epf_command == "templates":
+        templates = factory.list_templates()
+        print("Шаблоны epf-factory:")
+        for k, v in templates.items():
+            print(f"  {k:20s}  {v}")
+        return
+
+    if args.epf_command == "create":
+        import json as json_mod
+        from pathlib import Path as PathMod
+
+        bsl_path = PathMod(args.bsl)
+        if not bsl_path.exists():
+            print(f"❌ BSL-файл не найден: {bsl_path}")
+            sys.exit(2)
+        bsl_code = bsl_path.read_text(encoding="utf-8")
+
+        result = factory.create_epf(
+            name=args.name,
+            synonym=args.synonym,
+            bsl_code=bsl_code,
+            output_epf=args.output,
+            form_name=args.form_name,
+            save_sources=args.save_sources,
+            skip_bsl_validation=args.skip_bsl_validation,
+        )
+
+        if not result.ok:
+            print(f"❌ Ошибка: {result.error}")
+            sys.exit(1)
+
+        print(f"✅ EPF создан: {result.epf_path}")
+        print(f"   Размер: {result.size_bytes} байт ({result.size_bytes/1024:.1f} КБ)")
+        print(f"   Имя:    {result.name}")
+        print(f"   Синоним: {result.synonym}")
+        print(f"   UUID обработки: {result.proc_uuid}")
+        print(f"   UUID формы:     {result.form_uuid}")
+        print(f"   BSL-модуль: {result.bsl_lines} строк")
+        if not args.skip_bsl_validation:
+            print(f"   BSL LS: {result.bsl_errors} errors, {result.bsl_warnings} warnings")
+        print(f"   Round-trip: {'✅ OK' if result.round_trip_ok else '❌ FAIL'}")
+        if result.work_dir:
+            print(f"   Исходники сохранены: {result.work_dir}")
 
 
 # ============================================================================
