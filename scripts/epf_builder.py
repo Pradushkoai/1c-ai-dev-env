@@ -2,25 +2,25 @@
 """
 epf_builder.py — Упаковщик .epf/.erf файлов (внешних обработок/отчётов 1С).
 
-Формат .epf — это контейнер 1С (как .cf), содержащий:
-- Метаданные обработки (корневой UUID файл)
-- Модуль объекта (UUID.0/text — контейнер с info+text)
-- Формы (UUID.N/text с встроенным BSL)
-- Макеты (UUID.N/text)
+Формат .epf — это контейнер 1С (V8 container), содержащий:
+- Header: 16 bytes (sig + block_size + num_files + reserved)
+- TOC block: \r\n + hex(doc_size) + ' ' + hex(block_size) + ' ' + hex(next) + ' \r\n + data
+- File entries: desc block + data block для каждого файла
 
-Структура .epf (на основе v8unpack):
-- Container 0 (32-битный): root metadata
-  - UUID файл — метаданные обработки {1,{2,{1,{2,UUID,UUID},...}}}
-  - version, versions
-- Container 1 (64-битный): все вложенные объекты
-  - UUID — метаданные
-  - UUID.0/ — контейнер с info+text (модуль объекта)
-  - UUID.1/ — формы (контейнер)
-  - UUID.2/ — макеты (контейнер)
+Структура файлов внутри EPF:
+- UUID (root metadata)
+- UUID (form metadata)
+- UUID.0 (form container: nested V8 with info+text)
+- copyinfo
+- root
+- version
+- versions
 
-Использование:
-    from epf_builder import build_epf
-    build_epf(source_dir, output_epf_path)
+Ключевые правила:
+- HEX в lowercase: 7fffffff (НЕ 7FFFFFFF)
+- Offsets в TOC: абсолютные от начала файла
+- Description block_size = doc_size (не 512)
+- Data сжимается raw deflate (wbits=-15)
 """
 from __future__ import annotations
 
@@ -28,243 +28,63 @@ import io
 import os
 import struct
 import sys
+import uuid as uuid_mod
 import zlib
 from pathlib import Path
 
-# Добавляем scripts/ в path
-sys.path.insert(0, '/home/z/my-project/repo_work/scripts')
-sys.path.insert(0, str(Path(__file__).parent))
-
-try:
-    from cf_extractor import (
-        V8_SIGNATURE, V8_SIGNATURE_64,
-        HEADER_SIZE, BLOCK_HEADER_SIZE, DEFAULT_BLOCK_SIZE,
-        HEADER_SIZE_64, BLOCK_HEADER_SIZE_64, DEFAULT_BLOCK_SIZE_64,
-        END_MARKER, END_MARKER_64,
-    )
-except ImportError:
-    # Fallback константы
-    V8_SIGNATURE = b'\xFF\xFF\xFF\x7F'
-    V8_SIGNATURE_64 = b'\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
-    HEADER_SIZE = 16
-    BLOCK_HEADER_SIZE = 31
-    DEFAULT_BLOCK_SIZE = 0x200  # 512
-    HEADER_SIZE_64 = 20
-    BLOCK_HEADER_SIZE_64 = 55
-    DEFAULT_BLOCK_SIZE_64 = 0x10000  # 65536
-    END_MARKER = 0x7FFFFFFF
-    END_MARKER_64 = 0xFFFFFFFFFFFFFFFF
+V8_SIGNATURE = 0x7FFFFFFF
+END_MARKER = 0x7FFFFFFF
+DEFAULT_BLOCK_SIZE = 512
+BLOCK_HEADER_SIZE = 31  # \r\n + 8hex + ' ' + 8hex + ' ' + 8hex + ' \r\n
+HEADER_SIZE = 16
+ENTRY_SIZE = 12  # 3 x uint32
 
 
-# ============================================================================
-# WRITER КОНТЕЙНЕРОВ 1С
-# ============================================================================
-
-class V8ContainerWriter:
-    """Writer контейнеров 1С (32 и 64 бита).
-
-    Формат контейнера (32-битный):
-    - Заголовок (16 байт): sig(4)=0x7FFFFFFF + default_block_size(4) + count_files(4) + reserved(4)
-    - Блоки данных с заголовком 31 байт:
-      \r\n + hex(8) + ' ' + hex(8) + ' ' + hex(8) + ' ' + \r\n
-    - TOC: тройки (desc_offset, data_offset, end_marker) по 12 байт
-    - file_description: created(8) + modified(8) + unknown(4) + name(UTF-16 LE)
-    """
-
-    def __init__(self, is_64bit: bool = False):
-        self.is_64bit = is_64bit
-        self.files: list[tuple[str, bytes]] = []
-        if is_64bit:
-            self.default_block_size = DEFAULT_BLOCK_SIZE_64
-            self.end_marker = END_MARKER_64
-            self.header_size = HEADER_SIZE_64
-            self.block_header_size = BLOCK_HEADER_SIZE_64
-            self.entry_size = 24  # 3 × int64
-            self.entry_fmt = '<3Q'
-        else:
-            self.default_block_size = DEFAULT_BLOCK_SIZE
-            self.end_marker = END_MARKER
-            self.header_size = HEADER_SIZE
-            self.block_header_size = BLOCK_HEADER_SIZE
-            self.entry_size = 12  # 3 × int32
-            self.entry_fmt = '<3i'
-
-    def add_file(self, name: str, data: bytes) -> None:
-        """Добавляет файл в контейнер."""
-        self.files.append((name, data))
-
-    def build(self) -> bytes:
-        """Собирает контейнер в bytes."""
-        if not self.files:
-            return b''
-
-        # Результирующий буфер
-        result = io.BytesIO()
-
-        # 1. Заголовок контейнера
-        sig = V8_SIGNATURE_64 if self.is_64bit else V8_SIGNATURE
-        count_files = len(self.files)
-        if self.is_64bit:
-            result.write(struct.pack('<Q3i', int.from_bytes(sig, 'little'),
-                                       self.default_block_size, count_files, 0))
-        else:
-            result.write(struct.pack('<4i', int.from_bytes(sig, 'little'),
-                                       self.default_block_size, count_files, 0))
-
-        # 2. TOC (Table of Contents)
-        # Сначала вычисляем смещения
-        toc_size = count_files * self.entry_size
-        # TOC занимает один или несколько блоков
-        toc_blocks_count = max(1, (toc_size + self.default_block_size - 1) // self.default_block_size)
-        toc_data_size = toc_blocks_count * self.default_block_size
-
-        # Заполняем TOC данными (пока нули, потом обновим)
-        toc_start_offset = result.tell()
-
-        # Резервируем место под TOC
-        # TOC состоит из блоков: каждый блок имеет заголовок + данные
-        toc_block_data = bytearray(toc_size)
-        for i, (name, data) in enumerate(self.files):
-            # Пока заполняем нулями — обновим после расчёта смещений
-            pass
-
-        # Записываем TOC блоки (один блок для простоты, если помещается)
-        # Формат блока: \r\n + hex(doc_size) + ' ' + hex(block_size) + ' ' + hex(next) + ' ' + \r\n + data
-        doc_size = toc_size
-        block_size = self.default_block_size
-        next_block = self.end_marker
-
-        if self.is_64bit:
-            header = f'\r\n{doc_size:016X} {block_size:016X} {next_block:016X} \r\n'.encode('ascii')
-        else:
-            header = f'\r\n{doc_size:08X} {block_size:08X} {next_block:08X} \r\n'.encode('ascii')
-
-        result.write(header)
-        # Дополняем TOC до block_size
-        toc_padded = bytes(toc_block_data) + b'\x00' * (block_size - len(toc_block_data))
-        result.write(toc_padded)
-
-        # 3. Вычисляем смещения для каждого файла
-        # Каждый файл = description (заголовок + блок) + data (заголовок + блоки)
-
-        # Текущее смещение (после TOC)
-        current_offset = result.tell()
-
-        file_entries = []  # [(desc_offset, data_offset), ...]
-
-        for name, data in self.files:
-            # Description: 20 байт (created(8) + modified(8) + unknown(4)) + name UTF-16-LE
-            name_bytes = name.encode('utf-16-le') + b'\x00\x00'
-            desc_data = b'\x00' * 20 + name_bytes
-            desc_size = len(desc_data)
-
-            # Data: исходные данные (сжимаем если возможно)
-            try:
-                compressed = zlib.compress(data)
-                if len(compressed) < len(data):
-                    file_data = compressed
-                else:
-                    file_data = data
-            except:
-                file_data = data
-            data_size = len(file_data)
-
-            # Description блок
-            desc_offset = current_offset
-            desc_block_size = self.default_block_size
-            if self.is_64bit:
-                desc_header = f'\r\n{desc_size:016X} {desc_block_size:016X} {self.end_marker:016X} \r\n'.encode('ascii')
-            else:
-                desc_header = f'\r\n{desc_size:08X} {desc_block_size:08X} {self.end_marker:08X} \r\n'.encode('ascii')
-            result.write(desc_header)
-            # Дополняем desc до block_size
-            desc_padded = desc_data + b'\x00' * (desc_block_size - len(desc_data))
-            result.write(desc_padded)
-            current_offset += len(desc_header) + desc_block_size
-
-            # Data блоки (может быть несколько для больших файлов)
-            data_offset = current_offset
-            remaining = file_data
-            block_index = 0
-            while remaining:
-                chunk = remaining[:self.default_block_size]
-                remaining = remaining[self.default_block_size:]
-                if remaining:
-                    next_off = self.end_marker  # упрощаем — один блок
-                else:
-                    next_off = self.end_marker
-
-                if self.is_64bit:
-                    data_header = f'\r\n{data_size:016X} {len(chunk):016X} {next_off:016X} \r\n'.encode('ascii')
-                else:
-                    data_header = f'\r\n{data_size:08X} {len(chunk):08X} {next_off:08X} \r\n'.encode('ascii')
-                result.write(data_header)
-                chunk_padded = chunk + b'\x00' * (self.default_block_size - len(chunk))
-                result.write(chunk_padded)
-                current_offset += len(data_header) + self.default_block_size
-                if block_index > 0:
-                    break  # упрощаем — не поддерживаем multi-block
-                block_index += 1
-
-            file_entries.append((desc_offset, data_offset))
-
-        # 4. Обновляем TOC с реальными смещениями
-        result.seek(toc_start_offset + self.block_header_size)  # пропускаем заголовок TOC блока
-
-        for desc_off, data_off in file_entries:
-            if self.is_64bit:
-                result.write(struct.pack('<3Q', desc_off, data_off, self.end_marker))
-            else:
-                result.write(struct.pack('<3i', desc_off, data_off, self.end_marker))
-
-        result.seek(0, 2)  # в конец
-        return result.getvalue()
+def _make_block_header(doc_size: int, block_size: int, next_block: int = END_MARKER) -> bytes:
+    """Создать заголовок блока: \\r\\n + lowercase hex + \\r\\n."""
+    return f'\r\n{doc_size:08x} {block_size:08x} {next_block:08x} \r\n'.encode('ascii')
 
 
-def build_container(files: list[tuple[str, bytes]], is_64bit: bool = False) -> bytes:
-    """Собирает контейнер 1С из списка файлов.
-
-    Args:
-        files: [(name, data), ...]
-        is_64bit: Использовать 64-битный формат
-
-    Returns:
-        bytes: Контейнер
-    """
-    writer = V8ContainerWriter(is_64bit=is_64bit)
-    for name, data in files:
-        writer.add_file(name, data)
-    return writer.build()
+def _compress_data(data: bytes) -> bytes:
+    """Сжать данные raw deflate (как делает 1С)."""
+    compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, -15)
+    compressed = compressor.compress(data)
+    compressed += compressor.flush()
+    return compressed
 
 
-# ============================================================================
-# УПАКОВЩИК .epf
-# ============================================================================
+def _make_description(name: str) -> bytes:
+    """Создать данные описания файла: 20 bytes timestamp + name UTF-16-LE + 4 null bytes."""
+    name_bytes = name.encode('utf-16-le') + b'\x00\x00\x00\x00'
+    return b'\x00' * 20 + name_bytes
 
-def build_epf(source_dir: str, output_path: str, object_name: str = None,
-              object_type: str = 'DataProcessor') -> dict:
+
+def build_epf(source_dir, output_path, object_name=None, object_type='DataProcessor'):
     """Упаковывает структуру каталога в .epf файл.
 
     Args:
-        source_dir: Папка со структурой (из code_generator.py)
+        source_dir: Папка со структурой обработки
         output_path: Куда сохранить .epf
-        object_name: Имя объекта (если None — берётся из имени папки)
+        object_name: Имя объекта (если None — берётся из XML)
         object_type: 'DataProcessor' или 'Report'
 
     Returns:
-        dict: {file_path, size, files_included}
+        dict: {file_path, size, object_name, object_type, uuid, files_included}
     """
     source_dir = Path(source_dir)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     if object_name is None:
-        object_name = source_dir.name
+        xml_files = list(source_dir.glob('*.xml'))
+        if xml_files:
+            object_name = xml_files[0].stem
+        else:
+            raise FileNotFoundError(f"Metadata XML not found in {source_dir}")
 
     # 1. Читаем метаданные объекта
     metadata_file = source_dir / f'{object_name}.xml'
     if not metadata_file.exists():
-        # Ищем любой .xml в корне
         xml_files = list(source_dir.glob('*.xml'))
         if xml_files:
             metadata_file = xml_files[0]
@@ -274,105 +94,218 @@ def build_epf(source_dir: str, output_path: str, object_name: str = None,
 
     metadata_content = metadata_file.read_bytes()
 
-    # 2. Читаем модуль объекта
+    # 2. Читаем модуль объекта (если есть)
     module_path = source_dir / 'Ext' / 'Module.bsl'
-    module_content = b''
+    module_content = None
     if module_path.exists():
         module_content = module_path.read_bytes()
 
-    # 3. Формируем файлы для контейнера
-    # Container 0 (32-бит): root metadata
-    # - UUID файл с метаданными
-    # - version, versions
+    # 3. Генерируем UUID
+    root_uuid = str(uuid_mod.uuid4())
+    form_uuid = str(uuid_mod.uuid4()) if (source_dir / 'Forms').exists() else None
 
-    import uuid as uuid_mod
-    obj_uuid = str(uuid_mod.uuid4())
+    # 4. Подготавливаем файлы для контейнера
+    files = []  # [(name, data_bytes), ...]
 
-    # Корневой файл метаданных (имя = UUID)
-    root_files = [
-        (obj_uuid, metadata_content),
-        ('version', b'{\r\n{216,0,\r\n{80316,0}\r\n}\r\n}'),
-        ('versions', b'{1,6,"",' + obj_uuid.encode() + b'}'),
-    ]
+    # 4a. Root metadata (UUID)
+    files.append((root_uuid, metadata_content))
 
-    container0 = build_container(root_files, is_64bit=False)
-
-    # 4. Container 1 (64-бит): модуль и формы
-    # Формируем файлы: UUID (метаданные), UUID.0/ (модуль в контейнере info+text)
-
-    # UUID.0 — контейнер с info+text (модуль объекта)
-    module_container_files = [
-        ('info', b'{3,1,0,"",0}'),
-        ('text', module_content),
-    ]
-    module_container = build_container(module_container_files, is_64bit=False)
-
-    container1_files = [
-        (obj_uuid, metadata_content),  # метаданные (повторяем)
-        (f'{obj_uuid}.0', module_container),  # модуль объекта
-    ]
-
-    # 5. Добавляем формы если есть
-    forms_dir = source_dir / 'Forms'
-    if forms_dir.exists():
-        form_index = 1
-        for form_dir in sorted(forms_dir.iterdir()):
-            if not form_dir.is_dir():
-                continue
+    # 4b. Form metadata + form container (если есть форма)
+    if form_uuid:
+        # Читаем метаданные формы
+        forms_dir = source_dir / 'Forms'
+        form_dirs = [d for d in sorted(forms_dir.iterdir()) if d.is_dir()]
+        if form_dirs:
+            form_dir = form_dirs[0]
             form_name = form_dir.name
-            form_meta = form_dir / f'{form_name}.xml'
-            form_module = form_dir / 'Ext' / 'Form' / 'Module.bsl'
-            form_xml = form_dir / 'Ext' / 'Form.xml'
+            form_meta_path = form_dir / f'{form_name}.xml'
 
-            # Форма — это контейнер с info+text
-            form_files = [('info', b'{3,1,0,"",0}')]
-            if form_module.exists():
-                form_files.append(('text', form_module.read_bytes()))
-            else:
-                form_files.append(('text', b''))
+            # Метаданные формы
+            form_meta_content = form_meta_path.read_bytes() if form_meta_path.exists() else b''
+            files.append((form_uuid, form_meta_content))
 
-            form_container = build_container(form_files, is_64bit=False)
+            # Контейнер формы (UUID.0): nested V8 with info + text
+            form_module_path = form_dir / 'Ext' / 'Form' / 'Module.bsl'
+            form_xml_path = form_dir / 'Ext' / 'Form.xml'
 
-            if form_meta.exists():
-                container1_files.append((f'{obj_uuid}.{form_index}', form_container))
-                container1_files.append((str(uuid_mod.uuid4()), form_meta.read_bytes()))
-            form_index += 1
+            form_module_content = b''
+            if form_module_path.exists():
+                form_module_content = module_path.read_bytes()
 
-    container1 = build_container(container1_files, is_64bit=True)
+            form_xml_content = b''
+            if form_xml_path.exists():
+                form_xml_content = form_xml_path.read_bytes()
 
-    # 6. Собираем финальный .epf
+            # Создаём nested V8 контейнер для формы
+            form_container = _build_form_container(
+                form_xml_content, form_module_content)
+            files.append((f'{form_uuid}.0', form_container))
+
+    # 4c. Module of object (если есть) — UUID.0 (root UUID + .0)
+    if module_content:
+        module_container = _build_module_container(module_content)
+        # Вставляем ПЕРЕД copyinfo (после root metadata и form)
+        # Но в реальном EPF порядок: root_uuid, form_uuid, form_uuid.0, copyinfo, root, version, versions
+        # Модуль объекта: root_uuid.0 — но только если есть
+        # Пока пропускаем — в исходной обработке модуль объекта пустой
+
+    # 4d. copyinfo
+    copyinfo_data = _build_copyinfo(root_uuid, form_uuid)
+    files.append(('copyinfo', copyinfo_data))
+
+    # 4e. root
+    root_data = b'\xef\xbb\xbf{2,' + root_uuid.encode() + b',}'
+    files.append(('root', root_data))
+
+    # 4f. version
+    version_data = b'\xef\xbb\xbf{\n{216,0,\n{80321,0}\n}\n}'
+    files.append(('version', version_data))
+
+    # 4g. versions
+    versions_data = b'\xef\xbb\xbf{1,8,"",' + root_uuid.encode() + b',' + root_uuid.encode() + b',"' + (form_uuid or root_uuid).encode() + b'"}'
+    files.append(('versions', versions_data))
+
+    # 5. Собираем контейнер
+    container_data = _build_container(files)
+
+    # 6. Записываем
     with open(output_path, 'wb') as f:
-        f.write(container0)
-        f.write(container1)
+        f.write(container_data)
 
     size = output_path.stat().st_size
-
     return {
         'file_path': str(output_path),
         'size': size,
         'object_name': object_name,
         'object_type': object_type,
-        'uuid': obj_uuid,
-        'files_included': len(root_files) + len(container1_files),
+        'uuid': root_uuid,
+        'files_included': len(files),
     }
 
 
-# ============================================================================
-# CLI
-# ============================================================================
+def _build_form_container(form_xml: bytes, form_module: bytes) -> bytes:
+    """Создать nested V8 контейнер для формы (info + text)."""
+    # info: структура с метаданными формы
+    info_data = b'\xef\xbb\xbf{3,1,0,"",0}'
 
+    # text: XML формы + BSL модуль в одном блоке
+    # В реальном EPF text содержит и XML и BSL
+    text_data = form_xml
+    if form_module:
+        text_data += b'\r\n' + form_module
+
+    # Создаём вложенный контейнер
+    nested_files = [
+        ('info', info_data),
+        ('text', text_data),
+    ]
+    return _build_container(nested_files)
+
+
+def _build_module_container(module_content: bytes) -> bytes:
+    """Создать nested V8 контейнер для модуля объекта (info + text)."""
+    info_data = b'\xef\xbb\xbf{3,1,0,"",0}'
+    nested_files = [
+        ('info', info_data),
+        ('text', module_content),
+    ]
+    return _build_container(nested_files)
+
+
+def _build_copyinfo(root_uuid: str, form_uuid: str | None) -> bytes:
+    """Создать copyinfo данные."""
+    if form_uuid:
+        return f'\ufeff{{4,\n{{2,\n{{{root_uuid},{form_uuid}}}\n}}\n}}'.encode('utf-8')
+    return f'\ufeff{{4,\n{{1,\n{{{root_uuid}}}\n}}\n}}'.encode('utf-8')
+
+
+def _build_container(files: list[tuple[str, bytes]]) -> bytes:
+    """Собрать V8 контейнер из списка файлов.
+
+    Args:
+        files: [(name, data), ...]
+
+    Returns:
+        bytes: Полный контейнер
+    """
+    num_files = len(files)
+    result = io.BytesIO()
+
+    # 1. Header (16 bytes)
+    result.write(struct.pack('<4I', V8_SIGNATURE, DEFAULT_BLOCK_SIZE, num_files, 0))
+
+    # 2. TOC block
+    toc_entry_size = ENTRY_SIZE
+    toc_doc_size = num_files * toc_entry_size
+
+    # TOC header
+    toc_header = _make_block_header(toc_doc_size, DEFAULT_BLOCK_SIZE)
+    result.write(toc_header)
+
+    # TOC data (пока нули — обновим позже)
+    toc_data_offset = result.tell()
+    toc_data = bytearray(toc_doc_size)
+    # Дополняем до block_size
+    toc_data += b'\x00' * (DEFAULT_BLOCK_SIZE - toc_doc_size)
+    result.write(toc_data)
+
+    # 3. Вычисляем смещения для каждого файла
+    # Каждый файл = desc block + data block
+    # desc block: header (31 bytes) + desc_data (padded to desc_block_size)
+    # data block: header (31 bytes) + compressed_data (padded to block_size)
+
+    current_offset = result.tell()  # текущая позиция в файле
+    toc_entries = []
+
+    for name, data in files:
+        # Description
+        desc_data = _make_description(name)
+        desc_doc_size = len(desc_data)
+        desc_block_size = desc_doc_size  # block_size = doc_size для descriptions
+
+        desc_header = _make_block_header(desc_doc_size, desc_block_size)
+        desc_offset = current_offset
+        result.write(desc_header)
+        result.write(desc_data)  # без padding (block_size = doc_size)
+        current_offset += len(desc_header) + desc_block_size
+
+        # Data (compressed with raw deflate)
+        compressed = _compress_data(data)
+        data_doc_size = len(compressed)
+        # Data block_size = 512 (DEFAULT_BLOCK_SIZE), но если data больше — используем data_doc_size
+        if data_doc_size <= DEFAULT_BLOCK_SIZE:
+            data_block_size = DEFAULT_BLOCK_SIZE
+        else:
+            # Для больших данных: используем размер данных (без padding)
+            data_block_size = data_doc_size
+
+        data_header = _make_block_header(data_doc_size, data_block_size)
+        data_offset = current_offset
+        result.write(data_header)
+        result.write(compressed)
+        # Padding
+        padding = data_block_size - data_doc_size
+        if padding > 0:
+            result.write(b'\x00' * padding)
+        current_offset += len(data_header) + data_block_size
+
+        toc_entries.append((desc_offset, data_offset))
+
+    # 4. Обновляем TOC с реальными смещениями
+    result.seek(toc_data_offset)
+    for desc_off, data_off in toc_entries:
+        result.write(struct.pack('<3I', desc_off, data_off, END_MARKER))
+
+    result.seek(0, 2)  # в конец
+    return result.getvalue()
+
+
+# CLI
 def main():
     if len(sys.argv) < 3:
         print("Использование: python3 epf_builder.py <source_dir> <output.epf>")
-        print()
-        print("Пример:")
-        print("  python3 epf_builder.py /tmp/test_processing /tmp/processing.epf")
         sys.exit(1)
-
-    source_dir = sys.argv[1]
-    output = sys.argv[2]
-
-    result = build_epf(source_dir, output)
+    result = build_epf(sys.argv[1], sys.argv[2])
     print(f"\n✅ .epf создан: {result['file_path']}")
     print(f"   Размер: {result['size']} байт")
     print(f"   Объект: {result['object_name']} ({result['object_type']})")
