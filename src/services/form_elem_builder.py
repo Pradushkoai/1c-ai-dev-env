@@ -245,42 +245,50 @@ def _make_simple_prop(prop: FormElemProp, prop_id: int) -> dict:
 
 # ─── Главная функция ─────────────────────────────────────────────
 
-def build_form_elem(form_spec: dict) -> dict:
+def build_form_elem(form_spec: dict, base_template_path: str | Path | None = None) -> dict:
     """Построить Form.elem.json (формат v8unpack) из DSL-описания.
 
     Args:
         form_spec: dict с ключом "props" — список описаний реквизитов.
             Каждый реквизит:
               {"name": "...", "type": "...", "synonym": "...", ...}
+        base_template_path: путь к Form.elem.template.json (реальный EPF,
+            извлечённый через v8unpack). Если задан — берётся как база,
+            и новые реквизиты добавляются в конец props. Это даёт
+            валидную для 1С структуру (template уже прошёл проверку 1С).
+            Если None — генерируется с нуля (пустая форма).
 
     Returns:
-        dict в формате v8unpack Form.elem.json:
-            {
-              "params": null,
-              "props": [...],
-              "commands": [],
-              "tree": [],
-              "data": {}
-            }
+        dict в формате v8unpack Form.elem.json
 
-    Пример form_spec:
-        {
-          "props": [
-            {"name": "Объект", "type": "DataProcessorObject"},
-            {
-              "name": "ТаблицаСписка",
-              "type": "ValueTable",
-              "synonym": "Список обходов",
-              "columns": [
-                {"name": "Дата", "type": "Date"},
-                {"name": "Номер", "type": "String", "length": 50},
-                {"name": "Проведен", "type": "Boolean"}
-              ]
-            },
-            {"name": "ДатаНачала", "type": "Date", "synonym": "Дата начала"}
-          ]
-        }
+    Важно: при base_template_path=None форма может быть невалидной для 1С
+    (v8unpack неправильно сериализует пустую форму). Используйте
+    base_template_path для реальных EPF.
     """
+    if base_template_path is not None:
+        # Загружаем template как базу
+        import json as _json
+        with open(base_template_path, "r", encoding="utf-8") as f:
+            base = _json.load(f)
+
+        # Добавляем новые реквизиты в конец props
+        props_spec = form_spec.get("props", [])
+        existing_names = {p["name"] for p in base.get("props", [])}
+        next_id = max([int(p["id"]) for p in base.get("props", []) if p.get("id", "0").isdigit()] + [0]) + 1
+
+        for prop_spec in props_spec:
+            prop = _parse_prop_spec(prop_spec)
+            if prop.name in existing_names:
+                continue  # пропускаем дубликаты (например, Объект)
+            if prop.type == "ValueTable":
+                base["props"].append(_make_valuetable_prop(prop, next_id))
+            else:
+                base["props"].append(_make_simple_prop(prop, next_id))
+            next_id += 1
+
+        return base
+
+    # Без template — генерируем с нуля (старое поведение)
     props_spec = form_spec.get("props", [])
     if not props_spec:
         # Если не задан — добавляем только Объект (обязательный)

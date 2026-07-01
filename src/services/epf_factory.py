@@ -73,6 +73,7 @@ TPL_EXT_PROC = TEMPLATES_DIR / "ExternalDataProcessor.template.json"
 TPL_FORM = TEMPLATES_DIR / "Form.template.json"
 TPL_FORM_ID = TEMPLATES_DIR / "Form.id.template.json"
 TPL_FORM_ELEM_EMPTY = TEMPLATES_DIR / "Form.elem.empty.json"
+TPL_FORM_ELEM_TEMPLATE = TEMPLATES_DIR / "Form.elem.template.json"  # реальный EPF, валидный для 1С
 
 # Минимальный BSL-модуль формы, если не задан
 DEFAULT_BSL = """\
@@ -321,8 +322,15 @@ class EpfFactory:
                     result.error = f"form_spec должен быть dict, str или Path, получен {type(form_spec).__name__}"
                     return result
 
-                # Генерируем Form.elem.json из DSL
-                form_elem = build_form_elem(spec_dict)
+                # Генерируем Form.elem.json из DSL, ИСПОЛЬЗУЯ template как базу
+                # Это критично: без template v8unpack неправильно сериализует
+                # пустую форму, и 1С выдаёт "Ошибка формата потока".
+                # Template уже прошёл проверку 1С, поэтому добавление новых
+                # реквизитов в конец props сохраняет валидность.
+                form_elem = build_form_elem(
+                    spec_dict,
+                    base_template_path=TPL_FORM_ELEM_TEMPLATE,
+                )
                 with open(form_dir / "Form.elem.json", "w", encoding="utf-8") as f:
                     json.dump(form_elem, f, ensure_ascii=False, indent=2)
             except Exception as e:
