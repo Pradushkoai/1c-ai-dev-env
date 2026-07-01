@@ -898,6 +898,19 @@ def create_mcp_server() -> Server:
                             "type": "string",
                             "description": "Имя формы (по умолчанию 'Форма')"
                         },
+                        "form_spec": {
+                            "type": "object",
+                            "description": (
+                                "DSL-описание формы для генерации Form.elem.json. "
+                                "Если не задано — используется пустой шаблон (только реквизит Объект). "
+                                "Пример: {\"props\": [{\"name\":\"ТаблицаСписка\","
+                                "\"type\":\"ValueTable\",\"columns\":[{\"name\":\"Дата\",\"type\":\"Date\"}]}]}"
+                            ),
+                        },
+                        "form_spec_path": {
+                            "type": "string",
+                            "description": "Путь к JSON-файлу с DSL-описанием формы (альтернатива form_spec)"
+                        },
                         "skip_bsl_validation": {
                             "type": "boolean",
                             "description": "Пропустить проверку BSL LS"
@@ -2414,6 +2427,12 @@ def create_mcp_server() -> Server:
                 skip_bsl_validation = arguments.get("skip_bsl_validation", False)
                 save_sources = arguments.get("save_sources", False)
 
+                # form_spec может прийти как dict (inline) или путь к файлу
+                form_spec = arguments.get("form_spec")
+                form_spec_path = arguments.get("form_spec_path")
+                if not form_spec and form_spec_path:
+                    form_spec = form_spec_path  # EpfFactory сам прочитает файл
+
                 factory = EpfFactory()
                 result = factory.create_epf(
                     name=epf_name,
@@ -2421,6 +2440,7 @@ def create_mcp_server() -> Server:
                     bsl_code=bsl_code,
                     output_epf=output_path,
                     form_name=form_name,
+                    form_spec=form_spec,
                     save_sources=save_sources,
                     skip_bsl_validation=skip_bsl_validation,
                 )

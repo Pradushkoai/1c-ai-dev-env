@@ -1239,6 +1239,8 @@ def main() -> None:
         help="Путь к выходному .epf файлу")
     p_epf_create.add_argument("--form-name", default="Форма",
         help="Имя формы (по умолчанию Форма)")
+    p_epf_create.add_argument("--form-spec",
+        help="Путь к JSON-файлу с DSL-описанием формы (реквизиты, колонки)")
     p_epf_create.add_argument("--save-sources", action="store_true",
         help="Сохранить v8unpack-исходники в work_dir (не удалять)")
     p_epf_create.add_argument("--skip-bsl-validation", action="store_true",
@@ -1344,6 +1346,7 @@ def cmd_epf_factory(project: Project, args: argparse.Namespace) -> None:
             bsl_code=bsl_code,
             output_epf=args.output,
             form_name=args.form_name,
+            form_spec=args.form_spec,
             save_sources=args.save_sources,
             skip_bsl_validation=args.skip_bsl_validation,
         )
