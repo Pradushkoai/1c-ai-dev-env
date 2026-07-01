@@ -240,6 +240,7 @@ class EpfFactory:
         bsl_code: str,
         output_epf: str | Path,
         form_name: str = "Форма",
+        form_spec: dict | str | Path | None = None,
         work_dir: str | Path | None = None,
         save_sources: bool = False,
         skip_bsl_validation: bool = False,
@@ -252,6 +253,23 @@ class EpfFactory:
             bsl_code: BSL-код модуля формы
             output_epf: Куда сохранить .epf
             form_name: Имя формы (по умолчанию "Форма")
+            form_spec: Описание формы для генерации Form.elem.json.
+                Может быть:
+                - dict: сразу DSL-описание
+                - str/Path: путь к JSON-файлу с DSL
+                - None: использовать пустой шаблон (только реквизит Объект)
+                Пример DSL:
+                    {
+                      "props": [
+                        {"name": "Объект", "type": "DataProcessorObject"},
+                        {"name": "ТаблицаСписка", "type": "ValueTable",
+                         "synonym": "Список обходов",
+                         "columns": [
+                           {"name": "Дата", "type": "Date"},
+                           {"name": "Номер", "type": "String", "length": 50}
+                         ]}
+                      ]
+                    }
             work_dir: Рабочий каталог (по умолчанию /tmp/epf_factory_<uuid>)
             save_sources: Сохранить v8unpack-исходники в work_dir (не удалять)
             skip_bsl_validation: Пропустить проверку BSL LS
@@ -282,6 +300,34 @@ class EpfFactory:
         except Exception as e:
             result.error = f"Ошибка копирования шаблонов: {e}"
             return result
+
+        # 2.5. Если задан form_spec — сгенерировать Form.elem.json из DSL
+        if form_spec is not None:
+            try:
+                from .form_elem_builder import build_form_elem
+
+                # form_spec может быть dict, str (путь к файлу) или Path
+                if isinstance(form_spec, (str, Path)):
+                    spec_path = Path(form_spec)
+                    if not spec_path.exists():
+                        result.error = f"form_spec файл не найден: {spec_path}"
+                        return result
+                    import json as _json
+                    with open(spec_path, "r", encoding="utf-8") as f:
+                        spec_dict = _json.load(f)
+                elif isinstance(form_spec, dict):
+                    spec_dict = form_spec
+                else:
+                    result.error = f"form_spec должен быть dict, str или Path, получен {type(form_spec).__name__}"
+                    return result
+
+                # Генерируем Form.elem.json из DSL
+                form_elem = build_form_elem(spec_dict)
+                with open(form_dir / "Form.elem.json", "w", encoding="utf-8") as f:
+                    json.dump(form_elem, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                result.error = f"Ошибка генерации Form.elem.json из form_spec: {e}"
+                return result
 
         # 3. Генерация новых UUID
         result.proc_uuid = str(uuid.uuid4())
