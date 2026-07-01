@@ -195,6 +195,18 @@ def _get_tools_description() -> list[dict]:
             "required_params": ["old_path", "new_path"],
             "optional_params": [],
         },
+        {
+            "name": "epf_factory_create",
+            "description": "Создать внешнюю обработку 1С (.epf) из BSL-кода через полный цикл: шаблоны v8unpack → подстановка name/synonym/UUID → запись BSL-модуля → проверка BSL LS → сборка .epf → round-trip. Не требует 1С. Пример: epf_factory_create(name='МояОбработка', bsl_code='...', output_path='/tmp/МояОбработка.epf').",
+            "required_params": ["name", "output_path"],
+            "optional_params": ["synonym", "bsl_code", "bsl_path", "form_name", "skip_bsl_validation", "save_sources"],
+        },
+        {
+            "name": "epf_factory_templates",
+            "description": "Список доступных шаблонов для epf_factory_create (ExternalDataProcessor.json, Form.json, Form.id.json, Form.elem.empty.json).",
+            "required_params": [],
+            "optional_params": [],
+        },
     ]
 
 
@@ -848,6 +860,65 @@ def create_mcp_server() -> Server:
             types.Tool(name="openspec_list", description="Список OpenSpec changes.", inputSchema={"type":"object","properties":{"include_archived":{"type":"boolean"}}}),
             types.Tool(name="openspec_update_task", description="Обновить задачу в OpenSpec change.", inputSchema={"type":"object","properties":{"change_id":{"type":"string"},"task_index":{"type":"integer"},"completed":{"type":"boolean"}},"required":["change_id","task_index"]}),
             types.Tool(name="openspec_archive", description="Архивировать завершённый OpenSpec change.", inputSchema={"type":"object","properties":{"change_id":{"type":"string"}},"required":["change_id"]}),
+            types.Tool(
+                name="epf_factory_create",
+                description=(
+                    "Создать внешнюю обработку 1С (.epf) из BSL-кода через полный цикл: "
+                    "шаблоны v8unpack → подстановка name/synonym/UUID → запись BSL-модуля → "
+                    "проверка через BSL LS → сборка .epf → round-trip проверка. "
+                    "Не требует установленной 1С. "
+                    "Пример: epf_factory_create(name='МояОбработка', synonym='Моя обработка', "
+                    "bsl_code='#Область ПрограммныйИнтерфейс\\n#КонецОбласти', "
+                    "output_path='/tmp/МояОбработка.epf')"
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Имя обработки (латиница/кириллица, без пробелов)"
+                        },
+                        "synonym": {
+                            "type": "string",
+                            "description": "Синоним (по умолчанию = name)"
+                        },
+                        "bsl_code": {
+                            "type": "string",
+                            "description": "BSL-код модуля формы"
+                        },
+                        "bsl_path": {
+                            "type": "string",
+                            "description": "Путь к .bsl файлу (альтернатива bsl_code)"
+                        },
+                        "output_path": {
+                            "type": "string",
+                            "description": "Путь к выходному .epf файлу"
+                        },
+                        "form_name": {
+                            "type": "string",
+                            "description": "Имя формы (по умолчанию 'Форма')"
+                        },
+                        "skip_bsl_validation": {
+                            "type": "boolean",
+                            "description": "Пропустить проверку BSL LS"
+                        },
+                        "save_sources": {
+                            "type": "boolean",
+                            "description": "Сохранить v8unpack-исходники (не удалять)"
+                        },
+                    },
+                    "required": ["name", "output_path"],
+                },
+            ),
+            types.Tool(
+                name="epf_factory_templates",
+                description=(
+                    "Список доступных шаблонов для epf_factory_create. "
+                    "Возвращает пути к шаблонам ExternalDataProcessor.json, Form.json, "
+                    "Form.id.json, Form.elem.empty.json."
+                ),
+                inputSchema={"type": "object", "properties": {}},
+            ),
         ]
 
     @server.call_tool()
@@ -2303,6 +2374,88 @@ def create_mcp_server() -> Server:
                 return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
             except Exception as e:
                 return [types.TextContent(type="text", text=json.dumps({"error": f"Diff failed: {str(e)}"}, ensure_ascii=False))]
+
+        elif name == "epf_factory_create":
+            # Создание .epf через EpfFactory
+            try:
+                from .services.epf_factory import EpfFactory
+
+                epf_name = arguments.get("name", "")
+                if not epf_name:
+                    return [types.TextContent(type="text",
+                        text=json.dumps({"error": "name required"}, ensure_ascii=False))]
+
+                output_path = arguments.get("output_path", "")
+                if not output_path:
+                    return [types.TextContent(type="text",
+                        text=json.dumps({"error": "output_path required"}, ensure_ascii=False))]
+
+                # BSL-код можно передать прямо или из файла
+                bsl_code = arguments.get("bsl_code", "")
+                bsl_path = arguments.get("bsl_path", "")
+                if not bsl_code and bsl_path:
+                    from pathlib import Path as PathMod
+                    p = PathMod(bsl_path)
+                    if not p.exists():
+                        return [types.TextContent(type="text",
+                            text=json.dumps({"error": f"BSL file not found: {bsl_path}"}, ensure_ascii=False))]
+                    bsl_code = p.read_text(encoding="utf-8")
+                if not bsl_code:
+                    # Используем минимальный шаблон
+                    bsl_code = (
+                        "#Область ПрограммныйИнтерфейс\n\n"
+                        "#КонецОбласти\n\n"
+                        "#Область СлужебныеПроцедурыИФункции\n\n"
+                        "#КонецОбласти\n"
+                    )
+
+                synonym = arguments.get("synonym") or epf_name
+                form_name = arguments.get("form_name", "Форма")
+                skip_bsl_validation = arguments.get("skip_bsl_validation", False)
+                save_sources = arguments.get("save_sources", False)
+
+                factory = EpfFactory()
+                result = factory.create_epf(
+                    name=epf_name,
+                    synonym=synonym,
+                    bsl_code=bsl_code,
+                    output_epf=output_path,
+                    form_name=form_name,
+                    save_sources=save_sources,
+                    skip_bsl_validation=skip_bsl_validation,
+                )
+
+                response = {
+                    "ok": result.ok,
+                    "error": result.error,
+                    "epf_path": str(result.epf_path) if result.epf_path else None,
+                    "size_bytes": result.size_bytes,
+                    "name": result.name,
+                    "synonym": result.synonym,
+                    "proc_uuid": result.proc_uuid,
+                    "form_uuid": result.form_uuid,
+                    "bsl_lines": result.bsl_lines,
+                    "bsl_warnings": result.bsl_warnings,
+                    "bsl_errors": result.bsl_errors,
+                    "round_trip_ok": result.round_trip_ok,
+                    "work_dir": str(result.work_dir) if result.work_dir else None,
+                }
+                return [types.TextContent(type="text",
+                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": f"epf_factory_create failed: {str(e)}"}, ensure_ascii=False))]
+
+        elif name == "epf_factory_templates":
+            # Список шаблонов epf-factory
+            try:
+                from .services.epf_factory import EpfFactory
+                templates = EpfFactory.list_templates()
+                return [types.TextContent(type="text",
+                    text=json.dumps(templates, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [types.TextContent(type="text",
+                    text=json.dumps({"error": f"epf_factory_templates failed: {str(e)}"}, ensure_ascii=False))]
 
         # Неизвестный tool
         return [types.TextContent(
