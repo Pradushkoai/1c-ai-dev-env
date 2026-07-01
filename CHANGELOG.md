@@ -1,6 +1,61 @@
 # Changelog
 
 
+## [5.1.0] — 2026-07-01
+
+### NEW: EPF Factory — создание внешних обработок 1С с нуля без 1С
+
+**Новый сервис** `src/services/epf_factory.py` (470 строк) — полный цикл создания
+`.epf` файлов без установленной платформы 1С. Собран из существующих компонентов
+репозитория: v8unpack, BSL Language Server, шаблоны v8unpack-формата.
+
+**Полный цикл (8 шагов):**
+1. Копирование шаблонов v8unpack (`templates/epf_factory/`, 4 файла)
+2. Генерация новых UUID (proc_uuid, form_uuid, file_uuid)
+3. Патч `ExternalDataProcessor.json`: подстановка name/synonym/UUID в 11 мест
+4. Патч `Form.id.json`: новый UUID формы
+5. Запись `Form.obj.bsl` с BSL-кодом модуля формы
+6. Проверка BSL через BSL Language Server (опционально)
+7. Сборка `.epf` через `v8unpack -B`
+8. Проверка round-trip: распаковка и сравнение BSL-модуля
+
+**Шаблоны** (`templates/epf_factory/`):
+- `ExternalDataProcessor.template.json` (3.6 КБ) — метаданные обработки
+- `Form.template.json` (10 КБ) — метаданные формы (Platform + Mobile)
+- `Form.id.template.json` (52 байта) — UUID формы
+- `Form.elem.empty.json` (1 КБ) — пустая форма с реквизитом «Объект»
+
+**CLI команда:**
+```bash
+1c-ai epf-factory create --name "МояОбработка" --bsl module.bsl --output /tmp/X.epf
+1c-ai epf-factory templates
+```
+
+**MCP-инструменты (2):**
+- `epf_factory_create` — создать .epf из BSL-кода (через Cursor/Claude Desktop)
+- `epf_factory_templates` — список доступных шаблонов
+
+**Тесты** (`tests/test_epf_factory_mcp.py`, 5 тестов):
+- test_list_tools_includes_epf_factory
+- test_epf_factory_templates
+- test_epf_factory_create_with_bsl
+- test_epf_factory_create_default_bsl
+- test_epf_factory_create_error_no_name
+
+**Документация:**
+- `docs/EPF_FACTORY.md` — подробная инструкция (быстрый старт, CLI, Python API,
+  MCP-инструменты, параметры, что внутри EPF, ограничения, решение проблем)
+
+**Преимущества перед предыдущим подходом (модификация готового .epf):**
+- Не зависит от внешнего .epf-шаблона
+- Каждый запуск генерирует новые UUID (1С не ругается на дубликаты)
+- Чистая структура: только то, что нужно, без мусора из оригинала
+- Прозрачно: можно сохранить промежуточные v8unpack-исходники (`--save-sources`)
+
+**Тест:** `СписокГрафикаИВыполненияОбхода.epf` (8.2 КБ) собран через
+`1c-ai epf-factory create`, BSL LS: 0 errors, round-trip OK.
+
+
 ## [5.0.0] — 2026-07-01
 
 ### MAJOR: JSON DSL компиляторы + CFE + граф зависимостей + OpenSpec

@@ -53,7 +53,7 @@ src/
 │   ├── config_registry.py  ConfigurationRegistry
 │   └── task.py             TaskContext + CheckResult + Violation + CodeMetric
 │
-├── services/               Бизнес-логика (20 сервисов)
+├── services/               Бизнес-логика (21 сервис)
 │   ├── path_manager.py     PathManager (4-слойная архитектура)
 │   ├── config_manager.py   add/build/validate/freshness — управление конфигами
 │   ├── task_processor.py   Единый пайплайн CLI/MCP (7 источников + 7 анализаторов)
@@ -71,11 +71,12 @@ src/
 │   ├── data_package.py     Persistence (autosave/autoload)
 │   ├── github_releases.py  Push/pull через GitHub REST API
 │   ├── backup_manager.py   Backup/restore
+│   ├── epf_factory.py      Создание .epf с нуля без 1С (шаблоны + BSL LS + round-trip)
 │   └── logger.py           Structlog (структурированное логирование)
 │
-├── mcp_server.py           MCP-сервер (36 tools)
+├── mcp_server.py           MCP-сервер (38 tools)
 ├── project.py              Project — оркестратор
-├── cli.py                  Единый CLI (18 команд)
+├── cli.py                  Единый CLI (19 команд)
 └── exceptions.py           Кастомные исключения
 ```
 

@@ -58,7 +58,7 @@ python3 scripts/fast_search_1c.py build
 
 ---
 
-## Доступные tools (27)
+## Доступные tools (38)
 
 | Tool | Что делает | Возвращает |
 |------|-----------|------------|
@@ -69,6 +69,8 @@ python3 scripts/fast_search_1c.py build
 | `check_standards` | Проверка на 56 правил стандартов 1С (без Java) | `[{rule_id, severity, line, message}]` |
 | `solve_context` | Сбор контекста для решения задачи | `{platform_methods, config_info, standards_summary}` |
 | `solve_check` | Полная проверка `.bsl`: BSL LS + 56 правил | `{total_errors, total_warnings, verdict, details}` |
+| `epf_factory_create` | **Создать .epf из BSL-кода без 1С** (шаблоны + BSL LS + round-trip) | `{ok, epf_path, size_bytes, proc_uuid, form_uuid, bsl_lines, round_trip_ok}` |
+| `epf_factory_templates` | Список шаблонов для `epf_factory_create` | `{ext_proc, form, form_id, form_elem_empty, templates_dir}` |
 
 ### Параметры tools
 
@@ -81,6 +83,25 @@ python3 scripts/fast_search_1c.py build
 | `check_standards` | `file_path` | — |
 | `solve_context` | `query` | `config` |
 | `solve_check` | `file_path` | — |
+| `epf_factory_create` | `name`, `output_path` | `synonym`, `bsl_code`, `bsl_path`, `form_name`, `skip_bsl_validation`, `save_sources` |
+| `epf_factory_templates` | — | — |
+
+### Создание внешних обработок (.epf) через MCP
+
+Инструмент `epf_factory_create` позволяет создавать внешние обработки 1С без установленной платформы 1С. Полный цикл: шаблоны v8unpack → подстановка UUID → BSL-код → проверка через BSL LS → сборка → round-trip.
+
+**Пример вызова из Cursor / Claude Desktop:**
+
+```
+Помоги создать внешнюю обработку для выгрузки номенклатуры в Excel.
+Используй epf_factory_create с параметрами:
+- name: "ВыгрузкаНоменклатурыВExcel"
+- synonym: "Выгрузка номенклатуры в Excel"
+- output_path: "/tmp/ВыгрузкаНоменклатурыВExcel.epf"
+BSL-код модуля формы напиши сам, следуя стандартам 1С.
+```
+
+Подробная инструкция: [docs/EPF_FACTORY.md](EPF_FACTORY.md)
 
 ---
 
