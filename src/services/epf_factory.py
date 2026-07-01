@@ -411,6 +411,30 @@ class EpfFactory:
             result.error = f"Выходной файл не создан: {output_epf}"
             return result
 
+        # 8.5. Патч block_size → 512 (v8unpack пишет неправильный)
+        # v8unpack 1.2.6 пишет block_size = doc_size (фактический размер),
+        # а 1С ожидает всегда block_size = 0x200 (512). Иначе "Ошибка формата потока".
+        try:
+            from pathlib import Path as _Path
+            patch_script = _REPO_ROOT / "scripts" / "patch_epf_blocksize.py"
+            if patch_script.exists():
+                patched_path = output_epf.parent / f"{output_epf.stem}__patched.epf"
+                patch_cmd = [
+                    _PYTHON, str(patch_script),
+                    str(output_epf), str(patched_path),
+                ]
+                patch_proc = subprocess.run(
+                    patch_cmd, capture_output=True, text=True,
+                    timeout=30, check=False,
+                )
+                if patch_proc.returncode == 0 and patched_path.exists():
+                    # Заменяем оригинал пропатченной версией
+                    shutil.move(str(patched_path), str(output_epf))
+        except Exception as e:
+            # Патч не критичен — продолжаем, но предупреждаем
+            result.error = f"Предупреждение: patch_epf_blocksize не сработал: {e}"
+            # Не возвращаем — продолжаем
+
         # Проверяем сигнатуру 1С-контейнера
         with open(output_epf, "rb") as f:
             sig = f.read(4)
