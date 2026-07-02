@@ -165,10 +165,3 @@ async def test_epf_factory_create_error_no_name(handlers, tmp_path):
     text = result.root.content[0].text
     # Может быть как JSON так и прямой текст ошибки
     assert "error" in text.lower() or "name" in text.lower()
-
-
-if __name__ == "__main__":
-    # Запуск без pytest
-    import subprocess
-
-    subprocess.run([sys.executable, "-m", "pytest", __file__, "-v"])

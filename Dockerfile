@@ -64,7 +64,7 @@ COPY src/ /app/src/
 COPY scripts/ /app/scripts/
 COPY templates/ /app/templates/
 COPY knowledge_base/ /app/knowledge_base/
-COPY pyproject.toml README.md manifest.json paths.env paths.py /app/
+COPY pyproject.toml README.md manifest.json paths.env /app/
 
 # Устанавливаем пакет (без зависимостей — они уже скопированы)
 RUN pip install --no-cache-dir --no-deps -e .
@@ -75,6 +75,15 @@ RUN mkdir -p /app/data/configs /app/data/archives /app/data/hbk \
     /app/tools/repos \
     /app/runtime /app/learned-skills
 
+# ─── Security: non-root user (P1.6) ───
+# Контейнер НЕ должен работать от root — снижает риск эскалации привилегий
+# при компрометации MCP-сервера. UID/GID 1000 — стандарт для непривилегированных
+# пользователей в Debian/Ubuntu.
+RUN groupadd --system --gid 1000 1c-ai && \
+    useradd --system --uid 1000 --gid 1c-ai \
+        --home-dir /app --shell /usr/sbin/nologin 1c-ai && \
+    chown -R 1c-ai:1c-ai /app
+
 # Environment
 ENV PROJECT_DIR=/app \
     JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
@@ -82,6 +91,10 @@ ENV PROJECT_DIR=/app \
     LOG_FORMAT=console \
     LOG_LEVEL=INFO \
     PYTHONUNBUFFERED=1
+
+# Переключаемся на непривилегированного пользователя для всех последующих
+# инструкций и для runtime (ENTRYPOINT/CMD выполнится от 1c-ai).
+USER 1c-ai
 
 # Healthcheck — проверяем что CLI работает
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

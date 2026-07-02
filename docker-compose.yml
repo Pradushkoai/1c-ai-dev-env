@@ -27,8 +27,11 @@ services:
       - ./derived:/app/derived
       - ./runtime:/app/runtime
       - ./learned-skills:/app/learned-skills
-      # Для доступа к .bsl файлам пользователя
-      - ${HOME}:/host:ro
+      # NOTE (P1.7): монтировка $HOME:/host:ro удалена — давала контейнеру
+      # доступ к ~/.ssh, ~/.aws, ~/.gnupg, ~/.docker, ~/.kube.
+      # Для доступа к .bsl файлам пользователя монтируйте конкретную директорию:
+      #   - ./bsl-sources:/host:ro
+      # или передавайте файлы через stdin/data/.
     environment:
       - LOG_FORMAT=${LOG_FORMAT:-console}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}

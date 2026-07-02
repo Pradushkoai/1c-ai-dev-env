@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING
 
 import mcp.types as types
 
+from ._security import resolve_path_within_project
+
 if TYPE_CHECKING:
     from src.project import Project
 
@@ -80,8 +82,19 @@ async def handle_audit_security(project: Project, arguments: dict) -> list[types
     if not file_path:
         return [types.TextContent(type="text", text=json.dumps({"error": "file_path is required"}, ensure_ascii=False))]
 
-    if not os.path.isabs(file_path):
-        file_path = str(project.paths.root / file_path)
+    # P1.8: path traversal protection — резолвим и проверяем что путь внутри проекта.
+    resolved = resolve_path_within_project(file_path, project)
+    if resolved is None:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(
+                    {"error": "Path outside project root — possible path traversal attempt"},
+                    ensure_ascii=False,
+                ),
+            )
+        ]
+    file_path = str(resolved)
 
     if not os.path.exists(file_path):
         return [
@@ -144,8 +157,19 @@ async def handle_get_code_metrics(project: Project, arguments: dict) -> list[typ
     if not file_path:
         return [types.TextContent(type="text", text=json.dumps({"error": "file_path is required"}, ensure_ascii=False))]
 
-    if not os.path.isabs(file_path):
-        file_path = str(project.paths.root / file_path)
+    # P1.8: path traversal protection
+    resolved = resolve_path_within_project(file_path, project)
+    if resolved is None:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(
+                    {"error": "Path outside project root — possible path traversal attempt"},
+                    ensure_ascii=False,
+                ),
+            )
+        ]
+    file_path = str(resolved)
 
     if not os.path.exists(file_path):
         return [
@@ -222,8 +246,19 @@ async def handle_check_transactions(project: Project, arguments: dict) -> list[t
     file_path = arguments.get("file_path", "")
     if not file_path:
         return [types.TextContent(type="text", text=json.dumps({"error": "file_path required"}, ensure_ascii=False))]
-    if not os.path.isabs(file_path):
-        file_path = str(project.paths.root / file_path)
+    # P1.8: path traversal protection
+    resolved = resolve_path_within_project(file_path, project)
+    if resolved is None:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(
+                    {"error": "Path outside project root — possible path traversal attempt"},
+                    ensure_ascii=False,
+                ),
+            )
+        ]
+    file_path = str(resolved)
     if not os.path.exists(file_path):
         return [
             types.TextContent(
@@ -297,8 +332,19 @@ async def handle_analyze_architecture(project: Project, arguments: dict) -> list
     config_dir = arguments.get("config_dir", "")
     if not config_dir:
         return [types.TextContent(type="text", text=json.dumps({"error": "config_dir required"}, ensure_ascii=False))]
-    if not os.path.isabs(config_dir):
-        config_dir = str(project.paths.root / config_dir)
+    # P1.8: path traversal protection
+    resolved = resolve_path_within_project(config_dir, project)
+    if resolved is None:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(
+                    {"error": "Path outside project root — possible path traversal attempt"},
+                    ensure_ascii=False,
+                ),
+            )
+        ]
+    config_dir = str(resolved)
     if not os.path.exists(config_dir):
         return [
             types.TextContent(
@@ -427,10 +473,21 @@ async def handle_diff_configs(project: Project, arguments: dict) -> list[types.T
                 type="text", text=json.dumps({"error": "old_path and new_path required"}, ensure_ascii=False)
             )
         ]
-    if not os.path.isabs(old_path):
-        old_path = str(project.paths.root / old_path)
-    if not os.path.isabs(new_path):
-        new_path = str(project.paths.root / new_path)
+    # P1.8: path traversal protection for BOTH old_path and new_path
+    resolved_old = resolve_path_within_project(old_path, project)
+    resolved_new = resolve_path_within_project(new_path, project)
+    if resolved_old is None or resolved_new is None:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(
+                    {"error": "Path outside project root — possible path traversal attempt"},
+                    ensure_ascii=False,
+                ),
+            )
+        ]
+    old_path = str(resolved_old)
+    new_path = str(resolved_new)
     if not os.path.exists(old_path):
         return [
             types.TextContent(

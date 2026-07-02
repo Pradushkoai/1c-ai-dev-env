@@ -24,44 +24,48 @@ classifiers = [
     "Topic :: Software Development :: Code Generators",
 ]
 dependencies = [
-    "python-dotenv>=1.0.0",
-    "structlog>=24.0",
-    "networkx>=3.0",
-    "v8unpack>=1.2.6",
+    # P2.14: upper bounds добавлены для предотвращения breakage при major bumps.
+    # P2.13: lxml/Pillow обновлены для закрытия CVE.
+    "python-dotenv>=1.0,<2.0",
+    "structlog>=24.0,<26.0",
+    "networkx>=3.0,<4.0",
+    "v8unpack>=1.2.6,<2.0",
 ]
 
 [project.optional-dependencies]
 rag = [
-    "fastembed>=0.8.0",
-    "qdrant-client>=1.0.0",
+    "fastembed>=0.8,<1.0",
+    "qdrant-client>=1.0,<2.0",
 ]
 mcp = [
-    "mcp>=1.0.0",
+    "mcp>=1.0,<2.0",
 ]
 test = [
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
-    "pytest-benchmark>=4.0",
-    "pytest-asyncio>=0.23.0",
-    "hypothesis>=6.0",
-    "lxml>=4.9.0",
-    "Pillow>=10.0.0",
+    "pytest>=8.0,<9.0",
+    "pytest-cov>=4.0,<6.0",
+    "pytest-benchmark>=4.0,<6.0",
+    "pytest-asyncio>=0.23,<1.0",
+    "hypothesis>=6.0,<7.0",
+    # P2.13: CVE-2022-2309 (NULL deref), обновлено с 4.9 → 5.0+
+    "lxml>=5.0,<6.0",
+    # P2.13: CVE-2023-50447 (arbitrary code execution via TIFF), обновлено с 10.0 → 10.2+
+    "Pillow>=10.2.0,<12.0",
 ]
 dev = [
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
-    "pytest-benchmark>=4.0",
-    "pytest-asyncio>=0.23.0",
-    "hypothesis>=6.0",
-    "lxml>=4.9.0",
-    "Pillow>=10.0.0",
-    "ruff>=0.5.0",
-    "mypy>=1.10",
-    "pre-commit>=3.7",
-    "structlog>=24.0",
-    "mcp>=1.0.0",
-    "networkx>=3.0",
-    "v8unpack>=1.2.6",
+    "pytest>=8.0,<9.0",
+    "pytest-cov>=4.0,<6.0",
+    "pytest-benchmark>=4.0,<6.0",
+    "pytest-asyncio>=0.23,<1.0",
+    "hypothesis>=6.0,<7.0",
+    "lxml>=5.0,<6.0",
+    "Pillow>=10.2.0,<12.0",
+    "ruff>=0.5,<1.0",
+    "mypy>=1.10,<2.0",
+    "pre-commit>=3.7,<5.0",
+    "structlog>=24.0,<26.0",
+    "mcp>=1.0,<2.0",
+    "networkx>=3.0,<4.0",
+    "v8unpack>=1.2.6,<2.0",
 ]
 
 [project.scripts]
@@ -151,7 +155,7 @@ line-ending = "auto"
 
 # ─── Mypy ───
 [tool.mypy]
-python_version = "5.4.0"
+python_version = "3.10"
 warn_return_any = false
 warn_unused_configs = true
 ignore_missing_imports = true

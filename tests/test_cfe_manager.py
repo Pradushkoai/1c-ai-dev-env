@@ -203,6 +203,56 @@ class TestBorrowObject:
         # XML всё равно создаётся
         assert (setup_extension / "Catalogs" / "Несуществующий.xml").exists()
 
+    # ─────────────────────────────────────────────
+    # REGRESSION: P0.2 — опечатка "WebServce" → "WebService"
+    # ─────────────────────────────────────────────
+
+    def test_type_map_has_webservice_not_webservce(self) -> None:
+        """TYPE_MAP должен содержать ключ 'WebService', а не 'WebServce'.
+
+        Regression-тест для P0.2: до фикса ключ был с опечаткой 'WebServce',
+        из-за чего borrow_object('WebService.X') падал с KeyError.
+        """
+        assert "WebService" in TYPE_MAP, (
+            "TYPE_MAP must contain 'WebService' key (was 'WebServce' typo before P0.2 fix)"
+        )
+        assert "WebServce" not in TYPE_MAP, (
+            "TYPE_MAP must NOT contain 'WebServce' (typo fixed in P0.2)"
+        )
+        # Проверка структуры записи
+        entry = TYPE_MAP["WebService"]
+        assert entry["xml_tag"] == "WebService"
+        assert entry["dir"] == "WebServices"
+
+    def test_borrow_webservice_object(self, setup_extension, tmp_path: Path) -> None:
+        """borrow_object('WebService.MyService') должен успешно создавать XML.
+
+        До фикса P0.2 эта операция падала с KeyError: 'WebService' — потому что
+        ключ в TYPE_MAP был с опечаткой 'WebServce'.
+        """
+        # Конфигурация с WebServices/MyService.xml
+        cfg = tmp_path / "cfg"
+        cfg.mkdir()
+        (cfg / "Configuration.xml").write_text(
+            '<md:Configuration xmlns:md="http://v8.1c.ru/8.3/MDClasses"/>',
+            encoding="utf-8",
+        )
+        ws_dir = cfg / "WebServices"
+        ws_dir.mkdir()
+        (ws_dir / "MyService.xml").write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<md:WebService xmlns:md="http://v8.1c.ru/8.3/MDClasses" uuid="ws-001"/>',
+            encoding="utf-8",
+        )
+
+        manager = CfeManager()
+        result = manager.borrow_object(setup_extension, cfg, "WebService.MyService")
+
+        assert result.object_type == "WebService"
+        assert result.object_name == "MyService"
+        # XML должен создаться в правильной директории WebServices/
+        assert (setup_extension / "WebServices" / "MyService.xml").exists()
+
 
 # ─────────────────────────────────────────────
 # PATCH_METHOD tests

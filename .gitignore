@@ -44,3 +44,24 @@ sarif-reports/
 # Credentials
 *.credentials
 .git-credentials
+
+# IDE и редакторы (P3.20)
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Логи (P3.20)
+*.log
+logs/
+
+# pytest кэш
+.pytest_cache/
+
+# venv
+.venv/
+venv/
+env/
+

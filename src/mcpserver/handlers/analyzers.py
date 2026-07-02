@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING
 
 import mcp.types as types
 
+from ._async_helpers import run_sync
+
 if TYPE_CHECKING:
     from src.project import Project
 
@@ -30,7 +32,8 @@ async def handle_analyze_bsl(project: Project, arguments: dict) -> list[types.Te
     """Анализ .bsl файла через BSL Language Server."""
     file_path = arguments.get("file_path", "")
     try:
-        result = project.bsl_analyzer.analyze(Path(file_path))
+        # P1.10: BSL LS analysis может занимать секунды — не блокируем event loop.
+        result = await run_sync(project.bsl_analyzer.analyze, Path(file_path))
         response = {
             "total": result.total,
             "by_code": result.by_code,
@@ -98,7 +101,8 @@ async def handle_solve_context(project: Project, arguments: dict) -> list[types.
     limit = arguments.get("limit", 5)
 
     processor = TaskProcessor(project.paths)
-    ctx = processor.solve(query, config_name=config, limit=limit)
+    # P1.10: solve() собирает контекст из 7 источников — sync I/O тяжелый.
+    ctx = await run_sync(processor.solve, query, config_name=config, limit=limit)
 
     return [
         types.TextContent(
@@ -117,7 +121,9 @@ async def handle_solve_check(project: Project, arguments: dict) -> list[types.Te
 
     processor = TaskProcessor(project.paths)
     try:
-        result = processor.check(Path(file_path), level=level)
+        # P1.10: check() запускает 7 анализаторов (BSL LS, security_auditor, etc) —
+        # может занимать 5-30 секунд. Без to_thread блокирует event loop MCP-сервера.
+        result = await run_sync(processor.check, Path(file_path), level=level)
         return [
             types.TextContent(
                 type="text",

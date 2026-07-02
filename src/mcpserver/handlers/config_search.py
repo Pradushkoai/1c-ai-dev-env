@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 
 import mcp.types as types
 
+from ._async_helpers import run_sync
+
 if TYPE_CHECKING:
     from ..project import Project
 
@@ -32,7 +34,8 @@ async def handle_search_1c_methods(project: Project, arguments: dict) -> list[ty
     """BM25 поиск по методам платформы 1С."""
     query = arguments.get("query", "")
     limit = arguments.get("limit", 10)
-    results = project.search_methods(query, limit)
+    # P1.10: BM25 search может быть тяжёлым (100K+ методов) — не блокируем event loop.
+    results = await run_sync(project.search_methods, query, limit)
     return [
         types.TextContent(
             type="text",
@@ -48,7 +51,7 @@ async def handle_search_code(project: Project, arguments: dict) -> list[types.Te
     limit = arguments.get("limit", 10)
     from src.services.search_code import search_code
 
-    results = search_code(config_name, query, limit, project.paths)
+    results = await run_sync(search_code, config_name, query, limit, project.paths)
     return [
         types.TextContent(
             type="text",
@@ -65,7 +68,7 @@ async def handle_call_graph(project: Project, arguments: dict) -> list[types.Tex
     method = arguments.get("method", "")
     from src.services.call_graph import build_call_graph
 
-    graph = build_call_graph(config_name, project.paths)
+    graph = await run_sync(build_call_graph, config_name, project.paths)
     if action == "stats":
         result = graph.get_stats()
     elif action == "callers":

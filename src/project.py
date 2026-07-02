@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,16 @@ from .models.config_registry import ConfigurationRegistry
 from .services.bsl_analyzer import BSLAnalyzer
 from .services.config_manager import ConfigManager
 from .services.path_manager import PathManager
+
+
+# Маркеры корня проекта — файлы/директории, которые однозначно указывают,
+# что текущий каталог является корнем 1c-ai-dev-env.
+# Порядок важен: paths.env — наиболее специфичный маркер.
+_PROJECT_ROOT_MARKERS: tuple[str, ...] = (
+    "paths.env",
+    "pyproject.toml",
+    "manifest.json",
+)
 
 
 class Project:
@@ -24,6 +35,9 @@ class Project:
         project.config_manager.build("ut11")
         project.bsl_analyzer.save_baseline(Path("file.bsl"))
         result = project.bsl_analyzer.diff(Path("file.bsl"))
+
+    Alternative — авто-обнаружение корня (для скриптов CLI/SARIF):
+        project = Project.from_cwd()
     """
 
     def __init__(self, project_root: Path | None = None):
@@ -37,6 +51,55 @@ class Project:
         self.config_manager = ConfigManager(self.registry, self.paths)
 
         self._bsl_analyzer: BSLAnalyzer | None = None
+
+    @classmethod
+    def from_cwd(cls, start: Path | None = None) -> "Project":
+        """
+        Создать Project, автоматически обнаружив корень репозитория.
+
+        Поиск выполняется восходящим обходом от ``start`` (по умолчанию —
+        ``Path.cwd()``) до первого каталога, содержащего один из маркеров
+        корня (paths.env, pyproject.toml, manifest.json). Это эквивалент
+        тому, как git ищет ``.git`` вверх по дереву каталогов.
+
+        Переменная окружения ``ONEC_AI_DEV_ENV_ROOT`` имеет приоритет над
+        авто-обнаружением — используется в тестах и CI для явного указания
+        корня без копирования файловых маркеров.
+
+        Args:
+            start: Стартовая директория для поиска. По умолчанию — cwd.
+
+        Returns:
+            Project с корректно определённым project_root.
+
+        Raises:
+            FileNotFoundError: Если ни один маркер не найден вплоть до
+                корня файловой системы (fallback на cwd не выполняется,
+                чтобы не маскировать ошибки конфигурации в CI).
+        """
+        # 1. Явное указание через env (приоритет для CI/тестов).
+        env_root = os.environ.get("ONEC_AI_DEV_ENV_ROOT")
+        if env_root:
+            root = Path(env_root).resolve()
+            if not root.is_dir():
+                raise FileNotFoundError(
+                    f"ONEC_AI_DEV_ENV_ROOT points to non-existent dir: {root}"
+                )
+            return cls(project_root=root)
+
+        # 2. Восходящий поиск маркера.
+        start_dir = (start or Path.cwd()).resolve()
+        for candidate in [start_dir, *start_dir.parents]:
+            if any((candidate / marker).exists() for marker in _PROJECT_ROOT_MARKERS):
+                return cls(project_root=candidate)
+
+        # 3. Никаких fallback — лучше упасть явно, чем молча использовать cwd
+        #    и получить «пустой» SARIF-отчёт (корень проблемы в аудите P0.1).
+        raise FileNotFoundError(
+            f"Project root not found: none of {', '.join(_PROJECT_ROOT_MARKERS)} "
+            f"exist in {start_dir} or any parent directory. "
+            f"Set ONEC_AI_DEV_ENV_ROOT env var to specify root explicitly."
+        )
 
     @property
     def bsl_analyzer(self) -> BSLAnalyzer:
