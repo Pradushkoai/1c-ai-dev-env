@@ -2,13 +2,33 @@
 
 > **Универсальная среда разработки на 1С с ИИ-ассистентом**: парсинг и анализ метаданных 1С из XML-выгрузок, 38 MCP tools для IDE/LLM, 11 анализаторов BSL-кода (150+ правил), JSON DSL → XML компиляторы (5 типов объектов), работа с расширениями CFE, граф зависимостей метаданных, трассировка СКД, генерация обработок/отчётов/макетов/ролей, **создание внешних обработок .epf с нуля без 1С**, SARIF для GitHub Code Scanning.
 
-[![Version](https://img.shields.io/badge/version-5.1.0-brightgreen.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.2.0-brightgreen.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Java 17+](https://img.shields.io/badge/Java-17+-orange.svg)](https://openjdk.org/)
 [![Tests](https://img.shields.io/badge/tests-333%20passing-success.svg)](#тесты)
 [![MCP Tools](https://img.shields.io/badge/MCP%20tools-38-blue.svg)](#подключение-к-ide--llm-через-mcp)
 [![CLI Commands](https://img.shields.io/badge/CLI%20commands-19-success.svg)](#cli-команды)
+
+---
+
+## 🤖 AI-агентам: читайте AGENTS.md
+
+**Если вы AI-агент (Codex, Cursor, Claude) — начните с [`AGENTS.md`](AGENTS.md).**
+
+AGENTS.md — компактный набор правил (170 строк), которые нужно знать перед
+каждой рабочей сессией. Правила рождены реальными инцидентами, а не
+теоретическими рассуждениями. Содержит:
+
+- **Рабочий процесс агента** (4 этапа: правила → граф → документация → код)
+- **Инфраструктурные правила** (BSL LS, v8unpack, мобильное приложение)
+- **Процессные правила** (перед сборкой EPF, после изменений, критичные файлы)
+- **Архитектурные правила** (DRY, локальность, структура BSL-модуля)
+- **Технические правила** (имена обработок, форма списка, запросы, коммиты)
+- **Антипаттерны** (8 пунктов «НЕ делать»)
+- **История инцидентов** (5 инцидентов → 5 правил)
+
+Расширенное описание: [`docs/AGENTS_MD.md`](docs/AGENTS_MD.md).
 
 ---
 
