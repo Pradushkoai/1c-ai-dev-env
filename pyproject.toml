@@ -164,13 +164,17 @@ exclude = [
     "build/",
 ]
 
+# P2.8: gradual strict typing
+# Чистые модули с полной типизацией (строгий режим)
 [[tool.mypy.overrides]]
-module = ["tests.*"]
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = ["scripts.*"]
-ignore_errors = true
+module = [
+    "src.dsl.*",
+    "src.exceptions",
+    "src.models.*",
+]
+disallow_untyped_defs = true
+warn_return_any = true
+disallow_any_generics = false  # постепенно
 
 # ─── Coverage ───
 [tool.coverage.run]
