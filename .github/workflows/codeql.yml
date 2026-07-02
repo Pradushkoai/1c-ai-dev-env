@@ -1,0 +1,54 @@
+name: "CodeQL Python Security Analysis"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**.py'
+      - 'scripts/**.py'
+      - 'tests/**.py'
+      - '.github/workflows/codeql.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**.py'
+      - 'scripts/**.py'
+      - 'tests/**.py'
+  schedule:
+    # Каждую неделю в понедельник в 03:00 UTC — регулярный scan
+    - cron: '0 3 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['python']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # queries: security-extended,security-and-quality — более глубокий анализ
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
