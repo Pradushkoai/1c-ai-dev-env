@@ -11,9 +11,9 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install ruff + mypy
+      - name: Install ruff + mypy + pre-commit
         run: |
-          pip install ruff>=0.5.0 mypy>=1.10
+          pip install "ruff>=0.5.0" "mypy>=1.10" pre-commit
 
       - name: Check syntax (py_compile)
         run: |
@@ -38,6 +38,16 @@ jobs:
         run: |
           mypy src/ --config-file pyproject.toml
         continue-on-error: true  # P2.8: 145 ошибок, gradual strict typing
+
+      - name: Pre-commit hooks (all files)
+        # P1.5: дублируем pre-commit hooks в CI — гарантирует,
+        # что хуки не отключены локально через --no-verify
+        run: |
+          pre-commit run --all-files --show-diff-on-failure
+        env:
+          # SKIP=mypy — mypy уже запущен выше (с continue-on-error)
+          # В pre-commit mypy тоже запустится, но не должен блокировать CI
+          SKIP: "pytest-fast"  # pytest запускается в отдельном job (test)
 
   version-check:
     runs-on: ubuntu-latest
