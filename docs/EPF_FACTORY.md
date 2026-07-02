@@ -92,7 +92,7 @@
 | Компонент | Источник | Назначение |
 |---|---|---|
 | `templates/epf_factory/` | Извлечено из реального EPF через `v8unpack -E` | 4 шаблона v8unpack-формата (скелеты JSON) |
-| `v8unpack` (saby, Python) | `requirements.txt` | Pack/unpack бинарного `.epf`-контейнера |
+| `v8unpack` (saby, Python) | `pyproject.toml` | Pack/unpack бинарного `.epf`-контейнера |
 | BSL Language Server | `/home/z/.local/bin/bsl-language-server` | Статический анализ BSL без 1С |
 | `src/services/epf_factory.py` | Новый, 470 строк | Оркестрация всех шагов |
 

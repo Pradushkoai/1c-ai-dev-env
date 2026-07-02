@@ -74,7 +74,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -e ".[dev]"
-          pip install pytest-benchmark lxml
+          # pytest-benchmark, lxml, hypothesis, Pillow уже в [dev] extras
 
       - name: Run pytest (unit + integration + e2e + benchmarks)
         run: |
@@ -91,7 +91,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -e ".[dev]"
-          pip install pytest-cov
+          # pytest-cov уже в [dev] extras
 
       - name: Run tests with coverage
         run: |
@@ -140,7 +140,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -e ".[dev]"
-          pip install pytest-benchmark
+          # pytest-benchmark уже в [dev] extras
 
       - name: Run synthetic benchmarks
         run: |
