@@ -1,0 +1,37 @@
+# CODEOWNERS — автоматические ревьюеры для Pull Requests
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# По умолчанию — владелец репозитория
+*                           @Pradushkoai
+
+# Исходный код — более детально
+/src/                       @Pradushkoai
+/src/dsl/                   @Pradushkoai
+/src/mcpserver/             @Pradushkoai
+/src/cli_commands/          @Pradushkoai
+/src/services/              @Pradushkoai
+/src/models/                @Pradushkoai
+
+# CI/CD и инфраструктура
+/.github/                   @Pradushkoai
+/Dockerfile                 @Pradushkoai
+/docker-compose.yml         @Pradushkoai
+/pyproject.toml             @Pradushkoai
+/install.sh                 @Pradushkoai
+
+# Документация
+/README.md                  @Pradushkoai
+/CHANGELOG.md               @Pradushkoai
+/AGENTS.md                  @Pradushkoai
+/CONTRIBUTING.md            @Pradushkoai
+/docs/                      @Pradushkoai
+
+# Тесты
+/tests/                     @Pradushkoai
+
+# Скрипты
+/scripts/                   @Pradushkoai
+
+# Шаблоны и база знаний
+/templates/                 @Pradushkoai
+/knowledge_base/            @Pradushkoai
