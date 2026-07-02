@@ -32,12 +32,12 @@ jobs:
       - name: Ruff format check
         run: |
           ruff format --check src/ tests/
-        continue-on-error: true  # пока не приводим к общему стилю
+        # P1.1: убран continue-on-error — форматирование приведено к общему стилю
 
       - name: Mypy type checking
         run: |
           mypy src/ --config-file pyproject.toml
-        continue-on-error: true  # пока не все типы выправлены
+        continue-on-error: true  # P2.8: 145 ошибок, gradual strict typing
 
   version-check:
     runs-on: ubuntu-latest
@@ -100,7 +100,7 @@ jobs:
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
             --cov-report=html:coverage_html \
-            --cov-fail-under=30 \
+            --cov-fail-under=50 \
             -k "not IntegrationRealData and not test_benchmarks and not test_e2e and not test_integration" \
             --benchmark-min-rounds=1 --benchmark-warmup=off
 
@@ -112,8 +112,8 @@ jobs:
           root = tree.getroot()
           line_rate = float(root.attrib['line-rate']) * 100
           print(f'📊 Coverage: {line_rate:.2f}%')
-          print(f'   Threshold: 30% (target: 85%)')
-          if line_rate < 30:
+          print(f'   Threshold: 50% (target: 85%)')
+          if line_rate < 50:
               print('❌ Below threshold!')
               exit(1)
           print('✅ Above threshold')

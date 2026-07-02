@@ -6,6 +6,7 @@
 2. FormCompiler — управляемые формы (Form.xml)
 3. SkdCompiler — схемы компоновки данных (СКД)
 """
+
 from __future__ import annotations
 
 import json
@@ -15,15 +16,24 @@ from pathlib import Path
 import pytest
 
 from src.services.dsl_compiler import (
-    DslCompiler, MetaCompiler, FormCompiler, SkdCompiler,
-    CompileResult, TYPE_MAP, RU_TYPE_SYNONYMS,
-    _camel_to_words, _normalize_type, _normalize_object_type, _parse_attribute,
+    DslCompiler,
+    MetaCompiler,
+    FormCompiler,
+    SkdCompiler,
+    CompileResult,
+    TYPE_MAP,
+    RU_TYPE_SYNONYMS,
+    _camel_to_words,
+    _normalize_type,
+    _normalize_object_type,
+    _parse_attribute,
 )
 
 
 # ─────────────────────────────────────────────
 # Утилиты tests
 # ─────────────────────────────────────────────
+
 
 def _parse_xml(path: Path) -> ET.Element:
     """Прочитать XML и вернуть root."""
@@ -53,6 +63,7 @@ def _find_all_tags(root: ET.Element, tag: str) -> list[ET.Element]:
 # ─────────────────────────────────────────────
 # Утилиты — тесты
 # ─────────────────────────────────────────────
+
 
 class TestCamelToWords:
     """Тесты автогенерации синонимов из CamelCase."""
@@ -120,11 +131,13 @@ class TestParseAttribute:
         assert attr["indexing"] == "Index"
 
     def test_dict_form(self):
-        attr = _parse_attribute({
-            "name": "Сумма",
-            "type": "Number(15,2)",
-            "synonym": "Сумма документа",
-        })
+        attr = _parse_attribute(
+            {
+                "name": "Сумма",
+                "type": "Number(15,2)",
+                "synonym": "Сумма документа",
+            }
+        )
         assert attr["name"] == "Сумма"
         assert attr["synonym"] == "Сумма документа"
 
@@ -138,6 +151,7 @@ class TestParseAttribute:
 # MetaCompiler tests
 # ─────────────────────────────────────────────
 
+
 class TestMetaCompiler:
     """Тесты компилятора метаданных."""
 
@@ -150,7 +164,7 @@ class TestMetaCompiler:
                 "name": "Товары",
                 "synonym": "Номенклатура",
             },
-            tmp_path
+            tmp_path,
         )
 
         assert result.object_type == "Catalog"
@@ -163,10 +177,7 @@ class TestMetaCompiler:
     def test_compile_creates_xml_with_correct_root(self, tmp_path):
         """XML имеет корневой элемент Catalog."""
         compiler = MetaCompiler()
-        result = compiler.compile(
-            {"type": "Catalog", "name": "Товары"},
-            tmp_path
-        )
+        result = compiler.compile({"type": "Catalog", "name": "Товары"}, tmp_path)
 
         root = _parse_xml(result.xml_path)
         local_tag = root.tag.split("}")[-1]
@@ -175,10 +186,7 @@ class TestMetaCompiler:
     def test_compile_synonym_in_xml(self, tmp_path):
         """Синоним записан в XML."""
         compiler = MetaCompiler()
-        result = compiler.compile(
-            {"type": "Catalog", "name": "Товары", "synonym": "Номенклатура"},
-            tmp_path
-        )
+        result = compiler.compile({"type": "Catalog", "name": "Товары", "synonym": "Номенклатура"}, tmp_path)
 
         root = _parse_xml(result.xml_path)
         # Ищем Synonym → item → content
@@ -192,10 +200,7 @@ class TestMetaCompiler:
     def test_compile_auto_synonym_from_camelcase(self, tmp_path):
         """Синоним автогенерируется из CamelCase если не указан."""
         compiler = MetaCompiler()
-        result = compiler.compile(
-            {"type": "Catalog", "name": "АвансовыйОтчет"},
-            tmp_path
-        )
+        result = compiler.compile({"type": "Catalog", "name": "АвансовыйОтчет"}, tmp_path)
 
         root = _parse_xml(result.xml_path)
         contents = []
@@ -217,7 +222,7 @@ class TestMetaCompiler:
                     "Цена: Number(15,2) | req",
                 ],
             },
-            tmp_path
+            tmp_path,
         )
 
         root = _parse_xml(result.xml_path)
@@ -238,7 +243,7 @@ class TestMetaCompiler:
                     ],
                 },
             },
-            tmp_path
+            tmp_path,
         )
 
         root = _parse_xml(result.xml_path)
@@ -254,7 +259,7 @@ class TestMetaCompiler:
                 "name": "ВидыОплат",
                 "values": ["Приход", "Расход"],
             },
-            tmp_path
+            tmp_path,
         )
 
         root = _parse_xml(result.xml_path)
@@ -270,7 +275,7 @@ class TestMetaCompiler:
                 "name": "ПоступлениеТоваров",
                 "attributes": ["Контрагент: CatalogRef.Контрагенты | req"],
             },
-            tmp_path
+            tmp_path,
         )
 
         assert result.object_type == "Document"
@@ -281,10 +286,7 @@ class TestMetaCompiler:
     def test_compile_constant(self, tmp_path):
         """Компиляция константы."""
         compiler = MetaCompiler()
-        result = compiler.compile(
-            {"type": "Constant", "name": "ОсновнаяВалюта", "valueType": "String"},
-            tmp_path
-        )
+        result = compiler.compile({"type": "Constant", "name": "ОсновнаяВалюта", "valueType": "String"}, tmp_path)
 
         assert result.object_type == "Constant"
         assert result.xml_path.exists()
@@ -292,10 +294,7 @@ class TestMetaCompiler:
     def test_compile_russian_type_synonym(self, tmp_path):
         """Русский синоним типа объекта."""
         compiler = MetaCompiler()
-        result = compiler.compile(
-            {"type": "Справочник", "name": "Товары"},
-            tmp_path
-        )
+        result = compiler.compile({"type": "Справочник", "name": "Товары"}, tmp_path)
 
         assert result.object_type == "Catalog"
 
@@ -324,10 +323,7 @@ class TestMetaCompiler:
         """Компиляция из JSON-файла."""
         compiler = MetaCompiler()
         json_file = tmp_path / "def.json"
-        json_file.write_text(
-            json.dumps({"type": "Catalog", "name": "Товары"}),
-            encoding="utf-8"
-        )
+        json_file.write_text(json.dumps({"type": "Catalog", "name": "Товары"}), encoding="utf-8")
         result = compiler.compile(json_file, tmp_path)
 
         assert result.object_name == "Товары"
@@ -340,16 +336,13 @@ class TestMetaCompiler:
         config_xml.write_text(
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             '<md:Configuration xmlns:md="http://v8.1c.ru/8.3/MDClasses">\n'
-            '  <md:ChildObjects/>\n'
-            '</md:Configuration>\n',
-            encoding="utf-8"
+            "  <md:ChildObjects/>\n"
+            "</md:Configuration>\n",
+            encoding="utf-8",
         )
 
         compiler = MetaCompiler()
-        result = compiler.compile(
-            {"type": "Catalog", "name": "Товары"},
-            tmp_path
-        )
+        result = compiler.compile({"type": "Catalog", "name": "Товары"}, tmp_path)
 
         assert result.registered_in_config is True
 
@@ -366,10 +359,7 @@ class TestMetaCompiler:
     def test_compile_creates_object_module(self, tmp_path):
         """Для Catalog создаётся ObjectModule.bsl."""
         compiler = MetaCompiler()
-        result = compiler.compile(
-            {"type": "Catalog", "name": "Товары"},
-            tmp_path
-        )
+        result = compiler.compile({"type": "Catalog", "name": "Товары"}, tmp_path)
 
         # Путь: Catalogs/Товары/Ext/ObjectModule.bsl
         module_path = tmp_path / "Catalogs" / "Товары" / "Ext" / "ObjectModule.bsl"
@@ -392,16 +382,14 @@ class TestMetaCompiler:
 # FormCompiler tests
 # ─────────────────────────────────────────────
 
+
 class TestFormCompiler:
     """Тесты компилятора форм."""
 
     def test_compile_form_basic(self, tmp_path):
         """Базовая компиляция формы."""
         compiler = FormCompiler()
-        result = compiler.compile(
-            {"name": "ФормаЭлемента", "synonym": "Форма элемента"},
-            tmp_path / "Form.xml"
-        )
+        result = compiler.compile({"name": "ФормаЭлемента", "synonym": "Форма элемента"}, tmp_path / "Form.xml")
 
         assert result.object_type == "Form"
         assert result.xml_path.exists()
@@ -417,7 +405,7 @@ class TestFormCompiler:
                     {"type": "Button", "name": "Сохранить"},
                 ],
             },
-            tmp_path / "Form.xml"
+            tmp_path / "Form.xml",
         )
 
         root = _parse_xml(result.xml_path)
@@ -443,7 +431,7 @@ class TestFormCompiler:
                     },
                 ],
             },
-            tmp_path / "Form.xml"
+            tmp_path / "Form.xml",
         )
 
         root = _parse_xml(result.xml_path)
@@ -454,6 +442,7 @@ class TestFormCompiler:
 # ─────────────────────────────────────────────
 # SkdCompiler tests
 # ─────────────────────────────────────────────
+
 
 class TestSkdCompiler:
     """Тесты компилятора СКД."""
@@ -475,7 +464,7 @@ class TestSkdCompiler:
                     },
                 ],
             },
-            tmp_path / "Template.xml"
+            tmp_path / "Template.xml",
         )
 
         assert result.object_type == "DataCompositionSchema"
@@ -485,8 +474,7 @@ class TestSkdCompiler:
         """СКД имеет источники данных (auto если не указаны)."""
         compiler = SkdCompiler()
         result = compiler.compile(
-            {"dataSets": [{"name": "Данные", "type": "query", "query": "ВЫБРАТЬ 1"}]},
-            tmp_path / "Template.xml"
+            {"dataSets": [{"name": "Данные", "type": "query", "query": "ВЫБРАТЬ 1"}]}, tmp_path / "Template.xml"
         )
 
         root = _parse_xml(result.xml_path)
@@ -503,7 +491,7 @@ class TestSkdCompiler:
                     {"path": "СуммаНДС", "expression": "Сумма * 0.2"},
                 ],
             },
-            tmp_path / "Template.xml"
+            tmp_path / "Template.xml",
         )
 
         root = _parse_xml(result.xml_path)
@@ -520,7 +508,7 @@ class TestSkdCompiler:
                     {"path": "Сумма", "expression": "СУММА(Сумма)", "group": "Контрагент"},
                 ],
             },
-            tmp_path / "Template.xml"
+            tmp_path / "Template.xml",
         )
 
         root = _parse_xml(result.xml_path)
@@ -537,7 +525,7 @@ class TestSkdCompiler:
                     {"name": "ДатаНачала", "type": "Date", "title": "Дата начала"},
                 ],
             },
-            tmp_path / "Template.xml"
+            tmp_path / "Template.xml",
         )
 
         root = _parse_xml(result.xml_path)
@@ -548,6 +536,7 @@ class TestSkdCompiler:
 # ─────────────────────────────────────────────
 # DslCompiler facade tests
 # ─────────────────────────────────────────────
+
 
 class TestDslCompilerFacade:
     """Тесты фасада DslCompiler."""
@@ -562,27 +551,20 @@ class TestDslCompilerFacade:
     def test_facade_compile_meta(self, tmp_path):
         """Фасад компилирует meta."""
         compiler = DslCompiler()
-        result = compiler.compile_meta(
-            {"type": "Catalog", "name": "Товары"},
-            tmp_path
-        )
+        result = compiler.compile_meta({"type": "Catalog", "name": "Товары"}, tmp_path)
         assert result.object_type == "Catalog"
 
     def test_facade_compile_form(self, tmp_path):
         """Фасад компилирует form."""
         compiler = DslCompiler()
-        result = compiler.compile_form(
-            {"name": "Форма"},
-            tmp_path / "Form.xml"
-        )
+        result = compiler.compile_form({"name": "Форма"}, tmp_path / "Form.xml")
         assert result.object_type == "Form"
 
     def test_facade_compile_skd(self, tmp_path):
         """Фасад компилирует skd."""
         compiler = DslCompiler()
         result = compiler.compile_skd(
-            {"dataSets": [{"name": "Д", "type": "query", "query": "ВЫБРАТЬ 1"}]},
-            tmp_path / "Template.xml"
+            {"dataSets": [{"name": "Д", "type": "query", "query": "ВЫБРАТЬ 1"}]}, tmp_path / "Template.xml"
         )
         assert result.object_type == "DataCompositionSchema"
 
@@ -590,6 +572,7 @@ class TestDslCompilerFacade:
 # ─────────────────────────────────────────────
 # TYPE_MAP tests
 # ─────────────────────────────────────────────
+
 
 class TestTypeMap:
     """Тесты маппинга типов."""
@@ -600,9 +583,17 @@ class TestTypeMap:
 
     def test_has_key_types(self):
         """Ключевые типы присутствуют."""
-        required = ["Catalog", "Document", "Enum", "Constant",
-                    "InformationRegister", "AccumulationRegister",
-                    "CommonModule", "Report", "DataProcessor"]
+        required = [
+            "Catalog",
+            "Document",
+            "Enum",
+            "Constant",
+            "InformationRegister",
+            "AccumulationRegister",
+            "CommonModule",
+            "Report",
+            "DataProcessor",
+        ]
         for t in required:
             assert t in TYPE_MAP
 
@@ -619,24 +610,24 @@ if __name__ == "__main__":
 # MxlCompiler tests
 # ─────────────────────────────────────────────
 
+
 class TestMxlCompiler:
     """Тесты компилятора MXL (табличные документы)."""
 
     def test_compile_mxl_basic(self, tmp_path):
         """Базовая компиляция MXL-макета."""
         from src.services.dsl_compiler import MxlCompiler
+
         compiler = MxlCompiler()
         result = compiler.compile(
             {
                 "columns": 5,
                 "defaultWidth": 20,
                 "areas": [
-                    {"name": "Заголовок", "rows": [
-                        {"cells": [{"col": 1, "span": 5, "text": "Печатная форма"}]}
-                    ]},
+                    {"name": "Заголовок", "rows": [{"cells": [{"col": 1, "span": 5, "text": "Печатная форма"}]}]},
                 ],
             },
-            tmp_path / "Template.xml"
+            tmp_path / "Template.xml",
         )
 
         assert result.object_type == "SpreadsheetDocument"
@@ -645,11 +636,9 @@ class TestMxlCompiler:
     def test_compile_mxl_has_columns(self, tmp_path):
         """MXL содержит колонки."""
         from src.services.dsl_compiler import MxlCompiler
+
         compiler = MxlCompiler()
-        result = compiler.compile(
-            {"columns": 3, "defaultWidth": 15},
-            tmp_path / "Template.xml"
-        )
+        result = compiler.compile({"columns": 3, "defaultWidth": 15}, tmp_path / "Template.xml")
 
         root = _parse_xml(result.xml_path)
         cols = _find_all_tags(root, "column")
@@ -658,6 +647,7 @@ class TestMxlCompiler:
     def test_compile_mxl_column_widths_dict(self, tmp_path):
         """columnWidths dict правильно парсится."""
         from src.services.dsl_compiler import MxlCompiler
+
         compiler = MxlCompiler()
         result = compiler.compile(
             {
@@ -665,7 +655,7 @@ class TestMxlCompiler:
                 "defaultWidth": 10,
                 "columnWidths": {"1": 20, "2-4": 30, "5": 15},
             },
-            tmp_path / "Template.xml"
+            tmp_path / "Template.xml",
         )
 
         root = _parse_xml(result.xml_path)
@@ -680,6 +670,7 @@ class TestMxlCompiler:
     def test_compile_mxl_fonts(self, tmp_path):
         """Шрифты добавляются в XML."""
         from src.services.dsl_compiler import MxlCompiler
+
         compiler = MxlCompiler()
         result = compiler.compile(
             {
@@ -689,7 +680,7 @@ class TestMxlCompiler:
                     "bold": {"face": "Arial", "size": 10, "bold": True},
                 },
             },
-            tmp_path / "Template.xml"
+            tmp_path / "Template.xml",
         )
 
         root = _parse_xml(result.xml_path)
@@ -699,6 +690,7 @@ class TestMxlCompiler:
     def test_compile_mxl_styles(self, tmp_path):
         """Стили добавляются."""
         from src.services.dsl_compiler import MxlCompiler
+
         compiler = MxlCompiler()
         result = compiler.compile(
             {
@@ -708,7 +700,7 @@ class TestMxlCompiler:
                     "bordered": {"border": "all"},
                 },
             },
-            tmp_path / "Template.xml"
+            tmp_path / "Template.xml",
         )
 
         root = _parse_xml(result.xml_path)
@@ -718,6 +710,7 @@ class TestMxlCompiler:
     def test_compile_mxl_areas(self, tmp_path):
         """Области добавляются."""
         from src.services.dsl_compiler import MxlCompiler
+
         compiler = MxlCompiler()
         result = compiler.compile(
             {
@@ -728,7 +721,7 @@ class TestMxlCompiler:
                     {"name": "Строка", "rows": []},
                 ],
             },
-            tmp_path / "Template.xml"
+            tmp_path / "Template.xml",
         )
 
         root = _parse_xml(result.xml_path)
@@ -738,17 +731,16 @@ class TestMxlCompiler:
     def test_compile_mxl_cell_with_text(self, tmp_path):
         """Ячейка с text."""
         from src.services.dsl_compiler import MxlCompiler
+
         compiler = MxlCompiler()
         result = compiler.compile(
             {
                 "columns": 3,
                 "areas": [
-                    {"name": "Шапка", "rows": [
-                        {"cells": [{"col": 1, "text": "№"}]}
-                    ]},
+                    {"name": "Шапка", "rows": [{"cells": [{"col": 1, "text": "№"}]}]},
                 ],
             },
-            tmp_path / "Template.xml"
+            tmp_path / "Template.xml",
         )
 
         root = _parse_xml(result.xml_path)
@@ -759,17 +751,16 @@ class TestMxlCompiler:
     def test_compile_mxl_cell_with_param(self, tmp_path):
         """Ячейка с param (параметр печатной формы)."""
         from src.services.dsl_compiler import MxlCompiler
+
         compiler = MxlCompiler()
         result = compiler.compile(
             {
                 "columns": 3,
                 "areas": [
-                    {"name": "Строка", "rows": [
-                        {"cells": [{"col": 1, "param": "НомерСтроки"}]}
-                    ]},
+                    {"name": "Строка", "rows": [{"cells": [{"col": 1, "param": "НомерСтроки"}]}]},
                 ],
             },
-            tmp_path / "Template.xml"
+            tmp_path / "Template.xml",
         )
 
         root = _parse_xml(result.xml_path)
@@ -782,17 +773,16 @@ class TestMxlCompiler:
 # RoleCompiler tests
 # ─────────────────────────────────────────────
 
+
 class TestRoleCompiler:
     """Тесты компилятора ролей 1С."""
 
     def test_compile_role_basic(self, tmp_path):
         """Базовая компиляция роли."""
         from src.services.dsl_compiler import RoleCompiler
+
         compiler = RoleCompiler()
-        result = compiler.compile(
-            {"name": "МенеджерПродаж", "synonym": "Менеджер продаж"},
-            tmp_path / "Roles"
-        )
+        result = compiler.compile({"name": "МенеджерПродаж", "synonym": "Менеджер продаж"}, tmp_path / "Roles")
 
         assert result.object_type == "Role"
         assert result.object_name == "МенеджерПродаж"
@@ -804,11 +794,9 @@ class TestRoleCompiler:
     def test_compile_role_metadata_has_name(self, tmp_path):
         """Метаданные роли содержат Name."""
         from src.services.dsl_compiler import RoleCompiler
+
         compiler = RoleCompiler()
-        result = compiler.compile(
-            {"name": "Менеджер", "synonym": "Менеджер"},
-            tmp_path / "Roles"
-        )
+        result = compiler.compile({"name": "Менеджер", "synonym": "Менеджер"}, tmp_path / "Roles")
 
         meta_path = tmp_path / "Roles" / "Менеджер.xml"
         root = _parse_xml(meta_path)
@@ -825,11 +813,9 @@ class TestRoleCompiler:
     def test_compile_role_synonym(self, tmp_path):
         """Синоним записан в метаданных."""
         from src.services.dsl_compiler import RoleCompiler
+
         compiler = RoleCompiler()
-        compiler.compile(
-            {"name": "R1", "synonym": "Моя роль"},
-            tmp_path / "Roles"
-        )
+        compiler.compile({"name": "R1", "synonym": "Моя роль"}, tmp_path / "Roles")
 
         meta_path = tmp_path / "Roles" / "R1.xml"
         root = _parse_xml(meta_path)
@@ -843,15 +829,14 @@ class TestRoleCompiler:
     def test_compile_role_objects_with_preset_view(self, tmp_path):
         """Объекты с пресетом view."""
         from src.services.dsl_compiler import RoleCompiler
+
         compiler = RoleCompiler()
         result = compiler.compile(
             {
                 "name": "Viewer",
-                "objects": [
-                    {"name": "Catalog.Товары", "preset": "view"}
-                ],
+                "objects": [{"name": "Catalog.Товары", "preset": "view"}],
             },
-            tmp_path / "Roles"
+            tmp_path / "Roles",
         )
 
         rights_path = tmp_path / "Roles" / "Viewer" / "Ext" / "Rights.xml"
@@ -874,15 +859,14 @@ class TestRoleCompiler:
     def test_compile_role_objects_with_explicit_rights(self, tmp_path):
         """Объекты с явными правами."""
         from src.services.dsl_compiler import RoleCompiler
+
         compiler = RoleCompiler()
         result = compiler.compile(
             {
                 "name": "Editor",
-                "objects": [
-                    {"name": "Catalog.Товары", "rights": ["Read", "Insert", "Update"]}
-                ],
+                "objects": [{"name": "Catalog.Товары", "rights": ["Read", "Insert", "Update"]}],
             },
-            tmp_path / "Roles"
+            tmp_path / "Roles",
         )
 
         rights_path = tmp_path / "Roles" / "Editor" / "Ext" / "Rights.xml"
@@ -903,15 +887,14 @@ class TestRoleCompiler:
     def test_compile_role_russian_rights(self, tmp_path):
         """Русские синонимы прав работают."""
         from src.services.dsl_compiler import RoleCompiler
+
         compiler = RoleCompiler()
         compiler.compile(
             {
                 "name": "R",
-                "objects": [
-                    {"name": "Catalog.Товары", "rights": ["Чтение", "Просмотр"]}
-                ],
+                "objects": [{"name": "Catalog.Товары", "rights": ["Чтение", "Просмотр"]}],
             },
-            tmp_path / "Roles"
+            tmp_path / "Roles",
         )
 
         rights_path = tmp_path / "Roles" / "R" / "Ext" / "Rights.xml"
@@ -931,15 +914,14 @@ class TestRoleCompiler:
     def test_compile_role_russian_object_type(self, tmp_path):
         """Русский тип объекта работает."""
         from src.services.dsl_compiler import RoleCompiler
+
         compiler = RoleCompiler()
         compiler.compile(
             {
                 "name": "R",
-                "objects": [
-                    {"name": "Справочник.Товары", "preset": "view"}
-                ],
+                "objects": [{"name": "Справочник.Товары", "preset": "view"}],
             },
-            tmp_path / "Roles"
+            tmp_path / "Roles",
         )
 
         rights_path = tmp_path / "Roles" / "R" / "Ext" / "Rights.xml"
@@ -958,13 +940,14 @@ class TestRoleCompiler:
     def test_compile_role_shorthand_string(self, tmp_path):
         """Строковый shorthand 'Тип.Имя: @пресет'."""
         from src.services.dsl_compiler import RoleCompiler
+
         compiler = RoleCompiler()
         result = compiler.compile(
             {
                 "name": "R",
                 "objects": ["Catalog.Товары: @view"],
             },
-            tmp_path / "Roles"
+            tmp_path / "Roles",
         )
 
         rights_path = tmp_path / "Roles" / "R" / "Ext" / "Rights.xml"
@@ -975,15 +958,14 @@ class TestRoleCompiler:
     def test_compile_role_rls_templates(self, tmp_path):
         """Шаблоны RLS добавляются."""
         from src.services.dsl_compiler import RoleCompiler
+
         compiler = RoleCompiler()
         result = compiler.compile(
             {
                 "name": "R",
-                "templates": [
-                    {"name": "ДляОбъекта(Модификатор)", "condition": "Таблица.Организация = &Организация"}
-                ],
+                "templates": [{"name": "ДляОбъекта(Модификатор)", "condition": "Таблица.Организация = &Организация"}],
             },
-            tmp_path / "Roles"
+            tmp_path / "Roles",
         )
 
         rights_path = tmp_path / "Roles" / "R" / "Ext" / "Rights.xml"
@@ -995,6 +977,7 @@ class TestRoleCompiler:
     def test_compile_role_missing_name_raises(self, tmp_path):
         """Отсутствует name → ValueError."""
         from src.services.dsl_compiler import RoleCompiler
+
         compiler = RoleCompiler()
         with pytest.raises(ValueError):
             compiler.compile({"synonym": "X"}, tmp_path / "Roles")
@@ -1004,12 +987,14 @@ class TestRoleCompiler:
 # DslCompiler facade (расширенный) tests
 # ─────────────────────────────────────────────
 
+
 class TestDslCompilerFacadeExtended:
     """Тесты расширенного фасада DslCompiler (5 компиляторов)."""
 
     def test_facade_has_5_compilers(self):
         """Фасад имеет все 5 компиляторов."""
         from src.services.dsl_compiler import DslCompiler
+
         compiler = DslCompiler()
         assert hasattr(compiler, "meta")
         assert hasattr(compiler, "form")
@@ -1020,19 +1005,15 @@ class TestDslCompilerFacadeExtended:
     def test_facade_compile_mxl(self, tmp_path):
         """Фасад компилирует mxl."""
         from src.services.dsl_compiler import DslCompiler
+
         compiler = DslCompiler()
-        result = compiler.compile_mxl(
-            {"columns": 3, "defaultWidth": 15},
-            tmp_path / "Template.xml"
-        )
+        result = compiler.compile_mxl({"columns": 3, "defaultWidth": 15}, tmp_path / "Template.xml")
         assert result.object_type == "SpreadsheetDocument"
 
     def test_facade_compile_role(self, tmp_path):
         """Фасад компилирует role."""
         from src.services.dsl_compiler import DslCompiler
+
         compiler = DslCompiler()
-        result = compiler.compile_role(
-            {"name": "R1"},
-            tmp_path / "Roles"
-        )
+        result = compiler.compile_role({"name": "R1"}, tmp_path / "Roles")
         assert result.object_type == "Role"

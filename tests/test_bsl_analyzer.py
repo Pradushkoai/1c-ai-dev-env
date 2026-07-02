@@ -2,6 +2,7 @@
 Тесты для BSLAnalyzer.
 subprocess мокируется (чтобы не запускать Java/BSL LS).
 """
+
 import json
 import sys
 from pathlib import Path
@@ -41,9 +42,7 @@ def _fake_bsl_json(output_dir: Path) -> None:
             }
         ]
     }
-    (output_dir / "bsl-json.json").write_text(
-        json.dumps(data, ensure_ascii=False), encoding="utf-8"
-    )
+    (output_dir / "bsl-json.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
 
 def test_analysis_result_from_json(tmp_path):
@@ -155,18 +154,17 @@ def test_analyzer_diff_no_baseline(tmp_path):
 # ИНТЕГРАЦИОННЫЕ ТЕСТЫ С РЕАЛЬНЫМ BSL LS (пропускаются если не установлен)
 # ============================================================================
 
+
 def _is_bsl_ls_available() -> bool:
     """Проверяет, установлен ли BSL LS."""
     from src.services.path_manager import PathManager
+
     pm = PathManager()
     return pm.bsl_ls_binary.exists()
 
 
 # Декоратор для пропуска тестов если BSL LS не установлен
-requires_bsl_ls = pytest.mark.skipif(
-    not _is_bsl_ls_available(),
-    reason="BSL Language Server не установлен"
-)
+requires_bsl_ls = pytest.mark.skipif(not _is_bsl_ls_available(), reason="BSL Language Server не установлен")
 
 
 @requires_bsl_ls
@@ -176,7 +174,8 @@ def test_real_bsl_analyze_simple_file(tmp_path):
 
     # Создаём .bsl файл с известными нарушениями
     bsl_file = tmp_path / "test.bsl"
-    bsl_file.write_text("""// Тестовый модуль
+    bsl_file.write_text(
+        """// Тестовый модуль
 Перем _Запрос;
 
 Процедура Тест()
@@ -185,17 +184,24 @@ def test_real_bsl_analyze_simple_file(tmp_path):
     //КонецЕсли;
     Сообщить("Привет—мир");
 КонецПроцедуры
-""", encoding='utf-8')
+""",
+        encoding="utf-8",
+    )
 
     pm = PathManager()
     # Создаём конфиг BSL LS
     config_path = tmp_path / ".bsl-language-server.json"
-    config_path.write_text(json.dumps({
-        "language": "ru",
-        "diagnostics": {"parameters": {"Typo": {"dictionary": "ru"}}},
-        "configurationRoot": "",
-        "skipSupport": "filesystem"
-    }), encoding='utf-8')
+    config_path.write_text(
+        json.dumps(
+            {
+                "language": "ru",
+                "diagnostics": {"parameters": {"Typo": {"dictionary": "ru"}}},
+                "configurationRoot": "",
+                "skipSupport": "filesystem",
+            }
+        ),
+        encoding="utf-8",
+    )
 
     analyzer = BSLAnalyzer(
         binary_path=pm.bsl_ls_binary,
@@ -220,19 +226,27 @@ def test_real_bsl_baseline_and_diff(tmp_path):
 
     # Создаём .bsl файл
     bsl_file = tmp_path / "test.bsl"
-    bsl_file.write_text("""Процедура Тест()
+    bsl_file.write_text(
+        """Процедура Тест()
     Сообщить("Привет");
 КонецПроцедуры
-""", encoding='utf-8')
+""",
+        encoding="utf-8",
+    )
 
     pm = PathManager()
     config_path = tmp_path / ".bsl-language-server.json"
-    config_path.write_text(json.dumps({
-        "language": "ru",
-        "diagnostics": {"parameters": {"Typo": {"dictionary": "ru"}}},
-        "configurationRoot": "",
-        "skipSupport": "filesystem"
-    }), encoding='utf-8')
+    config_path.write_text(
+        json.dumps(
+            {
+                "language": "ru",
+                "diagnostics": {"parameters": {"Typo": {"dictionary": "ru"}}},
+                "configurationRoot": "",
+                "skipSupport": "filesystem",
+            }
+        ),
+        encoding="utf-8",
+    )
 
     analyzer = BSLAnalyzer(
         binary_path=pm.bsl_ls_binary,
@@ -249,17 +263,20 @@ def test_real_bsl_baseline_and_diff(tmp_path):
     assert analyzer._baseline_path.exists()
 
     # Меняем файл — добавляем новую ошибку
-    bsl_file.write_text("""Процедура Тест()
+    bsl_file.write_text(
+        """Процедура Тест()
     Сообщить("Привет");
     ;
 КонецПроцедуры
-""", encoding='utf-8')
+""",
+        encoding="utf-8",
+    )
 
     # Должны быть новые диагностики
     diff = analyzer.diff(bsl_file)
     assert len(diff.new) > 0
     # EmptyStatement — это новая диагностика
-    new_codes = [d['code'] for d in diff.new]
+    new_codes = [d["code"] for d in diff.new]
     assert "EmptyStatement" in new_codes
 
 
@@ -269,20 +286,28 @@ def test_real_bsl_analyze_clean_file(tmp_path):
     from src.services.path_manager import PathManager
 
     bsl_file = tmp_path / "clean.bsl"
-    bsl_file.write_text("""// Чистый модуль без нарушений
+    bsl_file.write_text(
+        """// Чистый модуль без нарушений
 Функция РассчитатьСумму(А, Б)
     Возврат А + Б;
 КонецФункции
-""", encoding='utf-8')
+""",
+        encoding="utf-8",
+    )
 
     pm = PathManager()
     config_path = tmp_path / ".bsl-language-server.json"
-    config_path.write_text(json.dumps({
-        "language": "ru",
-        "diagnostics": {"parameters": {"Typo": {"dictionary": "ru"}}},
-        "configurationRoot": "",
-        "skipSupport": "filesystem"
-    }), encoding='utf-8')
+    config_path.write_text(
+        json.dumps(
+            {
+                "language": "ru",
+                "diagnostics": {"parameters": {"Typo": {"dictionary": "ru"}}},
+                "configurationRoot": "",
+                "skipSupport": "filesystem",
+            }
+        ),
+        encoding="utf-8",
+    )
 
     analyzer = BSLAnalyzer(
         binary_path=pm.bsl_ls_binary,

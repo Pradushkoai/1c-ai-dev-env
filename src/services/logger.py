@@ -17,6 +17,7 @@
 - LOG_LEVEL=DEBUG|INFO|WARNING|ERROR (default: INFO)
 - LOG_FORMAT=console|json (default: console; json для CI/MCP)
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,6 +28,7 @@ from typing import Any
 # structlog может быть не установлен — fallback на logging
 try:
     import structlog
+
     HAS_STRUCTLOG = True
 except ImportError:
     HAS_STRUCTLOG = False
@@ -118,6 +120,7 @@ def get_logger(name: str | None = None) -> Any:
 # Контекстные биндинги — для трассировки через весь пайплайн
 # ─────────────────────────────────────────────
 
+
 def bind_context(**kwargs: Any) -> None:
     """Привязать контекстные переменные ко всем последующим логам.
 
@@ -138,6 +141,7 @@ def clear_context() -> None:
 # ─────────────────────────────────────────────
 # Совместимость со старым кодом (drop-in замена print для warnings/errors)
 # ─────────────────────────────────────────────
+
 
 def warn_print(message: str, **kwargs: Any) -> None:
     """Заменитель print() для warnings в services.

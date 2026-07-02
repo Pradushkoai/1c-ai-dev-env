@@ -1,6 +1,7 @@
 """
 Реестр конфигураций 1С.
 """
+
 from __future__ import annotations
 
 import json

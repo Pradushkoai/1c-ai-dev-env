@@ -13,6 +13,7 @@ Usage:
     1c-ai search "найти по коду"
     1c-ai standards <path>            # проверка .bsl на стандарты 1С
 """
+
 from __future__ import annotations
 
 import argparse
@@ -36,23 +37,23 @@ def cmd_config_list(project: Project, args: argparse.Namespace) -> None:
 
 def _print_build_report(report: dict) -> None:
     """Унифицированный вывод отчёта build()."""
-    name = report.get('name', '?')
-    skipped = report.get('skipped', [])
-    if skipped == ['all']:
+    name = report.get("name", "?")
+    skipped = report.get("skipped", [])
+    if skipped == ["all"]:
         print(f"✅ {name}: все индексы уже свежие (skip)")
         return
     parts = []
-    for key in ('metadata', 'api', 'skd', 'forms'):
+    for key in ("metadata", "api", "skd", "forms"):
         val = report.get(key)
         if val is True:
-            tag = '✅'
+            tag = "✅"
             if key in skipped:
-                tag = '⏭️'
+                tag = "⏭️"
         else:
-            tag = '❌'
+            tag = "❌"
         parts.append(f"{key}={tag}")
     print(f"✅ {name}: {' '.join(parts)}")
-    if skipped and skipped != ['all']:
+    if skipped and skipped != ["all"]:
         print(f"   ⏭️ Пропущено (уже свежие): {', '.join(skipped)}")
 
 
@@ -70,24 +71,25 @@ def cmd_config_add(project: Project, args: argparse.Namespace) -> None:
 
 
 def cmd_config_build(project: Project, args: argparse.Namespace) -> None:
-    if getattr(args, 'check_freshness', False):
+    if getattr(args, "check_freshness", False):
         report = project.config_manager.check_freshness(args.name)
         print(f"Конфигурация: {report.config_name}")
         print(f"Все индексы свежие: {'✅ да' if report.all_fresh else '❌ нет'}")
         if report.source_mtime:
             import time as _t
+
             print(f"Исходники изменены: {_t.ctime(report.source_mtime)}")
         if report.missing_indexes:
             print(f"Отсутствуют: {', '.join(report.missing_indexes)}")
         if report.stale_indexes:
             print(f"Устарели: {', '.join(report.stale_indexes)}")
         for idx in report.indexes:
-            mark = '✅' if (idx.exists and not idx.is_stale) else '❌'
+            mark = "✅" if (idx.exists and not idx.is_stale) else "❌"
             print(f"  {mark} {idx.name}: exists={idx.exists}, stale={idx.is_stale}")
             if idx.stale_reason:
                 print(f"      {idx.stale_reason}")
         return
-    if getattr(args, 'validate', False):
+    if getattr(args, "validate", False):
         result = project.config_manager.validate_sources(args.name)
         print(f"Конфигурация: {args.name}")
         print(f"Валидна: {'✅ да' if result.is_valid else '❌ нет'}")
@@ -105,13 +107,13 @@ def cmd_config_build(project: Project, args: argparse.Namespace) -> None:
             for w in result.warnings:
                 print(f"    ⚠️ {w}")
         return
-    force = getattr(args, 'force', False)
+    force = getattr(args, "force", False)
     report = project.config_manager.build(args.name, force=force)
     _print_build_report(report)
 
 
 def cmd_config_build_all(project: Project, args: argparse.Namespace) -> None:
-    force = getattr(args, 'force', False)
+    force = getattr(args, "force", False)
     results = project.config_manager.build_all(force=force)
     for r in results:
         _print_build_report(r)
@@ -177,20 +179,20 @@ def cmd_search(project: Project, args: argparse.Namespace) -> None:
         sys.exit(1)
 
     version = detect_index_version(index_path)
-    algo_name = 'BM25+триграммы (v2)' if version == 2 else 'TF-IDF (v1, legacy)'
+    algo_name = "BM25+триграммы (v2)" if version == 2 else "TF-IDF (v1, legacy)"
 
     results = search_auto(index_path, args.query, args.limit)
 
     print(f'Поиск: "{args.query}"')
-    print(f'Алгоритм: {algo_name}')
-    print(f'Найдено: {len(results)} результатов')
+    print(f"Алгоритм: {algo_name}")
+    print(f"Найдено: {len(results)} результатов")
     print()
     for rank, r in enumerate(results, 1):
-        print(f'{rank}. [{r["score"]:.3f}] {r["name_ru"]} ({r["name_en"]})')
-        print(f'   Контекст: {r["context"]}')
-        print(f'   Синтаксис: {r["syntax"]}')
-        if r['description']:
-            print(f'   Описание: {r["description"]}')
+        print(f"{rank}. [{r['score']:.3f}] {r['name_ru']} ({r['name_en']})")
+        print(f"   Контекст: {r['context']}")
+        print(f"   Синтаксис: {r['syntax']}")
+        if r["description"]:
+            print(f"   Описание: {r['description']}")
         print()
 
 
@@ -212,16 +214,16 @@ def cmd_search_code(project: Project, args: argparse.Namespace) -> None:
     results = search_code(config_name, args.query, args.limit, project.paths)
 
     print(f'Поиск по коду: "{args.query}"')
-    print(f'Конфигурация: {config_name}')
-    print(f'Найдено: {len(results)} результатов')
+    print(f"Конфигурация: {config_name}")
+    print(f"Найдено: {len(results)} результатов")
     print()
     for rank, r in enumerate(results, 1):
-        print(f'{rank}. [{r["score"]:.3f}] {r["module"]}.{r["name"]}')
-        print(f'   Тип: {r["type"]}')
-        if r['signature']:
-            print(f'   Сигнатура: {r["signature"]}')
-        if r['description']:
-            print(f'   Описание: {r["description"][:120]}')
+        print(f"{rank}. [{r['score']:.3f}] {r['module']}.{r['name']}")
+        print(f"   Тип: {r['type']}")
+        if r["signature"]:
+            print(f"   Сигнатура: {r['signature']}")
+        if r["description"]:
+            print(f"   Описание: {r['description'][:120]}")
         print()
 
 
@@ -239,7 +241,7 @@ def cmd_call_graph(project: Project, args: argparse.Namespace) -> None:
 
     graph = build_call_graph(config_name, project.paths)
 
-    if args.action == 'stats':
+    if args.action == "stats":
         stats = graph.get_stats()
         print(f"Граф вызовов: {config_name}")
         print(f"  Рёбер (вызовов): {stats['total_edges']}")
@@ -247,7 +249,7 @@ def cmd_call_graph(project: Project, args: argparse.Namespace) -> None:
         print(f"  Уникальных вызывающих: {stats['unique_callers']}")
         print(f"  Уникальных вызываемых: {stats['unique_callees']}")
 
-    elif args.action == 'callers':
+    elif args.action == "callers":
         module = args.module
         method = args.method
         callers = graph.get_callers(module, method)
@@ -258,7 +260,7 @@ def cmd_call_graph(project: Project, args: argparse.Namespace) -> None:
         else:
             print(f"Никто не вызывает {module}.{method}()")
 
-    elif args.action == 'callees':
+    elif args.action == "callees":
         module = args.module
         method = args.method
         callees = graph.get_callees(module, method)
@@ -269,16 +271,16 @@ def cmd_call_graph(project: Project, args: argparse.Namespace) -> None:
         else:
             print(f"{module}.{method}() никого не вызывает")
 
-    elif args.action == 'dead-code':
+    elif args.action == "dead-code":
         # Загружаем export methods из api-reference
         api_json = project.paths.config_api_reference_json(config_name)
         export_methods = []
         if api_json.exists():
-            with open(api_json, encoding='utf-8') as f:
+            with open(api_json, encoding="utf-8") as f:
                 modules = json_mod.load(f)
             for m in modules:
-                for method in m.get('methods', []):
-                    export_methods.append((m['name'], method['name']))
+                for method in m.get("methods", []):
+                    export_methods.append((m["name"], method["name"]))
         dead = graph.find_dead_code(export_methods)
         if dead:
             print(f"Мёртвый код ({len(dead)} из {len(export_methods)} экспортных методов):")
@@ -287,7 +289,7 @@ def cmd_call_graph(project: Project, args: argparse.Namespace) -> None:
         else:
             print("Мёртвый код не найден — все экспортные методы вызываются")
 
-    elif args.action == 'cycles':
+    elif args.action == "cycles":
         cycles = graph.find_cycles()
         if cycles:
             print(f"Циклические зависимости ({len(cycles)}):")
@@ -296,7 +298,7 @@ def cmd_call_graph(project: Project, args: argparse.Namespace) -> None:
         else:
             print("Циклов не найдено")
 
-    elif args.action == 'json':
+    elif args.action == "json":
         print(json_mod.dumps(graph.to_dict(), ensure_ascii=False, indent=2))
 
 
@@ -345,8 +347,8 @@ def cmd_backup(project: Project, args: argparse.Namespace) -> None:
 
     bm = BackupManager(project.paths)
 
-    if args.backup_command == 'create':
-        output = Path(args.output) if args.output else Path('download/backup.zip')
+    if args.backup_command == "create":
+        output = Path(args.output) if args.output else Path("download/backup.zip")
         if not output.is_absolute():
             output = project.paths.root / output
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -358,7 +360,7 @@ def cmd_backup(project: Project, args: argparse.Namespace) -> None:
         print(f"   Размер: {size_mb:.1f} МБ")
         print(f"   Скачать: {result}")
 
-    elif args.backup_command == 'restore':
+    elif args.backup_command == "restore":
         backup_path = Path(args.path)
         if not backup_path.is_absolute():
             backup_path = project.paths.root / backup_path
@@ -369,8 +371,8 @@ def cmd_backup(project: Project, args: argparse.Namespace) -> None:
         print(f"   Директорий: {', '.join(stats['dirs_restored'])}")
         print(f"   Размер: {stats['size_bytes'] / 1024 / 1024:.1f} МБ")
 
-    elif args.backup_command == 'list':
-        backup_dir = Path(args.dir) if args.dir else Path('download')
+    elif args.backup_command == "list":
+        backup_dir = Path(args.dir) if args.dir else Path("download")
         if not backup_dir.is_absolute():
             backup_dir = project.paths.root / backup_dir
 
@@ -394,9 +396,9 @@ def cmd_solve(project: Project, args: argparse.Namespace) -> None:
     - check: проверяет сгенерированный .bsl код (BSL LS + 22 правила)
     """
 
-    if args.solve_command == 'context':
+    if args.solve_command == "context":
         _solve_context(project, args)
-    elif args.solve_command == 'check':
+    elif args.solve_command == "check":
         _solve_check(project, args)
 
 
@@ -405,8 +407,8 @@ def _solve_context(project: Project, args: argparse.Namespace) -> None:
     from .services.task_processor import TaskProcessor
 
     query = args.query
-    config_name = getattr(args, 'config', None) or ""
-    limit = getattr(args, 'limit', 5)
+    config_name = getattr(args, "config", None) or ""
+    limit = getattr(args, "limit", 5)
 
     processor = TaskProcessor(project.paths)
     ctx = processor.solve(query, config_name=config_name, limit=limit)
@@ -443,7 +445,7 @@ def _solve_context(project: Project, args: argparse.Namespace) -> None:
             for m in ctx.api_modules:
                 print(f"  • {m.name}: {m.methods_count} методов")
                 for method in m.methods[:3]:
-                    params = method.get('params', [])
+                    params = method.get("params", [])
                     print(f"    - {method['name']}({', '.join(p['name'] for p in params)})")
             print()
         else:
@@ -564,9 +566,9 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
 
     from .services.task_processor import TaskProcessor
 
-    level = getattr(args, 'level', 'standard')
-    ci_mode = getattr(args, 'ci', False)
-    json_mode = getattr(args, 'json', False)
+    level = getattr(args, "level", "standard")
+    ci_mode = getattr(args, "ci", False)
+    json_mode = getattr(args, "json", False)
 
     bsl_path = Path(args.path)
     if not bsl_path.is_absolute():
@@ -583,9 +585,10 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
     result = processor.check(bsl_path, level=level)
 
     # SARIF-режим (приоритет над другими форматами)
-    sarif_path = getattr(args, 'sarif', None)
+    sarif_path = getattr(args, "sarif", None)
     if sarif_path:
         from .services.sarif_reporter import SarifReporter
+
         sarif_out = Path(sarif_path)
         if not sarif_out.is_absolute():
             sarif_out = project.paths.root / sarif_out
@@ -599,19 +602,13 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
     if json_mode:
         report = result.to_dict()
         if ci_mode:
-            report["violations"] = [
-                v for v in report["violations"]
-                if v["severity"] in ("error", "critical", "high")
-            ]
+            report["violations"] = [v for v in report["violations"] if v["severity"] in ("error", "critical", "high")]
         print(json_mod.dumps(report, ensure_ascii=False, indent=2))
         sys.exit(1 if result.total_errors > 0 else 0)
 
     # CI-режим
     if ci_mode:
-        errors_only = [
-            v for v in result.violations
-            if v.severity in ("error", "critical", "high")
-        ]
+        errors_only = [v for v in result.violations if v.severity in ("error", "critical", "high")]
         if errors_only:
             print(f"❌ {result.total_errors} errors found:")
             for v in errors_only[:20]:
@@ -629,7 +626,7 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
     print(f"\nФайл: {bsl_path}")
     print(f"Уровень: {level}")
     print(f"Анализаторы ({len(result.analyzers_run)}): {' + '.join(result.analyzers_run)}")
-    if result.bsl_ls_available is False and level in ('standard', 'full'):
+    if result.bsl_ls_available is False and level in ("standard", "full"):
         print("⚠️  BSL LS не установлен — диагностики Java пропущены")
     print()
 
@@ -679,19 +676,21 @@ def _solve_check(project: Project, args: argparse.Namespace) -> None:
 
 def cmd_mcp(project: Project, args: argparse.Namespace) -> None:
     """Управление MCP-сервером."""
-    if args.mcp_command == 'serve':
+    if args.mcp_command == "serve":
         try:
             import asyncio
 
             from .mcp_server import run_mcp_server
+
             asyncio.run(run_mcp_server())
         except ImportError as e:
             print(f"❌ MCP SDK не установлен: {e}")
             print("   Установите: pip install mcp")
             sys.exit(1)
-    elif args.mcp_command == 'tools':
+    elif args.mcp_command == "tools":
         # Выводим список tools — парсим из mcp_server.py
         import re
+
         mcp_src = Path(__file__).parent / "mcp_server.py"
         src = mcp_src.read_text(encoding="utf-8")
         # Извлекаем все name="..." из types.Tool( блоков
@@ -715,7 +714,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
 
     dp = DataPackage(project.paths)
 
-    if args.data_command == 'save-pkg':
+    if args.data_command == "save-pkg":
         output = Path(args.output) if args.output else dp.default_package_path
         if not output.is_absolute():
             output = project.paths.root / output
@@ -743,7 +742,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
             print(f"   Конфигураций: {len(manifest.get('configs', []))}")
             print(f"   Создан: {manifest.get('created_at', '?')[:19]}")
 
-    elif args.data_command == 'load-pkg':
+    elif args.data_command == "load-pkg":
         path = Path(args.path)
         if not path.is_absolute():
             path = project.paths.root / path
@@ -777,7 +776,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
         print("  • 1c-ai config list              — список конфигураций")
         print("  • 1c-ai mcp serve                — MCP-сервер для IDE")
 
-    elif args.data_command == 'info':
+    elif args.data_command == "info":
         path = Path(args.path) if args.path else dp.default_package_path
         if not path.is_absolute():
             path = project.paths.root / path
@@ -809,7 +808,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
         if info["total_files"] > 20:
             print(f"  ... и ещё {info['total_files'] - 20}")
 
-    elif args.data_command == 'autosave':
+    elif args.data_command == "autosave":
         print(f"Автосохранение в: {dp.default_package_path}")
         result = dp.autosave(
             include_raw=args.include_raw,
@@ -820,7 +819,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
         print(f"✅ Сохранено: {result}")
         print(f"   Размер: {size_mb:.1f} МБ, файлов: {info['total_files']}")
 
-    elif args.data_command == 'autoload':
+    elif args.data_command == "autoload":
         if not dp.has_autosave():
             print(f"❌ Автосохранение не найдено: {dp.default_package_path}")
             print("   Сначала выполните: 1c-ai data autosave")
@@ -832,7 +831,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
         print(f"   derived: {stats['derived_restored']}")
         print(f"   data (raw): {stats['raw_restored']}")
 
-    elif args.data_command == 'status':
+    elif args.data_command == "status":
         status = dp.status()
         print("Статус данных проекта:")
         print()
@@ -847,9 +846,9 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
             print(f"  {'Имя':<15} {'Версия':<15} {'Статус':<10} {'API':<5} {'Индекс':<7} {'Raw':<5}")
             print("  " + "-" * 60)
             for c in status["configs"]:
-                api = '✅' if c["has_api"] else '❌'
-                der = '✅' if c["has_derived"] else '❌'
-                raw = '✅' if c["has_raw"] else '—'
+                api = "✅" if c["has_api"] else "❌"
+                der = "✅" if c["has_derived"] else "❌"
+                raw = "✅" if c["has_raw"] else "—"
                 print(f"  {c['name']:<15} {c['version']:<15} {c['status']:<10} {api:<5} {der:<7} {raw:<5}")
         print()
         print(f"Автосохранение: {'✅ доступно' if status['autosave_available'] else '❌ нет'}")
@@ -861,9 +860,10 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
                 print(f"  Создан: {ai['manifest'].get('created_at', '?')[:19]}")
                 print("  Восстановить: 1c-ai data autoload")
 
-    elif args.data_command == 'release-push':
+    elif args.data_command == "release-push":
         # Загрузить в GitHub Releases
         from .services.github_releases import GitHubReleases
+
         gh = GitHubReleases(project.paths)
         if not gh.is_configured():
             print("❌ GitHub Releases не настроен")
@@ -894,9 +894,10 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
             print(f"❌ Ошибка: {result.get('error', 'неизвестная')}")
             sys.exit(1)
 
-    elif args.data_command == 'release-pull':
+    elif args.data_command == "release-pull":
         # Скачать из GitHub Releases
         from .services.github_releases import GitHubReleases
+
         gh = GitHubReleases(project.paths)
         if not gh.is_configured():
             print("❌ GitHub Releases не настроен")
@@ -919,9 +920,10 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
             print(f"❌ Ошибка: {result.get('error', 'неизвестная')}")
             sys.exit(1)
 
-    elif args.data_command == 'release-status':
+    elif args.data_command == "release-status":
         # Статус GitHub Releases
         from .services.github_releases import GitHubReleases
+
         gh = GitHubReleases(project.paths)
         status = gh.status()
         print("GitHub Releases статус:")
@@ -1001,18 +1003,20 @@ def main() -> None:
     # call-graph — граф вызовов методов
     p_cgraph = sub.add_parser("call-graph", help="Граф вызовов методов конфигурации")
     p_cgraph.add_argument("--config", required=True, help="Имя конфигурации")
-    p_cgraph.add_argument("action", choices=["stats", "callers", "callees", "dead-code", "cycles", "json"],
-                          default="stats", help="Действие: stats (по умолчанию), callers, callees, dead-code, cycles, json")
+    p_cgraph.add_argument(
+        "action",
+        choices=["stats", "callers", "callees", "dead-code", "cycles", "json"],
+        default="stats",
+        help="Действие: stats (по умолчанию), callers, callees, dead-code, cycles, json",
+    )
     p_cgraph.add_argument("--module", help="Имя модуля (для callers/callees)")
     p_cgraph.add_argument("--method", help="Имя метода (для callers/callees)")
 
     # standards
     p_std = sub.add_parser("standards", help="Проверка .bsl на стандарты 1С")
     p_std.add_argument("path", help="Путь к .bsl файлу или директории")
-    p_std.add_argument("--format", choices=["text", "json"], default="text",
-                       help="Формат вывода")
-    p_std.add_argument("--severity", choices=["error", "all"], default="all",
-                       help="Минимальный уровень severity")
+    p_std.add_argument("--format", choices=["text", "json"], default="text", help="Формат вывода")
+    p_std.add_argument("--severity", choices=["error", "all"], default="all", help="Минимальный уровень severity")
 
     # backup
     p_backup = sub.add_parser("backup", help="Backup/restore данных проекта")
@@ -1020,8 +1024,9 @@ def main() -> None:
 
     p_b_create = backup_sub.add_parser("create", help="Создать backup")
     p_b_create.add_argument("--output", "-o", help="Путь к ZIP файлу")
-    p_b_create.add_argument("--include-derived", action="store_true",
-                            help="Включить индексы derived/ (можно перестроить)")
+    p_b_create.add_argument(
+        "--include-derived", action="store_true", help="Включить индексы derived/ (можно перестроить)"
+    )
 
     p_b_restore = backup_sub.add_parser("restore", help="Восстановить из backup")
     p_b_restore.add_argument("path", help="Путь к ZIP файлу")
@@ -1041,17 +1046,17 @@ def main() -> None:
     p_s_chk = solve_sub.add_parser("check", help="Проверить .bsl код")
     p_s_chk.add_argument("path", help="Путь к .bsl файлу")
     p_s_chk.add_argument("--config", help="Имя конфигурации")
-    p_s_chk.add_argument("--level", choices=["quick", "standard", "full"],
-                         default="standard",
-                         help="Уровень проверки: quick (только стандарты), "
-                              "standard (+BSL LS), full (+метаданные)")
-    p_s_chk.add_argument("--ci", action="store_true",
-                         help="CI-режим: только errors, exit code 1 при errors")
-    p_s_chk.add_argument("--json", action="store_true",
-                         help="JSON-вывод для парсинга в CI/CD")
-    p_s_chk.add_argument("--sarif", metavar="PATH",
-                         help="Записать SARIF 2.1.0 отчёт по указанному пути "
-                              "(для GitHub Code Scanning)")
+    p_s_chk.add_argument(
+        "--level",
+        choices=["quick", "standard", "full"],
+        default="standard",
+        help="Уровень проверки: quick (только стандарты), standard (+BSL LS), full (+метаданные)",
+    )
+    p_s_chk.add_argument("--ci", action="store_true", help="CI-режим: только errors, exit code 1 при errors")
+    p_s_chk.add_argument("--json", action="store_true", help="JSON-вывод для парсинга в CI/CD")
+    p_s_chk.add_argument(
+        "--sarif", metavar="PATH", help="Записать SARIF 2.1.0 отчёт по указанному пути (для GitHub Code Scanning)"
+    )
 
     # mcp
     p_mcp = sub.add_parser("mcp", help="MCP-сервер для IDE/LLM")
@@ -1065,8 +1070,9 @@ def main() -> None:
 
     p_save = data_sub.add_parser("save-pkg", help="Сохранить данные в ZIP")
     p_save.add_argument("--output", "-o", help="Путь к ZIP (по умолчанию download/)")
-    p_save.add_argument("--include-raw", action="store_true",
-                        help="Включить data/ (распакованные конфиги — большой объём)")
+    p_save.add_argument(
+        "--include-raw", action="store_true", help="Включить data/ (распакованные конфиги — большой объём)"
+    )
     p_save.add_argument("--description", "-d", default="", help="Описание пакета")
 
     p_load = data_sub.add_parser("load-pkg", help="Восстановить данные из ZIP")
@@ -1133,8 +1139,7 @@ def main() -> None:
     p_cfe_patch.add_argument("--extension-path", required=True)
     p_cfe_patch.add_argument("--module-path", required=True)
     p_cfe_patch.add_argument("--method-name", required=True)
-    p_cfe_patch.add_argument("--interceptor-type", required=True,
-        choices=["Before", "After", "ModificationAndControl"])
+    p_cfe_patch.add_argument("--interceptor-type", required=True, choices=["Before", "After", "ModificationAndControl"])
     p_cfe_patch.add_argument("--context", default="НаСервере")
     p_cfe_patch.add_argument("--is-function", action="store_true")
 
@@ -1157,10 +1162,21 @@ def main() -> None:
 
     p_dg_query = depgraph_sub.add_parser("query", help="Запрос к графу")
     p_dg_query.add_argument("--name", required=True)
-    p_dg_query.add_argument("--query-type", required=True,
-        choices=["what_depends_on", "dependencies_of", "transitive_dependencies",
-                 "transitive_dependents", "find_cycles", "find_unused_objects",
-                 "find_root_objects", "shortest_path", "stats"])
+    p_dg_query.add_argument(
+        "--query-type",
+        required=True,
+        choices=[
+            "what_depends_on",
+            "dependencies_of",
+            "transitive_dependencies",
+            "transitive_dependents",
+            "find_cycles",
+            "find_unused_objects",
+            "find_root_objects",
+            "shortest_path",
+            "stats",
+        ],
+    )
     p_dg_query.add_argument("--object")
     p_dg_query.add_argument("--target")
 
@@ -1217,34 +1233,26 @@ def main() -> None:
 
     # inspect — единый анализ
     p_inspect = sub.add_parser("inspect", help="Единый анализ объектов 1С")
-    p_inspect.add_argument("target",
-        choices=["cf", "meta", "form", "skd", "mxl", "role", "subsystem", "depgraph"])
+    p_inspect.add_argument("target", choices=["cf", "meta", "form", "skd", "mxl", "role", "subsystem", "depgraph"])
     p_inspect.add_argument("path")
-    p_inspect.add_argument("--mode", default="overview",
-        choices=["overview", "brief", "full", "trace"])
+    p_inspect.add_argument("--mode", default="overview", choices=["overview", "brief", "full", "trace"])
     p_inspect.add_argument("--name")
 
     # epf-factory — полный цикл создания внешней обработки 1С (.epf)
-    p_epf = sub.add_parser("epf-factory",
-        help="Создание внешней обработки 1С (.epf) из шаблонов")
+    p_epf = sub.add_parser("epf-factory", help="Создание внешней обработки 1С (.epf) из шаблонов")
     epf_sub = p_epf.add_subparsers(dest="epf_command", required=True)
 
     p_epf_create = epf_sub.add_parser("create", help="Создать .epf из BSL-кода")
-    p_epf_create.add_argument("--name", required=True,
-        help="Имя обработки (латиница/кириллица, без пробелов)")
+    p_epf_create.add_argument("--name", required=True, help="Имя обработки (латиница/кириллица, без пробелов)")
     p_epf_create.add_argument("--synonym", help="Синоним (по умолчанию = name)")
-    p_epf_create.add_argument("--bsl", required=True,
-        help="Путь к .bsl файлу с модулем формы")
-    p_epf_create.add_argument("--output", required=True,
-        help="Путь к выходному .epf файлу")
-    p_epf_create.add_argument("--form-name", default="Форма",
-        help="Имя формы (по умолчанию Форма)")
-    p_epf_create.add_argument("--form-spec",
-        help="Путь к JSON-файлу с DSL-описанием формы (реквизиты, колонки)")
-    p_epf_create.add_argument("--save-sources", action="store_true",
-        help="Сохранить v8unpack-исходники в work_dir (не удалять)")
-    p_epf_create.add_argument("--skip-bsl-validation", action="store_true",
-        help="Пропустить проверку BSL через BSL LS")
+    p_epf_create.add_argument("--bsl", required=True, help="Путь к .bsl файлу с модулем формы")
+    p_epf_create.add_argument("--output", required=True, help="Путь к выходному .epf файлу")
+    p_epf_create.add_argument("--form-name", default="Форма", help="Имя формы (по умолчанию Форма)")
+    p_epf_create.add_argument("--form-spec", help="Путь к JSON-файлу с DSL-описанием формы (реквизиты, колонки)")
+    p_epf_create.add_argument(
+        "--save-sources", action="store_true", help="Сохранить v8unpack-исходники в work_dir (не удалять)"
+    )
+    p_epf_create.add_argument("--skip-bsl-validation", action="store_true", help="Пропустить проверку BSL через BSL LS")
 
     epf_sub.add_parser("templates", help="Список доступных шаблонов")
 
@@ -1307,6 +1315,7 @@ def main() -> None:
 # EPF Factory — полный цикл создания внешней обработки 1С
 # ============================================================================
 
+
 def cmd_epf_factory(project: Project, args: argparse.Namespace) -> None:
     """Полный цикл создания внешней обработки 1С (.epf) из шаблонов.
 
@@ -1355,7 +1364,7 @@ def cmd_epf_factory(project: Project, args: argparse.Namespace) -> None:
             sys.exit(1)
 
         print(f"✅ EPF создан: {result.epf_path}")
-        print(f"   Размер: {result.size_bytes} байт ({result.size_bytes/1024:.1f} КБ)")
+        print(f"   Размер: {result.size_bytes} байт ({result.size_bytes / 1024:.1f} КБ)")
         print(f"   Имя:    {result.name}")
         print(f"   Синоним: {result.synonym}")
         print(f"   UUID обработки: {result.proc_uuid}")
@@ -1372,6 +1381,7 @@ def cmd_epf_factory(project: Project, args: argparse.Namespace) -> None:
 # DSL — JSON DSL → XML компиляторы
 # ============================================================================
 
+
 def cmd_dsl(project: Project, args: argparse.Namespace) -> None:
     """JSON DSL → XML компиляторы для 1С."""
     from .services.dsl_compiler import DslCompiler
@@ -1381,6 +1391,7 @@ def cmd_dsl(project: Project, args: argparse.Namespace) -> None:
     if args.dsl_command == "meta":
         # Compile metadata object
         import json as json_mod
+
         if args.json_file:
             with open(args.json_file, encoding="utf-8") as f:
                 definition = json_mod.load(f)
@@ -1405,6 +1416,7 @@ def cmd_dsl(project: Project, args: argparse.Namespace) -> None:
 
     elif args.dsl_command == "form":
         import json as json_mod
+
         if args.json_file:
             with open(args.json_file, encoding="utf-8") as f:
                 definition = json_mod.load(f)
@@ -1420,6 +1432,7 @@ def cmd_dsl(project: Project, args: argparse.Namespace) -> None:
 
     elif args.dsl_command == "skd":
         import json as json_mod
+
         if args.json_file:
             with open(args.json_file, encoding="utf-8") as f:
                 definition = json_mod.load(f)
@@ -1435,6 +1448,7 @@ def cmd_dsl(project: Project, args: argparse.Namespace) -> None:
 
     elif args.dsl_command == "mxl":
         import json as json_mod
+
         if args.json_file:
             with open(args.json_file, encoding="utf-8") as f:
                 definition = json_mod.load(f)
@@ -1451,6 +1465,7 @@ def cmd_dsl(project: Project, args: argparse.Namespace) -> None:
 
     elif args.dsl_command == "role":
         import json as json_mod
+
         if args.json_file:
             with open(args.json_file, encoding="utf-8") as f:
                 definition = json_mod.load(f)
@@ -1470,6 +1485,7 @@ def cmd_dsl(project: Project, args: argparse.Namespace) -> None:
 # ============================================================================
 # CFE — работа с расширениями конфигураций
 # ============================================================================
+
 
 def cmd_cfe(project: Project, args: argparse.Namespace) -> None:
     """Работа с расширениями конфигураций 1С (CFE)."""
@@ -1533,9 +1549,11 @@ def cmd_cfe(project: Project, args: argparse.Namespace) -> None:
 # SKD Trace — трассировка поля СКД
 # ============================================================================
 
+
 def cmd_skd_trace(project: Project, args: argparse.Namespace) -> None:
     """Трассировка поля СКД через всю цепочку."""
     import sys as sys_mod
+
     sys_mod.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
     from skd_parser import trace_field
 
@@ -1563,6 +1581,7 @@ def cmd_skd_trace(project: Project, args: argparse.Namespace) -> None:
 # DEPGRAPH — граф зависимостей метаданных
 # ============================================================================
 
+
 def cmd_depgraph(project: Project, args: argparse.Namespace) -> None:
     """Граф зависимостей метаданных 1С (networkx, без Neo4j)."""
     from .services.dependency_graph import DependencyGraph
@@ -1583,6 +1602,7 @@ def cmd_depgraph(project: Project, args: argparse.Namespace) -> None:
             out_path = project.paths.root / output
         out_path.parent.mkdir(parents=True, exist_ok=True)
         import json as json_mod
+
         out_path.write_text(
             json_mod.dumps(dg.to_dict(), ensure_ascii=False, indent=2),
             encoding="utf-8",
@@ -1677,6 +1697,7 @@ def cmd_depgraph(project: Project, args: argparse.Namespace) -> None:
 # OPENSPEC — Specification-Driven Development
 # ============================================================================
 
+
 def cmd_openspec(project: Project, args: argparse.Namespace) -> None:
     """OpenSpec — управление изменениями."""
     from .services.openspec_manager import OpenSpecManager
@@ -1747,6 +1768,7 @@ def cmd_openspec(project: Project, args: argparse.Namespace) -> None:
 # SESSION — управление контекстом AI-сессий
 # ============================================================================
 
+
 def cmd_session(project: Project, args: argparse.Namespace) -> None:
     """Управление контекстом AI-сессий."""
     from .services.session_manager import SessionManager
@@ -1807,6 +1829,7 @@ def cmd_session(project: Project, args: argparse.Namespace) -> None:
 # INSPECT — единый анализ объектов 1С (как у конкурента)
 # ============================================================================
 
+
 def cmd_inspect(project: Project, args: argparse.Namespace) -> None:
     """Единый inspect — анализ объектов 1С с режимами.
 
@@ -1848,8 +1871,10 @@ def cmd_inspect(project: Project, args: argparse.Namespace) -> None:
                 print("❌ Для trace mode укажите --name <поле>")
                 sys.exit(2)
             import sys as sys_mod
+
             sys_mod.path.insert(0, str(project.paths.scripts_dir))
             from skd_parser import trace_field
+
             result = trace_field(path, args.name)
             if "error" in result:
                 print(f"❌ {result['error']}")
@@ -1874,6 +1899,7 @@ def cmd_inspect(project: Project, args: argparse.Namespace) -> None:
     elif target == "depgraph":
         # Граф зависимостей
         from .services.dependency_graph import DependencyGraph
+
         config_name = args.name
         if not config_name:
             print("❌ Для depgraph укажите --name <config_name>")
@@ -2047,11 +2073,26 @@ def _inspect_form(form_path: Path, mode: str) -> None:
     item_counts: dict[str, int] = {}
     for elem in root.iter():
         tag = _strip_ns(elem.tag)
-        if tag in ("InputField", "Button", "Group", "Label", "Table",
-                    "Pages", "Page", "CheckBox", "RadioButton",
-                    "Hyperlink", "ProgressBar", "TextDocField",
-                    "SpreadSheetDocField", "Picture", "CalendarField",
-                    "TrackBar", "CommandBar", "UsualGroup"):
+        if tag in (
+            "InputField",
+            "Button",
+            "Group",
+            "Label",
+            "Table",
+            "Pages",
+            "Page",
+            "CheckBox",
+            "RadioButton",
+            "Hyperlink",
+            "ProgressBar",
+            "TextDocField",
+            "SpreadSheetDocField",
+            "Picture",
+            "CalendarField",
+            "TrackBar",
+            "CommandBar",
+            "UsualGroup",
+        ):
             item_counts[tag] = item_counts.get(tag, 0) + 1
 
     print("Элементы:")
@@ -2342,8 +2383,6 @@ def _inspect_subsystem(subsystem_path: Path, mode: str) -> None:
             type_counts[tag] = type_counts.get(tag, 0) + 1
         for t, count in sorted(type_counts.items()):
             print(f"  {t}: {count}")
-
-
 
 
 if __name__ == "__main__":

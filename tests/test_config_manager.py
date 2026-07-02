@@ -3,6 +3,7 @@
 subprocess мокируется (чтобы не запускать внешние скрипты).
 ZIP создаётся реальный (для проверки логики распаковки).
 """
+
 import json
 import shutil
 import sys
@@ -27,7 +28,7 @@ def setup(tmp_path):
 
     pm = PathManager(project_root=tmp_path)
     registry_path = tmp_path / "runtime" / "config-registry.json"
-    registry_path.write_text('{"version": "2.0", "configs": {}}', encoding='utf-8')
+    registry_path.write_text('{"version": "2.0", "configs": {}}', encoding="utf-8")
 
     reg = ConfigurationRegistry(registry_path, tmp_path)
     cm = ConfigManager(reg, pm)
@@ -57,10 +58,13 @@ def test_add_from_zip_success(setup):
     """add_from_zip распаковывает и регистрирует конфигурацию."""
     pm, reg, cm, tmp = setup
     zip_path = tmp / "ut11.zip"
-    _make_zip(zip_path, {
-        "Configuration.xml": _config_xml("11.3.4", "1C"),
-        "Catalogs/Товары/Товары.xml": "<root/>",
-    })
+    _make_zip(
+        zip_path,
+        {
+            "Configuration.xml": _config_xml("11.3.4", "1C"),
+            "Catalogs/Товары/Товары.xml": "<root/>",
+        },
+    )
 
     config = cm.add_from_zip("ut11", zip_path, "УТ 11")
 
@@ -126,10 +130,13 @@ def test_build_with_mocked_subprocess(setup):
     """build() вызывает внешние скрипты через subprocess (замокано)."""
     pm, reg, cm, tmp = setup
     zip_path = tmp / "ut11.zip"
-    _make_zip(zip_path, {
-        "Configuration.xml": _config_xml("11.3.4", "1C"),
-        "CommonModules/Модуль/Модуль.bsl": "Процедура Тест() Экспорт\nКонецПроцедуры",
-    })
+    _make_zip(
+        zip_path,
+        {
+            "Configuration.xml": _config_xml("11.3.4", "1C"),
+            "CommonModules/Модуль/Модуль.bsl": "Процедура Тест() Экспорт\nКонецПроцедуры",
+        },
+    )
 
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
@@ -160,9 +167,12 @@ def test_archive_and_activate(setup):
     """archive() → activate() цикл."""
     pm, reg, cm, tmp = setup
     zip_path = tmp / "ut11.zip"
-    _make_zip(zip_path, {
-        "Configuration.xml": _config_xml("11.3.4", "1C"),
-    })
+    _make_zip(
+        zip_path,
+        {
+            "Configuration.xml": _config_xml("11.3.4", "1C"),
+        },
+    )
 
     config = cm.add_from_zip("ut11", zip_path, "УТ 11")
     original_path = config.path
@@ -186,15 +196,19 @@ def test_archive_and_activate(setup):
 # Тесты validate_sources()
 # ============================
 
+
 def test_validate_sources_valid(setup):
     """Валидные исходники: Configuration.xml + Catalogs/."""
     pm, reg, cm, tmp = setup
     zip_path = tmp / "ut11.zip"
-    _make_zip(zip_path, {
-        "Configuration.xml": _config_xml(),
-        "Catalogs/Товары/Товары.xml": "<root/>",
-        "CommonModules/Модуль/Модуль.bsl": "Процедура Тест() Экспорт\nКонецПроцедуры",
-    })
+    _make_zip(
+        zip_path,
+        {
+            "Configuration.xml": _config_xml(),
+            "Catalogs/Товары/Товары.xml": "<root/>",
+            "CommonModules/Модуль/Модуль.bsl": "Процедура Тест() Экспорт\nКонецПроцедуры",
+        },
+    )
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     result = cm.validate_sources("ut11")
@@ -212,9 +226,12 @@ def test_validate_sources_missing_configuration_xml(setup):
     """Нет Configuration.xml → невалидно."""
     pm, reg, cm, tmp = setup
     zip_path = tmp / "ut11.zip"
-    _make_zip(zip_path, {
-        "Catalogs/Товары/Товары.xml": "<root/>",
-    })
+    _make_zip(
+        zip_path,
+        {
+            "Catalogs/Товары/Товары.xml": "<root/>",
+        },
+    )
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     result = cm.validate_sources("ut11")
@@ -228,10 +245,13 @@ def test_validate_sources_missing_metadata_dirs(setup):
     """Нет ни одной критической директории → невалидно."""
     pm, reg, cm, tmp = setup
     zip_path = tmp / "ut11.zip"
-    _make_zip(zip_path, {
-        "Configuration.xml": _config_xml(),
-        "Roles/Role1/Role1.xml": "<root/>",  # Roles не в MIN_REQUIRED_DIRS
-    })
+    _make_zip(
+        zip_path,
+        {
+            "Configuration.xml": _config_xml(),
+            "Roles/Role1/Role1.xml": "<root/>",  # Roles не в MIN_REQUIRED_DIRS
+        },
+    )
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     result = cm.validate_sources("ut11")
@@ -245,10 +265,13 @@ def test_validate_sources_no_bsl_warning(setup):
     """Нет .bsl файлов → warning но is_valid=True."""
     pm, reg, cm, tmp = setup
     zip_path = tmp / "ut11.zip"
-    _make_zip(zip_path, {
-        "Configuration.xml": _config_xml(),
-        "Catalogs/Товары/Товары.xml": "<root/>",
-    })
+    _make_zip(
+        zip_path,
+        {
+            "Configuration.xml": _config_xml(),
+            "Catalogs/Товары/Товары.xml": "<root/>",
+        },
+    )
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     result = cm.validate_sources("ut11")
@@ -272,14 +295,18 @@ def test_validate_sources_non_active(setup):
 # Тесты check_freshness()
 # ============================
 
+
 def test_check_freshness_no_indexes(setup):
     """Нет индексов → все missing, all_fresh=False."""
     pm, reg, cm, tmp = setup
     zip_path = tmp / "ut11.zip"
-    _make_zip(zip_path, {
-        "Configuration.xml": _config_xml(),
-        "Catalogs/Товары/Товары.xml": "<root/>",
-    })
+    _make_zip(
+        zip_path,
+        {
+            "Configuration.xml": _config_xml(),
+            "Catalogs/Товары/Товары.xml": "<root/>",
+        },
+    )
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     report = cm.check_freshness("ut11")
@@ -294,14 +321,18 @@ def test_check_freshness_all_present_and_fresh(setup):
     """Все 4 индекса свежие → all_fresh=True."""
     pm, reg, cm, tmp = setup
     zip_path = tmp / "ut11.zip"
-    _make_zip(zip_path, {
-        "Configuration.xml": _config_xml(),
-        "Catalogs/Товары/Товары.xml": "<root/>",
-    })
+    _make_zip(
+        zip_path,
+        {
+            "Configuration.xml": _config_xml(),
+            "Catalogs/Товары/Товары.xml": "<root/>",
+        },
+    )
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     # Создаём индексы с mtime > source (в будущем относительно source)
     import time as _time
+
     derived_dir = pm.config_derived_dir("ut11")
     derived_dir.mkdir(parents=True, exist_ok=True)
     future_time = _time.time() + 100  # на 100 сек новее
@@ -312,9 +343,10 @@ def test_check_freshness_all_present_and_fresh(setup):
         derived_dir / "form-index.json",
         pm.config_api_reference_json("ut11"),
     ]:
-        idx_file.write_text('{"test": true}', encoding='utf-8')
+        idx_file.write_text('{"test": true}', encoding="utf-8")
         # Устанавливаем mtime в будущее
         import os as _os
+
         _os.utime(idx_file, (future_time, future_time))
 
     report = cm.check_freshness("ut11")
@@ -331,21 +363,25 @@ def test_check_freshness_stale_index(setup):
     """Один индекс устарел (source новее) → stale."""
     pm, reg, cm, tmp = setup
     zip_path = tmp / "ut11.zip"
-    _make_zip(zip_path, {
-        "Configuration.xml": _config_xml(),
-        "Catalogs/Товары/Товары.xml": "<root/>",
-    })
+    _make_zip(
+        zip_path,
+        {
+            "Configuration.xml": _config_xml(),
+            "Catalogs/Товары/Товары.xml": "<root/>",
+        },
+    )
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     # Сначала создаём индексы (старые)
     import os as _os
     import time as _time
+
     derived_dir = pm.config_derived_dir("ut11")
     derived_dir.mkdir(parents=True, exist_ok=True)
     past_time = _time.time() - 1000  # на 1000 сек старше
 
     idx_file = derived_dir / "unified-metadata-index.json"
-    idx_file.write_text('{}', encoding='utf-8')
+    idx_file.write_text("{}", encoding="utf-8")
     _os.utime(idx_file, (past_time, past_time))
 
     # Touch source чтобы сделать его новее
@@ -365,13 +401,17 @@ def test_check_freshness_stale_index(setup):
 # Тесты build() с валидацией и freshness
 # ============================
 
+
 def test_build_invalid_sources_raises(setup):
     """build() для невалидных исходников → ValueError."""
     pm, reg, cm, tmp = setup
     zip_path = tmp / "ut11.zip"
-    _make_zip(zip_path, {
-        "Roles/Role1/Role1.xml": "<root/>",  # нет Configuration.xml, нет критических директорий
-    })
+    _make_zip(
+        zip_path,
+        {
+            "Roles/Role1/Role1.xml": "<root/>",  # нет Configuration.xml, нет критических директорий
+        },
+    )
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     with pytest.raises(ValueError, match="невалидны"):
@@ -382,16 +422,20 @@ def test_build_skips_when_all_fresh(setup):
     """build() с skip_if_fresh=True пропускает если все индексы свежие."""
     pm, reg, cm, tmp = setup
     zip_path = tmp / "ut11.zip"
-    _make_zip(zip_path, {
-        "Configuration.xml": _config_xml(),
-        "Catalogs/Товары/Товары.xml": "<root/>",
-        "CommonModules/Модуль/Модуль.bsl": "Процедура Тест() Экспорт\nКонецПроцедуры",
-    })
+    _make_zip(
+        zip_path,
+        {
+            "Configuration.xml": _config_xml(),
+            "Catalogs/Товары/Товары.xml": "<root/>",
+            "CommonModules/Модуль/Модуль.bsl": "Процедура Тест() Экспорт\nКонецПроцедуры",
+        },
+    )
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     # Создаём все 4 индекса свежими (новее source)
     import os as _os
     import time as _time
+
     derived_dir = pm.config_derived_dir("ut11")
     derived_dir.mkdir(parents=True, exist_ok=True)
     future_time = _time.time() + 100
@@ -402,7 +446,7 @@ def test_build_skips_when_all_fresh(setup):
         derived_dir / "form-index.json",
         pm.config_api_reference_json("ut11"),
     ]:
-        idx_file.write_text('{}', encoding='utf-8')
+        idx_file.write_text("{}", encoding="utf-8")
         _os.utime(idx_file, (future_time, future_time))
 
     # Мокаем subprocess.run — он НЕ должен вызваться если индексы свежие
@@ -419,16 +463,20 @@ def test_build_force_rebuilds_even_when_fresh(setup):
     """build(force=True) пересобирает даже если индексы свежие."""
     pm, reg, cm, tmp = setup
     zip_path = tmp / "ut11.zip"
-    _make_zip(zip_path, {
-        "Configuration.xml": _config_xml(),
-        "Catalogs/Товары/Товары.xml": "<root/>",
-        "CommonModules/Модуль/Модуль.bsl": "Процедура Тест() Экспорт\nКонецПроцедуры",
-    })
+    _make_zip(
+        zip_path,
+        {
+            "Configuration.xml": _config_xml(),
+            "Catalogs/Товары/Товары.xml": "<root/>",
+            "CommonModules/Модуль/Модуль.bsl": "Процедура Тест() Экспорт\nКонецПроцедуры",
+        },
+    )
     cm.add_from_zip("ut11", zip_path, "УТ 11")
 
     # Создаём свежие индексы
     import os as _os
     import time as _time
+
     derived_dir = pm.config_derived_dir("ut11")
     derived_dir.mkdir(parents=True, exist_ok=True)
     future_time = _time.time() + 100
@@ -439,7 +487,7 @@ def test_build_force_rebuilds_even_when_fresh(setup):
         derived_dir / "form-index.json",
         pm.config_api_reference_json("ut11"),
     ]:
-        idx_file.write_text('{}', encoding='utf-8')
+        idx_file.write_text("{}", encoding="utf-8")
         _os.utime(idx_file, (future_time, future_time))
 
     # Мокаем subprocess.run — он ДОЛЖЕН вызваться при force=True

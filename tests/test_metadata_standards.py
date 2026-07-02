@@ -2,6 +2,7 @@
 Тесты для check_metadata_standards.py.
 Проверяем анализ XML метаданных конфигурации 1С.
 """
+
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -18,8 +19,7 @@ from check_metadata_standards import (
 )
 
 
-def _make_config_xml(name="Конфигурация", vendor="", version="", name_prefix="",
-                     compat="", script="Russian"):
+def _make_config_xml(name="Конфигурация", vendor="", version="", name_prefix="", compat="", script="Russian"):
     """Создаёт тестовый Configuration.xml."""
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses">
@@ -39,8 +39,7 @@ def _make_config_xml(name="Конфигурация", vendor="", version="", nam
 </MetaDataObject>"""
 
 
-def _make_catalog_xml(name="Товары", synonym="", check_unique="false",
-                      code_length="11", list_form="", obj_form=""):
+def _make_catalog_xml(name="Товары", synonym="", check_unique="false", code_length="11", list_form="", obj_form=""):
     """Создаёт тестовый Catalog XML."""
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses">
@@ -58,8 +57,9 @@ def _make_catalog_xml(name="Товары", synonym="", check_unique="false",
 </MetaDataObject>"""
 
 
-def _make_common_module_xml(name="ТестовыйМодуль", synonym="", comment="",
-                            server="false", server_call="false", client="false"):
+def _make_common_module_xml(
+    name="ТестовыйМодуль", synonym="", comment="", server="false", server_call="false", client="false"
+):
     """Создаёт тестовый CommonModule XML."""
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses">
@@ -81,25 +81,21 @@ def config_dir(tmp_path):
     """Создаёт тестовую структуру конфигурации."""
     # Configuration.xml
     (tmp_path / "Configuration.xml").write_text(
-        _make_config_xml(vendor="", version="", name_prefix=""),
-        encoding="utf-8"
+        _make_config_xml(vendor="", version="", name_prefix=""), encoding="utf-8"
     )
 
     # Catalogs/
     cat_dir = tmp_path / "Catalogs"
     cat_dir.mkdir()
     (cat_dir / "Товары.xml").write_text(
-        _make_catalog_xml(name="Товары", check_unique="false", code_length="11"),
-        encoding="utf-8"
+        _make_catalog_xml(name="Товары", check_unique="false", code_length="11"), encoding="utf-8"
     )
 
     # CommonModules/
     cm_dir = tmp_path / "CommonModules"
     cm_dir.mkdir()
     (cm_dir / "ТестовыйМодуль.xml").write_text(
-        _make_common_module_xml(name="ТестовыйМодуль", comment="",
-                                server="true", server_call="true"),
-        encoding="utf-8"
+        _make_common_module_xml(name="ТестовыйМодуль", comment="", server="true", server_call="true"), encoding="utf-8"
     )
 
     return tmp_path
@@ -152,9 +148,7 @@ def test_check_configuration_empty_name_prefix(config_dir):
 def test_check_configuration_filled_ok(tmp_path):
     """Заполненные свойства Configuration → нет warnings."""
     (tmp_path / "Configuration.xml").write_text(
-        _make_config_xml(vendor="TestCorp", version="1.0", name_prefix="Пр",
-                         compat="Version8_3_24"),
-        encoding="utf-8"
+        _make_config_xml(vendor="TestCorp", version="1.0", name_prefix="Пр", compat="Version8_3_24"), encoding="utf-8"
     )
     violations = check_metadata(tmp_path)
     config_violations = [v for v in violations if v.object_type == "Configuration"]
@@ -164,8 +158,7 @@ def test_check_configuration_filled_ok(tmp_path):
 def test_check_catalog_no_check_unique(config_dir):
     """CheckUnique=false при наличии кода → warning."""
     violations = check_metadata(config_dir)
-    assert any(v.rule_id == "catalog-no-check-unique" and v.object_name == "Товары"
-               for v in violations)
+    assert any(v.rule_id == "catalog-no-check-unique" and v.object_name == "Товары" for v in violations)
 
 
 def test_check_catalog_check_unique_ok(tmp_path):
@@ -173,10 +166,13 @@ def test_check_catalog_check_unique_ok(tmp_path):
     cat_dir = tmp_path / "Catalogs"
     cat_dir.mkdir()
     (cat_dir / "Товары.xml").write_text(
-        _make_catalog_xml(name="Товары", check_unique="true",
-                         list_form="Catalog.Товары.Form.ФормаСписка",
-                         obj_form="Catalog.Товары.Form.ФормаЭлемента"),
-        encoding="utf-8"
+        _make_catalog_xml(
+            name="Товары",
+            check_unique="true",
+            list_form="Catalog.Товары.Form.ФормаСписка",
+            obj_form="Catalog.Товары.Form.ФормаЭлемента",
+        ),
+        encoding="utf-8",
     )
     violations = check_metadata(tmp_path)
     assert not any(v.rule_id == "catalog-no-check-unique" for v in violations)
@@ -192,8 +188,7 @@ def test_check_catalog_no_list_form(config_dir):
 def test_check_common_module_no_comment(config_dir):
     """Comment не заполнен → warning."""
     violations = check_metadata(config_dir)
-    assert any(v.rule_id == "module-no-comment" and v.object_name == "ТестовыйМодуль"
-               for v in violations)
+    assert any(v.rule_id == "module-no-comment" and v.object_name == "ТестовыйМодуль" for v in violations)
 
 
 def test_check_common_module_servercall_no_suffix(tmp_path):
@@ -201,8 +196,7 @@ def test_check_common_module_servercall_no_suffix(tmp_path):
     cm_dir = tmp_path / "CommonModules"
     cm_dir.mkdir()
     (cm_dir / "Модуль.xml").write_text(
-        _make_common_module_xml(name="Модуль", server="true", server_call="true"),
-        encoding="utf-8"
+        _make_common_module_xml(name="Модуль", server="true", server_call="true"), encoding="utf-8"
     )
     violations = check_metadata(tmp_path)
     assert any(v.rule_id == "module-servercall-no-suffix" for v in violations)
@@ -213,9 +207,8 @@ def test_check_common_module_servercall_with_suffix_ok(tmp_path):
     cm_dir = tmp_path / "CommonModules"
     cm_dir.mkdir()
     (cm_dir / "МодульВызовСервера.xml").write_text(
-        _make_common_module_xml(name="МодульВызовСервера", server="true",
-                                server_call="true", comment="Тест"),
-        encoding="utf-8"
+        _make_common_module_xml(name="МодульВызовСервера", server="true", server_call="true", comment="Тест"),
+        encoding="utf-8",
     )
     violations = check_metadata(tmp_path)
     assert not any(v.rule_id == "module-servercall-no-suffix" for v in violations)
@@ -231,23 +224,16 @@ def test_check_object_name_with_spaces(tmp_path):
     """Имя с пробелами → error."""
     cat_dir = tmp_path / "Catalogs"
     cat_dir.mkdir()
-    (cat_dir / "test.xml").write_text(
-        _make_catalog_xml(name="Имя С Пробелами"),
-        encoding="utf-8"
-    )
+    (cat_dir / "test.xml").write_text(_make_catalog_xml(name="Имя С Пробелами"), encoding="utf-8")
     violations = check_metadata(tmp_path)
-    assert any(v.rule_id == "name-with-spaces" and v.severity == "error"
-               for v in violations)
+    assert any(v.rule_id == "name-with-spaces" and v.severity == "error" for v in violations)
 
 
 def test_check_object_name_starts_with_digit(tmp_path):
     """Имя начинается с цифры → error."""
     cat_dir = tmp_path / "Catalogs"
     cat_dir.mkdir()
-    (cat_dir / "test.xml").write_text(
-        _make_catalog_xml(name="1Товары"),
-        encoding="utf-8"
-    )
+    (cat_dir / "test.xml").write_text(_make_catalog_xml(name="1Товары"), encoding="utf-8")
     violations = check_metadata(tmp_path)
     assert any(v.rule_id == "name-starts-with-digit" for v in violations)
 
@@ -255,6 +241,7 @@ def test_check_object_name_starts_with_digit(tmp_path):
 def test_format_violations_empty():
     """Пустой список → сообщение об отсутствии нарушений."""
     from check_metadata_standards import format_violations
+
     result = format_violations([])
     assert "не найдено" in result.lower()
 
@@ -262,12 +249,15 @@ def test_format_violations_empty():
 def test_format_violations_text():
     """Текстовый формат вывода."""
     from check_metadata_standards import format_violations
+
     violations = [
         MetadataViolation(
-            file="test.xml", object_type="Catalog",
+            file="test.xml",
+            object_type="Catalog",
             object_name="Товары",
-            rule_id="test-rule", severity="warning",
-            message="Test message"
+            rule_id="test-rule",
+            severity="warning",
+            message="Test message",
         )
     ]
     result = format_violations(violations)
@@ -281,12 +271,15 @@ def test_format_violations_json():
     import json
 
     from check_metadata_standards import format_violations
+
     violations = [
         MetadataViolation(
-            file="test.xml", object_type="Catalog",
+            file="test.xml",
+            object_type="Catalog",
             object_name="Товары",
-            rule_id="test-rule", severity="error",
-            message="Test error"
+            rule_id="test-rule",
+            severity="error",
+            message="Test error",
         )
     ]
     result = format_violations(violations, "json")

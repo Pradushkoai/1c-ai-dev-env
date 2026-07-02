@@ -5,6 +5,7 @@ MCP-сервер для 1C AI Development Environment.
 
 Запуск: 1c-ai mcp serve
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -845,22 +846,176 @@ def create_mcp_server() -> Server:
                     "required": ["old_path", "new_path"],
                 },
             ),
-            types.Tool(name="dsl_compile_meta", description="JSON DSL → XML метаданных 1С (23 типа объектов).", inputSchema={"type":"object","properties":{"definition":{"type":"object"},"output_dir":{"type":"string"}},"required":["definition","output_dir"]}),
-            types.Tool(name="dsl_compile_form", description="JSON DSL → Form.xml управляемой формы.", inputSchema={"type":"object","properties":{"definition":{"type":"object"},"output_path":{"type":"string"}},"required":["definition","output_path"]}),
-            types.Tool(name="dsl_compile_skd", description="JSON DSL → СКД Template.xml.", inputSchema={"type":"object","properties":{"definition":{"type":"object"},"output_path":{"type":"string"}},"required":["definition","output_path"]}),
-            types.Tool(name="dsl_compile_mxl", description="JSON DSL → MXL Template.xml (печатная форма).", inputSchema={"type":"object","properties":{"definition":{"type":"object"},"output_path":{"type":"string"}},"required":["definition","output_path"]}),
-            types.Tool(name="dsl_compile_role", description="JSON DSL → Rights.xml роли 1С.", inputSchema={"type":"object","properties":{"definition":{"type":"object"},"output_dir":{"type":"string"}},"required":["definition","output_dir"]}),
-            types.Tool(name="cfe_borrow", description="Заимствовать объект из конфигурации в расширение (CFE).", inputSchema={"type":"object","properties":{"extension_path":{"type":"string"},"config_path":{"type":"string"},"object_ref":{"type":"string"}},"required":["extension_path","config_path","object_ref"]}),
-            types.Tool(name="cfe_patch_method", description="Сгенерировать BSL перехватчик (&Перед/&После/&ИзменениеИКонтроль).", inputSchema={"type":"object","properties":{"extension_path":{"type":"string"},"module_path":{"type":"string"},"method_name":{"type":"string"},"interceptor_type":{"type":"string","enum":["Before","After","ModificationAndControl"]}},"required":["extension_path","module_path","method_name","interceptor_type"]}),
-            types.Tool(name="cfe_diff", description="Анализ расширения CFE: что заимствовано, перехвачено.", inputSchema={"type":"object","properties":{"extension_path":{"type":"string"},"config_path":{"type":"string"}},"required":["extension_path","config_path"]}),
-            types.Tool(name="skd_trace", description="Трассировка поля СКД через всю цепочку: dataset → calculated → resource.", inputSchema={"type":"object","properties":{"template_path":{"type":"string"},"field_name":{"type":"string"}},"required":["template_path","field_name"]}),
-            types.Tool(name="build_dependency_graph", description="Построить граф зависимостей метаданных 1С (networkx).", inputSchema={"type":"object","properties":{"config_name":{"type":"string"}},"required":["config_name"]}),
-            types.Tool(name="dependency_query", description="Запрос к графу зависимостей: what_depends_on, dependencies_of, find_cycles, и т.д.", inputSchema={"type":"object","properties":{"config_name":{"type":"string"},"query_type":{"type":"string"},"object_ref":{"type":"string"},"target":{"type":"string"}},"required":["config_name","query_type","object_ref"]}),
-            types.Tool(name="inspect", description="Единый анализ объектов 1С: cf, meta, form, skd, mxl, role, subsystem, depgraph.", inputSchema={"type":"object","properties":{"target":{"type":"string"},"path":{"type":"string"},"mode":{"type":"string"},"name":{"type":"string"},"config_name":{"type":"string"}},"required":["target","path"]}),
-            types.Tool(name="openspec_proposal", description="Создать OpenSpec proposal (Specification-Driven Development).", inputSchema={"type":"object","properties":{"change_id":{"type":"string"},"title":{"type":"string"},"context":{"type":"string"},"approach":{"type":"string"},"tasks":{"type":"array","items":{"type":"string"}}},"required":["change_id","title"]}),
-            types.Tool(name="openspec_list", description="Список OpenSpec changes.", inputSchema={"type":"object","properties":{"include_archived":{"type":"boolean"}}}),
-            types.Tool(name="openspec_update_task", description="Обновить задачу в OpenSpec change.", inputSchema={"type":"object","properties":{"change_id":{"type":"string"},"task_index":{"type":"integer"},"completed":{"type":"boolean"}},"required":["change_id","task_index"]}),
-            types.Tool(name="openspec_archive", description="Архивировать завершённый OpenSpec change.", inputSchema={"type":"object","properties":{"change_id":{"type":"string"}},"required":["change_id"]}),
+            types.Tool(
+                name="dsl_compile_meta",
+                description="JSON DSL → XML метаданных 1С (23 типа объектов).",
+                inputSchema={
+                    "type": "object",
+                    "properties": {"definition": {"type": "object"}, "output_dir": {"type": "string"}},
+                    "required": ["definition", "output_dir"],
+                },
+            ),
+            types.Tool(
+                name="dsl_compile_form",
+                description="JSON DSL → Form.xml управляемой формы.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {"definition": {"type": "object"}, "output_path": {"type": "string"}},
+                    "required": ["definition", "output_path"],
+                },
+            ),
+            types.Tool(
+                name="dsl_compile_skd",
+                description="JSON DSL → СКД Template.xml.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {"definition": {"type": "object"}, "output_path": {"type": "string"}},
+                    "required": ["definition", "output_path"],
+                },
+            ),
+            types.Tool(
+                name="dsl_compile_mxl",
+                description="JSON DSL → MXL Template.xml (печатная форма).",
+                inputSchema={
+                    "type": "object",
+                    "properties": {"definition": {"type": "object"}, "output_path": {"type": "string"}},
+                    "required": ["definition", "output_path"],
+                },
+            ),
+            types.Tool(
+                name="dsl_compile_role",
+                description="JSON DSL → Rights.xml роли 1С.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {"definition": {"type": "object"}, "output_dir": {"type": "string"}},
+                    "required": ["definition", "output_dir"],
+                },
+            ),
+            types.Tool(
+                name="cfe_borrow",
+                description="Заимствовать объект из конфигурации в расширение (CFE).",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "extension_path": {"type": "string"},
+                        "config_path": {"type": "string"},
+                        "object_ref": {"type": "string"},
+                    },
+                    "required": ["extension_path", "config_path", "object_ref"],
+                },
+            ),
+            types.Tool(
+                name="cfe_patch_method",
+                description="Сгенерировать BSL перехватчик (&Перед/&После/&ИзменениеИКонтроль).",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "extension_path": {"type": "string"},
+                        "module_path": {"type": "string"},
+                        "method_name": {"type": "string"},
+                        "interceptor_type": {"type": "string", "enum": ["Before", "After", "ModificationAndControl"]},
+                    },
+                    "required": ["extension_path", "module_path", "method_name", "interceptor_type"],
+                },
+            ),
+            types.Tool(
+                name="cfe_diff",
+                description="Анализ расширения CFE: что заимствовано, перехвачено.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {"extension_path": {"type": "string"}, "config_path": {"type": "string"}},
+                    "required": ["extension_path", "config_path"],
+                },
+            ),
+            types.Tool(
+                name="skd_trace",
+                description="Трассировка поля СКД через всю цепочку: dataset → calculated → resource.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {"template_path": {"type": "string"}, "field_name": {"type": "string"}},
+                    "required": ["template_path", "field_name"],
+                },
+            ),
+            types.Tool(
+                name="build_dependency_graph",
+                description="Построить граф зависимостей метаданных 1С (networkx).",
+                inputSchema={
+                    "type": "object",
+                    "properties": {"config_name": {"type": "string"}},
+                    "required": ["config_name"],
+                },
+            ),
+            types.Tool(
+                name="dependency_query",
+                description="Запрос к графу зависимостей: what_depends_on, dependencies_of, find_cycles, и т.д.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "config_name": {"type": "string"},
+                        "query_type": {"type": "string"},
+                        "object_ref": {"type": "string"},
+                        "target": {"type": "string"},
+                    },
+                    "required": ["config_name", "query_type", "object_ref"],
+                },
+            ),
+            types.Tool(
+                name="inspect",
+                description="Единый анализ объектов 1С: cf, meta, form, skd, mxl, role, subsystem, depgraph.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "target": {"type": "string"},
+                        "path": {"type": "string"},
+                        "mode": {"type": "string"},
+                        "name": {"type": "string"},
+                        "config_name": {"type": "string"},
+                    },
+                    "required": ["target", "path"],
+                },
+            ),
+            types.Tool(
+                name="openspec_proposal",
+                description="Создать OpenSpec proposal (Specification-Driven Development).",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "change_id": {"type": "string"},
+                        "title": {"type": "string"},
+                        "context": {"type": "string"},
+                        "approach": {"type": "string"},
+                        "tasks": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "required": ["change_id", "title"],
+                },
+            ),
+            types.Tool(
+                name="openspec_list",
+                description="Список OpenSpec changes.",
+                inputSchema={"type": "object", "properties": {"include_archived": {"type": "boolean"}}},
+            ),
+            types.Tool(
+                name="openspec_update_task",
+                description="Обновить задачу в OpenSpec change.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "change_id": {"type": "string"},
+                        "task_index": {"type": "integer"},
+                        "completed": {"type": "boolean"},
+                    },
+                    "required": ["change_id", "task_index"],
+                },
+            ),
+            types.Tool(
+                name="openspec_archive",
+                description="Архивировать завершённый OpenSpec change.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {"change_id": {"type": "string"}},
+                    "required": ["change_id"],
+                },
+            ),
             types.Tool(
                 name="epf_factory_create",
                 description=(
@@ -875,51 +1030,27 @@ def create_mcp_server() -> Server:
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "Имя обработки (латиница/кириллица, без пробелов)"
-                        },
-                        "synonym": {
-                            "type": "string",
-                            "description": "Синоним (по умолчанию = name)"
-                        },
-                        "bsl_code": {
-                            "type": "string",
-                            "description": "BSL-код модуля формы"
-                        },
-                        "bsl_path": {
-                            "type": "string",
-                            "description": "Путь к .bsl файлу (альтернатива bsl_code)"
-                        },
-                        "output_path": {
-                            "type": "string",
-                            "description": "Путь к выходному .epf файлу"
-                        },
-                        "form_name": {
-                            "type": "string",
-                            "description": "Имя формы (по умолчанию 'Форма')"
-                        },
+                        "name": {"type": "string", "description": "Имя обработки (латиница/кириллица, без пробелов)"},
+                        "synonym": {"type": "string", "description": "Синоним (по умолчанию = name)"},
+                        "bsl_code": {"type": "string", "description": "BSL-код модуля формы"},
+                        "bsl_path": {"type": "string", "description": "Путь к .bsl файлу (альтернатива bsl_code)"},
+                        "output_path": {"type": "string", "description": "Путь к выходному .epf файлу"},
+                        "form_name": {"type": "string", "description": "Имя формы (по умолчанию 'Форма')"},
                         "form_spec": {
                             "type": "object",
                             "description": (
                                 "DSL-описание формы для генерации Form.elem.json. "
                                 "Если не задано — используется пустой шаблон (только реквизит Объект). "
-                                "Пример: {\"props\": [{\"name\":\"ТаблицаСписка\","
-                                "\"type\":\"ValueTable\",\"columns\":[{\"name\":\"Дата\",\"type\":\"Date\"}]}]}"
+                                'Пример: {"props": [{"name":"ТаблицаСписка",'
+                                '"type":"ValueTable","columns":[{"name":"Дата","type":"Date"}]}]}'
                             ),
                         },
                         "form_spec_path": {
                             "type": "string",
-                            "description": "Путь к JSON-файлу с DSL-описанием формы (альтернатива form_spec)"
+                            "description": "Путь к JSON-файлу с DSL-описанием формы (альтернатива form_spec)",
                         },
-                        "skip_bsl_validation": {
-                            "type": "boolean",
-                            "description": "Пропустить проверку BSL LS"
-                        },
-                        "save_sources": {
-                            "type": "boolean",
-                            "description": "Сохранить v8unpack-исходники (не удалять)"
-                        },
+                        "skip_bsl_validation": {"type": "boolean", "description": "Пропустить проверку BSL LS"},
+                        "save_sources": {"type": "boolean", "description": "Сохранить v8unpack-исходники (не удалять)"},
                     },
                     "required": ["name", "output_path"],
                 },
@@ -944,30 +1075,37 @@ def create_mcp_server() -> Server:
 
         if name == "list_configs":
             configs = project.list_configs_info()
-            return [types.TextContent(
-                type="text",
-                text=json.dumps(configs, ensure_ascii=False, indent=2),
-            )]
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps(configs, ensure_ascii=False, indent=2),
+                )
+            ]
 
         elif name == "search_1c_methods":
             query = arguments.get("query", "")
             limit = arguments.get("limit", 10)
             results = project.search_methods(query, limit)
-            return [types.TextContent(
-                type="text",
-                text=json.dumps(results, ensure_ascii=False, indent=2),
-            )]
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps(results, ensure_ascii=False, indent=2),
+                )
+            ]
 
         elif name == "search_code":
             query = arguments.get("query", "")
             config_name = arguments.get("config_name", "")
             limit = arguments.get("limit", 10)
             from .services.search_code import search_code
+
             results = search_code(config_name, query, limit, project.paths)
-            return [types.TextContent(
-                type="text",
-                text=json.dumps(results, ensure_ascii=False, indent=2),
-            )]
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps(results, ensure_ascii=False, indent=2),
+                )
+            ]
 
         elif name == "call_graph":
             config_name = arguments.get("config_name", "")
@@ -975,6 +1113,7 @@ def create_mcp_server() -> Server:
             module = arguments.get("module", "")
             method = arguments.get("method", "")
             from .services.call_graph import build_call_graph
+
             graph = build_call_graph(config_name, project.paths)
             if action == "stats":
                 result = graph.get_stats()
@@ -984,56 +1123,66 @@ def create_mcp_server() -> Server:
                 result = graph.get_callees(module, method)
             elif action == "dead-code":
                 import json as _json
+
                 api_json = project.paths.config_api_reference_json(config_name)
                 export_methods = []
                 if api_json.exists():
-                    with open(api_json, encoding='utf-8') as f:
+                    with open(api_json, encoding="utf-8") as f:
                         modules = _json.load(f)
                     for m in modules:
-                        for meth in m.get('methods', []):
-                            export_methods.append((m['name'], meth['name']))
+                        for meth in m.get("methods", []):
+                            export_methods.append((m["name"], meth["name"]))
                 result = [{"module": mod, "method": meth} for mod, meth in graph.find_dead_code(export_methods)]
             elif action == "cycles":
                 result = graph.find_cycles()
             else:
                 result = graph.to_dict()
-            return [types.TextContent(
-                type="text",
-                text=json.dumps(result, ensure_ascii=False, indent=2),
-            )]
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps(result, ensure_ascii=False, indent=2),
+                )
+            ]
 
         elif name == "get_form_elements":
             config_name = arguments.get("config_name", "")
             form_name = arguments.get("form_name", "")
             api_json = project.paths.config_api_reference_json(config_name)
             if not api_json.exists():
-                return [types.TextContent(
-                    type="text",
-                    text=json.dumps({"error": f"API reference not found for '{config_name}'"}, ensure_ascii=False),
-                )]
-            with open(api_json, encoding='utf-8') as f:
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": f"API reference not found for '{config_name}'"}, ensure_ascii=False),
+                    )
+                ]
+            with open(api_json, encoding="utf-8") as f:
                 modules = json.load(f)
-            forms = [m for m in modules if m.get('type') == 'Форма']
+            forms = [m for m in modules if m.get("type") == "Форма"]
             if not form_name:
                 # Возвращаем список всех форм
-                result = [{
-                    "name": f['name'],
-                    "methods_count": f.get('methods_count', 0),
-                    "form_elements_count": f.get('form_elements_count', 0),
-                    "parent_type": f.get('parent_type', ''),
-                    "parent_name": f.get('parent_name', ''),
-                } for f in forms]
+                result = [
+                    {
+                        "name": f["name"],
+                        "methods_count": f.get("methods_count", 0),
+                        "form_elements_count": f.get("form_elements_count", 0),
+                        "parent_type": f.get("parent_type", ""),
+                        "parent_name": f.get("parent_name", ""),
+                    }
+                    for f in forms
+                ]
             else:
                 # Возвращаем элементы конкретной формы
                 result = []
                 for f in forms:
-                    if f['name'] == form_name:
-                        result = f.get('form_elements', [])
+                    if f["name"] == form_name:
+                        result = f.get("form_elements", [])
                         break
-            return [types.TextContent(
-                type="text",
-                text=json.dumps(result, ensure_ascii=False, indent=2),
-            )]
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps(result, ensure_ascii=False, indent=2),
+                )
+            ]
 
         elif name == "get_api_reference":
             config_name = arguments.get("config_name", "")
@@ -1043,21 +1192,27 @@ def create_mcp_server() -> Server:
                 # Возвращаем список модулей
                 info = project.get_config_info(config_name)
                 if info is None:
-                    return [types.TextContent(
+                    return [
+                        types.TextContent(
+                            type="text",
+                            text=json.dumps({"error": f"Конфигурация '{config_name}' не найдена"}, ensure_ascii=False),
+                        )
+                    ]
+                return [
+                    types.TextContent(
                         type="text",
-                        text=json.dumps({"error": f"Конфигурация '{config_name}' не найдена"}, ensure_ascii=False),
-                    )]
-                return [types.TextContent(
-                    type="text",
-                    text=json.dumps(info, ensure_ascii=False, indent=2),
-                )]
+                        text=json.dumps(info, ensure_ascii=False, indent=2),
+                    )
+                ]
             else:
                 # Возвращаем методы конкретного модуля
                 methods = project.get_api_methods(config_name, module)
-                return [types.TextContent(
-                    type="text",
-                    text=json.dumps(methods, ensure_ascii=False, indent=2),
-                )]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(methods, ensure_ascii=False, indent=2),
+                    )
+                ]
 
         elif name == "analyze_bsl":
             file_path = arguments.get("file_path", "")
@@ -1068,20 +1223,25 @@ def create_mcp_server() -> Server:
                     "by_code": result.by_code,
                     "diagnostics": result.diagnostics[:50],  # ограничиваем
                 }
-                return [types.TextContent(
-                    type="text",
-                    text=json.dumps(response, ensure_ascii=False, indent=2),
-                )]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(response, ensure_ascii=False, indent=2),
+                    )
+                ]
             except Exception as e:
-                return [types.TextContent(
-                    type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False),
-                )]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": str(e)}, ensure_ascii=False),
+                    )
+                ]
 
         elif name == "check_standards":
             file_path = arguments.get("file_path", "")
             try:
                 import importlib.util
+
                 scripts_dir = project.paths.scripts_dir
                 if not (scripts_dir / "check_1c_standards.py").exists():
                     scripts_dir = project.paths.root / "setup" / "scripts"
@@ -1103,15 +1263,19 @@ def create_mcp_server() -> Server:
                     }
                     for v in violations
                 ]
-                return [types.TextContent(
-                    type="text",
-                    text=json.dumps(response, ensure_ascii=False, indent=2),
-                )]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(response, ensure_ascii=False, indent=2),
+                    )
+                ]
             except Exception as e:
-                return [types.TextContent(
-                    type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False),
-                )]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": str(e)}, ensure_ascii=False),
+                    )
+                ]
 
         elif name == "solve_context":
             query = arguments.get("query", "")
@@ -1120,13 +1284,16 @@ def create_mcp_server() -> Server:
 
             # Используем TaskProcessor — единая логика с CLI
             from .services.task_processor import TaskProcessor
+
             processor = TaskProcessor(project.paths)
             ctx = processor.solve(query, config_name=config, limit=limit)
 
-            return [types.TextContent(
-                type="text",
-                text=json.dumps(ctx.to_dict(), ensure_ascii=False, indent=2),
-            )]
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps(ctx.to_dict(), ensure_ascii=False, indent=2),
+                )
+            ]
 
         elif name == "solve_check":
             file_path = arguments.get("file_path", "")
@@ -1140,158 +1307,232 @@ def create_mcp_server() -> Server:
             processor = TaskProcessor(project.paths)
             try:
                 result = processor.check(_Path(file_path), level=level)
-                return [types.TextContent(
-                    type="text",
-                    text=json.dumps(result.to_dict(), ensure_ascii=False, indent=2),
-                )]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(result.to_dict(), ensure_ascii=False, indent=2),
+                    )
+                ]
             except FileNotFoundError as e:
-                return [types.TextContent(
-                    type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False),
-                )]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": str(e)}, ensure_ascii=False),
+                    )
+                ]
 
         elif name == "dsl_compile_meta":
             from .services.dsl_compiler import DslCompiler
+
             definition = arguments.get("definition", {})
             output_dir = arguments.get("output_dir", "")
 
             if not output_dir:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "output_dir required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "output_dir required"}, ensure_ascii=False)
+                    )
+                ]
 
             try:
                 compiler = DslCompiler()
                 result = compiler.compile_meta(definition, output_dir)
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "object_type": result.object_type,
-                        "object_name": result.object_name,
-                        "xml_path": str(result.xml_path) if result.xml_path else None,
-                        "module_paths": [str(p) for p in result.module_paths],
-                        "registered_in_config": result.registered_in_config,
-                        "warnings": result.warnings,
-                    }, ensure_ascii=False, indent=2))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "object_type": result.object_type,
+                                "object_name": result.object_name,
+                                "xml_path": str(result.xml_path) if result.xml_path else None,
+                                "module_paths": [str(p) for p in result.module_paths],
+                                "registered_in_config": result.registered_in_config,
+                                "warnings": result.warnings,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                    )
+                ]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "dsl_compile_form":
             from .services.dsl_compiler import DslCompiler
+
             definition = arguments.get("definition", {})
             output_path = arguments.get("output_path", "")
 
             if not output_path:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "output_path required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "output_path required"}, ensure_ascii=False)
+                    )
+                ]
 
             try:
                 compiler = DslCompiler()
                 result = compiler.compile_form(definition, output_path)
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "object_type": result.object_type,
-                        "object_name": result.object_name,
-                        "xml_path": str(result.xml_path) if result.xml_path else None,
-                    }, ensure_ascii=False, indent=2))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "object_type": result.object_type,
+                                "object_name": result.object_name,
+                                "xml_path": str(result.xml_path) if result.xml_path else None,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                    )
+                ]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "dsl_compile_skd":
             from .services.dsl_compiler import DslCompiler
+
             definition = arguments.get("definition", {})
             output_path = arguments.get("output_path", "")
 
             if not output_path:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "output_path required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "output_path required"}, ensure_ascii=False)
+                    )
+                ]
 
             try:
                 compiler = DslCompiler()
                 result = compiler.compile_skd(definition, output_path)
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "object_type": result.object_type,
-                        "object_name": result.object_name,
-                        "xml_path": str(result.xml_path) if result.xml_path else None,
-                    }, ensure_ascii=False, indent=2))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "object_type": result.object_type,
+                                "object_name": result.object_name,
+                                "xml_path": str(result.xml_path) if result.xml_path else None,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                    )
+                ]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "dsl_compile_mxl":
             from .services.dsl_compiler import DslCompiler
+
             definition = arguments.get("definition", {})
             output_path = arguments.get("output_path", "")
 
             if not output_path:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "output_path required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "output_path required"}, ensure_ascii=False)
+                    )
+                ]
 
             try:
                 compiler = DslCompiler()
                 result = compiler.compile_mxl(definition, output_path)
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "object_type": result.object_type,
-                        "object_name": result.object_name,
-                        "xml_path": str(result.xml_path) if result.xml_path else None,
-                    }, ensure_ascii=False, indent=2))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "object_type": result.object_type,
+                                "object_name": result.object_name,
+                                "xml_path": str(result.xml_path) if result.xml_path else None,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                    )
+                ]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "dsl_compile_role":
             from .services.dsl_compiler import DslCompiler
+
             definition = arguments.get("definition", {})
             output_dir = arguments.get("output_dir", "")
 
             if not output_dir:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "output_dir required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "output_dir required"}, ensure_ascii=False)
+                    )
+                ]
 
             try:
                 compiler = DslCompiler()
                 result = compiler.compile_role(definition, output_dir)
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "object_type": result.object_type,
-                        "object_name": result.object_name,
-                        "xml_path": str(result.xml_path) if result.xml_path else None,
-                        "module_paths": [str(p) for p in result.module_paths],
-                    }, ensure_ascii=False, indent=2))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "object_type": result.object_type,
+                                "object_name": result.object_name,
+                                "xml_path": str(result.xml_path) if result.xml_path else None,
+                                "module_paths": [str(p) for p in result.module_paths],
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                    )
+                ]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "cfe_borrow":
             from .services.cfe_manager import CfeManager
+
             extension_path = arguments.get("extension_path", "")
             config_path = arguments.get("config_path", "")
             object_ref = arguments.get("object_ref", "")
 
             if not all([extension_path, config_path, object_ref]):
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "extension_path, config_path, object_ref required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {"error": "extension_path, config_path, object_ref required"}, ensure_ascii=False
+                        ),
+                    )
+                ]
 
             try:
                 manager = CfeManager()
                 result = manager.borrow_object(Path(extension_path), Path(config_path), object_ref)
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "object_ref": result.object_ref,
-                        "object_type": result.object_type,
-                        "object_name": result.object_name,
-                        "xml_created": [str(p) for p in result.xml_created],
-                        "registered_in_config": result.registered_in_config,
-                        "warnings": result.warnings,
-                    }, ensure_ascii=False, indent=2))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "object_ref": result.object_ref,
+                                "object_type": result.object_type,
+                                "object_name": result.object_name,
+                                "xml_created": [str(p) for p in result.xml_created],
+                                "registered_in_config": result.registered_in_config,
+                                "warnings": result.warnings,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                    )
+                ]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "cfe_patch_method":
             from .services.cfe_manager import CfeManager
+
             extension_path = arguments.get("extension_path", "")
             module_path = arguments.get("module_path", "")
             method_name = arguments.get("method_name", "")
@@ -1300,107 +1541,150 @@ def create_mcp_server() -> Server:
             is_function = arguments.get("is_function", False)
 
             if not all([extension_path, module_path, method_name]):
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "extension_path, module_path, method_name required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {"error": "extension_path, module_path, method_name required"}, ensure_ascii=False
+                        ),
+                    )
+                ]
 
             try:
                 manager = CfeManager()
                 result = manager.patch_method(
-                    Path(extension_path), module_path, method_name,
-                    interceptor_type, context, is_function
+                    Path(extension_path), module_path, method_name, interceptor_type, context, is_function
                 )
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "module_path": result.module_path,
-                        "method_name": result.method_name,
-                        "interceptor_type": result.interceptor_type,
-                        "bsl_file": str(result.bsl_file) if result.bsl_file else None,
-                        "bsl_content": result.bsl_content,
-                    }, ensure_ascii=False, indent=2))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "module_path": result.module_path,
+                                "method_name": result.method_name,
+                                "interceptor_type": result.interceptor_type,
+                                "bsl_file": str(result.bsl_file) if result.bsl_file else None,
+                                "bsl_content": result.bsl_content,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                    )
+                ]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "cfe_diff":
             from .services.cfe_manager import CfeManager
+
             extension_path = arguments.get("extension_path", "")
             config_path = arguments.get("config_path", "")
 
             if not all([extension_path, config_path]):
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "extension_path, config_path required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": "extension_path, config_path required"}, ensure_ascii=False),
+                    )
+                ]
 
             try:
                 manager = CfeManager()
                 result = manager.diff(Path(extension_path), Path(config_path))
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "extension_path": str(result.extension_path),
-                        "config_path": str(result.config_path),
-                        "borrowed_objects": result.borrowed_objects,
-                        "patch_methods": result.patch_methods,
-                        "not_in_config": result.not_in_config,
-                        "warnings": result.warnings,
-                    }, ensure_ascii=False, indent=2))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "extension_path": str(result.extension_path),
+                                "config_path": str(result.config_path),
+                                "borrowed_objects": result.borrowed_objects,
+                                "patch_methods": result.patch_methods,
+                                "not_in_config": result.not_in_config,
+                                "warnings": result.warnings,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                    )
+                ]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "skd_trace":
             import sys as _sys
+
             _sys.path.insert(0, str(project.paths.scripts_dir))
             from skd_parser import trace_field as _trace_field
+
             template_path = arguments.get("template_path", "")
             field_name = arguments.get("field_name", "")
 
             if not all([template_path, field_name]):
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "template_path, field_name required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": "template_path, field_name required"}, ensure_ascii=False),
+                    )
+                ]
 
             try:
                 result = _trace_field(Path(template_path), field_name)
-                return [types.TextContent(type="text",
-                    text=json.dumps(result, ensure_ascii=False, indent=2))]
+                return [types.TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "build_dependency_graph":
             from .services.dependency_graph import DependencyGraph
+
             config_name = arguments.get("config_name", "")
 
             if not config_name:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "config_name required"}, ensure_ascii=False)
+                    )
+                ]
 
             try:
                 dg = DependencyGraph()
                 result = dg.build_from_metadata_index(config_name, project.paths)
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "config_name": result.config_name,
-                        "nodes": result.nodes,
-                        "edges": [
-                            {"source": e.source, "target": e.target,
-                             "relation": e.relation, "detail": e.detail}
-                            for e in result.edges
-                        ],
-                        "warnings": result.warnings,
-                        "stats": dg.get_stats(),
-                    }, ensure_ascii=False, indent=2))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "config_name": result.config_name,
+                                "nodes": result.nodes,
+                                "edges": [
+                                    {"source": e.source, "target": e.target, "relation": e.relation, "detail": e.detail}
+                                    for e in result.edges
+                                ],
+                                "warnings": result.warnings,
+                                "stats": dg.get_stats(),
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                    )
+                ]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "dependency_query":
             from .services.dependency_graph import DependencyGraph
+
             config_name = arguments.get("config_name", "")
             query_type = arguments.get("query_type", "")
             object_ref = arguments.get("object_ref", "")
 
             if not all([config_name, query_type, object_ref]):
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "config_name, query_type, object_ref required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": "config_name, query_type, object_ref required"}, ensure_ascii=False),
+                    )
+                ]
 
             try:
                 dg = DependencyGraph()
@@ -1424,17 +1708,22 @@ def create_mcp_server() -> Server:
                     target = arguments.get("target", "")
                     result = dg.shortest_path(object_ref, target)
                 else:
-                    return [types.TextContent(type="text",
-                        text=json.dumps({"error": f"Unknown query_type: {query_type}"}, ensure_ascii=False))]
+                    return [
+                        types.TextContent(
+                            type="text",
+                            text=json.dumps({"error": f"Unknown query_type: {query_type}"}, ensure_ascii=False),
+                        )
+                    ]
 
-                return [types.TextContent(type="text",
-                    text=json.dumps({"result": result}, ensure_ascii=False, indent=2))]
+                return [
+                    types.TextContent(type="text", text=json.dumps({"result": result}, ensure_ascii=False, indent=2))
+                ]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "openspec_proposal":
             from .services.openspec_manager import OpenSpecManager
+
             change_id = arguments.get("change_id", "")
             title = arguments.get("title", "")
             context = arguments.get("context", "")
@@ -1443,8 +1732,11 @@ def create_mcp_server() -> Server:
             files = arguments.get("files", [])
 
             if not all([change_id, title]):
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "change_id, title required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "change_id, title required"}, ensure_ascii=False)
+                    )
+                ]
 
             try:
                 osm = OpenSpecManager(project_root=project.paths.root)
@@ -1458,66 +1750,74 @@ def create_mcp_server() -> Server:
                     tasks=tasks,
                     files=files,
                 )
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "change_id": change.change_id,
-                        "title": change.title,
-                        "status": change.status,
-                        "tasks_count": len(change.tasks),
-                    }, ensure_ascii=False, indent=2))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "change_id": change.change_id,
+                                "title": change.title,
+                                "status": change.status,
+                                "tasks_count": len(change.tasks),
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                    )
+                ]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "openspec_list":
             from .services.openspec_manager import OpenSpecManager
+
             include_archived = arguments.get("include_archived", False)
 
             try:
                 osm = OpenSpecManager(project_root=project.paths.root)
                 changes = osm.list_changes(include_archived=include_archived)
-                return [types.TextContent(type="text",
-                    text=json.dumps({"changes": changes}, ensure_ascii=False, indent=2))]
+                return [
+                    types.TextContent(type="text", text=json.dumps({"changes": changes}, ensure_ascii=False, indent=2))
+                ]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "openspec_update_task":
             from .services.openspec_manager import OpenSpecManager
+
             change_id = arguments.get("change_id", "")
             task_index = arguments.get("task_index", 0)
             completed = arguments.get("completed")
             notes = arguments.get("notes", "")
 
             if not change_id:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "change_id required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(type="text", text=json.dumps({"error": "change_id required"}, ensure_ascii=False))
+                ]
 
             try:
                 osm = OpenSpecManager(project_root=project.paths.root)
                 result = osm.update_task(change_id, task_index, completed, notes)
-                return [types.TextContent(type="text",
-                    text=json.dumps({"updated": result}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"updated": result}, ensure_ascii=False))]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "openspec_archive":
             from .services.openspec_manager import OpenSpecManager
+
             change_id = arguments.get("change_id", "")
 
             if not change_id:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "change_id required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(type="text", text=json.dumps({"error": "change_id required"}, ensure_ascii=False))
+                ]
 
             try:
                 osm = OpenSpecManager(project_root=project.paths.root)
                 result = osm.archive(change_id)
-                return [types.TextContent(type="text",
-                    text=json.dumps({"archived": result}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"archived": result}, ensure_ascii=False))]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "inspect":
             """Единый inspect — анализ объектов 1С с режимами (как у конкурента).
@@ -1533,13 +1833,15 @@ def create_mcp_server() -> Server:
             field_name = arguments.get("name", "")
 
             if not path_str:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "path required"}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": "path required"}, ensure_ascii=False))]
 
             path = Path(path_str)
             if not path.exists():
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": f"File not found: {path}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"File not found: {path}"}, ensure_ascii=False)
+                    )
+                ]
 
             def _strip_ns(tag):
                 return tag.split("}")[-1] if "}" in tag else tag
@@ -1566,8 +1868,7 @@ def create_mcp_server() -> Server:
                                 break
                         if props is not None:
                             result["properties"] = {
-                                _strip_ns(p.tag): p.text for p in props
-                                if p.text and len(p.text) < 200
+                                _strip_ns(p.tag): p.text for p in props if p.text and len(p.text) < 200
                             }
 
                         # ChildObjects
@@ -1584,12 +1885,12 @@ def create_mcp_server() -> Server:
                             result["objects_by_type"] = type_counts
                             result["total_objects"] = sum(type_counts.values())
 
-                    return [types.TextContent(type="text",
-                        text=json.dumps(result, ensure_ascii=False, indent=2))]
+                    return [types.TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
 
                 elif target == "skd" and mode == "trace":
                     # SKD trace mode
                     import sys as _sys
+
                     _sys.path.insert(0, str(project.paths.scripts_dir))
                     from skd_parser import trace_field as _trace
 
@@ -1597,48 +1898,71 @@ def create_mcp_server() -> Server:
                         path = path / "Ext" / "Template.xml"
 
                     if not field_name:
-                        return [types.TextContent(type="text",
-                            text=json.dumps({"error": "name required for trace mode"}, ensure_ascii=False))]
+                        return [
+                            types.TextContent(
+                                type="text",
+                                text=json.dumps({"error": "name required for trace mode"}, ensure_ascii=False),
+                            )
+                        ]
 
                     result = _trace(path, field_name)
-                    return [types.TextContent(type="text",
-                        text=json.dumps(result, ensure_ascii=False, indent=2))]
+                    return [types.TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
 
                 elif target == "depgraph":
                     # Граф зависимостей
                     config_name = arguments.get("config_name", "")
                     if not config_name:
-                        return [types.TextContent(type="text",
-                            text=json.dumps({"error": "config_name required for depgraph"}, ensure_ascii=False))]
+                        return [
+                            types.TextContent(
+                                type="text",
+                                text=json.dumps({"error": "config_name required for depgraph"}, ensure_ascii=False),
+                            )
+                        ]
 
                     from .services.dependency_graph import DependencyGraph
+
                     dg = DependencyGraph()
                     build_result = dg.build_from_metadata_index(config_name, project.paths)
 
-                    return [types.TextContent(type="text",
-                        text=json.dumps({
-                            "target": "depgraph",
-                            "config_name": build_result.config_name,
-                            "nodes": len(build_result.nodes),
-                            "edges": len(build_result.edges),
-                            "stats": dg.get_stats(),
-                            "warnings": build_result.warnings,
-                        }, ensure_ascii=False, indent=2))]
+                    return [
+                        types.TextContent(
+                            type="text",
+                            text=json.dumps(
+                                {
+                                    "target": "depgraph",
+                                    "config_name": build_result.config_name,
+                                    "nodes": len(build_result.nodes),
+                                    "edges": len(build_result.edges),
+                                    "stats": dg.get_stats(),
+                                    "warnings": build_result.warnings,
+                                },
+                                ensure_ascii=False,
+                                indent=2,
+                            ),
+                        )
+                    ]
 
                 else:
-                    return [types.TextContent(type="text",
-                        text=json.dumps({
-                            "error": f"target '{target}' with mode '{mode}' not yet implemented",
-                            "available": ["cf", "skd+trace", "depgraph"]
-                        }, ensure_ascii=False))]
+                    return [
+                        types.TextContent(
+                            type="text",
+                            text=json.dumps(
+                                {
+                                    "error": f"target '{target}' with mode '{mode}' not yet implemented",
+                                    "available": ["cf", "skd+trace", "depgraph"],
+                                },
+                                ensure_ascii=False,
+                            ),
+                        )
+                    ]
 
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "data_status":
             # Статус данных проекта
             from .services.data_package import DataPackage
+
             dp = DataPackage(project.paths)
             status = dp.status()
             # Преобразуем Path и другие объекты в сериализуемый формат
@@ -1656,10 +1980,12 @@ def create_mcp_server() -> Server:
                     "created_at": ai.get("manifest", {}).get("created_at", "")[:19] if ai.get("manifest") else "",
                 }
                 response["autoload_command"] = "1c-ai data autoload"
-            return [types.TextContent(
-                type="text",
-                text=json.dumps(response, ensure_ascii=False, indent=2),
-            )]
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps(response, ensure_ascii=False, indent=2),
+                )
+            ]
 
         elif name == "get_object_structure":
             config_name = arguments.get("config_name", "")
@@ -1667,159 +1993,205 @@ def create_mcp_server() -> Server:
             object_type = arguments.get("object_type", "")
 
             if not config_name:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "config_name required"}, ensure_ascii=False)
+                    )
+                ]
 
             # Ищем unified-metadata-index.json (v4.1+) или metadata-index.json (fallback)
             unified_path = project.paths.root / "derived" / "configs" / config_name / "unified-metadata-index.json"
             old_path = project.paths.root / "derived" / "configs" / config_name / "metadata-index.json"
 
             if unified_path.exists():
-                with open(unified_path, encoding='utf-8') as f:
+                with open(unified_path, encoding="utf-8") as f:
                     metadata = json.load(f)
                 # unified format: objects is dict by type, each value is list
                 all_objects = []
-                for _type_name, objs in metadata.get('objects', {}).items():
+                for _type_name, objs in metadata.get("objects", {}).items():
                     all_objects.extend(objs)
 
                 # Также добавляем roles, subsystems, event_subscriptions, scheduled_jobs
-                for section in ('roles', 'subsystems', 'event_subscriptions', 'scheduled_jobs'):
+                for section in ("roles", "subsystems", "event_subscriptions", "scheduled_jobs"):
                     for obj in metadata.get(section, []):
                         all_objects.append(obj)
 
-                stats = metadata.get('stats', {})
-                config_info = metadata.get('configuration', {})
+                stats = metadata.get("stats", {})
+                config_info = metadata.get("configuration", {})
             elif old_path.exists():
-                with open(old_path, encoding='utf-8') as f:
+                with open(old_path, encoding="utf-8") as f:
                     metadata = json.load(f)
-                all_objects = metadata.get('objects', [])
-                stats = metadata.get('stats', {})
+                all_objects = metadata.get("objects", [])
+                stats = metadata.get("stats", {})
                 config_info = {}
             else:
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "error": f"unified-metadata-index.json not found for config '{config_name}'",
-                        "hint": "Run: python3 scripts/metadata_extractor.py data/configs/" + config_name + " derived/configs/" + config_name + "/unified-metadata-index.json",
-                    }, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "error": f"unified-metadata-index.json not found for config '{config_name}'",
+                                "hint": "Run: python3 scripts/metadata_extractor.py data/configs/"
+                                + config_name
+                                + " derived/configs/"
+                                + config_name
+                                + "/unified-metadata-index.json",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    )
+                ]
 
             # Если object_name не указан — возвращаем список всех
             if not object_name:
                 # Фильтр по типу если указан
                 if object_type:
-                    all_objects = [o for o in all_objects if o.get('type') == object_type]
+                    all_objects = [o for o in all_objects if o.get("type") == object_type]
 
                 # Краткая информация
                 summary = []
                 for obj in all_objects:
-                    children = obj.get('child_objects', {})
-                    summary.append({
-                        'name': obj.get('name', ''),
-                        'type': obj.get('type', ''),
-                        'synonym': obj.get('synonym', ''),
-                        'attributes_count': len(children.get('attributes', [])),
-                        'tabular_sections_count': len(children.get('tabular_sections', [])),
-                        'forms_count': len(children.get('forms', [])),
-                    })
+                    children = obj.get("child_objects", {})
+                    summary.append(
+                        {
+                            "name": obj.get("name", ""),
+                            "type": obj.get("type", ""),
+                            "synonym": obj.get("synonym", ""),
+                            "attributes_count": len(children.get("attributes", [])),
+                            "tabular_sections_count": len(children.get("tabular_sections", [])),
+                            "forms_count": len(children.get("forms", [])),
+                        }
+                    )
 
                 response = {
-                    'config': config_name,
-                    'total_objects': len(summary),
-                    'stats': stats,
-                    'configuration': config_info.get('properties', {}) if config_info else {},
-                    'objects': summary,
+                    "config": config_name,
+                    "total_objects": len(summary),
+                    "stats": stats,
+                    "configuration": config_info.get("properties", {}) if config_info else {},
+                    "objects": summary,
                 }
-                return [types.TextContent(type="text",
-                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+                return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
 
             # Ищем конкретный объект по имени
             found = None
             for obj in all_objects:
-                if obj.get('name', '').lower() == object_name.lower():
-                    if object_type and obj.get('type') != object_type:
+                if obj.get("name", "").lower() == object_name.lower():
+                    if object_type and obj.get("type") != object_type:
                         continue
                     found = obj
                     break
 
             if not found:
                 # Fuzzy search
-                suggestions = [o['name'] for o in all_objects
-                               if object_name.lower() in o.get('name', '').lower()][:10]
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "error": f"Object '{object_name}' not found in config '{config_name}'",
-                        "suggestions": suggestions,
-                    }, ensure_ascii=False))]
+                suggestions = [o["name"] for o in all_objects if object_name.lower() in o.get("name", "").lower()][:10]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "error": f"Object '{object_name}' not found in config '{config_name}'",
+                                "suggestions": suggestions,
+                            },
+                            ensure_ascii=False,
+                        ),
+                    )
+                ]
 
-            return [types.TextContent(type="text",
-                text=json.dumps(found, ensure_ascii=False, indent=2))]
+            return [types.TextContent(type="text", text=json.dumps(found, ensure_ascii=False, indent=2))]
 
         elif name == "get_skd_schema":
             config_name = arguments.get("config_name", "")
             report_name = arguments.get("report_name", "")
 
             if not config_name:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "config_name required"}, ensure_ascii=False)
+                    )
+                ]
 
             # Ищем skd-index.json для конфигурации
             skd_index_path = project.paths.root / "derived" / "configs" / config_name / "skd-index.json"
             if not skd_index_path.exists():
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "error": f"skd-index.json not found for config '{config_name}'",
-                        "hint": "Run: python3 scripts/skd_parser.py data/configs/" + config_name + " derived/configs/" + config_name + "/skd-index.json",
-                    }, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "error": f"skd-index.json not found for config '{config_name}'",
+                                "hint": "Run: python3 scripts/skd_parser.py data/configs/"
+                                + config_name
+                                + " derived/configs/"
+                                + config_name
+                                + "/skd-index.json",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    )
+                ]
 
-            with open(skd_index_path, encoding='utf-8') as f:
+            with open(skd_index_path, encoding="utf-8") as f:
                 skd_data = json.load(f)
 
-            schemas = skd_data.get('schemas', [])
+            schemas = skd_data.get("schemas", [])
 
             # Если report_name не указан — возвращаем список всех СКД-схем
             if not report_name:
                 summary = []
                 for s in schemas:
-                    summary.append({
-                        'name': s.get('name', ''),
-                        'parent_type': s.get('parent_type', ''),
-                        'parent_name': s.get('parent_name', ''),
-                        'data_sets_count': len(s.get('schema', {}).get('data_sets', [])),
-                        'parameters_count': len(s.get('schema', {}).get('parameters', [])),
-                        'fields_count': sum(len(ds.get('fields', [])) for ds in s.get('schema', {}).get('data_sets', [])),
-                    })
+                    summary.append(
+                        {
+                            "name": s.get("name", ""),
+                            "parent_type": s.get("parent_type", ""),
+                            "parent_name": s.get("parent_name", ""),
+                            "data_sets_count": len(s.get("schema", {}).get("data_sets", [])),
+                            "parameters_count": len(s.get("schema", {}).get("parameters", [])),
+                            "fields_count": sum(
+                                len(ds.get("fields", [])) for ds in s.get("schema", {}).get("data_sets", [])
+                            ),
+                        }
+                    )
 
                 response = {
-                    'config': config_name,
-                    'stats': skd_data.get('stats', {}),
-                    'schemas': summary,
+                    "config": config_name,
+                    "stats": skd_data.get("stats", {}),
+                    "schemas": summary,
                 }
-                return [types.TextContent(type="text",
-                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+                return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
 
             # Ищем СКД-схему по имени отчёта
             found = None
             for s in schemas:
-                if s.get('parent_name', '').lower() == report_name.lower():
+                if s.get("parent_name", "").lower() == report_name.lower():
                     found = s
                     break
-                if s.get('name', '').lower() == report_name.lower():
+                if s.get("name", "").lower() == report_name.lower():
                     found = s
                     break
 
             if not found:
                 # Fuzzy search
-                suggestions = list({
-                    s.get('parent_name', '') for s in schemas
-                    if report_name.lower() in s.get('parent_name', '').lower()
-                })[:10]
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "error": f"SKD schema for '{report_name}' not found in config '{config_name}'",
-                        "suggestions": suggestions,
-                    }, ensure_ascii=False))]
+                suggestions = list(
+                    {
+                        s.get("parent_name", "")
+                        for s in schemas
+                        if report_name.lower() in s.get("parent_name", "").lower()
+                    }
+                )[:10]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "error": f"SKD schema for '{report_name}' not found in config '{config_name}'",
+                                "suggestions": suggestions,
+                            },
+                            ensure_ascii=False,
+                        ),
+                    )
+                ]
 
-            return [types.TextContent(type="text",
-                text=json.dumps(found, ensure_ascii=False, indent=2))]
+            return [types.TextContent(type="text", text=json.dumps(found, ensure_ascii=False, indent=2))]
 
         elif name == "get_form_structure":
             config_name = arguments.get("config_name", "")
@@ -1827,71 +2199,94 @@ def create_mcp_server() -> Server:
             parent_name = arguments.get("parent_name", "")
 
             if not config_name:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "config_name required"}, ensure_ascii=False)
+                    )
+                ]
 
             # Ищем form-index.json для конфигурации
             form_index_path = project.paths.root / "derived" / "configs" / config_name / "form-index.json"
             if not form_index_path.exists():
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "error": f"form-index.json not found for config '{config_name}'",
-                        "hint": "Run: python3 scripts/form_analyzer.py data/configs/" + config_name + " derived/configs/" + config_name + "/form-index.json",
-                    }, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "error": f"form-index.json not found for config '{config_name}'",
+                                "hint": "Run: python3 scripts/form_analyzer.py data/configs/"
+                                + config_name
+                                + " derived/configs/"
+                                + config_name
+                                + "/form-index.json",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    )
+                ]
 
-            with open(form_index_path, encoding='utf-8') as f:
+            with open(form_index_path, encoding="utf-8") as f:
                 form_data = json.load(f)
 
-            forms = form_data.get('forms', [])
+            forms = form_data.get("forms", [])
 
             # Если form_name не указан — список всех форм
             if not form_name:
                 summary = []
                 for fr in forms:
                     # Фильтр по parent_name если указан
-                    if parent_name and fr.get('parent_name', '').lower() != parent_name.lower():
+                    if parent_name and fr.get("parent_name", "").lower() != parent_name.lower():
                         continue
-                    summary.append({
-                        'name': fr.get('name', ''),
-                        'parent_type': fr.get('parent_type', ''),
-                        'parent_name': fr.get('parent_name', ''),
-                        'element_count': fr.get('form', {}).get('element_count', 0),
-                        'events_count': len(fr.get('form', {}).get('events', [])),
-                    })
+                    summary.append(
+                        {
+                            "name": fr.get("name", ""),
+                            "parent_type": fr.get("parent_type", ""),
+                            "parent_name": fr.get("parent_name", ""),
+                            "element_count": fr.get("form", {}).get("element_count", 0),
+                            "events_count": len(fr.get("form", {}).get("events", [])),
+                        }
+                    )
 
                 response = {
-                    'config': config_name,
-                    'stats': form_data.get('stats', {}),
-                    'forms': summary,
+                    "config": config_name,
+                    "stats": form_data.get("stats", {}),
+                    "forms": summary,
                 }
-                return [types.TextContent(type="text",
-                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+                return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
 
             # Ищем форму по имени
             found = None
             for fr in forms:
-                if fr.get('name', '').lower() == form_name.lower():
+                if fr.get("name", "").lower() == form_name.lower():
                     # Если parent_name указан — уточняем
-                    if parent_name and fr.get('parent_name', '').lower() != parent_name.lower():
+                    if parent_name and fr.get("parent_name", "").lower() != parent_name.lower():
                         continue
                     found = fr
                     break
 
             if not found:
                 # Fuzzy search
-                suggestions = list({
-                    f"{fr.get('parent_name', '')}.{fr.get('name', '')}"
-                    for fr in forms
-                    if form_name.lower() in fr.get('name', '').lower()
-                })[:10]
-                return [types.TextContent(type="text",
-                    text=json.dumps({
-                        "error": f"Form '{form_name}' not found in config '{config_name}'",
-                        "suggestions": suggestions,
-                    }, ensure_ascii=False))]
+                suggestions = list(
+                    {
+                        f"{fr.get('parent_name', '')}.{fr.get('name', '')}"
+                        for fr in forms
+                        if form_name.lower() in fr.get("name", "").lower()
+                    }
+                )[:10]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {
+                                "error": f"Form '{form_name}' not found in config '{config_name}'",
+                                "suggestions": suggestions,
+                            },
+                            ensure_ascii=False,
+                        ),
+                    )
+                ]
 
-            return [types.TextContent(type="text",
-                text=json.dumps(found, ensure_ascii=False, indent=2))]
+            return [types.TextContent(type="text", text=json.dumps(found, ensure_ascii=False, indent=2))]
 
         elif name in ("generate_processing", "generate_report"):
             obj_name = arguments.get("name", "")
@@ -1901,8 +2296,11 @@ def create_mcp_server() -> Server:
             output_dir = arguments.get("output_dir", "")
 
             if not obj_name or not synonym:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "name and synonym are required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "name and synonym are required"}, ensure_ascii=False)
+                    )
+                ]
 
             # По умолчанию — generated/<name>
             if not output_dir:
@@ -1910,11 +2308,15 @@ def create_mcp_server() -> Server:
 
             # Загружаем code_generator
             import importlib.util
+
             scripts_dir = project.paths.root / "scripts"
             cg_path = scripts_dir / "code_generator.py"
             if not cg_path.exists():
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "code_generator.py not found"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "code_generator.py not found"}, ensure_ascii=False)
+                    )
+                ]
 
             spec = importlib.util.spec_from_file_location("code_generator", cg_path)
             cg_mod = importlib.util.module_from_spec(spec)
@@ -1926,7 +2328,9 @@ def create_mcp_server() -> Server:
             else:  # generate_report
                 data_source = arguments.get("data_source", "")
                 main_query = arguments.get("main_query", "")
-                result = cg_mod.generate_report(obj_name, synonym, output_dir, description, author, data_source, main_query)
+                result = cg_mod.generate_report(
+                    obj_name, synonym, output_dir, description, author, data_source, main_query
+                )
 
             response = {
                 "status": "success",
@@ -1938,11 +2342,12 @@ def create_mcp_server() -> Server:
                 "total_files": result["stats"]["total_files"],
                 "bsl_files": result["stats"]["bsl_files"],
                 "xml_files": result["stats"]["xml_files"],
-                "files": [{"path": f["path"].replace(str(project.paths.root) + "/", ""),
-                            "type": f["type"], "size": f["size"]} for f in result["files"]],
+                "files": [
+                    {"path": f["path"].replace(str(project.paths.root) + "/", ""), "type": f["type"], "size": f["size"]}
+                    for f in result["files"]
+                ],
             }
-            return [types.TextContent(type="text",
-                text=json.dumps(response, ensure_ascii=False, indent=2))]
+            return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
 
         elif name == "build_epf":
             source_dir = arguments.get("source_dir", "")
@@ -1951,8 +2356,12 @@ def create_mcp_server() -> Server:
             object_type = arguments.get("object_type", "DataProcessor")
 
             if not source_dir or not output_path:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "source_dir and output_path are required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": "source_dir and output_path are required"}, ensure_ascii=False),
+                    )
+                ]
 
             # Преобразуем относительные пути
             if not os.path.isabs(source_dir):
@@ -1961,16 +2370,24 @@ def create_mcp_server() -> Server:
                 output_path = str(project.paths.root / output_path)
 
             if not os.path.exists(source_dir):
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": f"source_dir not found: {source_dir}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": f"source_dir not found: {source_dir}"}, ensure_ascii=False),
+                    )
+                ]
 
             # Загружаем epf_builder
             import importlib.util
+
             scripts_dir = project.paths.root / "scripts"
             eb_path = scripts_dir / "epf_builder.py"
             if not eb_path.exists():
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "epf_builder.py not found"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "epf_builder.py not found"}, ensure_ascii=False)
+                    )
+                ]
 
             spec = importlib.util.spec_from_file_location("epf_builder", eb_path)
             eb_mod = importlib.util.module_from_spec(spec)
@@ -1988,34 +2405,47 @@ def create_mcp_server() -> Server:
                     "uuid": result["uuid"],
                     "files_included": result["files_included"],
                 }
-                return [types.TextContent(type="text",
-                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+                return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": f"Build failed: {str(e)}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"Build failed: {str(e)}"}, ensure_ascii=False)
+                    )
+                ]
 
         elif name == "validate_generated":
             source_dir = arguments.get("source_dir", "")
 
             if not source_dir:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "source_dir is required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "source_dir is required"}, ensure_ascii=False)
+                    )
+                ]
 
             # Преобразуем относительный путь
             if not os.path.isabs(source_dir):
                 source_dir = str(project.paths.root / source_dir)
 
             if not os.path.exists(source_dir):
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": f"source_dir not found: {source_dir}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": f"source_dir not found: {source_dir}"}, ensure_ascii=False),
+                    )
+                ]
 
             # Загружаем code_validator
             import importlib.util
+
             scripts_dir = project.paths.root / "scripts"
             cv_path = scripts_dir / "code_validator.py"
             if not cv_path.exists():
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "code_validator.py not found"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "code_validator.py not found"}, ensure_ascii=False)
+                    )
+                ]
 
             spec = importlib.util.spec_from_file_location("code_validator", cv_path)
             cv_mod = importlib.util.module_from_spec(spec)
@@ -2033,11 +2463,13 @@ def create_mcp_server() -> Server:
                     "bsl_validation": result.get("bsl_validation", []),
                     "xml_validation": result.get("xml_validation", []),
                 }
-                return [types.TextContent(type="text",
-                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+                return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": f"Validation failed: {str(e)}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"Validation failed: {str(e)}"}, ensure_ascii=False)
+                    )
+                ]
 
         elif name == "get_knowledge":
             query = arguments.get("query", "")
@@ -2046,17 +2478,21 @@ def create_mcp_server() -> Server:
 
             try:
                 from .services.knowledge_base import KnowledgeBase
+
                 kb = KnowledgeBase()
 
                 # Если item_id указан — возвращаем полный текст
                 if item_id:
                     item = kb.get_item(item_id)
                     if item:
-                        return [types.TextContent(type="text",
-                            text=json.dumps(item, ensure_ascii=False, indent=2))]
+                        return [types.TextContent(type="text", text=json.dumps(item, ensure_ascii=False, indent=2))]
                     else:
-                        return [types.TextContent(type="text",
-                            text=json.dumps({"error": f"Item not found: {item_id}"}, ensure_ascii=False))]
+                        return [
+                            types.TextContent(
+                                type="text",
+                                text=json.dumps({"error": f"Item not found: {item_id}"}, ensure_ascii=False),
+                            )
+                        ]
 
                 # Если query указан — поиск
                 if query:
@@ -2067,8 +2503,7 @@ def create_mcp_server() -> Server:
                         "total_results": len(results),
                         "results": results,
                     }
-                    return [types.TextContent(type="text",
-                        text=json.dumps(response, ensure_ascii=False, indent=2))]
+                    return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
 
                 # Если ничего не указано — список всех
                 items = kb.list_all()
@@ -2076,34 +2511,46 @@ def create_mcp_server() -> Server:
                     "stats": kb.get_stats(),
                     "items": items,
                 }
-                return [types.TextContent(type="text",
-                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+                return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
 
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": f"Knowledge base error: {str(e)}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"Knowledge base error: {str(e)}"}, ensure_ascii=False)
+                    )
+                ]
 
         elif name == "audit_security":
             file_path = arguments.get("file_path", "")
 
             if not file_path:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "file_path is required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "file_path is required"}, ensure_ascii=False)
+                    )
+                ]
 
             if not os.path.isabs(file_path):
                 file_path = str(project.paths.root / file_path)
 
             if not os.path.exists(file_path):
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": f"File not found: {file_path}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"File not found: {file_path}"}, ensure_ascii=False)
+                    )
+                ]
 
             # Загружаем security_auditor
             import importlib.util
+
             scripts_dir = project.paths.root / "scripts"
             sa_path = scripts_dir / "security_auditor.py"
             if not sa_path.exists():
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "security_auditor.py not found"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "security_auditor.py not found"}, ensure_ascii=False)
+                    )
+                ]
 
             spec = importlib.util.spec_from_file_location("security_auditor", sa_path)
             sa_mod = importlib.util.module_from_spec(spec)
@@ -2134,33 +2581,45 @@ def create_mcp_server() -> Server:
                         for v in violations
                     ],
                 }
-                return [types.TextContent(type="text",
-                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+                return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": f"Audit failed: {str(e)}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"Audit failed: {str(e)}"}, ensure_ascii=False)
+                    )
+                ]
 
         elif name == "get_code_metrics":
             file_path = arguments.get("file_path", "")
 
             if not file_path:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "file_path is required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "file_path is required"}, ensure_ascii=False)
+                    )
+                ]
 
             if not os.path.isabs(file_path):
                 file_path = str(project.paths.root / file_path)
 
             if not os.path.exists(file_path):
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": f"File not found: {file_path}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"File not found: {file_path}"}, ensure_ascii=False)
+                    )
+                ]
 
             # Загружаем code_metrics
             import importlib.util
+
             scripts_dir = project.paths.root / "scripts"
             cm_path = scripts_dir / "code_metrics.py"
             if not cm_path.exists():
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": "code_metrics.py not found"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "code_metrics.py not found"}, ensure_ascii=False)
+                    )
+                ]
 
             spec = importlib.util.spec_from_file_location("code_metrics", cm_path)
             cm_mod = importlib.util.module_from_spec(spec)
@@ -2209,27 +2668,40 @@ def create_mcp_server() -> Server:
                         for m in metrics.methods[:20]  # первые 20 методов
                     ],
                 }
-                return [types.TextContent(type="text",
-                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+                return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": f"Metrics failed: {str(e)}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"Metrics failed: {str(e)}"}, ensure_ascii=False)
+                    )
+                ]
 
         elif name in ("check_transactions", "analyze_queries"):
             file_path = arguments.get("file_path", "")
             if not file_path:
-                return [types.TextContent(type="text", text=json.dumps({"error": "file_path required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(type="text", text=json.dumps({"error": "file_path required"}, ensure_ascii=False))
+                ]
             if not os.path.isabs(file_path):
                 file_path = str(project.paths.root / file_path)
             if not os.path.exists(file_path):
-                return [types.TextContent(type="text", text=json.dumps({"error": f"File not found: {file_path}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"File not found: {file_path}"}, ensure_ascii=False)
+                    )
+                ]
 
             import importlib.util
+
             scripts_dir = project.paths.root / "scripts"
             script_name = "transaction_checker" if name == "check_transactions" else "query_analyzer"
             script_path = scripts_dir / f"{script_name}.py"
             if not script_path.exists():
-                return [types.TextContent(type="text", text=json.dumps({"error": f"{script_name}.py not found"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"{script_name}.py not found"}, ensure_ascii=False)
+                    )
+                ]
 
             spec = importlib.util.spec_from_file_location(script_name, script_path)
             mod = importlib.util.module_from_spec(spec)
@@ -2245,7 +2717,16 @@ def create_mcp_server() -> Server:
                         "file_path": file_path,
                         "total_violations": stats["total"],
                         "by_severity": stats["by_severity"],
-                        "violations": [{"rule_id": v.rule_id, "severity": v.severity, "line": v.line, "message": v.message, "recommendation": v.recommendation} for v in violations],
+                        "violations": [
+                            {
+                                "rule_id": v.rule_id,
+                                "severity": v.severity,
+                                "line": v.line,
+                                "message": v.message,
+                                "recommendation": v.recommendation,
+                            }
+                            for v in violations
+                        ],
                     }
                 else:  # analyze_queries
                     analyzer = mod.QueryAnalyzer()
@@ -2255,26 +2736,54 @@ def create_mcp_server() -> Server:
                         "file_path": file_path,
                         "total_issues": stats["total"],
                         "by_severity": stats["by_severity"],
-                        "issues": [{"rule_id": i.rule_id, "severity": i.severity, "line": i.line, "message": i.message, "recommendation": i.recommendation} for i in issues],
+                        "issues": [
+                            {
+                                "rule_id": i.rule_id,
+                                "severity": i.severity,
+                                "line": i.line,
+                                "message": i.message,
+                                "recommendation": i.recommendation,
+                            }
+                            for i in issues
+                        ],
                     }
                 return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
             except Exception as e:
-                return [types.TextContent(type="text", text=json.dumps({"error": f"Analysis failed: {str(e)}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"Analysis failed: {str(e)}"}, ensure_ascii=False)
+                    )
+                ]
 
         elif name == "analyze_architecture":
             config_dir = arguments.get("config_dir", "")
             if not config_dir:
-                return [types.TextContent(type="text", text=json.dumps({"error": "config_dir required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "config_dir required"}, ensure_ascii=False)
+                    )
+                ]
             if not os.path.isabs(config_dir):
                 config_dir = str(project.paths.root / config_dir)
             if not os.path.exists(config_dir):
-                return [types.TextContent(type="text", text=json.dumps({"error": f"Directory not found: {config_dir}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": f"Directory not found: {config_dir}"}, ensure_ascii=False),
+                    )
+                ]
 
             import importlib.util
+
             scripts_dir = project.paths.root / "scripts"
             script_path = scripts_dir / "architecture_analyzer.py"
             if not script_path.exists():
-                return [types.TextContent(type="text", text=json.dumps({"error": "architecture_analyzer.py not found"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": "architecture_analyzer.py not found"}, ensure_ascii=False),
+                    )
+                ]
 
             spec = importlib.util.spec_from_file_location("architecture_analyzer", script_path)
             mod = importlib.util.module_from_spec(spec)
@@ -2291,18 +2800,36 @@ def create_mcp_server() -> Server:
                     "total_issues": stats["total_issues"],
                     "by_severity": stats["by_severity"],
                     "by_rule": stats["by_rule"],
-                    "issues": [{"rule_id": i.rule_id, "severity": i.severity, "module": i.module, "line": i.line, "message": i.message} for i in issues[:50]],
+                    "issues": [
+                        {
+                            "rule_id": i.rule_id,
+                            "severity": i.severity,
+                            "module": i.module,
+                            "line": i.line,
+                            "message": i.message,
+                        }
+                        for i in issues[:50]
+                    ],
                 }
                 return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
             except Exception as e:
-                return [types.TextContent(type="text", text=json.dumps({"error": f"Analysis failed: {str(e)}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"Analysis failed: {str(e)}"}, ensure_ascii=False)
+                    )
+                ]
 
         elif name in ("check_form_quality", "check_skd_quality"):
             config_name = arguments.get("config_name", "")
             if not config_name:
-                return [types.TextContent(type="text", text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "config_name required"}, ensure_ascii=False)
+                    )
+                ]
 
             import importlib.util
+
             scripts_dir = project.paths.root / "scripts"
 
             if name == "check_form_quality":
@@ -2315,11 +2842,19 @@ def create_mcp_server() -> Server:
                 checker_class = "SKDQualityChecker"
 
             if not index_path.exists():
-                return [types.TextContent(type="text", text=json.dumps({"error": f"Index not found: {index_path}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"Index not found: {index_path}"}, ensure_ascii=False)
+                    )
+                ]
 
             script_path = scripts_dir / f"{script_name}.py"
             if not script_path.exists():
-                return [types.TextContent(type="text", text=json.dumps({"error": f"{script_name}.py not found"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"{script_name}.py not found"}, ensure_ascii=False)
+                    )
+                ]
 
             spec = importlib.util.spec_from_file_location(script_name, script_path)
             mod = importlib.util.module_from_spec(spec)
@@ -2328,38 +2863,71 @@ def create_mcp_server() -> Server:
 
             try:
                 checker = getattr(mod, checker_class)()
-                issues = checker.check_form_index(index_path) if name == "check_form_quality" else checker.check_skd_index(index_path)
+                issues = (
+                    checker.check_form_index(index_path)
+                    if name == "check_form_quality"
+                    else checker.check_skd_index(index_path)
+                )
                 stats = checker.get_stats(issues)
                 response = {
                     "config_name": config_name,
                     "total_issues": stats["total"],
                     "by_severity": stats["by_severity"],
                     "by_rule": stats["by_rule"],
-                    "issues": [{"rule_id": i.rule_id, "severity": i.severity, "form_name": getattr(i, 'form_name', getattr(i, 'schema_name', '')), "message": i.message} for i in issues[:50]],
+                    "issues": [
+                        {
+                            "rule_id": i.rule_id,
+                            "severity": i.severity,
+                            "form_name": getattr(i, "form_name", getattr(i, "schema_name", "")),
+                            "message": i.message,
+                        }
+                        for i in issues[:50]
+                    ],
                 }
                 return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
             except Exception as e:
-                return [types.TextContent(type="text", text=json.dumps({"error": f"Check failed: {str(e)}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"Check failed: {str(e)}"}, ensure_ascii=False)
+                    )
+                ]
 
         elif name == "diff_configs":
             old_path = arguments.get("old_path", "")
             new_path = arguments.get("new_path", "")
             if not old_path or not new_path:
-                return [types.TextContent(type="text", text=json.dumps({"error": "old_path and new_path required"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "old_path and new_path required"}, ensure_ascii=False)
+                    )
+                ]
             if not os.path.isabs(old_path):
                 old_path = str(project.paths.root / old_path)
             if not os.path.isabs(new_path):
                 new_path = str(project.paths.root / new_path)
             if not os.path.exists(old_path):
-                return [types.TextContent(type="text", text=json.dumps({"error": f"Old index not found: {old_path}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"Old index not found: {old_path}"}, ensure_ascii=False)
+                    )
+                ]
             if not os.path.exists(new_path):
-                return [types.TextContent(type="text", text=json.dumps({"error": f"New index not found: {new_path}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"New index not found: {new_path}"}, ensure_ascii=False)
+                    )
+                ]
 
             import importlib.util
+
             scripts_dir = project.paths.root / "scripts"
             script_path = scripts_dir / "diff_analyzer.py"
             if not script_path.exists():
-                return [types.TextContent(type="text", text=json.dumps({"error": "diff_analyzer.py not found"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": "diff_analyzer.py not found"}, ensure_ascii=False)
+                    )
+                ]
 
             spec = importlib.util.spec_from_file_location("diff_analyzer", script_path)
             mod = importlib.util.module_from_spec(spec)
@@ -2372,8 +2940,13 @@ def create_mcp_server() -> Server:
                 response = {
                     "summary": diff.summary,
                     "added_objects": [{"type": c.object_type, "name": c.object_name} for c in diff.added_objects[:50]],
-                    "removed_objects": [{"type": c.object_type, "name": c.object_name} for c in diff.removed_objects[:50]],
-                    "modified_objects": [{"type": c.object_type, "name": c.object_name, "details": c.details} for c in diff.modified_objects[:50]],
+                    "removed_objects": [
+                        {"type": c.object_type, "name": c.object_name} for c in diff.removed_objects[:50]
+                    ],
+                    "modified_objects": [
+                        {"type": c.object_type, "name": c.object_name, "details": c.details}
+                        for c in diff.modified_objects[:50]
+                    ],
                     "added_roles": diff.added_roles,
                     "removed_roles": diff.removed_roles,
                     "added_subsystems": diff.added_subsystems,
@@ -2385,7 +2958,11 @@ def create_mcp_server() -> Server:
                 }
                 return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
             except Exception as e:
-                return [types.TextContent(type="text", text=json.dumps({"error": f"Diff failed: {str(e)}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text", text=json.dumps({"error": f"Diff failed: {str(e)}"}, ensure_ascii=False)
+                    )
+                ]
 
         elif name == "epf_factory_create":
             # Создание .epf через EpfFactory
@@ -2394,23 +2971,32 @@ def create_mcp_server() -> Server:
 
                 epf_name = arguments.get("name", "")
                 if not epf_name:
-                    return [types.TextContent(type="text",
-                        text=json.dumps({"error": "name required"}, ensure_ascii=False))]
+                    return [
+                        types.TextContent(type="text", text=json.dumps({"error": "name required"}, ensure_ascii=False))
+                    ]
 
                 output_path = arguments.get("output_path", "")
                 if not output_path:
-                    return [types.TextContent(type="text",
-                        text=json.dumps({"error": "output_path required"}, ensure_ascii=False))]
+                    return [
+                        types.TextContent(
+                            type="text", text=json.dumps({"error": "output_path required"}, ensure_ascii=False)
+                        )
+                    ]
 
                 # BSL-код можно передать прямо или из файла
                 bsl_code = arguments.get("bsl_code", "")
                 bsl_path = arguments.get("bsl_path", "")
                 if not bsl_code and bsl_path:
                     from pathlib import Path as PathMod
+
                     p = PathMod(bsl_path)
                     if not p.exists():
-                        return [types.TextContent(type="text",
-                            text=json.dumps({"error": f"BSL file not found: {bsl_path}"}, ensure_ascii=False))]
+                        return [
+                            types.TextContent(
+                                type="text",
+                                text=json.dumps({"error": f"BSL file not found: {bsl_path}"}, ensure_ascii=False),
+                            )
+                        ]
                     bsl_code = p.read_text(encoding="utf-8")
                 if not bsl_code:
                     # Используем минимальный шаблон
@@ -2459,28 +3045,37 @@ def create_mcp_server() -> Server:
                     "round_trip_ok": result.round_trip_ok,
                     "work_dir": str(result.work_dir) if result.work_dir else None,
                 }
-                return [types.TextContent(type="text",
-                    text=json.dumps(response, ensure_ascii=False, indent=2))]
+                return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": f"epf_factory_create failed: {str(e)}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": f"epf_factory_create failed: {str(e)}"}, ensure_ascii=False),
+                    )
+                ]
 
         elif name == "epf_factory_templates":
             # Список шаблонов epf-factory
             try:
                 from .services.epf_factory import EpfFactory
+
                 templates = EpfFactory.list_templates()
-                return [types.TextContent(type="text",
-                    text=json.dumps(templates, ensure_ascii=False, indent=2))]
+                return [types.TextContent(type="text", text=json.dumps(templates, ensure_ascii=False, indent=2))]
             except Exception as e:
-                return [types.TextContent(type="text",
-                    text=json.dumps({"error": f"epf_factory_templates failed: {str(e)}"}, ensure_ascii=False))]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": f"epf_factory_templates failed: {str(e)}"}, ensure_ascii=False),
+                    )
+                ]
 
         # Неизвестный tool
-        return [types.TextContent(
-            type="text",
-            text=json.dumps({"error": f"Unknown tool: {name}"}, ensure_ascii=False),
-        )]
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps({"error": f"Unknown tool: {name}"}, ensure_ascii=False),
+            )
+        ]
 
     return server
 

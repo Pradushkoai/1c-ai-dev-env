@@ -1,6 +1,7 @@
 """
 Тесты для OpenSpecManager — Specification-Driven Development.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,7 +9,10 @@ from pathlib import Path
 import pytest
 
 from src.services.openspec_manager import (
-    OpenSpecManager, Change, Task, SpecDelta,
+    OpenSpecManager,
+    Change,
+    Task,
+    SpecDelta,
 )
 
 
@@ -21,6 +25,7 @@ def setup(tmp_path):
 # ─────────────────────────────────────────────
 # TestTask
 # ─────────────────────────────────────────────
+
 
 class TestTask:
     """Тесты модели Task."""
@@ -66,6 +71,7 @@ class TestTask:
 # TestSpecDelta
 # ─────────────────────────────────────────────
 
+
 class TestSpecDelta:
     """Тесты модели SpecDelta."""
 
@@ -95,6 +101,7 @@ class TestSpecDelta:
 # ─────────────────────────────────────────────
 # TestChange
 # ─────────────────────────────────────────────
+
 
 class TestChange:
     """Тесты модели Change."""
@@ -137,6 +144,7 @@ class TestChange:
 # TestOpenSpecManager
 # ─────────────────────────────────────────────
 
+
 class TestOpenSpecManagerInit:
     """Тесты инициализации."""
 
@@ -176,6 +184,7 @@ class TestOpenSpecManagerInit:
 
 
 # ─────────────────────────────────────────────
+
 
 class TestCreateProposal:
     """Тесты создания proposal."""
@@ -270,6 +279,7 @@ class TestCreateProposal:
 
 # ─────────────────────────────────────────────
 
+
 class TestLoadChange:
     """Тесты загрузки change."""
 
@@ -312,6 +322,7 @@ class TestLoadChange:
 
 
 # ─────────────────────────────────────────────
+
 
 class TestUpdateTask:
     """Тесты обновления задач."""
@@ -388,6 +399,7 @@ class TestUpdateTask:
 
 # ─────────────────────────────────────────────
 
+
 class TestArchive:
     """Тесты архивирования."""
 
@@ -415,6 +427,7 @@ class TestArchive:
 
 
 # ─────────────────────────────────────────────
+
 
 class TestListChanges:
     """Тесты списка changes."""
@@ -459,6 +472,7 @@ class TestListChanges:
 
 
 # ─────────────────────────────────────────────
+
 
 class TestValidate:
     """Тесты валидации."""

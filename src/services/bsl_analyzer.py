@@ -1,6 +1,7 @@
 """
 Анализатор .bsl файлов через BSL Language Server.
 """
+
 from __future__ import annotations
 
 import json
@@ -13,6 +14,7 @@ from pathlib import Path
 @dataclass
 class Diagnostic:
     """Одна диагностика BSL LS."""
+
     code: str
     line: int
     message: str
@@ -26,6 +28,7 @@ class Diagnostic:
 @dataclass
 class AnalysisResult:
     """Результат анализа файла/директории."""
+
     total: int = 0
     by_code: dict = field(default_factory=dict)
     diagnostics: list = field(default_factory=list)
@@ -49,7 +52,9 @@ class AnalysisResult:
                     message=d.get("message", "")[:150],
                     severity=d.get("severity", ""),
                 )
-                result.diagnostics.append({"key": diag.key, "code": diag.code, "line": diag.line, "message": diag.message})
+                result.diagnostics.append(
+                    {"key": diag.key, "code": diag.code, "line": diag.line, "message": diag.message}
+                )
                 result.total += 1
                 result.by_code[diag.code] = result.by_code.get(diag.code, 0) + 1
         return result
@@ -58,6 +63,7 @@ class AnalysisResult:
 @dataclass
 class DiffResult:
     """Результат diff анализа."""
+
     new: list = field(default_factory=list)
     fixed: list = field(default_factory=list)
     current: AnalysisResult = field(default_factory=AnalysisResult)
@@ -78,6 +84,7 @@ class BSLAnalyzer:
     def analyze(self, source: Path, output_dir: Path | None = None) -> AnalysisResult:
         """Анализ файла или директории."""
         import tempfile
+
         if output_dir is None:
             # Используем контекстный менеджер для автоочистки
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -96,11 +103,15 @@ class BSLAnalyzer:
 
         cmd = [
             str(self._binary),
-            "-c", str(self._config),
+            "-c",
+            str(self._config),
             "analyze",
-            "-s", str(source),
-            "-r", "json",
-            "-o", str(output_dir),
+            "-s",
+            str(source),
+            "-r",
+            "json",
+            "-o",
+            str(output_dir),
             "-q",
         ]
         subprocess.run(cmd, capture_output=True, timeout=120, check=True)
@@ -149,6 +160,7 @@ class BSLAnalyzer:
     def _save_baseline_to_file(self) -> None:
         """Сериализовать baseline в JSON файл."""
         import json
+
         if self._baseline is not None:
             self._baseline_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self._baseline_path, "w", encoding="utf-8") as f:
@@ -157,6 +169,7 @@ class BSLAnalyzer:
     def _load_baseline_from_file(self) -> None:
         """Загрузить baseline из JSON файла."""
         import json
+
         if self._baseline_path.exists():
             with open(self._baseline_path, encoding="utf-8") as f:
                 self._baseline = set(json.load(f))

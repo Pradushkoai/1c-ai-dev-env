@@ -11,6 +11,7 @@
 Запуск:
   pytest tests/test_form_elem_builder.py -v
 """
+
 import json
 import sys
 from pathlib import Path
@@ -60,8 +61,8 @@ def test_form_with_valuetable_and_columns():
                     {"name": "Дата", "type": "Date"},
                     {"name": "Номер", "type": "String", "length": 50},
                     {"name": "Проведен", "type": "Boolean"},
-                ]
-            }
+                ],
+            },
         ]
     }
     form_elem = build_form_elem(form_spec)
@@ -81,52 +82,44 @@ def test_form_with_valuetable_and_columns():
 
 def test_pattern_date():
     """Pattern для типа Дата."""
-    assert _pattern_date() == ["\"D\""]
+    assert _pattern_date() == ['"D"']
 
 
 def test_pattern_string_with_length():
     """Pattern для типа Строка с длиной."""
-    assert _pattern_string(50) == ["\"S\"", "50", "1"]
-    assert _pattern_string(100) == ["\"S\"", "100", "1"]
+    assert _pattern_string(50) == ['"S"', "50", "1"]
+    assert _pattern_string(100) == ['"S"', "100", "1"]
 
 
 def test_pattern_number_with_digits_and_fraction():
     """Pattern для типа Число."""
-    assert _pattern_number(10, 2) == ["\"N\"", "10", "2", "0"]
-    assert _pattern_number(15, 0) == ["\"N\"", "15", "0", "0"]
+    assert _pattern_number(10, 2) == ['"N"', "10", "2", "0"]
+    assert _pattern_number(15, 0) == ['"N"', "15", "0", "0"]
 
 
 def test_pattern_boolean():
     """Pattern для типа Булево."""
-    assert _pattern_boolean() == ["\"B\""]
+    assert _pattern_boolean() == ['"B"']
 
 
 def test_pattern_valuetable_uses_correct_uuid():
     """Pattern для ТаблицыЗначений использует правильный UUID."""
     pattern = _pattern_valuetable()
-    assert pattern[0] == "\"#\""
+    assert pattern[0] == '"#"'
     assert pattern[1] == VALUETABLE_TYPE_UUID
     assert pattern[1] == "acf6192e-81ca-46ef-93a6-5a6968b78663"
 
 
 def test_unknown_type_raises_error():
     """Неизвестный тип реквизита вызывает ValueError."""
-    form_spec = {
-        "props": [
-            {"name": "Test", "type": "UnknownType"}
-        ]
-    }
+    form_spec = {"props": [{"name": "Test", "type": "UnknownType"}]}
     with pytest.raises(ValueError, match="Неизвестный тип реквизита"):
         build_form_elem(form_spec)
 
 
 def test_prop_without_name_raises_error():
     """Реквизит без name вызывает ValueError."""
-    form_spec = {
-        "props": [
-            {"type": "Date"}
-        ]
-    }
+    form_spec = {"props": [{"type": "Date"}]}
     with pytest.raises(ValueError, match="должен иметь name"):
         build_form_elem(form_spec)
 
@@ -136,7 +129,7 @@ def test_build_and_save_form_elem_creates_file(tmp_path):
     form_spec = {
         "props": [
             {"name": "Объект", "type": "DataProcessorObject"},
-            {"name": "ДатаНачала", "type": "Date", "synonym": "Дата начала"}
+            {"name": "ДатаНачала", "type": "Date", "synonym": "Дата начала"},
         ]
     }
     output = tmp_path / "Form.elem.json"
@@ -154,21 +147,15 @@ def test_valuetable_prop_has_correct_raw_structure():
     form_spec = {
         "props": [
             {"name": "Объект", "type": "DataProcessorObject"},
-            {
-                "name": "Таблица",
-                "type": "ValueTable",
-                "columns": [
-                    {"name": "Кол1", "type": "String", "length": 10}
-                ]
-            }
+            {"name": "Таблица", "type": "ValueTable", "columns": [{"name": "Кол1", "type": "String", "length": 10}]},
         ]
     }
     form_elem = build_form_elem(form_spec)
     table_prop = form_elem["props"][1]
 
     # raw[5] — Pattern
-    assert table_prop["raw"][5][0] == "\"Pattern\""
-    assert table_prop["raw"][5][1][0] == "\"#\""
+    assert table_prop["raw"][5][0] == '"Pattern"'
+    assert table_prop["raw"][5][1][0] == '"#"'
     assert table_prop["raw"][5][1][1] == VALUETABLE_TYPE_UUID
 
 
@@ -177,20 +164,14 @@ def test_column_has_correct_pattern():
     form_spec = {
         "props": [
             {"name": "Объект", "type": "DataProcessorObject"},
-            {
-                "name": "Таблица",
-                "type": "ValueTable",
-                "columns": [
-                    {"name": "ДатаКолонки", "type": "Date"}
-                ]
-            }
+            {"name": "Таблица", "type": "ValueTable", "columns": [{"name": "ДатаКолонки", "type": "Date"}]},
         ]
     }
     form_elem = build_form_elem(form_spec)
     column = form_elem["props"][1]["child"][0]
 
     # raw[5] — Pattern
-    assert column["raw"][5] == ["\"Pattern\"", ["\"D\""]]
+    assert column["raw"][5] == ['"Pattern"', ['"D"']]
 
 
 def test_multiple_simple_props():
@@ -201,7 +182,7 @@ def test_multiple_simple_props():
             {"name": "ДатаНачала", "type": "Date", "synonym": "Дата начала"},
             {"name": "Комментарий", "type": "String", "length": 200, "synonym": "Комментарий"},
             {"name": "Сумма", "type": "Number", "digits": 15, "fraction": 2, "synonym": "Сумма"},
-            {"name": "Флаг", "type": "Boolean", "synonym": "Флаг"}
+            {"name": "Флаг", "type": "Boolean", "synonym": "Флаг"},
         ]
     }
     form_elem = build_form_elem(form_spec)
@@ -220,4 +201,5 @@ def test_multiple_simple_props():
 
 if __name__ == "__main__":
     import subprocess
+
     subprocess.run([sys.executable, "-m", "pytest", __file__, "-v"])

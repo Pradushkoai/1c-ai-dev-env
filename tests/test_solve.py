@@ -8,6 +8,7 @@
 
 BSL LS тесты помечены @requires_bsl_ls — пропускаются если не установлен.
 """
+
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -25,10 +26,7 @@ def _is_bsl_ls_available() -> bool:
     return pm.bsl_ls_binary.exists()
 
 
-requires_bsl_ls = pytest.mark.skipif(
-    not _is_bsl_ls_available(),
-    reason="BSL Language Server не установлен"
-)
+requires_bsl_ls = pytest.mark.skipif(not _is_bsl_ls_available(), reason="BSL Language Server не установлен")
 
 
 def test_solve_check_with_errors(tmp_path):
@@ -37,12 +35,15 @@ def test_solve_check_with_errors(tmp_path):
 
     # Создаём .bsl файл с известными нарушениями (no-vypolnit = error)
     bsl_file = tmp_path / "bad.bsl"
-    bsl_file.write_text("""Перем _Запрос;
+    bsl_file.write_text(
+        """Перем _Запрос;
 
 Процедура Тест()
     Выполнить("code");
 КонецПроцедуры
-""", encoding='utf-8')
+""",
+        encoding="utf-8",
+    )
 
     # Создаём project с mock PathManager
     pm = PathManager(project_root=tmp_path)
@@ -64,7 +65,7 @@ def test_solve_check_with_errors(tmp_path):
     args.ci = False
     args.json = False
     args.sarif = None
-    args.level = 'quick'
+    args.level = "quick"
 
     # solve check должен вызвать sys.exit(1) т.к. есть errors (no-vypolnit, no-underscore-vars)
     with pytest.raises(SystemExit) as exc_info:
@@ -78,7 +79,8 @@ def test_solve_check_clean_file(tmp_path):
     from src.cli import _solve_check
 
     bsl_file = tmp_path / "clean.bsl"
-    bsl_file.write_text("""#Область ПрограммныйИнтерфейс
+    bsl_file.write_text(
+        """#Область ПрограммныйИнтерфейс
 
 // Рассчитать сумму.
 //
@@ -99,7 +101,9 @@ def test_solve_check_clean_file(tmp_path):
 
 #Область СлужебныеПроцедурыИФункции
 #КонецОбласти
-""", encoding='utf-8')
+""",
+        encoding="utf-8",
+    )
 
     pm = PathManager(project_root=tmp_path)
     from src.services.bsl_analyzer import BSLAnalyzer
@@ -114,7 +118,7 @@ def test_solve_check_clean_file(tmp_path):
     args.ci = False
     args.json = False
     args.sarif = None
-    args.level = 'quick'
+    args.level = "quick"
 
     # solve check должен вызвать sys.exit(0) — нет errors
     with pytest.raises(SystemExit) as exc_info:
@@ -139,7 +143,7 @@ def test_solve_check_nonexistent_file(tmp_path):
     args.ci = False
     args.json = False
     args.sarif = None
-    args.level = 'quick'
+    args.level = "quick"
 
     with pytest.raises(SystemExit) as exc_info:
         _solve_check(project, args)

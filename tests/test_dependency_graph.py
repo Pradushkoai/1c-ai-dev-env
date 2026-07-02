@@ -1,6 +1,7 @@
 """
 Тесты для DependencyGraph — граф зависимостей метаданных 1С.
 """
+
 from __future__ import annotations
 
 import json
@@ -9,7 +10,10 @@ from pathlib import Path
 import pytest
 
 from src.services.dependency_graph import (
-    DependencyGraph, DependencyEdge, DependencyGraphResult, RELATION_TYPES,
+    DependencyGraph,
+    DependencyEdge,
+    DependencyGraphResult,
+    RELATION_TYPES,
 )
 
 
@@ -20,16 +24,14 @@ def setup(tmp_path):
         (tmp_path / d).mkdir(parents=True, exist_ok=True)
 
     from src.services.path_manager import PathManager
+
     pm = PathManager(project_root=tmp_path)
     return pm, tmp_path
 
 
 def _write_metadata(tmp_path: Path, config_name: str, metadata: dict) -> None:
     """Записать unified-metadata-index.json для теста."""
-    index_path = (
-        tmp_path / "derived" / "configs" / config_name
-        / "unified-metadata-index.json"
-    )
+    index_path = tmp_path / "derived" / "configs" / config_name / "unified-metadata-index.json"
     index_path.parent.mkdir(parents=True, exist_ok=True)
     index_path.write_text(
         json.dumps(metadata, ensure_ascii=False),
@@ -38,6 +40,7 @@ def _write_metadata(tmp_path: Path, config_name: str, metadata: dict) -> None:
 
 
 # ─────────────────────────────────────────────
+
 
 class TestBuildGraph:
     """Тесты построения графа."""
@@ -66,23 +69,31 @@ class TestBuildGraph:
     def test_build_with_attribute_ref(self, setup):
         """Реквизит ссылочного типа → ребро зависимости."""
         pm, tmp = setup
-        _write_metadata(tmp, "test", {
-            "objects": {
-                "Catalog": [{
-                    "name": "Контрагенты",
-                    "child_objects": {"attributes": [], "tabular_sections": []},
-                }],
-                "Document": [{
-                    "name": "ЗаказКлиента",
-                    "child_objects": {
-                        "attributes": [
-                            {"name": "Контрагент", "type": "CatalogRef.Контрагенты"},
-                        ],
-                        "tabular_sections": [],
-                    },
-                }],
+        _write_metadata(
+            tmp,
+            "test",
+            {
+                "objects": {
+                    "Catalog": [
+                        {
+                            "name": "Контрагенты",
+                            "child_objects": {"attributes": [], "tabular_sections": []},
+                        }
+                    ],
+                    "Document": [
+                        {
+                            "name": "ЗаказКлиента",
+                            "child_objects": {
+                                "attributes": [
+                                    {"name": "Контрагент", "type": "CatalogRef.Контрагенты"},
+                                ],
+                                "tabular_sections": [],
+                            },
+                        }
+                    ],
+                },
             },
-        })
+        )
 
         dg = DependencyGraph()
         result = dg.build_from_metadata_index("test", pm)
@@ -90,9 +101,7 @@ class TestBuildGraph:
         assert len(result.edges) >= 1
         # Document.ЗаказКлиента → Catalog.Контрагенты
         edge = next(
-            e for e in result.edges
-            if e.source == "Document.ЗаказКлиента"
-            and e.target == "Catalog.Контрагенты"
+            e for e in result.edges if e.source == "Document.ЗаказКлиента" and e.target == "Catalog.Контрагенты"
         )
         assert edge.relation == "uses_attribute"
         assert "Контрагент" in edge.detail
@@ -100,126 +109,156 @@ class TestBuildGraph:
     def test_build_with_tabular_section_ref(self, setup):
         """ТЧ со ссылочным типом → ребро."""
         pm, tmp = setup
-        _write_metadata(tmp, "test", {
-            "objects": {
-                "Catalog": [{
-                    "name": "Товары",
-                    "child_objects": {"attributes": [], "tabular_sections": []},
-                }],
-                "Document": [{
-                    "name": "Поступление",
-                    "child_objects": {
-                        "attributes": [],
-                        "tabular_sections": [{
+        _write_metadata(
+            tmp,
+            "test",
+            {
+                "objects": {
+                    "Catalog": [
+                        {
                             "name": "Товары",
-                            "attributes": [
-                                {"name": "Номенклатура", "type": "CatalogRef.Товары"},
-                            ],
-                        }],
-                    },
-                }],
+                            "child_objects": {"attributes": [], "tabular_sections": []},
+                        }
+                    ],
+                    "Document": [
+                        {
+                            "name": "Поступление",
+                            "child_objects": {
+                                "attributes": [],
+                                "tabular_sections": [
+                                    {
+                                        "name": "Товары",
+                                        "attributes": [
+                                            {"name": "Номенклатура", "type": "CatalogRef.Товары"},
+                                        ],
+                                    }
+                                ],
+                            },
+                        }
+                    ],
+                },
             },
-        })
+        )
 
         dg = DependencyGraph()
         result = dg.build_from_metadata_index("test", pm)
 
-        edge = next(
-            e for e in result.edges
-            if e.source == "Document.Поступление"
-            and e.target == "Catalog.Товары"
-        )
+        edge = next(e for e in result.edges if e.source == "Document.Поступление" and e.target == "Catalog.Товары")
         assert "ТЧ Товары" in edge.detail
 
     def test_build_with_register_recorder(self, setup):
         """Регистратор регистра → ребро (через RegisterRecords в документе)."""
         pm, tmp = setup
-        _write_metadata(tmp, "test", {
-            "objects": {
-                "Documents": [{
-                    "name": "Поступление",
-                    "child_objects": {"attributes": [], "tabular_sections": []},
-                    "properties": {"RegisterRecords": ["AccumulationRegister.ТоварыНаСкладах"]},
-                }],
-                "AccumulationRegisters": [{
-                    "name": "ТоварыНаСкладах",
-                }],
+        _write_metadata(
+            tmp,
+            "test",
+            {
+                "objects": {
+                    "Documents": [
+                        {
+                            "name": "Поступление",
+                            "child_objects": {"attributes": [], "tabular_sections": []},
+                            "properties": {"RegisterRecords": ["AccumulationRegister.ТоварыНаСкладах"]},
+                        }
+                    ],
+                    "AccumulationRegisters": [
+                        {
+                            "name": "ТоварыНаСкладах",
+                        }
+                    ],
+                },
             },
-        })
+        )
 
         dg = DependencyGraph()
         result = dg.build_from_metadata_index("test", pm)
 
         edge = next(
-            e for e in result.edges
-            if e.source == "Document.Поступление"
-            and e.target == "AccumulationRegister.ТоварыНаСкладах"
+            e
+            for e in result.edges
+            if e.source == "Document.Поступление" and e.target == "AccumulationRegister.ТоварыНаСкладах"
         )
         assert edge.relation == "registered_by"
 
     def test_build_with_subsystem(self, setup):
         """Объект в подсистеме → ребро."""
         pm, tmp = setup
-        _write_metadata(tmp, "test", {
-            "objects": {
-                "Catalog": [{
-                    "name": "Товары",
-                    "child_objects": {"attributes": [], "tabular_sections": []},
-                }],
+        _write_metadata(
+            tmp,
+            "test",
+            {
+                "objects": {
+                    "Catalog": [
+                        {
+                            "name": "Товары",
+                            "child_objects": {"attributes": [], "tabular_sections": []},
+                        }
+                    ],
+                },
+                "subsystems": [
+                    {
+                        "name": "Склад",
+                        "content": ["Catalog.Товары"],
+                    }
+                ],
             },
-            "subsystems": [{
-                "name": "Склад",
-                "content": ["Catalog.Товары"],
-            }],
-        })
+        )
 
         dg = DependencyGraph()
         result = dg.build_from_metadata_index("test", pm)
 
-        edge = next(
-            e for e in result.edges
-            if e.source == "Catalog.Товары"
-            and e.target == "Subsystem.Склад"
-        )
+        edge = next(e for e in result.edges if e.source == "Catalog.Товары" and e.target == "Subsystem.Склад")
         assert edge.relation == "in_subsystem"
 
     def test_build_with_event_subscription(self, setup):
         """Подписка на событие → ребро к обработчику."""
         pm, tmp = setup
-        _write_metadata(tmp, "test", {
-            "objects": {},
-            "event_subscriptions": [{
-                "name": "ПриЗаписиТовара",
-                "handler": "РаботаСТоварами.ПриЗаписиТовара",
-            }],
-        })
+        _write_metadata(
+            tmp,
+            "test",
+            {
+                "objects": {},
+                "event_subscriptions": [
+                    {
+                        "name": "ПриЗаписиТовара",
+                        "handler": "РаботаСТоварами.ПриЗаписиТовара",
+                    }
+                ],
+            },
+        )
 
         dg = DependencyGraph()
         result = dg.build_from_metadata_index("test", pm)
 
         edge = next(
-            e for e in result.edges
-            if e.source == "EventSubscription.ПриЗаписиТовара"
-            and e.target == "CommonModule.РаботаСТоварами"
+            e
+            for e in result.edges
+            if e.source == "EventSubscription.ПриЗаписиТовара" and e.target == "CommonModule.РаботаСТоварами"
         )
         assert edge.relation == "event_handler"
 
     def test_self_reference_ignored(self, setup):
         """Ссылка объекта на себя не создаёт ребро."""
         pm, tmp = setup
-        _write_metadata(tmp, "test", {
-            "objects": {
-                "Catalog": [{
-                    "name": "Иерархия",
-                    "child_objects": {
-                        "attributes": [
-                            {"name": "Родитель", "type": "CatalogRef.Иерархия"},
-                        ],
-                        "tabular_sections": [],
-                    },
-                }],
+        _write_metadata(
+            tmp,
+            "test",
+            {
+                "objects": {
+                    "Catalog": [
+                        {
+                            "name": "Иерархия",
+                            "child_objects": {
+                                "attributes": [
+                                    {"name": "Родитель", "type": "CatalogRef.Иерархия"},
+                                ],
+                                "tabular_sections": [],
+                            },
+                        }
+                    ],
+                },
             },
-        })
+        )
 
         dg = DependencyGraph()
         result = dg.build_from_metadata_index("test", pm)
@@ -231,23 +270,29 @@ class TestBuildGraph:
     def test_multiple_ref_types_in_one_attribute(self, setup):
         """Составной тип с несколькими ссылками."""
         pm, tmp = setup
-        _write_metadata(tmp, "test", {
-            "objects": {
-                "Catalog": [
-                    {"name": "Контрагенты", "child_objects": {"attributes": [], "tabular_sections": []}},
-                    {"name": "Поставщики", "child_objects": {"attributes": [], "tabular_sections": []}},
-                ],
-                "Document": [{
-                    "name": "Док",
-                    "child_objects": {
-                        "attributes": [
-                            {"name": "Контрагент", "type": "CatalogRef.Контрагенты, CatalogRef.Поставщики"},
-                        ],
-                        "tabular_sections": [],
-                    },
-                }],
+        _write_metadata(
+            tmp,
+            "test",
+            {
+                "objects": {
+                    "Catalog": [
+                        {"name": "Контрагенты", "child_objects": {"attributes": [], "tabular_sections": []}},
+                        {"name": "Поставщики", "child_objects": {"attributes": [], "tabular_sections": []}},
+                    ],
+                    "Document": [
+                        {
+                            "name": "Док",
+                            "child_objects": {
+                                "attributes": [
+                                    {"name": "Контрагент", "type": "CatalogRef.Контрагенты, CatalogRef.Поставщики"},
+                                ],
+                                "tabular_sections": [],
+                            },
+                        }
+                    ],
+                },
             },
-        })
+        )
 
         dg = DependencyGraph()
         result = dg.build_from_metadata_index("test", pm)
@@ -259,6 +304,7 @@ class TestBuildGraph:
 
 # ─────────────────────────────────────────────
 
+
 class TestQueries:
     """Тесты запросов к графу."""
 
@@ -266,35 +312,39 @@ class TestQueries:
     def graph_with_data(self, setup):
         """Граф с тестовыми данными."""
         pm, tmp = setup
-        _write_metadata(tmp, "test", {
-            "objects": {
-                "Catalog": [
-                    {"name": "Контрагенты", "child_objects": {"attributes": [], "tabular_sections": []}},
-                    {"name": "Товары", "child_objects": {"attributes": [], "tabular_sections": []}},
-                ],
-                "Document": [
-                    {
-                        "name": "ЗаказКлиента",
-                        "child_objects": {
-                            "attributes": [
-                                {"name": "Контрагент", "type": "CatalogRef.Контрагенты"},
-                                {"name": "Товар", "type": "CatalogRef.Товары"},
-                            ],
-                            "tabular_sections": [],
+        _write_metadata(
+            tmp,
+            "test",
+            {
+                "objects": {
+                    "Catalog": [
+                        {"name": "Контрагенты", "child_objects": {"attributes": [], "tabular_sections": []}},
+                        {"name": "Товары", "child_objects": {"attributes": [], "tabular_sections": []}},
+                    ],
+                    "Document": [
+                        {
+                            "name": "ЗаказКлиента",
+                            "child_objects": {
+                                "attributes": [
+                                    {"name": "Контрагент", "type": "CatalogRef.Контрагенты"},
+                                    {"name": "Товар", "type": "CatalogRef.Товары"},
+                                ],
+                                "tabular_sections": [],
+                            },
                         },
-                    },
-                    {
-                        "name": "Реализация",
-                        "child_objects": {
-                            "attributes": [
-                                {"name": "Контрагент", "type": "CatalogRef.Контрагенты"},
-                            ],
-                            "tabular_sections": [],
+                        {
+                            "name": "Реализация",
+                            "child_objects": {
+                                "attributes": [
+                                    {"name": "Контрагент", "type": "CatalogRef.Контрагенты"},
+                                ],
+                                "tabular_sections": [],
+                            },
                         },
-                    },
-                ],
+                    ],
+                },
             },
-        })
+        )
 
         dg = DependencyGraph()
         dg.build_from_metadata_index("test", pm)
@@ -392,26 +442,30 @@ class TestQueries:
     def test_find_cycles_with_cycle(self, setup):
         """Циклическая зависимость находится."""
         pm, tmp = setup
-        _write_metadata(tmp, "test", {
-            "objects": {
-                "Catalog": [
-                    {
-                        "name": "A",
-                        "child_objects": {
-                            "attributes": [{"name": "B", "type": "CatalogRef.B"}],
-                            "tabular_sections": [],
+        _write_metadata(
+            tmp,
+            "test",
+            {
+                "objects": {
+                    "Catalog": [
+                        {
+                            "name": "A",
+                            "child_objects": {
+                                "attributes": [{"name": "B", "type": "CatalogRef.B"}],
+                                "tabular_sections": [],
+                            },
                         },
-                    },
-                    {
-                        "name": "B",
-                        "child_objects": {
-                            "attributes": [{"name": "A", "type": "CatalogRef.A"}],
-                            "tabular_sections": [],
+                        {
+                            "name": "B",
+                            "child_objects": {
+                                "attributes": [{"name": "A", "type": "CatalogRef.A"}],
+                                "tabular_sections": [],
+                            },
                         },
-                    },
-                ],
+                    ],
+                },
             },
-        })
+        )
 
         dg = DependencyGraph()
         dg.build_from_metadata_index("test", pm)
@@ -421,6 +475,7 @@ class TestQueries:
 
 
 # ─────────────────────────────────────────────
+
 
 class TestSerialization:
     """Тесты сериализации."""
@@ -440,6 +495,7 @@ class TestSerialization:
 
 
 # ─────────────────────────────────────────────
+
 
 class TestExtractRefs:
     """Тесты утилиты _extract_refs."""

@@ -50,6 +50,7 @@ openspec-archive). Реализовано как Python-модуль без вн
     osm.update_task("add-cfe-support", 0, completed=True)
     osm.archive("add-cfe-support")  # после завершения
 """
+
 from __future__ import annotations
 
 import re
@@ -61,6 +62,7 @@ from pathlib import Path
 @dataclass
 class Task:
     """Атомарная задача в change."""
+
     description: str
     completed: bool = False
     notes: str = ""
@@ -86,6 +88,7 @@ class Task:
 @dataclass
 class SpecDelta:
     """Изменение в спецификации (ADDED|MODIFIED|REMOVED)."""
+
     action: str  # ADDED | MODIFIED | REMOVED
     capability: str  # например "cfe-management"
     requirement: str
@@ -104,6 +107,7 @@ class SpecDelta:
 @dataclass
 class Change:
     """OpenSpec change — предложение изменения."""
+
     change_id: str
     title: str = ""
     context: str = ""
@@ -513,25 +517,29 @@ class OpenSpecManager:
                     if change:
                         completed = sum(1 for t in change.tasks if t.completed)
                         total = len(change.tasks)
-                        result.append({
-                            "change_id": change.change_id,
-                            "title": change.title,
-                            "status": change.status,
-                            "progress": f"{completed}/{total}",
-                            "archived": False,
-                        })
+                        result.append(
+                            {
+                                "change_id": change.change_id,
+                                "title": change.title,
+                                "status": change.status,
+                                "progress": f"{completed}/{total}",
+                                "archived": False,
+                            }
+                        )
 
         # Архивные
         if include_archived and self._archive_dir.exists():
             for d in sorted(self._archive_dir.iterdir()):
                 if d.is_dir():
-                    result.append({
-                        "change_id": d.name,
-                        "title": "(архив)",
-                        "status": "archived",
-                        "progress": "-",
-                        "archived": True,
-                    })
+                    result.append(
+                        {
+                            "change_id": d.name,
+                            "title": "(архив)",
+                            "status": "archived",
+                            "progress": "-",
+                            "archived": True,
+                        }
+                    )
 
         return result
 
@@ -567,9 +575,7 @@ class OpenSpecManager:
             # Каждый spec delta должен иметь scenario
             for delta in change.spec_deltas:
                 if not delta.scenario:
-                    errors.append(
-                        f"spec delta '{delta.requirement}' не имеет scenario"
-                    )
+                    errors.append(f"spec delta '{delta.requirement}' не имеет scenario")
 
         return errors
 

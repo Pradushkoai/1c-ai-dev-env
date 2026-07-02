@@ -47,6 +47,7 @@ Usage (CLI):
         --bsl form_module.bsl \\
         --output МояОбработка.epf
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -99,6 +100,7 @@ BSL_LS_BINARY = os.environ.get(
 @dataclass
 class EpfFactoryResult:
     """Результат работы EpfFactory.create_epf."""
+
     ok: bool = False
     error: str = ""
     epf_path: Path | None = None
@@ -152,7 +154,9 @@ def validate_bsl(bsl_path: Path) -> dict:
         return {
             "ok": False,
             "error": f"BSL LS не найден: {BSL_LS_BINARY}",
-            "errors": 0, "warnings": 0, "infos": 0,
+            "errors": 0,
+            "warnings": 0,
+            "infos": 0,
         }
 
     # BSL LS требует каталог, не файл
@@ -173,23 +177,25 @@ def validate_bsl(bsl_path: Path) -> dict:
 
     cmd = [
         BSL_LS_BINARY,
-        "-c", str(config_path),
+        "-c",
+        str(config_path),
         "analyze",
-        "-s", str(src_dir),
-        "-r", "json",
-        "-o", str(out_dir),
+        "-s",
+        str(src_dir),
+        "-r",
+        "json",
+        "-o",
+        str(out_dir),
         "-q",
     ]
     try:
         subprocess.run(cmd, capture_output=True, text=True, timeout=60, check=False)
     except subprocess.TimeoutExpired:
-        return {"ok": False, "error": "BSL LS timeout",
-                "errors": 0, "warnings": 0, "infos": 0}
+        return {"ok": False, "error": "BSL LS timeout", "errors": 0, "warnings": 0, "infos": 0}
 
     report_path = out_dir / "bsl-json.json"
     if not report_path.exists():
-        return {"ok": False, "error": "BSL LS отчёт не создан",
-                "errors": 0, "warnings": 0, "infos": 0}
+        return {"ok": False, "error": "BSL LS отчёт не создан", "errors": 0, "warnings": 0, "infos": 0}
 
     with open(report_path, encoding="utf-8") as f:
         report = json.load(f)
@@ -205,13 +211,15 @@ def validate_bsl(bsl_path: Path) -> dict:
                 warnings += 1
             elif sev == "Information":
                 infos += 1
-            all_diags.append({
-                "file": fi.get("path", ""),
-                "line": d.get("range", {}).get("start", {}).get("line", 0) + 1,
-                "code": d.get("code", ""),
-                "severity": sev,
-                "message": d.get("message", ""),
-            })
+            all_diags.append(
+                {
+                    "file": fi.get("path", ""),
+                    "line": d.get("range", {}).get("start", {}).get("line", 0) + 1,
+                    "code": d.get("code", ""),
+                    "severity": sev,
+                    "message": d.get("message", ""),
+                }
+            )
 
     # Чистим
     with contextlib.suppress(Exception):
@@ -312,6 +320,7 @@ class EpfFactory:
                         result.error = f"form_spec файл не найден: {spec_path}"
                         return result
                     import json as _json
+
                     with open(spec_path, encoding="utf-8") as f:
                         spec_dict = _json.load(f)
                 elif isinstance(form_spec, dict):
@@ -390,13 +399,17 @@ class EpfFactory:
             shutil.rmtree(temp_dir)
 
         cmd = [
-            _PYTHON, "-m", "v8unpack",
-            "-B", str(src_dir), str(output_epf),
-            "--temp", str(temp_dir),
+            _PYTHON,
+            "-m",
+            "v8unpack",
+            "-B",
+            str(src_dir),
+            str(output_epf),
+            "--temp",
+            str(temp_dir),
         ]
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True,
-                                  timeout=120, check=False)
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False)
         except subprocess.TimeoutExpired:
             result.error = "v8unpack timeout при сборке"
             return result
@@ -417,12 +430,17 @@ class EpfFactory:
             if patch_script.exists():
                 patched_path = output_epf.parent / f"{output_epf.stem}__patched.epf"
                 patch_cmd = [
-                    _PYTHON, str(patch_script),
-                    str(output_epf), str(patched_path),
+                    _PYTHON,
+                    str(patch_script),
+                    str(output_epf),
+                    str(patched_path),
                 ]
                 patch_proc = subprocess.run(
-                    patch_cmd, capture_output=True, text=True,
-                    timeout=30, check=False,
+                    patch_cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    check=False,
                 )
                 if patch_proc.returncode == 0 and patched_path.exists():
                     # Заменяем оригинал пропатченной версией
@@ -551,11 +569,9 @@ class EpfFactory:
         if temp_dir.exists():
             shutil.rmtree(temp_dir)
 
-        cmd = [_PYTHON, "-m", "v8unpack", "-E",
-               str(epf_path), str(check_dir), "--temp", str(temp_dir)]
+        cmd = [_PYTHON, "-m", "v8unpack", "-E", str(epf_path), str(check_dir), "--temp", str(temp_dir)]
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True,
-                                  timeout=60, check=False)
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60, check=False)
         except subprocess.TimeoutExpired:
             return False
 
@@ -620,19 +636,25 @@ def _cli():
         factory = EpfFactory()
         result = factory.create_epf(name, synonym, bsl_code, output)
 
-        print(json.dumps({
-            "ok": result.ok,
-            "error": result.error,
-            "epf_path": str(result.epf_path) if result.epf_path else None,
-            "size_bytes": result.size_bytes,
-            "name": result.name,
-            "proc_uuid": result.proc_uuid,
-            "form_uuid": result.form_uuid,
-            "bsl_lines": result.bsl_lines,
-            "bsl_warnings": result.bsl_warnings,
-            "bsl_errors": result.bsl_errors,
-            "round_trip_ok": result.round_trip_ok,
-        }, ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {
+                    "ok": result.ok,
+                    "error": result.error,
+                    "epf_path": str(result.epf_path) if result.epf_path else None,
+                    "size_bytes": result.size_bytes,
+                    "name": result.name,
+                    "proc_uuid": result.proc_uuid,
+                    "form_uuid": result.form_uuid,
+                    "bsl_lines": result.bsl_lines,
+                    "bsl_warnings": result.bsl_warnings,
+                    "bsl_errors": result.bsl_errors,
+                    "round_trip_ok": result.round_trip_ok,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         sys.exit(0 if result.ok else 1)
 
     print(f"Unknown command: {cmd}")

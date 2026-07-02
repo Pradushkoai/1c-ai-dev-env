@@ -1,6 +1,7 @@
 """
 Менеджер путей проекта. Заменяет paths.env + paths.py.
 """
+
 from __future__ import annotations
 
 import os
@@ -43,7 +44,7 @@ class PathManager:
             end = val.find("}", start)
             if end == -1:
                 break
-            val = val[:start] + os.getenv(val[start + 2:end], "") + val[end + 1:]
+            val = val[:start] + os.getenv(val[start + 2 : end], "") + val[end + 1 :]
         return val
 
     # --- Слои ---

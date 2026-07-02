@@ -1,6 +1,7 @@
 """
 Тесты для DataPackage — persistence данных проекта между сессиями.
 """
+
 import json
 import zipfile
 from pathlib import Path
@@ -59,29 +60,30 @@ def project_with_data(mock_paths):
                 "objects_count": 5440,
                 "path": str(mock_paths.configs_dir / "ut11"),
             }
-        }
+        },
     }
-    with open(mock_paths.config_registry_path, 'w', encoding='utf-8') as f:
+    with open(mock_paths.config_registry_path, "w", encoding="utf-8") as f:
         json.dump(registry, f, ensure_ascii=False)
 
     # derived/configs/ut11/api-reference.json
     ut11_derived = mock_paths.derived_configs_dir / "ut11"
     ut11_derived.mkdir(parents=True, exist_ok=True)
     api_data = [{"name": "ОбщегоНазначения", "methods_count": 5}]
-    with open(ut11_derived / "api-reference.json", 'w', encoding='utf-8') as f:
+    with open(ut11_derived / "api-reference.json", "w", encoding="utf-8") as f:
         json.dump(api_data, f, ensure_ascii=False)
     (ut11_derived / "index.md").write_text("# УТ 11 индекс")
 
     # derived/platform/fast-search-index.json
     mock_paths.derived_platform_dir.mkdir(parents=True, exist_ok=True)
     index_data = {"version": 2, "algorithm": "bm25", "methods": [], "total_methods": 0}
-    with open(mock_paths.derived_platform_dir / "fast-search-index.json", 'w', encoding='utf-8') as f:
+    with open(mock_paths.derived_platform_dir / "fast-search-index.json", "w", encoding="utf-8") as f:
         json.dump(index_data, f, ensure_ascii=False)
 
     return mock_paths
 
 
 # ============ PackageManifest ============
+
 
 class TestPackageManifest:
     def test_default_values(self):
@@ -112,6 +114,7 @@ class TestPackageManifest:
 
 # ============ DataPackage.save ============
 
+
 class TestDataPackageSave:
     def test_save_creates_zip(self, project_with_data, tmp_path):
         dp = DataPackage(project_with_data)
@@ -126,7 +129,7 @@ class TestDataPackageSave:
         output = tmp_path / "backup.zip"
         dp.save(output, include_derived=True)
 
-        with zipfile.ZipFile(output, 'r') as zf:
+        with zipfile.ZipFile(output, "r") as zf:
             assert "data-package/manifest.json" in zf.namelist()
             manifest_data = json.loads(zf.read("data-package/manifest.json"))
             assert manifest_data["version"] == "1.0"
@@ -138,7 +141,7 @@ class TestDataPackageSave:
         output = tmp_path / "backup.zip"
         dp.save(output, include_derived=True)
 
-        with zipfile.ZipFile(output, 'r') as zf:
+        with zipfile.ZipFile(output, "r") as zf:
             assert "data-package/runtime/config-registry.json" in zf.namelist()
 
     def test_save_includes_derived(self, project_with_data, tmp_path):
@@ -146,7 +149,7 @@ class TestDataPackageSave:
         output = tmp_path / "backup.zip"
         dp.save(output, include_derived=True)
 
-        with zipfile.ZipFile(output, 'r') as zf:
+        with zipfile.ZipFile(output, "r") as zf:
             names = zf.namelist()
             assert any("derived/configs/ut11/api-reference.json" in n for n in names)
             assert any("derived/platform/fast-search-index.json" in n for n in names)
@@ -162,7 +165,7 @@ class TestDataPackageSave:
         # Можно сохранить только raw (без derived)
         dp.save(output, include_raw=True, include_derived=False)
 
-        with zipfile.ZipFile(output, 'r') as zf:
+        with zipfile.ZipFile(output, "r") as zf:
             names = zf.namelist()
             assert not any("derived/" in n for n in names)
             assert any("data/" in n for n in names)
@@ -178,7 +181,7 @@ class TestDataPackageSave:
         output = tmp_path / "backup.zip"
         dp.save(output, include_derived=True)
 
-        with zipfile.ZipFile(output, 'r') as zf:
+        with zipfile.ZipFile(output, "r") as zf:
             manifest = json.loads(zf.read("data-package/manifest.json"))
             assert len(manifest["configs"]) == 1
             assert manifest["configs"][0]["name"] == "ut11"
@@ -194,12 +197,13 @@ class TestDataPackageSave:
         output = tmp_path / "backup.zip"
         dp.save(output, include_raw=True, include_derived=True)
 
-        with zipfile.ZipFile(output, 'r') as zf:
+        with zipfile.ZipFile(output, "r") as zf:
             names = zf.namelist()
             assert any("data/configs/ut11/Configuration.xml" in n for n in names)
 
 
 # ============ DataPackage.load ============
+
 
 class TestDataPackageLoad:
     def test_load_restores_files(self, project_with_data, tmp_path):
@@ -209,6 +213,7 @@ class TestDataPackageLoad:
 
         # Удаляем всё
         import shutil
+
         shutil.rmtree(project_with_data.derived_dir)
         assert not project_with_data.derived_dir.exists()
 
@@ -256,6 +261,7 @@ class TestDataPackageLoad:
 
 # ============ DataPackage.info ============
 
+
 class TestDataPackageInfo:
     def test_info_returns_manifest(self, project_with_data, tmp_path):
         dp = DataPackage(project_with_data)
@@ -285,6 +291,7 @@ class TestDataPackageInfo:
 
 # ============ Autosave / Autoload ============
 
+
 class TestAutosaveAutoload:
     def test_default_package_path(self, project_with_data):
         dp = DataPackage(project_with_data)
@@ -312,6 +319,7 @@ class TestAutosaveAutoload:
 
         # Удаляем derived
         import shutil
+
         shutil.rmtree(project_with_data.derived_dir)
 
         stats = dp.autoload()
@@ -329,6 +337,7 @@ class TestAutosaveAutoload:
 
         # Удаляем всё
         import shutil
+
         shutil.rmtree(project_with_data.derived_dir)
         shutil.rmtree(project_with_data.runtime_dir)
 
@@ -340,6 +349,7 @@ class TestAutosaveAutoload:
 
 
 # ============ Status ============
+
 
 class TestStatus:
     def test_status_empty_project(self, mock_paths):

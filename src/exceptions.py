@@ -16,6 +16,7 @@
     └── IndexError (ошибки индексации)
         └── IndexBuildError
 """
+
 from __future__ import annotations
 
 
@@ -24,6 +25,7 @@ class ProjectError(Exception):
 
 
 # === Конфигурации ===
+
 
 class ConfigError(ProjectError):
     """Базовая ошибка конфигурации."""
@@ -55,6 +57,7 @@ class ConfigNotActiveError(ConfigError):
 
 # === Архивация ===
 
+
 class ArchiveError(ProjectError):
     """Базовая ошибка архивации."""
 
@@ -76,6 +79,7 @@ class ArchiveCorruptedError(ArchiveError):
 
 
 # === BSL анализ ===
+
 
 class BSLAnalysisError(ProjectError):
     """Базовая ошибка анализа BSL."""
@@ -99,12 +103,10 @@ class BSLAnalysisTimeoutError(BSLAnalysisError):
 
 # === Индексация ===
 
+
 class IndexBuildError(ProjectError):
     """Ошибка построения индекса."""
 
     def __init__(self, config_name: str, detail: str = ""):
         self.config_name = config_name
-        super().__init__(
-            f"Ошибка построения индекса для '{config_name}'" +
-            (f": {detail}" if detail else "")
-        )
+        super().__init__(f"Ошибка построения индекса для '{config_name}'" + (f": {detail}" if detail else ""))

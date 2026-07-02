@@ -1,6 +1,7 @@
 """
 Тесты для SarifReporter — конвертация CheckResult в SARIF 2.1.0.
 """
+
 from __future__ import annotations
 
 import json
@@ -95,6 +96,7 @@ def result_with_metrics() -> CheckResult:
 # Структура SARIF
 # ─────────────────────────────────────────────
 
+
 def test_sarif_version_and_schema():
     """SARIF имеет корректную версию и schema."""
     reporter = SarifReporter()
@@ -133,6 +135,7 @@ def test_sarif_empty_results(empty_result):
 # Severity mapping
 # ─────────────────────────────────────────────
 
+
 def test_sarif_severity_error_mapped_to_error():
     """severity=error → level=error."""
     v = Violation(source="x", rule_id="R1", severity="error", line=1, message="m")
@@ -169,6 +172,7 @@ def test_sarif_severity_info_mapped_to_note():
 # Locations (для GitHub аннотаций на строках)
 # ─────────────────────────────────────────────
 
+
 def test_sarif_location_has_line(simple_result):
     """Каждый result имеет location с startLine."""
     sarif = SarifReporter().convert(simple_result)
@@ -201,6 +205,7 @@ def test_sarif_line_zero_becomes_one():
 # ─────────────────────────────────────────────
 # Tools / Rules metadata
 # ─────────────────────────────────────────────
+
 
 def test_sarif_tools_count_matches_sources(simple_result):
     """В SARIF 2.1.0 один driver с объединёнными rules из всех sources.
@@ -249,6 +254,7 @@ def test_sarif_tool_has_driver_metadata():
 # Метрики как info-level results
 # ─────────────────────────────────────────────
 
+
 def test_sarif_metrics_added_as_info(result_with_metrics):
     """Метрики добавляются как info-level result."""
     sarif = SarifReporter().convert(result_with_metrics)
@@ -267,6 +273,7 @@ def test_sarif_metrics_added_as_info(result_with_metrics):
 # ─────────────────────────────────────────────
 # Запись в файл
 # ─────────────────────────────────────────────
+
 
 def test_sarif_write_to_file(simple_result, tmp_path):
     """write() создаёт валидный JSON файл."""
@@ -290,6 +297,7 @@ def test_sarif_write_returns_path(simple_result, tmp_path):
 # ─────────────────────────────────────────────
 # Multiple CheckResult (для PR с несколькими файлами)
 # ─────────────────────────────────────────────
+
 
 def test_sarif_convert_multiple():
     """convert_multiple() объединяет violations из нескольких результатов."""
@@ -317,6 +325,7 @@ def test_sarif_convert_multiple():
 # ─────────────────────────────────────────────
 # JSON сериализуемость
 # ─────────────────────────────────────────────
+
 
 def test_sarif_json_serializable(simple_result):
     """SARIF output должен быть JSON-сериализуемым."""

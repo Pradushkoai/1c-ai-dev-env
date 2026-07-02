@@ -2,6 +2,7 @@
 Тесты для PathManager.
 Проверяем корректность определения путей в 4-слойной архитектуре.
 """
+
 import os
 import sys
 from pathlib import Path
@@ -73,7 +74,7 @@ def test_path_manager_env_substitution(tmp_path, monkeypatch):
     runtime_dir = tmp_path / "runtime"
     runtime_dir.mkdir(parents=True)
     env_file = runtime_dir / "paths.env"
-    env_file.write_text('BSL_LS_BINARY=${HOME}/.local/bin/bsl-language-server\n', encoding='utf-8')
+    env_file.write_text("BSL_LS_BINARY=${HOME}/.local/bin/bsl-language-server\n", encoding="utf-8")
 
     # Очищаем BSL_LS_BINARY из окружения чтобы избежать конфликта с реальным paths.env
     monkeypatch.delenv("BSL_LS_BINARY", raising=False)

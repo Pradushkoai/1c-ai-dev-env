@@ -6,6 +6,7 @@
 2. patch_method — генерация BSL с &Перед/&После/&ИзменениеИКонтроль
 3. diff — анализ что перенесено в основную конфигурацию
 """
+
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
@@ -26,6 +27,7 @@ from src.services.cfe_manager import (
 # Фикстуры
 # ─────────────────────────────────────────────
 
+
 @pytest.fixture
 def setup_extension(tmp_path):
     """Создать минимальное расширение с Configuration.xml."""
@@ -38,12 +40,12 @@ def setup_extension(tmp_path):
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<md:Configuration xmlns:md="http://v8.1c.ru/8.3/MDClasses" '
         'xmlns:xr="http://v8.1c.ru/8.3/xcf/extprops">\n'
-        '  <md:Properties>\n'
-        '    <xr:NamePrefix>Расш_</xr:NamePrefix>\n'
-        '  </md:Properties>\n'
-        '  <md:ChildObjects/>\n'
-        '</md:Configuration>\n',
-        encoding="utf-8"
+        "  <md:Properties>\n"
+        "    <xr:NamePrefix>Расш_</xr:NamePrefix>\n"
+        "  </md:Properties>\n"
+        "  <md:ChildObjects/>\n"
+        "</md:Configuration>\n",
+        encoding="utf-8",
     )
     return ext_dir
 
@@ -68,14 +70,14 @@ def setup_config(tmp_path):
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<md:Catalog xmlns:md="http://v8.1c.ru/8.3/MDClasses" '
         'xmlns:xr="http://v8.1c.ru/8.3/xcf/extprops" uuid="abc-123">\n'
-        '  <md:InternalInfo/>\n'
-        '  <md:Properties>\n'
-        '    <xr:Name>Контрагенты</xr:Name>\n'
-        '    <xr:Synonym>Контрагенты</xr:Synonym>\n'
-        '  </md:Properties>\n'
-        '  <md:ChildObjects/>\n'
-        '</md:Catalog>\n',
-        encoding="utf-8"
+        "  <md:InternalInfo/>\n"
+        "  <md:Properties>\n"
+        "    <xr:Name>Контрагенты</xr:Name>\n"
+        "    <xr:Synonym>Контрагенты</xr:Synonym>\n"
+        "  </md:Properties>\n"
+        "  <md:ChildObjects/>\n"
+        "</md:Catalog>\n",
+        encoding="utf-8",
     )
     return cfg_dir
 
@@ -84,15 +86,14 @@ def setup_config(tmp_path):
 # BORROW tests
 # ─────────────────────────────────────────────
 
+
 class TestBorrowObject:
     """Тесты заимствования объектов."""
 
     def test_borrow_catalog_success(self, setup_extension, setup_config):
         """Успешное заимствование справочника."""
         manager = CfeManager()
-        result = manager.borrow_object(
-            setup_extension, setup_config, "Catalog.Контрагенты"
-        )
+        result = manager.borrow_object(setup_extension, setup_config, "Catalog.Контрагенты")
 
         assert result.object_ref == "Catalog.Контрагенты"
         assert result.object_type == "Catalog"
@@ -107,9 +108,7 @@ class TestBorrowObject:
     def test_borrow_creates_object_belonging_adopted(self, setup_extension, setup_config):
         """Заимствованный объект имеет ObjectBelonging=Adopted."""
         manager = CfeManager()
-        manager.borrow_object(
-            setup_extension, setup_config, "Catalog.Контрагенты"
-        )
+        manager.borrow_object(setup_extension, setup_config, "Catalog.Контрагенты")
 
         obj_xml = setup_extension / "Catalogs" / "Контрагенты.xml"
         tree = ET.parse(obj_xml)
@@ -127,9 +126,7 @@ class TestBorrowObject:
     def test_borrow_registers_in_config(self, setup_extension, setup_config):
         """Объект регистрируется в ChildObjects Configuration.xml."""
         manager = CfeManager()
-        manager.borrow_object(
-            setup_extension, setup_config, "Catalog.Контрагенты"
-        )
+        manager.borrow_object(setup_extension, setup_config, "Catalog.Контрагенты")
 
         # Проверяем что в Configuration.xml появился тег <Catalog>Контрагенты</Catalog>
         config_xml = setup_extension / "Configuration.xml"
@@ -148,17 +145,13 @@ class TestBorrowObject:
         """Несуществующее расширение → FileNotFoundError."""
         manager = CfeManager()
         with pytest.raises(FileNotFoundError):
-            manager.borrow_object(
-                tmp_path / "missing", setup_config, "Catalog.Контрагенты"
-            )
+            manager.borrow_object(tmp_path / "missing", setup_config, "Catalog.Контрагенты")
 
     def test_borrow_missing_config_raises(self, setup_extension, tmp_path):
         """Несуществующая конфигурация → FileNotFoundError."""
         manager = CfeManager()
         with pytest.raises(FileNotFoundError):
-            manager.borrow_object(
-                setup_extension, tmp_path / "missing", "Catalog.Контрагенты"
-            )
+            manager.borrow_object(setup_extension, tmp_path / "missing", "Catalog.Контрагенты")
 
     def test_borrow_invalid_object_ref(self, setup_extension, setup_config):
         """Неверный формат object_ref → ValueError."""
@@ -180,13 +173,12 @@ class TestBorrowObject:
         cm_xml.write_text(
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             '<md:CommonModule xmlns:md="http://v8.1c.ru/8.3/MDClasses" uuid="def-456"/>',
-            encoding="utf-8"
+            encoding="utf-8",
         )
 
         manager = CfeManager()
         result = manager.borrow_object(
-            setup_extension, setup_config,
-            "Catalog.Контрагенты;; CommonModule.РаботаСФайлами"
+            setup_extension, setup_config, "Catalog.Контрагенты;; CommonModule.РаботаСФайлами"
         )
 
         assert result.object_type == "Multiple"
@@ -200,8 +192,7 @@ class TestBorrowObject:
         cfg = tmp_path / "cfg"
         cfg.mkdir()
         (cfg / "Configuration.xml").write_text(
-            '<md:Configuration xmlns:md="http://v8.1c.ru/8.3/MDClasses"/>',
-            encoding="utf-8"
+            '<md:Configuration xmlns:md="http://v8.1c.ru/8.3/MDClasses"/>', encoding="utf-8"
         )
 
         manager = CfeManager()
@@ -216,6 +207,7 @@ class TestBorrowObject:
 # ─────────────────────────────────────────────
 # PATCH_METHOD tests
 # ─────────────────────────────────────────────
+
 
 class TestPatchMethod:
     """Тесты генерации BSL-перехватчиков."""
@@ -349,7 +341,9 @@ class TestPatchMethod:
         )
 
         # Путь: Catalogs/Контрагенты/Forms/ФормаЭлемента/Ext/Form/Module.bsl
-        expected = setup_extension / "Catalogs" / "Контрагенты" / "Forms" / "ФормаЭлемента" / "Ext" / "Form" / "Module.bsl"
+        expected = (
+            setup_extension / "Catalogs" / "Контрагенты" / "Forms" / "ФормаЭлемента" / "Ext" / "Form" / "Module.bsl"
+        )
         assert result.bsl_file == expected
 
     def test_patch_common_module_path(self, setup_extension):
@@ -369,6 +363,7 @@ class TestPatchMethod:
 # ─────────────────────────────────────────────
 # DIFF tests
 # ─────────────────────────────────────────────
+
 
 class TestCfeDiff:
     """Тесты анализа расширения."""
@@ -419,8 +414,7 @@ class TestCfeDiff:
         cfg = tmp_path / "cfg"
         cfg.mkdir()
         (cfg / "Configuration.xml").write_text(
-            '<md:Configuration xmlns:md="http://v8.1c.ru/8.3/MDClasses"/>',
-            encoding="utf-8"
+            '<md:Configuration xmlns:md="http://v8.1c.ru/8.3/MDClasses"/>', encoding="utf-8"
         )
 
         manager = CfeManager()
@@ -446,6 +440,7 @@ class TestCfeDiff:
 # TYPE_MAP tests
 # ─────────────────────────────────────────────
 
+
 class TestTypeMap:
     """Тесты маппинга типов объектов."""
 
@@ -456,10 +451,17 @@ class TestTypeMap:
     def test_type_map_has_key_types(self):
         """TYPE_MAP содержит ключевые типы."""
         required = [
-            "Catalog", "Document", "Enum", "Constant",
-            "InformationRegister", "AccumulationRegister",
-            "CommonModule", "Report", "DataProcessor",
-            "ChartOfAccounts", "ExchangePlan",
+            "Catalog",
+            "Document",
+            "Enum",
+            "Constant",
+            "InformationRegister",
+            "AccumulationRegister",
+            "CommonModule",
+            "Report",
+            "DataProcessor",
+            "ChartOfAccounts",
+            "ExchangePlan",
         ]
         for t in required:
             assert t in TYPE_MAP, f"Отсутствует тип: {t}"
