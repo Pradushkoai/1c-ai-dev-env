@@ -1,0 +1,47 @@
+name: Release
+
+# Автоматическое создание release при коммите в main с conventional commit
+# feat: ... или fix: ...
+#
+# release-please создаёт PR "chore(main): release X.Y.Z"
+# При merge этого PR:
+#   1. Создаётся git tag vX.Y.Z
+#   2. Создаётся GitHub Release с автогенерированными release notes
+#   3. Версии в pyproject.toml, manifest.json, README.md обновляются автоматически
+#
+# Для ручного релиза: создайте PR с изменением версии и merge его.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          release-type: python
+          # Файлы, в которых нужно обновлять версию
+          bump-minor-pre-major: true
+          # Включаем conventional commit парсинг
+          include-component-in-tag: false
+          # Заголовок PR
+          pull-request-title-pattern: "chore(main): release ${version}"
+          # Шаблон release notes
+          changelog-types: |
+            [
+              {"type": "feat", "section": "🚀 Features", "hidden": false},
+              {"type": "fix", "section": "🐛 Bug Fixes", "hidden": false},
+              {"type": "perf", "section": "⚡ Performance", "hidden": false},
+              {"type": "refactor", "section": "♻️ Refactoring", "hidden": false},
+              {"type": "docs", "section": "📚 Documentation", "hidden": false},
+              {"type": "test", "section": "🧪 Tests", "hidden": false},
+              {"type": "build", "section": "📦 Build System", "hidden": false},
+              {"type": "ci", "section": "👷 CI/CD", "hidden": false},
+              {"type": "chore", "section": "🔧 Misc", "hidden": true}
+            ]
