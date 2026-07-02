@@ -215,7 +215,8 @@ if [ "$INTERACTIVE" == "true" ]; then
         read -p "Заголовок (например \"УТ 11\"): " CFG_TITLE
         
         echo "  Регистрация и индексация..."
-        python3 "$PROJECT_DIR/scripts/register_config.py" add \
+        # Используем встроенный CLI вместо удалённого scripts/register_config.py
+        cd "$PROJECT_DIR" && python3 -m src.cli config add \
             --name "$CFG_NAME" \
             --zip "$CFG_ZIP" \
             --title "$CFG_TITLE" \
@@ -233,7 +234,7 @@ with open(cfg_path, 'w') as f:
 "
         
         # build
-        python3 "$PROJECT_DIR/scripts/register_config.py" build --name "$CFG_NAME" 2>&1 | tail -5
+        cd "$PROJECT_DIR" && python3 -m src.cli config build --name "$CFG_NAME" 2>&1 | tail -5
         echo "  ✅ Конфигурация '$CFG_NAME' проиндексирована"
     else
         echo "  ⏭️  Конфигурация пропущена (можно добавить позже)"
@@ -273,8 +274,8 @@ echo "║    ✅ 187 диагностик [bsl-language-server]                 
 echo "║    ✅ 28 правил [ai_rules_1c]                          ║"
 echo "║                                                      ║"
 echo "║  Команды:                                            ║"
-echo "║    python3 scripts/register_config.py list           ║"
-echo "║    python3 scripts/register_config.py build --name X ║"
+echo "║    python3 -m src.cli config list                    ║"
+echo "║    python3 -m src.cli config build --name X          ║"
 echo "║    python3 scripts/fast_search_1c.py search 'запрос' ║"
 echo "║    scripts/bsl-analyze.sh <path>                     ║"
 echo "║                                                      ║"
