@@ -145,12 +145,13 @@ jobs:
       - name: Run synthetic benchmarks
         run: |
           # Synthetic benchmarks — работают всегда (не нужны UT11 данные)
+          # Используем file:// storage (pytest-benchmark не поддерживает github:// схему)
           python3 -m pytest tests/test_benchmarks_synthetic.py \
             --benchmark-only \
             --benchmark-min-rounds=5 \
             --benchmark-warmup=off \
             --benchmark-sort=name \
-            --benchmark-storage=github://Pradushkoai/1c-ai-dev-env \
+            --benchmark-storage=file:///.benchmarks \
             --benchmark-autosave \
             -v
 
