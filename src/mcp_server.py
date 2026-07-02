@@ -1080,112 +1080,12 @@ def create_mcp_server() -> Server:
         if handler is not None:
             return await handler(project, arguments)
 
-        if name == "analyze_bsl":
-            file_path = arguments.get("file_path", "")
-            try:
-                result = project.bsl_analyzer.analyze(Path(file_path))
-                response = {
-                    "total": result.total,
-                    "by_code": result.by_code,
-                    "diagnostics": result.diagnostics[:50],  # ограничиваем
-                }
-                return [
-                    types.TextContent(
-                        type="text",
-                        text=json.dumps(response, ensure_ascii=False, indent=2),
-                    )
-                ]
-            except Exception as e:
-                return [
-                    types.TextContent(
-                        type="text",
-                        text=json.dumps({"error": str(e)}, ensure_ascii=False),
-                    )
-                ]
+        # P2.2: dict-dispatch для handlers группы 3a (BSL анализаторы)
+        from .mcpserver.handlers import ANALYZER_HANDLERS
 
-        elif name == "check_standards":
-            file_path = arguments.get("file_path", "")
-            try:
-                import importlib.util
-
-                scripts_dir = project.paths.scripts_dir
-                if not (scripts_dir / "check_1c_standards.py").exists():
-                    scripts_dir = project.paths.root / "setup" / "scripts"
-                spec = importlib.util.spec_from_file_location(
-                    "check_1c_standards", scripts_dir / "check_1c_standards.py"
-                )
-                mod = importlib.util.module_from_spec(spec)
-                sys.modules["check_1c_standards"] = mod
-                spec.loader.exec_module(mod)
-
-                checker = mod.StandardsChecker()
-                violations = checker.check_file(Path(file_path))
-                response = [
-                    {
-                        "rule_id": v.rule_id,
-                        "severity": v.severity,
-                        "line": v.line,
-                        "message": v.message,
-                    }
-                    for v in violations
-                ]
-                return [
-                    types.TextContent(
-                        type="text",
-                        text=json.dumps(response, ensure_ascii=False, indent=2),
-                    )
-                ]
-            except Exception as e:
-                return [
-                    types.TextContent(
-                        type="text",
-                        text=json.dumps({"error": str(e)}, ensure_ascii=False),
-                    )
-                ]
-
-        elif name == "solve_context":
-            query = arguments.get("query", "")
-            config = arguments.get("config", "")
-            limit = arguments.get("limit", 5)
-
-            # Используем TaskProcessor — единая логика с CLI
-            from .services.task_processor import TaskProcessor
-
-            processor = TaskProcessor(project.paths)
-            ctx = processor.solve(query, config_name=config, limit=limit)
-
-            return [
-                types.TextContent(
-                    type="text",
-                    text=json.dumps(ctx.to_dict(), ensure_ascii=False, indent=2),
-                )
-            ]
-
-        elif name == "solve_check":
-            file_path = arguments.get("file_path", "")
-            level = arguments.get("level", "standard")
-
-            # Используем TaskProcessor — единая логика с CLI
-            from pathlib import Path as _Path
-
-            from .services.task_processor import TaskProcessor
-
-            processor = TaskProcessor(project.paths)
-            try:
-                result = processor.check(_Path(file_path), level=level)
-                return [
-                    types.TextContent(
-                        type="text",
-                        text=json.dumps(result.to_dict(), ensure_ascii=False, indent=2),
-                    )
-                ]
-            except FileNotFoundError as e:
-                return [
-                    types.TextContent(
-                        type="text",
-                        text=json.dumps({"error": str(e)}, ensure_ascii=False),
-                    )
-                ]
+        handler = ANALYZER_HANDLERS.get(name)
+        if handler is not None:
+            return await handler(project, arguments)
 
         # P2.2: dict-dispatch для handlers группы 2 (dsl/cfe/skd/depgraph)
         from .mcpserver.handlers import DSL_CFE_HANDLERS

@@ -1,15 +1,143 @@
 """
 analyzers.py — handlers для анализаторов BSL, генерации и EPF.
 
-P2.2: вынесено из mcp_server.py (группа 3).
-Handlers: analyze_bsl, check_standards, audit_security, get_code_metrics,
-          check_transactions, analyze_queries, analyze_architecture,
-          check_form_quality, check_skd_quality, diff_configs,
-          generate_processing, generate_report, build_epf, validate_generated,
-          epf_factory_create, epf_factory_templates
+P2.2: вынесено из mcp_server.py (группа 3 + 4).
+Handlers: analyze_bsl, check_standards, solve_context, solve_check,
+          audit_security, get_code_metrics, check_transactions, analyze_queries,
+          analyze_architecture, check_form_quality, check_skd_quality,
+          diff_configs, generate_processing, generate_report, build_epf,
+          validate_generated, epf_factory_create, epf_factory_templates
 """
 
 from __future__ import annotations
 
-# Заглушка — handlers будут перенесены поэтапно
-ANALYZER_HANDLERS: dict = {}
+import importlib.util
+import json
+import sys
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+import mcp.types as types
+
+if TYPE_CHECKING:
+    from src.project import Project
+
+
+# ─── BSL анализаторы ───
+
+
+async def handle_analyze_bsl(project: Project, arguments: dict) -> list[types.TextContent]:
+    """Анализ .bsl файла через BSL Language Server."""
+    file_path = arguments.get("file_path", "")
+    try:
+        result = project.bsl_analyzer.analyze(Path(file_path))
+        response = {
+            "total": result.total,
+            "by_code": result.by_code,
+            "diagnostics": result.diagnostics[:50],  # ограничиваем
+        }
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(response, ensure_ascii=False, indent=2),
+            )
+        ]
+    except Exception as e:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps({"error": str(e)}, ensure_ascii=False),
+            )
+        ]
+
+
+async def handle_check_standards(project: Project, arguments: dict) -> list[types.TextContent]:
+    """Проверка .bsl файла на 56 правил стандартов 1С."""
+    file_path = arguments.get("file_path", "")
+    try:
+        scripts_dir = project.paths.scripts_dir
+        if not (scripts_dir / "check_1c_standards.py").exists():
+            scripts_dir = project.paths.root / "setup" / "scripts"
+        spec = importlib.util.spec_from_file_location("check_1c_standards", scripts_dir / "check_1c_standards.py")
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["check_1c_standards"] = mod
+        spec.loader.exec_module(mod)
+
+        checker = mod.StandardsChecker()
+        violations = checker.check_file(Path(file_path))
+        response = [
+            {
+                "rule_id": v.rule_id,
+                "severity": v.severity,
+                "line": v.line,
+                "message": v.message,
+            }
+            for v in violations
+        ]
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(response, ensure_ascii=False, indent=2),
+            )
+        ]
+    except Exception as e:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps({"error": str(e)}, ensure_ascii=False),
+            )
+        ]
+
+
+async def handle_solve_context(project: Project, arguments: dict) -> list[types.TextContent]:
+    """Сбор контекста для решения задачи 1С."""
+    from src.services.task_processor import TaskProcessor
+
+    query = arguments.get("query", "")
+    config = arguments.get("config", "")
+    limit = arguments.get("limit", 5)
+
+    processor = TaskProcessor(project.paths)
+    ctx = processor.solve(query, config_name=config, limit=limit)
+
+    return [
+        types.TextContent(
+            type="text",
+            text=json.dumps(ctx.to_dict(), ensure_ascii=False, indent=2),
+        )
+    ]
+
+
+async def handle_solve_check(project: Project, arguments: dict) -> list[types.TextContent]:
+    """Полная проверка .bsl кода: 7 анализаторов."""
+    from src.services.task_processor import TaskProcessor
+
+    file_path = arguments.get("file_path", "")
+    level = arguments.get("level", "standard")
+
+    processor = TaskProcessor(project.paths)
+    try:
+        result = processor.check(Path(file_path), level=level)
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(result.to_dict(), ensure_ascii=False, indent=2),
+            )
+        ]
+    except FileNotFoundError as e:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps({"error": str(e)}, ensure_ascii=False),
+            )
+        ]
+
+
+# Реестр handlers группы 3a (BSL анализаторы)
+# Остальные handlers будут добавлены в следующих коммитах
+ANALYZER_HANDLERS: dict = {
+    "analyze_bsl": handle_analyze_bsl,
+    "check_standards": handle_check_standards,
+    "solve_context": handle_solve_context,
+    "solve_check": handle_solve_check,
+}
