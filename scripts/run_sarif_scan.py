@@ -16,18 +16,21 @@ from pathlib import Path
 
 
 def _empty_sarif() -> dict:
-    """Пустой SARIF для случая, когда нет .bsl файлов или все ошибки."""
+    """Пустой SARIF для случая, когда нет .bsl файлов или все ошибки.
+
+    SARIF 2.1.0: runs[].tool.driver (без вложенного "tool").
+    """
     return {
         "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/Schemata/sarif-schema-2.1.0.json",
         "version": "2.1.0",
         "runs": [
             {
                 "tool": {
-                    "tool": {
-                        "driver": {
-                            "name": "1C AI Dev Env",
-                            "version": "5.2.0",
-                        }
+                    "driver": {
+                        "name": "1C AI Dev Env",
+                        "version": "5.2.0",
+                        "informationUri": "https://github.com/Pradushkoai/1c-ai-dev-env",
+                        "rules": [],
                     }
                 },
                 "results": [],

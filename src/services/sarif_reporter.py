@@ -145,12 +145,43 @@ class SarifReporter:
                     }
                 })
 
+        # SARIF 2.1.0: runs[].tool.driver — единый driver с объединёнными rules
+        # Если несколько tools — объединяем rules в один driver
+        if not tools:
+            tool_obj = {
+                "driver": {
+                    "name": "1C AI Dev Env",
+                    "version": "5.2.0",
+                    "informationUri": "https://github.com/Pradushkoai/1c-ai-dev-env",
+                    "rules": [],
+                }
+            }
+        elif len(tools) == 1:
+            tool_obj = tools[0]  # уже {"driver": {...}}
+        else:
+            # Объединяем несколько tools в один driver
+            all_rules = []
+            all_names = []
+            for t in tools:
+                drv = t.get("driver", {})
+                all_rules.extend(drv.get("rules", []))
+                if "name" in drv:
+                    all_names.append(drv["name"])
+            tool_obj = {
+                "driver": {
+                    "name": "1C AI Dev Env (combined: " + ", ".join(all_names) + ")",
+                    "version": "5.2.0",
+                    "informationUri": "https://github.com/Pradushkoai/1c-ai-dev-env",
+                    "rules": all_rules,
+                }
+            }
+
         return {
             "$schema": self.SARIF_SCHEMA,
             "version": self.SARIF_VERSION,
             "runs": [
                 {
-                    "tool": {"tools": tools} if len(tools) > 1 else {"tool": tools[0]} if tools else {},
+                    "tool": tool_obj,
                     "results": results,
                     "invocations": [
                         {
