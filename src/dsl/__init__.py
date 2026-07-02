@@ -1,14 +1,18 @@
 """
-dsl_compiler.py — Тонкая обёртка для обратной совместимости.
+DSL Compiler — JSON DSL → XML для объектов 1С.
 
-P2.3: реальная реализация перенесена в src/dsl/ пакет.
-Этот файл сохраняет `from src.services.dsl_compiler import DslCompiler` работающим.
+Единый фасад DslCompiler и 5 компиляторов:
+- MetaCompiler — метаданные 1С (23 типа объектов)
+- FormCompiler — управляемые формы (Form.xml)
+- SkdCompiler — схемы компоновки данных (СКД)
+- MxlCompiler — MXL-макеты (печатные формы)
+- RoleCompiler — роли 1С (Rights.xml)
 
-Для нового кода используйте: `from src.dsl import DslCompiler`
+P2.3: разбит из src/services/dsl_compiler.py на пакет src/dsl/.
+Обратная совместимость: `from src.services.dsl_compiler import DslCompiler` работает.
 """
 
-# noqa: F401 — все импорты реэкспортируются для обратной совместимости
-from src.dsl import (  # noqa: F401
+from ._common import (
     NS_DCS,
     NS_DCSSET,
     NS_MD,
@@ -23,12 +27,6 @@ from src.dsl import (  # noqa: F401
     RU_TYPE_SYNONYMS,
     TYPE_MAP,
     CompileResult,
-    DslCompiler,
-    FormCompiler,
-    MetaCompiler,
-    MxlCompiler,
-    RoleCompiler,
-    SkdCompiler,
     _camel_to_words,
     _gen_uuid,
     _make_type_element,
@@ -36,6 +34,12 @@ from src.dsl import (  # noqa: F401
     _normalize_type,
     _parse_attribute,
 )
+from .facade import DslCompiler
+from .form import FormCompiler
+from .meta import MetaCompiler
+from .mxl import MxlCompiler
+from .role import RoleCompiler
+from .skd import SkdCompiler
 
 __all__ = [
     "CompileResult",
