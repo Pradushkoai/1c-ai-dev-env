@@ -1,6 +1,7 @@
 """
 Тесты для графа вызовов методов (call_graph.py).
 """
+
 import json
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -39,7 +40,7 @@ def mock_paths(tmp_path):
         "Процедура ЛокальныйМетод() Экспорт\n"
         "\tМодульБ.ДругойМетод();\n"
         "КонецПроцедуры\n",
-        encoding='utf-8'
+        encoding="utf-8",
     )
 
     # CommonModules/МодульБ/Ext/Module.bsl
@@ -52,25 +53,29 @@ def mock_paths(tmp_path):
         "\n"
         "Процедура ДругойМетод() Экспорт\n"
         "КонецПроцедуры\n",
-        encoding='utf-8'
+        encoding="utf-8",
     )
 
     # api-reference.json
     derived_dir = tmp_path / "derived" / "configs" / "test_cfg"
     derived_dir.mkdir(parents=True)
     api_data = [
-        {"name": "МодульА", "methods": [
-            {"name": "МетодА"},
-            {"name": "ЛокальныйМетод"},
-        ]},
-        {"name": "МодульБ", "methods": [
-            {"name": "МетодБ"},
-            {"name": "ДругойМетод"},
-        ]},
+        {
+            "name": "МодульА",
+            "methods": [
+                {"name": "МетодА"},
+                {"name": "ЛокальныйМетод"},
+            ],
+        },
+        {
+            "name": "МодульБ",
+            "methods": [
+                {"name": "МетодБ"},
+                {"name": "ДругойМетод"},
+            ],
+        },
     ]
-    (derived_dir / "api-reference.json").write_text(
-        json.dumps(api_data, ensure_ascii=False), encoding='utf-8'
-    )
+    (derived_dir / "api-reference.json").write_text(json.dumps(api_data, ensure_ascii=False), encoding="utf-8")
 
     paths.config_path.return_value = config_dir
     paths.config_api_reference_json.return_value = derived_dir / "api-reference.json"
@@ -79,6 +84,7 @@ def mock_paths(tmp_path):
 
 
 # ============ CallEdge / CallGraph ============
+
 
 class TestCallGraph:
     def test_empty_graph(self):
@@ -143,6 +149,7 @@ class TestCallGraph:
 
 # ============ Helper functions ============
 
+
 class TestHelpers:
     def test_get_module_name_common_module(self, tmp_path):
         configs_dir = tmp_path / "configs"
@@ -190,6 +197,7 @@ class TestHelpers:
 
 # ============ build_call_graph ============
 
+
 class TestBuildCallGraph:
     def test_build_simple_graph(self, mock_paths):
         graph = build_call_graph("test_cfg", mock_paths)
@@ -207,8 +215,12 @@ class TestBuildCallGraph:
 
     def test_dead_code_detection(self, mock_paths):
         graph = build_call_graph("test_cfg", mock_paths)
-        export = [("МодульА", "МетодА"), ("МодульА", "ЛокальныйМетод"),
-                  ("МодульБ", "МетодБ"), ("МодульБ", "ДругойМетод")]
+        export = [
+            ("МодульА", "МетодА"),
+            ("МодульА", "ЛокальныйМетод"),
+            ("МодульБ", "МетодБ"),
+            ("МодульБ", "ДругойМетод"),
+        ]
         dead = graph.find_dead_code(export)
         # МетодБ и ДругойМетод вызываются → не мёртвый
         dead_names = [(m, me) for m, me in dead]

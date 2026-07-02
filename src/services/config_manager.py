@@ -1,6 +1,7 @@
 """
 Менеджер конфигураций: добавление, архивация, индексация.
 """
+
 from __future__ import annotations
 
 import logging
@@ -20,6 +21,7 @@ from .path_manager import PathManager
 # Используем structlog если доступен, иначе fallback на logging
 try:
     from .logger import get_logger
+
     logger = get_logger(__name__)
 except ImportError:
     logger = logging.getLogger(__name__)
@@ -28,16 +30,42 @@ except ImportError:
 # --- Директории 1С, которые считаются валидными метаданными ---
 
 REQUIRED_TYPE_DIRS: tuple[str, ...] = (
-    "Catalogs", "Documents", "Enums", "Constants", "CommonModules",
-    "InformationRegisters", "AccumulationRegisters", "Reports",
-    "DataProcessors", "CommonForms", "CommonTemplates", "CommonCommands",
-    "CommonPictures", "Roles", "Subsystems", "EventSubscriptions",
-    "ScheduledJobs", "DefinedTypes", "FunctionalOptions",
-    "ExchangePlans", "ChartsOfCharacteristicTypes", "HTTPServices",
-    "WebServices", "XDTOPackages", "FilterCriteria", "SessionParameters",
-    "CommandGroups", "SettingsStorages", "BusinessProcesses", "Tasks",
-    "DocumentJournals", "DocumentNumerators", "Sequences",
-    "FunctionalOptionsParameters", "CommonAttributes", "WSReferences",
+    "Catalogs",
+    "Documents",
+    "Enums",
+    "Constants",
+    "CommonModules",
+    "InformationRegisters",
+    "AccumulationRegisters",
+    "Reports",
+    "DataProcessors",
+    "CommonForms",
+    "CommonTemplates",
+    "CommonCommands",
+    "CommonPictures",
+    "Roles",
+    "Subsystems",
+    "EventSubscriptions",
+    "ScheduledJobs",
+    "DefinedTypes",
+    "FunctionalOptions",
+    "ExchangePlans",
+    "ChartsOfCharacteristicTypes",
+    "HTTPServices",
+    "WebServices",
+    "XDTOPackages",
+    "FilterCriteria",
+    "SessionParameters",
+    "CommandGroups",
+    "SettingsStorages",
+    "BusinessProcesses",
+    "Tasks",
+    "DocumentJournals",
+    "DocumentNumerators",
+    "Sequences",
+    "FunctionalOptionsParameters",
+    "CommonAttributes",
+    "WSReferences",
 )
 
 # Минимум одна из этих директорий должна быть, чтобы считать выгрузку валидной
@@ -47,6 +75,7 @@ MIN_REQUIRED_DIRS: tuple[str, ...] = ("CommonModules", "Catalogs", "Documents", 
 @dataclass
 class SourceValidation:
     """Результат валидации исходников конфигурации."""
+
     is_valid: bool
     has_configuration_xml: bool = False
     has_metadata_dirs: bool = False
@@ -60,20 +89,22 @@ class SourceValidation:
 @dataclass
 class IndexStatus:
     """Статус одного индекса конфигурации."""
-    name: str            # metadata | api | skd | forms
+
+    name: str  # metadata | api | skd | forms
     path: Path | None
     exists: bool
-    mtime: float | None      # время модификации индекса (epoch)
+    mtime: float | None  # время модификации индекса (epoch)
     size_bytes: int = 0
-    is_stale: bool = False      # True если source новее индекса
-    stale_reason: str = ""      # объяснение почему stale
+    is_stale: bool = False  # True если source новее индекса
+    stale_reason: str = ""  # объяснение почему stale
 
 
 @dataclass
 class IndexFreshnessReport:
     """Полный отчёт об актуальности всех индексов конфигурации."""
+
     config_name: str
-    source_mtime: float | None      # самый свежий .xml/.bsl в исходниках
+    source_mtime: float | None  # самый свежий .xml/.bsl в исходниках
     indexes: list[IndexStatus] = field(default_factory=list)
     all_fresh: bool = True
     missing_indexes: list[str] = field(default_factory=list)
@@ -188,7 +219,7 @@ class ConfigManager:
         config_dir.mkdir(parents=True, exist_ok=True)
 
         # Создаём временную папку для распаковки
-        raw_dir = config_dir / '_cf_raw'
+        raw_dir = config_dir / "_cf_raw"
         raw_dir.mkdir(parents=True, exist_ok=True)
 
         try:
@@ -290,10 +321,7 @@ class ConfigManager:
         result.has_metadata_dirs = has_critical
         if not has_critical:
             result.missing_critical = list(MIN_REQUIRED_DIRS)
-            result.errors.append(
-                "Ни одна из критических директорий не найдена: "
-                + ", ".join(MIN_REQUIRED_DIRS)
-            )
+            result.errors.append("Ни одна из критических директорий не найдена: " + ", ".join(MIN_REQUIRED_DIRS))
             result.is_valid = False
 
         # 3. .bsl файлы (предупреждение)
@@ -302,8 +330,7 @@ class ConfigManager:
             result.has_bsl_files = bsl_count > 0
             if not result.has_bsl_files:
                 result.warnings.append(
-                    ".bsl файлы не найдены — api-reference будет пустым. "
-                    "Возможно это .cf распаковка без адаптации."
+                    ".bsl файлы не найдены — api-reference будет пустым. Возможно это .cf распаковка без адаптации."
                 )
         except (OSError, PermissionError) as e:
             result.warnings.append(f"Не удалось проверить .bsl файлы: {e}")
@@ -410,10 +437,7 @@ class ConfigManager:
         # Валидация исходников перед индексацией
         validation = self.validate_sources(name)
         if not validation.is_valid:
-            raise ValueError(
-                f"Исходники конфигурации '{name}' невалидны: "
-                + "; ".join(validation.errors)
-            )
+            raise ValueError(f"Исходники конфигурации '{name}' невалидны: " + "; ".join(validation.errors))
 
         # Проверка актуальности (если не force)
         skipped: list[str] = []
@@ -546,9 +570,12 @@ class ConfigManager:
     def _run_script(self, script_path: Path, args: list[str]) -> None:
         """Запускает Python скрипт с аргументами."""
         import subprocess
+
         result = subprocess.run(
             [sys.executable, str(script_path)] + args,
-            capture_output=True, text=True, timeout=600,
+            capture_output=True,
+            text=True,
+            timeout=600,
         )
         if result.returncode != 0:
             raise RuntimeError(f"{script_path.name} failed: {result.stderr[-500:]}")
@@ -616,16 +643,42 @@ class ConfigManager:
     @staticmethod
     def _count_objects(config_dir: Path) -> int:
         type_dirs = [
-            "Catalogs", "Documents", "Enums", "Constants", "CommonModules",
-            "InformationRegisters", "AccumulationRegisters", "Reports",
-            "DataProcessors", "CommonForms", "CommonTemplates", "CommonCommands",
-            "CommonPictures", "Roles", "Subsystems", "EventSubscriptions",
-            "ScheduledJobs", "DefinedTypes", "FunctionalOptions",
-            "ExchangePlans", "ChartsOfCharacteristicTypes", "HTTPServices",
-            "WebServices", "XDTOPackages", "FilterCriteria", "SessionParameters",
-            "CommandGroups", "SettingsStorages", "BusinessProcesses", "Tasks",
-            "DocumentJournals", "DocumentNumerators", "Sequences",
-            "FunctionalOptionsParameters", "CommonAttributes", "WSReferences",
+            "Catalogs",
+            "Documents",
+            "Enums",
+            "Constants",
+            "CommonModules",
+            "InformationRegisters",
+            "AccumulationRegisters",
+            "Reports",
+            "DataProcessors",
+            "CommonForms",
+            "CommonTemplates",
+            "CommonCommands",
+            "CommonPictures",
+            "Roles",
+            "Subsystems",
+            "EventSubscriptions",
+            "ScheduledJobs",
+            "DefinedTypes",
+            "FunctionalOptions",
+            "ExchangePlans",
+            "ChartsOfCharacteristicTypes",
+            "HTTPServices",
+            "WebServices",
+            "XDTOPackages",
+            "FilterCriteria",
+            "SessionParameters",
+            "CommandGroups",
+            "SettingsStorages",
+            "BusinessProcesses",
+            "Tasks",
+            "DocumentJournals",
+            "DocumentNumerators",
+            "Sequences",
+            "FunctionalOptionsParameters",
+            "CommonAttributes",
+            "WSReferences",
         ]
         count = 0
         for type_dir in type_dirs:
@@ -641,7 +694,9 @@ class ConfigManager:
             script = self._paths.root / "setup" / "scripts" / "build_config_index_generic.py"
         subprocess.run(
             ["python3", str(script), str(config.path), str(output), config.title],
-            check=True, capture_output=True, text=True,
+            check=True,
+            capture_output=True,
+            text=True,
         )
 
     def _build_api_reference(self, config: Configuration, output_md: Path, output_json: Path) -> None:
@@ -650,11 +705,21 @@ class ConfigManager:
         if not script.exists():
             script = self._paths.root / "setup" / "scripts" / "build_api_reference.py"
         subprocess.run(
-            ["python3", str(script),
-             "--config", config.name,
-             "--config-dir", str(config.path),
-             "--output-md", str(output_md),
-             "--output-json", str(output_json),
-             "--title", config.title],
-            check=True, capture_output=True, text=True,
+            [
+                "python3",
+                str(script),
+                "--config",
+                config.name,
+                "--config-dir",
+                str(config.path),
+                "--output-md",
+                str(output_md),
+                "--output-json",
+                str(output_json),
+                "--title",
+                config.title,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
         )

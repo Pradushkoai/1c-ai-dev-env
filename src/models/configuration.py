@@ -1,6 +1,7 @@
 """
 Модель 1С конфигурации.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -62,10 +63,18 @@ class Configuration:
     def from_dict(cls, name: str, data: dict, project_root: Path) -> Configuration:
         """Создать из dict (config-registry.json)."""
         raw_path = data.get("path")
-        path = Path(project_root / raw_path) if raw_path and not raw_path.startswith("/") else (Path(raw_path) if raw_path else None)
+        path = (
+            Path(project_root / raw_path)
+            if raw_path and not raw_path.startswith("/")
+            else (Path(raw_path) if raw_path else None)
+        )
 
         raw_archive = data.get("archive")
-        archive = Path(project_root / raw_archive) if raw_archive and not raw_archive.startswith("/") else (Path(raw_archive) if raw_archive else None)
+        archive = (
+            Path(project_root / raw_archive)
+            if raw_archive and not raw_archive.startswith("/")
+            else (Path(raw_archive) if raw_archive else None)
+        )
 
         return cls(
             name=name,

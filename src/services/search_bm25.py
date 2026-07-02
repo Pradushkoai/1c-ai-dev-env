@@ -28,6 +28,7 @@ BM25 — золотой стандарт полнотекстового поис
 
 Backward compat: v1 (TF-IDF) индексы продолжают работать через search().
 """
+
 from __future__ import annotations
 
 import json
@@ -42,22 +43,117 @@ from pathlib import Path
 
 # Русские окончания (длинные сначала)
 _RU_ENDINGS = [
-    'ыми', 'ях', 'ах', 'ого', 'ому', 'ему', 'ом', 'ой', 'ое', 'ую', 'юю',
-    'ая', 'яя', 'ые', 'ие', 'ых', 'их', 'ыми', 'ими', 'ыми', 'их', 'ых',
-    'ам', 'ям', 'ами', 'ями', 'ом', 'ем', 'ами', 'ями',
-    'ть', 'тся', 'ться', 'лся', 'лась', 'ться', 'ешь', 'ишь', 'ете', 'ите',
-    'ут', 'ют', 'ат', 'ят', 'ал', 'ял', 'ала', 'яла', 'али', 'яли', 'анный',
-    'енный', 'ный', 'ный', 'ная', 'ное', 'ные', 'ного', 'ной', 'ным', 'ном',
-    'нами', 'ность', 'ние', 'ния', 'ний', 'нем', 'нами',
-    'а', 'я', 'о', 'е', 'у', 'ю', 'и', 'ы', 'ь',
+    "ыми",
+    "ях",
+    "ах",
+    "ого",
+    "ому",
+    "ему",
+    "ом",
+    "ой",
+    "ое",
+    "ую",
+    "юю",
+    "ая",
+    "яя",
+    "ые",
+    "ие",
+    "ых",
+    "их",
+    "ыми",
+    "ими",
+    "ыми",
+    "их",
+    "ых",
+    "ам",
+    "ям",
+    "ами",
+    "ями",
+    "ом",
+    "ем",
+    "ами",
+    "ями",
+    "ть",
+    "тся",
+    "ться",
+    "лся",
+    "лась",
+    "ться",
+    "ешь",
+    "ишь",
+    "ете",
+    "ите",
+    "ут",
+    "ют",
+    "ат",
+    "ят",
+    "ал",
+    "ял",
+    "ала",
+    "яла",
+    "али",
+    "яли",
+    "анный",
+    "енный",
+    "ный",
+    "ный",
+    "ная",
+    "ное",
+    "ные",
+    "ного",
+    "ной",
+    "ным",
+    "ном",
+    "нами",
+    "ность",
+    "ние",
+    "ния",
+    "ний",
+    "нем",
+    "нами",
+    "а",
+    "я",
+    "о",
+    "е",
+    "у",
+    "ю",
+    "и",
+    "ы",
+    "ь",
 ]
 
 # Английские окончания (Porter-подобный минимальный)
 _EN_ENDINGS = [
-    'ization', 'ational', 'fulness', 'ousness', 'iveness', 'tional',
-    'ation', 'ement', 'ness', 'ions', 'ing', 'ied', 'ies', 'ied', 'ier',
-    'iest', 'ed', 'es', 'ly', 'ment', 'tion', 'sion', 'ence', 'ance',
-    'able', 'ible', 'al', 'er', 'est', 's',
+    "ization",
+    "ational",
+    "fulness",
+    "ousness",
+    "iveness",
+    "tional",
+    "ation",
+    "ement",
+    "ness",
+    "ions",
+    "ing",
+    "ied",
+    "ies",
+    "ied",
+    "ier",
+    "iest",
+    "ed",
+    "es",
+    "ly",
+    "ment",
+    "tion",
+    "sion",
+    "ence",
+    "ance",
+    "able",
+    "ible",
+    "al",
+    "er",
+    "est",
+    "s",
 ]
 
 
@@ -67,7 +163,7 @@ def stem_russian(word: str) -> str:
         return word
     for ending in _RU_ENDINGS:
         if len(word) > len(ending) + 2 and word.endswith(ending):
-            return word[:-len(ending)]
+            return word[: -len(ending)]
     return word
 
 
@@ -77,14 +173,14 @@ def stem_english(word: str) -> str:
         return word
     for ending in _EN_ENDINGS:
         if len(word) > len(ending) + 2 and word.endswith(ending):
-            return word[:-len(ending)]
+            return word[: -len(ending)]
     return word
 
 
 def stem(word: str) -> str:
     """Стемминг слова (русский или английский)."""
     # Определяем язык по первому символу
-    if word and word[0] in 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя':
+    if word and word[0] in "абвгдеёжзийклмнопрстуфхцчшщъыьэюя":
         return stem_russian(word)
     return stem_english(word)
 
@@ -98,83 +194,146 @@ def stem(word: str) -> str:
 # Словарь построен на основе стандартных методов платформы 1С (8141 методов).
 BSL_SYNONYMS = {
     # Строковые функции
-    'стрнайти': 'strfind', 'стрдлина': 'strlen', 'стрзаменить': 'strreplace',
-    'стрвставить': 'strinsert', 'струдалить': 'strdelete', 'стррег': 'strregex',
-    'стрначинаетсяс': 'strstartswith', 'стрзаканчиваетсяна': 'strendswith',
-    'стрсодержит': 'strcontains', 'стрразделить': 'strsplit', 'стрсоединить': 'strconcat',
-    'стрсравнить': 'strcompare', 'стрповторить': 'strrepeat',
-    'врег': 'upper', 'нрег': 'lower', 'трег': 'title',
-    'сокрл': 'triml', 'сокрп': 'trimr', 'сокрлп': 'trimall',
-    'лев': 'left', 'прав': 'right', 'сред': 'mid',
-    'символ': 'char', 'кодсимвола': 'charcode', 'символы': 'chars',
-    'стрстр': 'strstr', 'пустаястрока': 'emptystr',
-
+    "стрнайти": "strfind",
+    "стрдлина": "strlen",
+    "стрзаменить": "strreplace",
+    "стрвставить": "strinsert",
+    "струдалить": "strdelete",
+    "стррег": "strregex",
+    "стрначинаетсяс": "strstartswith",
+    "стрзаканчиваетсяна": "strendswith",
+    "стрсодержит": "strcontains",
+    "стрразделить": "strsplit",
+    "стрсоединить": "strconcat",
+    "стрсравнить": "strcompare",
+    "стрповторить": "strrepeat",
+    "врег": "upper",
+    "нрег": "lower",
+    "трег": "title",
+    "сокрл": "triml",
+    "сокрп": "trimr",
+    "сокрлп": "trimall",
+    "лев": "left",
+    "прав": "right",
+    "сред": "mid",
+    "символ": "char",
+    "кодсимвола": "charcode",
+    "символы": "chars",
+    "стрстр": "strstr",
+    "пустаястрока": "emptystr",
     # Массивы и коллекции
-    'найти': 'find', 'добавить': 'add', 'удалить': 'remove', 'очистить': 'clear',
-    'количество': 'count', 'вставить': 'insert', 'получить': 'get', 'установить': 'set',
-    'выгрузить': 'unload', 'загрузить': 'load', 'выгрузитьколонку': 'unloadcolumn',
-    'загрузитьколонку': 'loadcolumn', 'свернуть': 'collapse', 'копировать': 'copy',
-    'индекс': 'index', 'найтистроку': 'findrow', 'найтистроки': 'findrows',
-
+    "найти": "find",
+    "добавить": "add",
+    "удалить": "remove",
+    "очистить": "clear",
+    "количество": "count",
+    "вставить": "insert",
+    "получить": "get",
+    "установить": "set",
+    "выгрузить": "unload",
+    "загрузить": "load",
+    "выгрузитьколонку": "unloadcolumn",
+    "загрузитьколонку": "loadcolumn",
+    "свернуть": "collapse",
+    "копировать": "copy",
+    "индекс": "index",
+    "найтистроку": "findrow",
+    "найтистроки": "findrows",
     # Справочники
-    'найтипокоду': 'findbycode', 'найтипонаименованию': 'findbydescription',
-    'найтипореквизиту': 'findbyattribute', 'создатьэлемент': 'createitem',
-    'создатьгруппу': 'createfolder', 'получитьформу': 'getform',
-    'получитьформусписка': 'getlistform', 'получитьформувыбора': 'getchoiceform',
-    'получитьформуэлемента': 'getitemform', 'пустаяссылка': 'emptyref',
-
+    "найтипокоду": "findbycode",
+    "найтипонаименованию": "findbydescription",
+    "найтипореквизиту": "findbyattribute",
+    "создатьэлемент": "createitem",
+    "создатьгруппу": "createfolder",
+    "получитьформу": "getform",
+    "получитьформусписка": "getlistform",
+    "получитьформувыбора": "getchoiceform",
+    "получитьформуэлемента": "getitemform",
+    "пустаяссылка": "emptyref",
     # Документы
-    'провести': 'post', 'отменапроведения': 'unpost', 'распровести': 'unpost',
-    'записать': 'write', 'прочитать': 'read', 'удалитьобъект': 'deleteobject',
-
+    "провести": "post",
+    "отменапроведения": "unpost",
+    "распровести": "unpost",
+    "записать": "write",
+    "прочитать": "read",
+    "удалитьобъект": "deleteobject",
     # Запросы
-    'выполнить': 'execute', 'выполнитьпакет': 'executebatch',
-    'установитьпараметр': 'setparameter', 'результат': 'result',
-    'выбрать': 'select', 'следующий': 'next', 'пустой': 'empty',
-    'выгрузитьрезультат': 'unloadresult',
-
+    "выполнить": "execute",
+    "выполнитьпакет": "executebatch",
+    "установитьпараметр": "setparameter",
+    "результат": "result",
+    "выбрать": "select",
+    "следующий": "next",
+    "пустой": "empty",
+    "выгрузитьрезультат": "unloadresult",
     # Метаданные
-    'метаданные': 'metadata', 'предопределенный': 'predefined',
-    'получитьпредопределенноезначение': 'getpredefinedvalue',
-    'установитьобязательныйпризнакпредопределенных': 'setpredefinedmandatory',
-
+    "метаданные": "metadata",
+    "предопределенный": "predefined",
+    "получитьпредопределенноезначение": "getpredefinedvalue",
+    "установитьобязательныйпризнакпредопределенных": "setpredefinedmandatory",
     # Дата/время
-    'текущаядата': 'currentdate', 'текущаядатасеанса': 'currentsessiondate',
-    'началогода': 'beginofyear', 'конецгода': 'endofyear',
-    'началомесяца': 'beginofmonth', 'конецмесяца': 'endofmonth',
-    'началодня': 'beginofday', 'конецдня': 'endofday',
-    'добавитькдате': 'datadd', 'разностьдат': 'datediff',
-
+    "текущаядата": "currentdate",
+    "текущаядатасеанса": "currentsessiondate",
+    "началогода": "beginofyear",
+    "конецгода": "endofyear",
+    "началомесяца": "beginofmonth",
+    "конецмесяца": "endofmonth",
+    "началодня": "beginofday",
+    "конецдня": "endofday",
+    "добавитькдате": "datadd",
+    "разностьдат": "datediff",
     # Числа
-    'цел': 'int', 'окр': 'round', 'макс': 'max', 'мин': 'min',
-    'sqrt': 'sqrt', 'pow': 'pow', 'exp': 'exp', 'log': 'log',
-    'abs': 'abs', 'sign': 'sign', 'acos': 'acos', 'asin': 'asin',
-    'atan': 'atan', 'cos': 'cos', 'sin': 'sin', 'tan': 'tan',
-
+    "цел": "int",
+    "окр": "round",
+    "макс": "max",
+    "мин": "min",
+    "sqrt": "sqrt",
+    "pow": "pow",
+    "exp": "exp",
+    "log": "log",
+    "abs": "abs",
+    "sign": "sign",
+    "acos": "acos",
+    "asin": "asin",
+    "atan": "atan",
+    "cos": "cos",
+    "sin": "sin",
+    "tan": "tan",
     # Преобразования типов
-    'строка': 'string', 'число': 'number', 'дата': 'date',
-    'булево': 'boolean', 'значениевстроку': 'valuetostring',
-    'значениеизстроки': 'valuefromstring', 'значениевфайл': 'valuetofile',
-    'значениеизфайла': 'valuefromfile', 'тип': 'type', 'типзнч': 'typeof',
-
+    "строка": "string",
+    "число": "number",
+    "дата": "date",
+    "булево": "boolean",
+    "значениевстроку": "valuetostring",
+    "значениеизстроки": "valuefromstring",
+    "значениевфайл": "valuetofile",
+    "значениеизфайла": "valuefromfile",
+    "тип": "type",
+    "типзнч": "typeof",
     # Универсальные
-    'значениезаполнено': 'valueisfilled', 'заполнитьзначениясвойств': 'fillpropertyvalues',
-    'выполнитьобработку': 'executeprocessing', 'выполнитькод': 'executecode',
-
+    "значениезаполнено": "valueisfilled",
+    "заполнитьзначениясвойств": "fillpropertyvalues",
+    "выполнитьобработку": "executeprocessing",
+    "выполнитькод": "executecode",
     # Регистры
-    'записатьнаборзаписей': 'writerecordset', 'прочитатьнаборзаписей': 'readrecordset',
-    'отбор': 'filter', 'установитьотбор': 'setfilter',
-
+    "записатьнаборзаписей": "writerecordset",
+    "прочитатьнаборзаписей": "readrecordset",
+    "отбор": "filter",
+    "установитьотбор": "setfilter",
     # Формы
-    'открытьформу': 'openform', 'открытьформумодально': 'openformmodal',
-    'закрытьформу': 'closeform', 'получитьэлементформы': 'getformitem',
-    'установитьвидимость': 'setvisibility', 'установитьдоступность': 'setaccessibility',
-    'обновитьотображениеданных': 'refreshdatadisplay',
-
+    "открытьформу": "openform",
+    "открытьформумодально": "openformmodal",
+    "закрытьформу": "closeform",
+    "получитьэлементформы": "getformitem",
+    "установитьвидимость": "setvisibility",
+    "установитьдоступность": "setaccessibility",
+    "обновитьотображениеданных": "refreshdatadisplay",
     # Общие
-    'сообщить': 'message', 'сообщитьпользователю': 'messageuser',
-    'получитьобщиймодуль': 'getcommonmodule', 'вызватьисключение': 'raiseexception',
-    'вызватьисключениесоп': 'raiseexception',
+    "сообщить": "message",
+    "сообщитьпользователю": "messageuser",
+    "получитьобщиймодуль": "getcommonmodule",
+    "вызватьисключение": "raiseexception",
+    "вызватьисключениесоп": "raiseexception",
 }
 
 
@@ -212,7 +371,7 @@ def tokenize_stemmed(text: str) -> list[str]:
     """
     # Сначала разбиваем mixed-case CamelCase на слова
     # "НайтиПоКоду" → "Найти", "По", "Коду"
-    camelcase_parts = re.findall(r'[А-ЯA-Z][а-яёa-z]+|[А-ЯA-Z]+(?=[А-ЯA-Z][а-яёa-z])|\d+|[а-яёa-zA-Z]+', text)
+    camelcase_parts = re.findall(r"[А-ЯA-Z][а-яёa-z]+|[А-ЯA-Z]+(?=[А-ЯA-Z][а-яёa-z])|\d+|[а-яёa-zA-Z]+", text)
 
     result = []
     for part in camelcase_parts:
@@ -233,12 +392,13 @@ def tokenize_stemmed(text: str) -> list[str]:
 # ТРИГРАММЫ (для устойчивости к опечаткам)
 # ============================================================================
 
+
 def make_trigrams(word: str) -> set[str]:
     """Построить триграммы слова: 'найти' → {'$$н', '$на', 'най', 'айт', 'йти', 'ти$'}."""
     if not word:
         return set()
-    padded = f'$${word}$$'
-    return {padded[i:i+3] for i in range(len(padded) - 2)}
+    padded = f"$${word}$$"
+    return {padded[i : i + 3] for i in range(len(padded) - 2)}
 
 
 def trigram_similarity(s1: set[str], s2: set[str]) -> float:
@@ -265,7 +425,7 @@ def build_index_bm25(methods_json_path: Path, output_path: Path) -> int:
 
     Returns: кол-во проиндексированных методов
     """
-    with open(methods_json_path, encoding='utf-8') as f:
+    with open(methods_json_path, encoding="utf-8") as f:
         methods = json.load(f)
 
     documents = []
@@ -273,40 +433,42 @@ def build_index_bm25(methods_json_path: Path, output_path: Path) -> int:
     method_trigrams = {}  # doc_id → set of trigrams (от всех слов)
 
     for i, m in enumerate(methods):
-        name_ru = m.get('name_ru', '')
-        name_en = m.get('name_en', '')
-        context = m.get('context', '')
-        syntax = m.get('syntax', '')
-        description = m.get('description', '')
-        returns = m.get('returns', '')
+        name_ru = m.get("name_ru", "")
+        name_en = m.get("name_en", "")
+        context = m.get("context", "")
+        syntax = m.get("syntax", "")
+        description = m.get("description", "")
+        returns = m.get("returns", "")
 
         # Имя метода — больший вес (повторяем 3 раза)
-        doc_text = f'{name_ru} {name_ru} {name_ru} {name_en} {name_en} {context} {syntax} {description} {returns}'
+        doc_text = f"{name_ru} {name_ru} {name_ru} {name_en} {name_en} {context} {syntax} {description} {returns}"
         tokens = tokenize_stemmed(doc_text)
 
         # Триграммы из имени метода (только имя — для fuzzy match)
         trigrams = set()
-        for word in (name_ru + ' ' + name_en).split():
+        for word in (name_ru + " " + name_en).split():
             trigrams |= make_trigrams(word.lower())
         method_trigrams[i] = trigrams
 
-        documents.append({
-            'id': i,
-            'tokens': tokens,
-            'name_ru': name_ru,
-            'name_en': name_en,
-            'context': context,
-            'syntax': syntax,
-            'description': description[:300],
-            'returns': returns[:200],
-            'file': m.get('file', ''),
-        })
+        documents.append(
+            {
+                "id": i,
+                "tokens": tokens,
+                "name_ru": name_ru,
+                "name_en": name_en,
+                "context": context,
+                "syntax": syntax,
+                "description": description[:300],
+                "returns": returns[:200],
+                "file": m.get("file", ""),
+            }
+        )
         doc_lengths.append(len(tokens))
 
     # DF — document frequency
     df: dict[str, int] = defaultdict(int)
     for doc in documents:
-        for t in set(doc['tokens']):
+        for t in set(doc["tokens"]):
             df[t] += 1
 
     # IDF для BM25: ln(1 + (N - df + 0.5) / (df + 0.5))
@@ -316,13 +478,13 @@ def build_index_bm25(methods_json_path: Path, output_path: Path) -> int:
     # Частоты термина в каждом документе
     tf_per_doc: dict[int, Counter] = {}
     for doc in documents:
-        tf_per_doc[doc['id']] = Counter(doc['tokens'])
+        tf_per_doc[doc["id"]] = Counter(doc["tokens"])
 
     # Инвертированный индекс: токен → [(doc_id, tf)]
     inverted_index: dict[str, list] = defaultdict(list)
     for doc in documents:
-        for t, tf in tf_per_doc[doc['id']].items():
-            inverted_index[t].append((doc['id'], tf))
+        for t, tf in tf_per_doc[doc["id"]].items():
+            inverted_index[t].append((doc["id"], tf))
 
     # Средняя длина документа
     avg_doc_length = sum(doc_lengths) / max(N, 1)
@@ -335,27 +497,27 @@ def build_index_bm25(methods_json_path: Path, output_path: Path) -> int:
 
     # Удаляем tokens из документов (для экономии места)
     for doc in documents:
-        del doc['tokens']
+        del doc["tokens"]
 
     # Длины документов в dict
     doc_lengths_dict = dict(enumerate(doc_lengths))
 
     index_data = {
-        'version': 2,
-        'algorithm': 'bm25',
-        'methods': documents,
-        'idf': idf_bm25,
-        'inverted_index': dict(inverted_index),
-        'doc_lengths': doc_lengths_dict,
-        'avg_doc_length': avg_doc_length,
-        'total_methods': N,
-        'trigrams_index': dict(trigrams_index),
-        'method_trigrams': {str(k): list(v) for k, v in method_trigrams.items()},
-        'bm25_params': {'k1': BM25_K1, 'b': BM25_B},
+        "version": 2,
+        "algorithm": "bm25",
+        "methods": documents,
+        "idf": idf_bm25,
+        "inverted_index": dict(inverted_index),
+        "doc_lengths": doc_lengths_dict,
+        "avg_doc_length": avg_doc_length,
+        "total_methods": N,
+        "trigrams_index": dict(trigrams_index),
+        "method_trigrams": {str(k): list(v) for k, v in method_trigrams.items()},
+        "bm25_params": {"k1": BM25_K1, "b": BM25_B},
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, 'w', encoding='utf-8') as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(index_data, f, ensure_ascii=False)
 
     return N
@@ -382,14 +544,14 @@ def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = Tr
     Returns:
         Список результатов с score, name_ru, name_en, context, syntax, description
     """
-    with open(index_path, encoding='utf-8') as f:
+    with open(index_path, encoding="utf-8") as f:
         index = json.load(f)
 
-    methods = index['methods']
-    idf = index['idf']
-    inverted_index = index['inverted_index']
-    doc_lengths = index.get('doc_lengths', {})
-    avg_doc_length = index.get('avg_doc_length', 1.0)
+    methods = index["methods"]
+    idf = index["idf"]
+    inverted_index = index["inverted_index"]
+    doc_lengths = index.get("doc_lengths", {})
+    avg_doc_length = index.get("avg_doc_length", 1.0)
 
     # Токенизуем запрос (со стеммингом)
     query_tokens = tokenize_stemmed(query)
@@ -410,7 +572,7 @@ def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = Tr
             bm25_scores[doc_id] += score
 
     # Гибридный режим: добавляем триграммы
-    if hybrid and 'trigrams_index' in index:
+    if hybrid and "trigrams_index" in index:
         # Если BM25 что-то нашёл — ограничиваем триграммы кандидатами (оптимизация).
         # Если ничего не нашёл — триграммы ищут по всему индексу (важно для опечаток).
         candidates = bm25_scores.keys() if bm25_scores else None
@@ -435,14 +597,16 @@ def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = Tr
     results = []
     for doc_id, score in ranked:
         m = methods[doc_id]
-        results.append({
-            'score': round(score, 4),
-            'name_ru': m['name_ru'],
-            'name_en': m['name_en'],
-            'context': m['context'][:80],
-            'syntax': m['syntax'][:120],
-            'description': m['description'][:150],
-        })
+        results.append(
+            {
+                "score": round(score, 4),
+                "name_ru": m["name_ru"],
+                "name_en": m["name_en"],
+                "context": m["context"][:80],
+                "syntax": m["syntax"][:120],
+                "description": m["description"][:150],
+            }
+        )
 
     return results
 
@@ -460,11 +624,11 @@ def _trigram_search(index: dict, query: str, candidate_ids=None) -> dict[int, fl
 
     Returns: {doc_id: score}
     """
-    trigrams_index = index.get('trigrams_index', {})
-    method_trigrams = index.get('method_trigrams', {})
+    trigrams_index = index.get("trigrams_index", {})
+    method_trigrams = index.get("method_trigrams", {})
 
     # Строим триграммы запроса (только существенные слова)
-    query_words = re.findall(r'[а-яёА-ЯЁa-zA-Z]{3,}', query)
+    query_words = re.findall(r"[а-яёА-ЯЁa-zA-Z]{3,}", query)
     if not query_words:
         return {}
 
@@ -494,16 +658,18 @@ def _trigram_search(index: dict, query: str, candidate_ids=None) -> dict[int, fl
 
     return scores
 
+
 # ============================================================================
 # AUTO-DETECT (v1 / v2)
 # ============================================================================
+
 
 def detect_index_version(index_path: Path) -> int:
     """Определить версию индекса (1 = TF-IDF, 2 = BM25)."""
     if not index_path.exists():
         return 0
     try:
-        with open(index_path, encoding='utf-8') as f:
+        with open(index_path, encoding="utf-8") as f:
             head = f.read(500)
         if '"version": 2' in head:
             return 2
@@ -526,6 +692,7 @@ def search_auto(index_path: Path, query: str, limit: int = 10) -> list[dict]:
     elif version == 1:
         # Fallback на старый TF-IDF
         from .search import search as tfidf_search
+
         return tfidf_search(index_path, query, limit)
     else:
         return []

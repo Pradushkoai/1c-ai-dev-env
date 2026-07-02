@@ -5,6 +5,7 @@
 регистрирует её через ConfigManager, строит индексы (с моками subprocess),
 и проверяет что все артефакты создались корректно.
 """
+
 import json
 import shutil
 import zipfile
@@ -92,19 +93,22 @@ def _make_mini_config_zip(zip_path: Path) -> None:
 def project_env(tmp_path, monkeypatch):
     """Создать изолированное окружение проекта во временной директории."""
     # Минимальная структура каталогов
-    for d in ["data/configs", "data/archives", "derived/configs", "derived/platform",
-              "tools/repos", "runtime", "scripts"]:
+    for d in [
+        "data/configs",
+        "data/archives",
+        "derived/configs",
+        "derived/platform",
+        "tools/repos",
+        "runtime",
+        "scripts",
+    ]:
         (tmp_path / d).mkdir(parents=True, exist_ok=True)
 
     # paths.env
-    (tmp_path / "runtime" / "paths.env").write_text(
-        f"PROJECT_ROOT={tmp_path}\n", encoding="utf-8"
-    )
+    (tmp_path / "runtime" / "paths.env").write_text(f"PROJECT_ROOT={tmp_path}\n", encoding="utf-8")
 
     # Пустой реестр конфигураций
-    (tmp_path / "runtime" / "config-registry.json").write_text(
-        '{"version": "2.0", "configs": {}}', encoding="utf-8"
-    )
+    (tmp_path / "runtime" / "config-registry.json").write_text('{"version": "2.0", "configs": {}}', encoding="utf-8")
 
     # .bsl-language-server.json
     (tmp_path / "runtime" / ".bsl-language-server.json").write_text(
@@ -233,9 +237,7 @@ def test_integration_add_build_analyze(project_env):
                 }
             ]
         }
-        (output_dir / "bsl-json.json").write_text(
-            json.dumps(fake_report, ensure_ascii=False), encoding="utf-8"
-        )
+        (output_dir / "bsl-json.json").write_text(json.dumps(fake_report, ensure_ascii=False), encoding="utf-8")
         return MagicMock(returncode=0)
 
     with patch("src.services.bsl_analyzer.subprocess.run", side_effect=fake_bsl_run):

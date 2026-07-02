@@ -16,6 +16,7 @@ SLA (Service Level Agreement):
     pytest tests/test_benchmarks_synthetic.py -v --benchmark-only
     pytest tests/test_benchmarks_synthetic.py --benchmark-compare=baseline
 """
+
 from __future__ import annotations
 
 import json
@@ -38,6 +39,7 @@ from src.services.sarif_reporter import SarifReporter
 # ─────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────
+
 
 def _make_violations(n: int) -> list[Violation]:
     return [
@@ -83,12 +85,14 @@ def _make_check_result_with_metrics() -> CheckResult:
 # Configuration roundtrip
 # ─────────────────────────────────────────────
 
+
 class TestBenchmarkConfiguration:
     """SLA: Configuration dataclass операции."""
 
     @pytest.mark.benchmark(group="model")
     def test_bench_configuration_creation(self, benchmark):
         """Создание Configuration dataclass."""
+
         def create():
             return Configuration(
                 name="ut11",
@@ -99,6 +103,7 @@ class TestBenchmarkConfiguration:
                 api_methods_count=21380,
                 status="active",
             )
+
         result = benchmark(create)
         assert result.name == "ut11"
 
@@ -106,8 +111,11 @@ class TestBenchmarkConfiguration:
     def test_bench_configuration_to_dict(self, benchmark):
         """Configuration.to_dict()."""
         cfg = Configuration(
-            name="ut11", title="УТ 11", version="11.3.4",
-            objects_count=7128, status="active",
+            name="ut11",
+            title="УТ 11",
+            version="11.3.4",
+            objects_count=7128,
+            status="active",
         )
         d = benchmark(cfg.to_dict)
         assert d["name"] == "УТ 11"
@@ -116,8 +124,11 @@ class TestBenchmarkConfiguration:
     def test_bench_configuration_roundtrip(self, benchmark):
         """Полный roundtrip: to_dict() → from_dict()."""
         cfg = Configuration(
-            name="ut11", title="УТ 11", version="11.3.4",
-            objects_count=7128, status="active",
+            name="ut11",
+            title="УТ 11",
+            version="11.3.4",
+            objects_count=7128,
+            status="active",
         )
 
         def roundtrip():
@@ -132,12 +143,14 @@ class TestBenchmarkConfiguration:
 # CheckResult / Violation
 # ─────────────────────────────────────────────
 
+
 class TestBenchmarkCheckResult:
     """SLA: CheckResult и Violation операции."""
 
     @pytest.mark.benchmark(group="model")
     def test_bench_violation_creation(self, benchmark):
         """Создание одного Violation."""
+
         def create():
             return Violation(
                 source="check_1c_standards",
@@ -147,6 +160,7 @@ class TestBenchmarkCheckResult:
                 message="Найдена буква ё",
                 file="module.bsl",
             )
+
         v = benchmark(create)
         assert v.line == 42
 
@@ -182,6 +196,7 @@ class TestBenchmarkCheckResult:
 # ─────────────────────────────────────────────
 # SARIF
 # ─────────────────────────────────────────────
+
 
 class TestBenchmarkSarif:
     """SLA: SARIF конвертация."""
@@ -236,14 +251,17 @@ class TestBenchmarkSarif:
 # TaskContext
 # ─────────────────────────────────────────────
 
+
 class TestBenchmarkTaskContext:
     """SLA: TaskContext операции."""
 
     @pytest.mark.benchmark(group="task")
     def test_bench_task_context_creation(self, benchmark):
         """Создание TaskContext."""
+
         def create():
             return TaskContext(query="создать справочник", config_name="ut11")
+
         ctx = benchmark(create)
         assert ctx.query == "создать справочник"
 
@@ -271,6 +289,7 @@ class TestBenchmarkTaskContext:
 # ─────────────────────────────────────────────
 # JSON serialization
 # ─────────────────────────────────────────────
+
 
 class TestBenchmarkJsonSerialization:
     """SLA: JSON сериализация (важно для MCP/CLI вывода)."""

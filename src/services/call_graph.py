@@ -10,6 +10,7 @@
     callers = get_callers(graph, "ОбменДокументы", "ВыполнитьПолныйОбмен")
     callees = get_callees(graph, "ОбменДокументы", "ВыполнитьПолныйОбмен")
 """
+
 from __future__ import annotations
 
 import json
@@ -24,9 +25,10 @@ from .path_manager import PathManager
 @dataclass
 class CallEdge:
     """Ребро графа вызовов: кто → кого вызывает."""
+
     caller_module: str
     caller_method: str
-    callee_module: str       # модуль вызываемого метода ("" если локальный)
+    callee_module: str  # модуль вызываемого метода ("" если локальный)
     callee_method: str
     line: int
     file: str
@@ -35,6 +37,7 @@ class CallEdge:
 @dataclass
 class CallGraph:
     """Граф вызовов методов конфигурации."""
+
     config_name: str
     edges: list[CallEdge] = field(default_factory=list)
     # Индексы для быстрого поиска
@@ -123,10 +126,7 @@ class CallGraph:
         for edge in self.edges:
             key = self._key(edge.callee_module, edge.callee_method)
             called.add(key)
-        return [
-            (mod, meth) for mod, meth in export_methods
-            if self._key(mod, meth) not in called
-        ]
+        return [(mod, meth) for mod, meth in export_methods if self._key(mod, meth) not in called]
 
     def get_stats(self) -> dict:
         """Статистика графа."""
@@ -167,23 +167,44 @@ class CallGraph:
 # Паттерн вызова: Модуль.Метод( — где Модуль — кириллица/латиница, Метод — кириллица/латиница
 # Не матчит: точка в числах (1.5), точка в запросах (Таблица.Поле),
 # точка после ключевых слов (ЭтотОбъект.Метод — это локальный вызов)
-CROSS_MODULE_CALL_PATTERN = re.compile(
-    r'\b([А-Яа-яЁё][А-Яа-яЁё\w]*)\s*\.\s*([А-Яа-яЁё][А-Яа-яЁё\w]*)\s*\('
-)
+CROSS_MODULE_CALL_PATTERN = re.compile(r"\b([А-Яа-яЁё][А-Яа-яЁё\w]*)\s*\.\s*([А-Яа-яЁё][А-Яа-яЁё\w]*)\s*\(")
 
 # Паттерн локального вызова: Метод( — внутри того же модуля
 # Исключаем ключевые слова BSL
 BSL_KEYWORDS = {
-    'Если', 'Иначе', 'ИначеЕсли', 'КонецЕсли', 'Для', 'Пока', 'Цикл',
-    'КонецЦикла', 'Процедура', 'КонецПроцедуры', 'Функция', 'КонецФункции',
-    'Возврат', 'Прервать', 'Продолжить', 'Попытка', 'Исключение',
-    'КонецПопытки', 'Перем', 'Новый', 'И', 'ИЛИ', 'НЕ', 'Тогда',
-    'Экспорт', 'Знач', 'Неопределено', 'Истина', 'Ложь', 'Сре',
+    "Если",
+    "Иначе",
+    "ИначеЕсли",
+    "КонецЕсли",
+    "Для",
+    "Пока",
+    "Цикл",
+    "КонецЦикла",
+    "Процедура",
+    "КонецПроцедуры",
+    "Функция",
+    "КонецФункции",
+    "Возврат",
+    "Прервать",
+    "Продолжить",
+    "Попытка",
+    "Исключение",
+    "КонецПопытки",
+    "Перем",
+    "Новый",
+    "И",
+    "ИЛИ",
+    "НЕ",
+    "Тогда",
+    "Экспорт",
+    "Знач",
+    "Неопределено",
+    "Истина",
+    "Ложь",
+    "Сре",
 }
 
-LOCAL_CALL_PATTERN = re.compile(
-    r'^\t*([А-Яа-яЁё][А-Яа-яЁё\w]*)\s*\('
-)
+LOCAL_CALL_PATTERN = re.compile(r"^\t*([А-Яа-яЁё][А-Яа-яЁё\w]*)\s*\(")
 
 
 def _get_module_name_from_path(bsl_path: Path, configs_dir: Path) -> str:
@@ -198,18 +219,18 @@ def _get_module_name_from_path(bsl_path: Path, configs_dir: Path) -> str:
 
     if len(parts) >= 2:
         # CommonModules/ОбменДокументы/Ext/Module.bsl → ОбменДокументы
-        if parts[0] == 'CommonModules':
+        if parts[0] == "CommonModules":
             return parts[1]
         # Ext/ManagedApplicationModule.bsl → ManagedApplicationModule
-        if parts[0] == 'Ext':
+        if parts[0] == "Ext":
             return Path(parts[-1]).stem
         # CommonForms/ФормаАвторизации/Ext/Form/Module.bsl → ФормаАвторизации
-        if parts[0] == 'CommonForms' and len(parts) >= 3:
+        if parts[0] == "CommonForms" and len(parts) >= 3:
             return parts[1]
         # DataProcessors/.../Forms/Форма/Ext/Form/Module.bsl → последний Forms перед Ext
         # Сложный случай — возвращаем имя родительской папки перед Ext
-        if 'Ext' in parts:
-            ext_idx = parts.index('Ext')
+        if "Ext" in parts:
+            ext_idx = parts.index("Ext")
             if ext_idx > 0:
                 return parts[ext_idx - 1]
 
@@ -220,7 +241,7 @@ def _find_current_procedure(lines: list[str], line_idx: int) -> str:
     """Находит имя процедуры/функции, в которой находится строка line_idx."""
     for i in range(line_idx, -1, -1):
         line = lines[i].strip()
-        m = re.match(r'(Процедура|Функция)\s+([А-Яа-яЁё\w]+)', line)
+        m = re.match(r"(Процедура|Функция)\s+([А-Яа-яЁё\w]+)", line)
         if m:
             return m.group(2)
     return "<модуль>"
@@ -233,7 +254,7 @@ def _strip_comments(line: str) -> str:
     while i < len(line) - 1:
         if line[i] == '"':
             in_string = not in_string
-        elif not in_string and line[i] == '/' and line[i + 1] == '/':
+        elif not in_string and line[i] == "/" and line[i + 1] == "/":
             return line[:i]
         i += 1
     return line
@@ -241,26 +262,65 @@ def _strip_comments(line: str) -> str:
 
 # Список стандартных объектов/методов, которые не являются вызовами модулей
 STANDARD_OBJECTS = {
-    'ЭтотОбъект', 'Объект', 'Форма', 'Элементы', 'ЭтаФорма',
-    'Справочники', 'Документы', 'Регистры', 'Константы',
-    'Метаданные', 'Параметры', 'ПараметрыСеанса',
-    'Запрос', 'Результат', 'РезультатЗапроса', 'Выборка',
-    'СтрокаТаблицы', 'Элемент', 'Колонка', 'Структура',
-    'Массив', 'ТаблицаЗначений', 'ДеревоЗначений',
-    'Справочник', 'Документ', 'РегистрСведений', 'РегистрНакопления',
-    'РегистрБухгалтерии', 'РегистрРасчета', 'ПланСчетов',
-    'ПланВидовХарактеристик', 'ПланВидовРасчета', 'ПланОбмена',
-    'Перечисление', 'БизнесПроцесс', 'Задача',
-    'ДоставляемыеУведомления', 'СредстваМультимедиа',
-    'ФоновыеЗадания', 'ИнформацияОбИнтернетСоединении',
-    'ЖурналРегистрации', 'Пользователи', 'ПользователиИнформационнойБазы',
-    'ДвоичныеДанные', 'ХранилищеЗначения',
-    'ЧтениеJSON', 'ЗаписьJSON', 'ЧтениеXML', 'ЗаписьXML',
-    'HTTPСоединение', 'HTTPЗапрос', 'HTTPОтвет',
-    'КомпоновщикНастроек', 'ПроцессорВывода',
-    'ТабличныйДокумент', 'ТекстовыйДокумент',
-    'ОписаниеОповещения', 'ДиалогВыбораФайла',
-    'ЗащищенноеСоединениеOpenSSL',
+    "ЭтотОбъект",
+    "Объект",
+    "Форма",
+    "Элементы",
+    "ЭтаФорма",
+    "Справочники",
+    "Документы",
+    "Регистры",
+    "Константы",
+    "Метаданные",
+    "Параметры",
+    "ПараметрыСеанса",
+    "Запрос",
+    "Результат",
+    "РезультатЗапроса",
+    "Выборка",
+    "СтрокаТаблицы",
+    "Элемент",
+    "Колонка",
+    "Структура",
+    "Массив",
+    "ТаблицаЗначений",
+    "ДеревоЗначений",
+    "Справочник",
+    "Документ",
+    "РегистрСведений",
+    "РегистрНакопления",
+    "РегистрБухгалтерии",
+    "РегистрРасчета",
+    "ПланСчетов",
+    "ПланВидовХарактеристик",
+    "ПланВидовРасчета",
+    "ПланОбмена",
+    "Перечисление",
+    "БизнесПроцесс",
+    "Задача",
+    "ДоставляемыеУведомления",
+    "СредстваМультимедиа",
+    "ФоновыеЗадания",
+    "ИнформацияОбИнтернетСоединении",
+    "ЖурналРегистрации",
+    "Пользователи",
+    "ПользователиИнформационнойБазы",
+    "ДвоичныеДанные",
+    "ХранилищеЗначения",
+    "ЧтениеJSON",
+    "ЗаписьJSON",
+    "ЧтениеXML",
+    "ЗаписьXML",
+    "HTTPСоединение",
+    "HTTPЗапрос",
+    "HTTPОтвет",
+    "КомпоновщикНастроек",
+    "ПроцессорВывода",
+    "ТабличныйДокумент",
+    "ТекстовыйДокумент",
+    "ОписаниеОповещения",
+    "ДиалогВыбораФайла",
+    "ЗащищенноеСоединениеOpenSSL",
 }
 
 
@@ -290,26 +350,26 @@ def build_call_graph(config_name: str, paths: PathManager | None = None) -> Call
     export_methods: set[str] = set()  # "ИмяМодуля.ИмяМетода"
     module_names: set[str] = set()
     if api_json.exists():
-        with open(api_json, encoding='utf-8') as f:
+        with open(api_json, encoding="utf-8") as f:
             modules = json.load(f)
         for mod in modules:
-            mod_name = mod.get('name', '')
+            mod_name = mod.get("name", "")
             module_names.add(mod_name)
-            for method in mod.get('methods', []):
+            for method in mod.get("methods", []):
                 export_methods.add(f"{mod_name}.{method.get('name', '')}")
 
     # Парсим все .bsl файлы
-    bsl_files = list(config_dir.rglob('*.bsl'))
+    bsl_files = list(config_dir.rglob("*.bsl"))
 
     for bsl_path in bsl_files:
         mod_name = _get_module_name_from_path(bsl_path, config_dir)
 
         try:
-            content = bsl_path.read_text(encoding='utf-8-sig', errors='replace')
+            content = bsl_path.read_text(encoding="utf-8-sig", errors="replace")
         except Exception:
             continue
 
-        lines = content.split('\n')
+        lines = content.split("\n")
 
         for i, raw_line in enumerate(lines):
             line = _strip_comments(raw_line)
@@ -342,7 +402,7 @@ def build_call_graph(config_name: str, paths: PathManager | None = None) -> Call
             # 2. Локальные вызовы: Метод( — внутри того же модуля
             # Ищем вызовы в начале строки (после табов)
             stripped = line.strip()
-            local_m = re.match(r'([А-Яа-яЁё][А-Яа-яЁё\w]*)\s*\(', stripped)
+            local_m = re.match(r"([А-Яа-яЁё][А-Яа-яЁё\w]*)\s*\(", stripped)
             if local_m:
                 method_name = local_m.group(1)
                 if method_name not in BSL_KEYWORDS and method_name != current_proc:  # noqa: SIM102

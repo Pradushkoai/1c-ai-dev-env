@@ -12,6 +12,7 @@ backup_manager.py — Управление backup/restore данных прое�
     bm.create_backup('/tmp/backup.zip')
     bm.restore_backup('/tmp/backup.zip')
 """
+
 from __future__ import annotations
 
 import logging
@@ -45,34 +46,34 @@ class BackupManager:
 
         # Что включаем в backup
         dirs_to_backup = [
-            ('data', self.paths.data_dir),
-            ('runtime', self.paths.runtime_dir),
+            ("data", self.paths.data_dir),
+            ("runtime", self.paths.runtime_dir),
         ]
         if include_derived:
-            dirs_to_backup.append(('derived', self.paths.derived_dir))
+            dirs_to_backup.append(("derived", self.paths.derived_dir))
 
         # Файлы runtime которые включаем (исключаем временные)
-        runtime_exclude = {'__pycache__', '.pytest_cache'}
+        runtime_exclude = {"__pycache__", ".pytest_cache"}
 
         total_files = 0
         total_size = 0
 
-        with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+        with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
             # Метаданные backup
             metadata = {
-                'created_at': datetime.now().isoformat(),
-                'project_root': str(self.paths.root),
-                'include_derived': include_derived,
-                'dirs': [d[0] for d in dirs_to_backup],
+                "created_at": datetime.now().isoformat(),
+                "project_root": str(self.paths.root),
+                "include_derived": include_derived,
+                "dirs": [d[0] for d in dirs_to_backup],
             }
-            zf.writestr('_backup_meta.json', str(metadata))
+            zf.writestr("_backup_meta.json", str(metadata))
 
             for dir_name, dir_path in dirs_to_backup:
                 if not dir_path.exists():
                     logger.warning(f"Директория не существует: {dir_path}")
                     continue
 
-                for file_path in dir_path.rglob('*'):
+                for file_path in dir_path.rglob("*"):
                     if file_path.is_file():
                         # Пропускаем исключения
                         rel = file_path.relative_to(dir_path)
@@ -80,13 +81,12 @@ class BackupManager:
                             continue
 
                         # Архивируем
-                        arcname = f'{dir_name}/{rel}'
+                        arcname = f"{dir_name}/{rel}"
                         zf.write(file_path, arcname)
                         total_files += 1
                         total_size += file_path.stat().st_size
 
-        logger.info(f"Backup создан: {output_path} ({total_files} файлов, "
-                    f"{total_size / 1024 / 1024:.1f} МБ)")
+        logger.info(f"Backup создан: {output_path} ({total_files} файлов, {total_size / 1024 / 1024:.1f} МБ)")
         return output_path
 
     def restore_backup(self, backup_path: Path) -> dict:
@@ -104,25 +104,25 @@ class BackupManager:
             raise FileNotFoundError(f"Backup файл не найден: {backup_path}")
 
         stats = {
-            'files_restored': 0,
-            'dirs_restored': set(),
-            'size_bytes': 0,
+            "files_restored": 0,
+            "dirs_restored": set(),
+            "size_bytes": 0,
         }
 
-        with zipfile.ZipFile(backup_path, 'r') as zf:
+        with zipfile.ZipFile(backup_path, "r") as zf:
             # Читаем метаданные
             try:
-                meta = zf.read('_backup_meta.json').decode('utf-8')
+                meta = zf.read("_backup_meta.json").decode("utf-8")
                 logger.info(f"Backup метаданные: {meta}")
             except KeyError:
                 pass  # старый формат без метаданных
 
             for info in zf.infolist():
-                if info.filename.startswith('_'):
+                if info.filename.startswith("_"):
                     continue  # служебные файлы
 
                 # Разбираем путь: dir_name/relative_path
-                parts = info.filename.split('/', 1)
+                parts = info.filename.split("/", 1)
                 if len(parts) < 2:
                     continue
 
@@ -135,23 +135,23 @@ class BackupManager:
                 target_path.parent.mkdir(parents=True, exist_ok=True)
 
                 # Извлекаем файл
-                with zf.open(info) as src, open(target_path, 'wb') as dst:
+                with zf.open(info) as src, open(target_path, "wb") as dst:
                     dst.write(src.read())
 
-                stats['files_restored'] += 1
-                stats['dirs_restored'].add(dir_name)
-                stats['size_bytes'] += info.file_size
+                stats["files_restored"] += 1
+                stats["dirs_restored"].add(dir_name)
+                stats["size_bytes"] += info.file_size
 
-        stats['dirs_restored'] = list(stats['dirs_restored'])
+        stats["dirs_restored"] = list(stats["dirs_restored"])
         logger.info(f"Restore завершён: {stats['files_restored']} файлов")
         return stats
 
     def _get_target_dir(self, dir_name: str) -> Path | None:
         """Возвращает целевую директорию по имени."""
         dirs = {
-            'data': self.paths.data_dir,
-            'runtime': self.paths.runtime_dir,
-            'derived': self.paths.derived_dir,
+            "data": self.paths.data_dir,
+            "runtime": self.paths.runtime_dir,
+            "derived": self.paths.derived_dir,
         }
         return dirs.get(dir_name)
 
@@ -170,27 +170,30 @@ class BackupManager:
             return []
 
         backups = []
-        for zf_path in sorted(backup_dir.glob('*.zip')):
+        for zf_path in sorted(backup_dir.glob("*.zip")):
             try:
-                with zipfile.ZipFile(zf_path, 'r') as zf:
+                with zipfile.ZipFile(zf_path, "r") as zf:
                     # Читаем метаданные
                     try:
-                        meta = zf.read('_backup_meta.json').decode('utf-8')
+                        meta = zf.read("_backup_meta.json").decode("utf-8")
                         import ast
+
                         meta_dict = ast.literal_eval(meta)
-                        created_at = meta_dict.get('created_at', '?')
+                        created_at = meta_dict.get("created_at", "?")
                     except (KeyError, Exception):
-                        created_at = '?'
+                        created_at = "?"
 
-                    file_count = sum(1 for i in zf.infolist() if not i.filename.startswith('_'))
+                    file_count = sum(1 for i in zf.infolist() if not i.filename.startswith("_"))
 
-                backups.append({
-                    'path': str(zf_path),
-                    'name': zf_path.name,
-                    'size_mb': zf_path.stat().st_size / 1024 / 1024,
-                    'files': file_count,
-                    'created_at': created_at,
-                })
+                backups.append(
+                    {
+                        "path": str(zf_path),
+                        "name": zf_path.name,
+                        "size_mb": zf_path.stat().st_size / 1024 / 1024,
+                        "files": file_count,
+                        "created_at": created_at,
+                    }
+                )
             except Exception as e:
                 logger.warning(f"Не удалось прочитать backup {zf_path}: {e}")
 

@@ -1,6 +1,7 @@
 """
 Тесты для SessionManager — управление контекстом AI-сессий.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,6 +18,7 @@ def setup(tmp_path):
 
 
 # ─────────────────────────────────────────────
+
 
 def test_save_creates_markdown(setup):
     """save() создаёт session-notes.md."""
@@ -200,11 +202,13 @@ def test_session_state_to_markdown():
 
 def test_session_state_from_dict():
     """SessionState.from_dict() работает."""
-    state = SessionState.from_dict({
-        "date": "2026-01-01",
-        "current_task": "T",
-        "completed": ["x"],
-    })
+    state = SessionState.from_dict(
+        {
+            "date": "2026-01-01",
+            "current_task": "T",
+            "completed": ["x"],
+        }
+    )
     assert state.date == "2026-01-01"
     assert state.current_task == "T"
     assert state.completed == ["x"]

@@ -1,6 +1,7 @@
 """
 Оркестратор проекта. Связывает все сервисы вместе.
 """
+
 from __future__ import annotations
 
 import json
@@ -69,20 +70,22 @@ class Project:
             if api_json.exists():
                 has_api = True
                 try:
-                    with open(api_json, encoding='utf-8') as f:
+                    with open(api_json, encoding="utf-8") as f:
                         modules = json.load(f)
-                    api_methods = sum(m.get('methods_count', 0) for m in modules)
+                    api_methods = sum(m.get("methods_count", 0) for m in modules)
                 except Exception:
                     pass
 
-            result.append({
-                'name': config.name,
-                'version': config.version,
-                'status': config.status,
-                'objects_count': config.objects_count,
-                'api_methods_count': api_methods,
-                'has_api': has_api,
-            })
+            result.append(
+                {
+                    "name": config.name,
+                    "version": config.version,
+                    "status": config.status,
+                    "objects_count": config.objects_count,
+                    "api_methods_count": api_methods,
+                    "has_api": has_api,
+                }
+            )
         return result
 
     def get_config_info(self, name: str) -> dict[str, Any] | None:
@@ -98,20 +101,20 @@ class Project:
         modules = []
         if api_json.exists():
             try:
-                with open(api_json, encoding='utf-8') as f:
+                with open(api_json, encoding="utf-8") as f:
                     modules = json.load(f)
             except Exception:
                 pass
 
         return {
-            'name': config.name,
-            'version': config.version,
-            'status': config.status,
-            'objects_count': config.objects_count,
-            'modules': [
+            "name": config.name,
+            "version": config.version,
+            "status": config.status,
+            "objects_count": config.objects_count,
+            "modules": [
                 {
-                    'name': m.get('name', ''),
-                    'methods_count': m.get('methods_count', 0),
+                    "name": m.get("name", ""),
+                    "methods_count": m.get("methods_count", 0),
                 }
                 for m in modules
             ],
@@ -133,25 +136,27 @@ class Project:
             return []
 
         try:
-            with open(api_json, encoding='utf-8') as f:
+            with open(api_json, encoding="utf-8") as f:
                 modules = json.load(f)
         except Exception:
             return []
 
         result = []
         for mod in modules:
-            if module_name and mod.get('name', '') != module_name:
+            if module_name and mod.get("name", "") != module_name:
                 continue
-            for method in mod.get('methods', []):
-                result.append({
-                    'module': mod.get('name', ''),
-                    'name': method.get('name', ''),
-                    'type': method.get('type', ''),
-                    'params': method.get('params', []),
-                    'description': method.get('description', ''),
-                    'returns': method.get('returns', ''),
-                    'signature': method.get('signature', ''),
-                })
+            for method in mod.get("methods", []):
+                result.append(
+                    {
+                        "module": mod.get("name", ""),
+                        "name": method.get("name", ""),
+                        "type": method.get("type", ""),
+                        "params": method.get("params", []),
+                        "description": method.get("description", ""),
+                        "returns": method.get("returns", ""),
+                        "signature": method.get("signature", ""),
+                    }
+                )
         return result
 
     def search_methods(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
@@ -170,6 +175,7 @@ class Project:
             Список: [{score, name_ru, name_en, context, syntax, description}]
         """
         from .services.search_bm25 import search_auto
+
         index_path = self.paths.fast_search_index
         if not index_path.exists():
             return []

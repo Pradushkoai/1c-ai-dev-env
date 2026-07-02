@@ -2,6 +2,7 @@
 Тесты для сервиса поиска (TF-IDF).
 Проверяем tokenize, build_index, search.
 """
+
 import json
 import sys
 from pathlib import Path
@@ -107,7 +108,14 @@ def test_search_empty_query(tmp_path):
 def test_search_limit(tmp_path):
     """limit ограничивает кол-во результатов."""
     methods = [
-        {"name_ru": f"Метод{i}", "name_en": f"Method{i}", "context": "общий", "syntax": "", "description": "общий метод", "returns": ""}
+        {
+            "name_ru": f"Метод{i}",
+            "name_en": f"Method{i}",
+            "context": "общий",
+            "syntax": "",
+            "description": "общий метод",
+            "returns": "",
+        }
         for i in range(20)
     ]
     methods_json = tmp_path / "methods.json"

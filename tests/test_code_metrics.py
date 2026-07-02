@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Тесты для code_metrics.py."""
+
 import os
 import sys
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 from code_metrics import CodeMetrics, CodeMetricsAnalyzer, MethodMetrics
 
@@ -19,6 +20,7 @@ def analyzer():
 # ============================================================================
 # LOC
 # ============================================================================
+
 
 class TestLOC:
     def test_total_lines(self, analyzer):
@@ -38,20 +40,21 @@ class TestLOC:
 # МЕТОДЫ
 # ============================================================================
 
+
 class TestMethods:
     def test_procedure_found(self, analyzer):
         code = "Процедура МояПроцедура()\n\tА = 1;\nКонецПроцедуры\n"
         m = analyzer.analyze_code(code)
         assert len(m.methods) == 1
-        assert m.methods[0].name == 'МояПроцедура'
-        assert m.methods[0].method_type == 'Процедура'
+        assert m.methods[0].name == "МояПроцедура"
+        assert m.methods[0].method_type == "Процедура"
         assert m.procedures_count == 1
 
     def test_function_found(self, analyzer):
         code = "Функция МояФункция()\n\tВозврат 1;\nКонецФункции\n"
         m = analyzer.analyze_code(code)
         assert len(m.methods) == 1
-        assert m.methods[0].name == 'МояФункция'
+        assert m.methods[0].name == "МояФункция"
         assert m.functions_count == 1
 
     def test_export_detected(self, analyzer):
@@ -79,6 +82,7 @@ class TestMethods:
 # ============================================================================
 # СЛОЖНОСТЬ
 # ============================================================================
+
 
 class TestComplexity:
     def test_simple_code_complexity(self, analyzer):
@@ -116,6 +120,7 @@ class TestComplexity:
 # ПРОБЛЕМЫ
 # ============================================================================
 
+
 class TestIssues:
     def test_long_method_detected(self, analyzer):
         code = "Процедура Длинная()\n" + "\tА = 1;\n" * 60 + "КонецПроцедуры\n"
@@ -147,6 +152,7 @@ class TestIssues:
 # ДУБЛИРОВАНИЕ
 # ============================================================================
 
+
 class TestDuplicates:
     def test_duplicate_blocks_found(self, analyzer):
         block = "\tА = 1;\n\tБ = 2;\n\tВ = 3;\n\tГ = 4;\n\tД = 5;\n\tЕ = 6;\n"
@@ -163,6 +169,7 @@ class TestDuplicates:
 # ============================================================================
 # HEALTH SCORE
 # ============================================================================
+
 
 class TestHealthScore:
     def test_clean_code_high_score(self, analyzer):
@@ -185,6 +192,7 @@ class TestHealthScore:
 # ТЕХДОЛГ
 # ============================================================================
 
+
 class TestTechnicalDebt:
     def test_clean_code_zero_debt(self, analyzer):
         code = "Процедура Короткая()\n\tА = 1;\nКонецПроцедуры\n"
@@ -206,30 +214,32 @@ class TestTechnicalDebt:
 # SUMMARY
 # ============================================================================
 
+
 class TestSummary:
     def test_summary_calculated(self, analyzer):
         code1 = "Процедура А()\nКонецПроцедуры\n"
         code2 = "Функция Б()\n\tВозврат 1;\nКонецФункции\n"
-        m1 = analyzer.analyze_code(code1, 'file1.bsl')
-        m2 = analyzer.analyze_code(code2, 'file2.bsl')
+        m1 = analyzer.analyze_code(code1, "file1.bsl")
+        m2 = analyzer.analyze_code(code2, "file2.bsl")
         summary = analyzer.get_summary([m1, m2])
-        assert summary['total_files'] == 2
-        assert summary['total_methods'] == 2
-        assert summary['god_objects'] == 0
+        assert summary["total_files"] == 2
+        assert summary["total_methods"] == 2
+        assert summary["god_objects"] == 0
 
 
 # ============================================================================
 # ИНТЕГРАЦИОННЫЙ ТЕСТ
 # ============================================================================
 
-class TestIntegrationRealData:
-    UT11_DIR = Path('/home/z/my-project/repo_work/data/configs/ut11')
 
-    @pytest.mark.skipif(not UT11_DIR.exists(), reason='UT11 data not available')
+class TestIntegrationRealData:
+    UT11_DIR = Path("/home/z/my-project/repo_work/data/configs/ut11")
+
+    @pytest.mark.skipif(not UT11_DIR.exists(), reason="UT11 data not available")
     def test_analyze_ut11_common_modules(self, analyzer):
-        cm_dir = self.UT11_DIR / 'CommonModules'
+        cm_dir = self.UT11_DIR / "CommonModules"
         if not cm_dir.exists():
-            pytest.skip('CommonModules not found')
+            pytest.skip("CommonModules not found")
 
         results = analyzer.analyze_path(cm_dir)
         summary = analyzer.get_summary(results)

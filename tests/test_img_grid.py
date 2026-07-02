@@ -1,6 +1,7 @@
 """
 Тесты для img_grid утилиты — наложение сетки на изображение.
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,6 +27,7 @@ def test_image(tmp_path):
 
 
 # ─────────────────────────────────────────────
+
 
 def test_overlay_grid_creates_output(test_image, tmp_path):
     """overlay_grid создаёт файл с сеткой."""

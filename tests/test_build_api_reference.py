@@ -3,6 +3,7 @@
 Тестируем парсинг .bsl файлов (Процедура/Функция Экспорт) и комментарии.
 Импорт через importlib с подменой sys.argv, т.к. скрипт использует argparse при импорте.
 """
+
 import importlib.util
 import sys
 from pathlib import Path
@@ -18,11 +19,16 @@ def _load_module():
     old_argv = sys.argv
     sys.argv = [
         "build_api_reference.py",
-        "--config", "test",
-        "--config-dir", "/tmp/test",
-        "--output-md", "/tmp/test.md",
-        "--output-json", "/tmp/test.json",
-        "--title", "Test",
+        "--config",
+        "test",
+        "--config-dir",
+        "/tmp/test",
+        "--output-md",
+        "/tmp/test.md",
+        "--output-json",
+        "/tmp/test.json",
+        "--title",
+        "Test",
     ]
     try:
         spec = importlib.util.spec_from_file_location("build_api_reference", script)

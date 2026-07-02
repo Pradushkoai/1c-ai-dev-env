@@ -17,6 +17,7 @@ check(file_path, level) → CheckResult:
 
 Это единая бизнес-логика, которую используют И CLI И MCP-сервер.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -100,19 +101,25 @@ class TaskProcessor:
         try:
             results = search_auto(index_path, query, limit=limit)
             for r in results:
-                ctx.platform_methods.append(PlatformMethodHit(
-                    name_ru=r.get("name_ru", ""),
-                    name_en=r.get("name_en", ""),
-                    score=float(r.get("score", 0.0)),
-                    syntax=r.get("syntax", ""),
-                    description=r.get("description", ""),
-                    context=r.get("context", ""),
-                ))
+                ctx.platform_methods.append(
+                    PlatformMethodHit(
+                        name_ru=r.get("name_ru", ""),
+                        name_en=r.get("name_en", ""),
+                        score=float(r.get("score", 0.0)),
+                        syntax=r.get("syntax", ""),
+                        description=r.get("description", ""),
+                        context=r.get("context", ""),
+                    )
+                )
         except Exception as e:
             ctx.warnings.append(f"platform_methods search failed: {e}")
 
     def _search_api_reference(
-        self, ctx: TaskContext, config_name: str, query_words: list[str], limit: int,
+        self,
+        ctx: TaskContext,
+        config_name: str,
+        query_words: list[str],
+        limit: int,
     ) -> None:
         """Поиск модулей и методов в api-reference.json."""
         api_json = self._paths.config_api_reference_json(config_name)
@@ -127,29 +134,27 @@ class TaskProcessor:
             ctx.warnings.append(f"api_reference load failed: {e}")
             return
 
-        relevant = [
-            m for m in modules
-            if any(w in m.get("name", "").lower() for w in query_words)
-        ]
+        relevant = [m for m in modules if any(w in m.get("name", "").lower() for w in query_words)]
         for m in relevant[:limit]:
-            ctx.api_modules.append(ModuleApiHit(
-                name=m.get("name", ""),
-                methods_count=m.get("methods_count", 0),
-                methods=m.get("methods", [])[:3],
-            ))
+            ctx.api_modules.append(
+                ModuleApiHit(
+                    name=m.get("name", ""),
+                    methods_count=m.get("methods_count", 0),
+                    methods=m.get("methods", [])[:3],
+                )
+            )
 
     def _search_metadata(
-        self, ctx: TaskContext, config_name: str, query_words: list[str], limit: int,
+        self,
+        ctx: TaskContext,
+        config_name: str,
+        query_words: list[str],
+        limit: int,
     ) -> None:
         """Поиск объектов / подсистем / подписок / регламентных в unified-metadata-index."""
-        unified_path = (
-            self._paths.root / "derived" / "configs" / config_name
-            / "unified-metadata-index.json"
-        )
+        unified_path = self._paths.root / "derived" / "configs" / config_name / "unified-metadata-index.json"
         if not unified_path.exists():
-            ctx.missing_sources.append(
-                f"metadata (no unified-metadata-index.json for {config_name})"
-            )
+            ctx.missing_sources.append(f"metadata (no unified-metadata-index.json for {config_name})")
             return
 
         try:
@@ -165,14 +170,16 @@ class TaskProcessor:
                 obj_name = obj.get("name", "").lower()
                 if any(w in obj_name for w in query_words):
                     children = obj.get("child_objects", {})
-                    ctx.metadata_objects.append(MetadataObjectHit(
-                        type=obj.get("type", type_name),
-                        name=obj.get("name", ""),
-                        synonym=obj.get("synonym", ""),
-                        attributes_count=len(children.get("attributes", [])),
-                        tabular_sections_count=len(children.get("tabular_sections", [])),
-                        forms_count=len(children.get("forms", [])),
-                    ))
+                    ctx.metadata_objects.append(
+                        MetadataObjectHit(
+                            type=obj.get("type", type_name),
+                            name=obj.get("name", ""),
+                            synonym=obj.get("synonym", ""),
+                            attributes_count=len(children.get("attributes", [])),
+                            tabular_sections_count=len(children.get("tabular_sections", [])),
+                            forms_count=len(children.get("forms", [])),
+                        )
+                    )
 
         # Подсистемы
         for s in meta.get("subsystems", []):
@@ -181,27 +188,23 @@ class TaskProcessor:
 
         # Подписки на события
         for e in meta.get("event_subscriptions", []):
-            if any(
-                w in e.get("name", "").lower() or w in e.get("handler", "").lower()
-                for w in query_words
-            ):
+            if any(w in e.get("name", "").lower() or w in e.get("handler", "").lower() for w in query_words):
                 ctx.event_subscriptions.append(e)
 
         # Регламентные задания
         for s in meta.get("scheduled_jobs", []):
-            if any(
-                w in s.get("name", "").lower() or w in s.get("method_name", "").lower()
-                for w in query_words
-            ):
+            if any(w in s.get("name", "").lower() or w in s.get("method_name", "").lower() for w in query_words):
                 ctx.scheduled_jobs.append(s)
 
     def _search_skd(
-        self, ctx: TaskContext, config_name: str, query_words: list[str], limit: int,
+        self,
+        ctx: TaskContext,
+        config_name: str,
+        query_words: list[str],
+        limit: int,
     ) -> None:
         """Поиск СКД-схем."""
-        skd_path = (
-            self._paths.root / "derived" / "configs" / config_name / "skd-index.json"
-        )
+        skd_path = self._paths.root / "derived" / "configs" / config_name / "skd-index.json"
         if not skd_path.exists():
             ctx.missing_sources.append(f"skd (no skd-index.json for {config_name})")
             return
@@ -214,26 +217,28 @@ class TaskProcessor:
             return
 
         for s in skd.get("schemas", []):
-            haystack = (
-                s.get("parent_name", "") + " " + s.get("name", "")
-            ).lower()
+            haystack = (s.get("parent_name", "") + " " + s.get("name", "")).lower()
             if any(w in haystack for w in query_words):
                 schema = s.get("schema", {})
-                ctx.skd_schemas.append(SkdSchemaHit(
-                    parent_type=s.get("parent_type", ""),
-                    parent_name=s.get("parent_name", ""),
-                    name=s.get("name", ""),
-                    data_sets_count=len(schema.get("data_sets", [])),
-                    parameters_count=len(schema.get("parameters", [])),
-                ))
+                ctx.skd_schemas.append(
+                    SkdSchemaHit(
+                        parent_type=s.get("parent_type", ""),
+                        parent_name=s.get("parent_name", ""),
+                        name=s.get("name", ""),
+                        data_sets_count=len(schema.get("data_sets", [])),
+                        parameters_count=len(schema.get("parameters", [])),
+                    )
+                )
 
     def _search_forms(
-        self, ctx: TaskContext, config_name: str, query_words: list[str], limit: int,
+        self,
+        ctx: TaskContext,
+        config_name: str,
+        query_words: list[str],
+        limit: int,
     ) -> None:
         """Поиск форм."""
-        form_path = (
-            self._paths.root / "derived" / "configs" / config_name / "form-index.json"
-        )
+        form_path = self._paths.root / "derived" / "configs" / config_name / "form-index.json"
         if not form_path.exists():
             ctx.missing_sources.append(f"forms (no form-index.json for {config_name})")
             return
@@ -248,12 +253,14 @@ class TaskProcessor:
         for f in form_data.get("forms", []):
             haystack = (f.get("name", "") + " " + f.get("parent_name", "")).lower()
             if any(w in haystack for w in query_words):
-                ctx.forms.append(FormHit(
-                    parent_type=f.get("parent_type", ""),
-                    parent_name=f.get("parent_name", ""),
-                    name=f.get("name", ""),
-                    element_count=f.get("form", {}).get("element_count", 0),
-                ))
+                ctx.forms.append(
+                    FormHit(
+                        parent_type=f.get("parent_type", ""),
+                        parent_name=f.get("parent_name", ""),
+                        name=f.get("name", ""),
+                        element_count=f.get("form", {}).get("element_count", 0),
+                    )
+                )
 
     def _search_knowledge_base(self, ctx: TaskContext, query: str, limit: int) -> None:
         """Поиск по базе знаний (паттерны, антипаттерны, best practices)."""
@@ -267,12 +274,14 @@ class TaskProcessor:
             kb = KnowledgeBase()
             results = kb.search(query, limit=limit)
             for r in results:
-                ctx.knowledge_articles.append(KnowledgeArticleHit(
-                    category=r.get("category", ""),
-                    title=r.get("title", ""),
-                    score=float(r.get("score", 0.0)),
-                    path=r.get("path", r.get("file", "")),
-                ))
+                ctx.knowledge_articles.append(
+                    KnowledgeArticleHit(
+                        category=r.get("category", ""),
+                        title=r.get("title", ""),
+                        score=float(r.get("score", 0.0)),
+                        path=r.get("path", r.get("file", "")),
+                    )
+                )
         except Exception as e:
             ctx.warnings.append(f"knowledge_base search failed: {e}")
 
@@ -338,14 +347,16 @@ class TaskProcessor:
                 checker = std_mod.StandardsChecker()
                 violations = checker.check_file(file_path)
                 for v in violations:
-                    result.violations.append(Violation(
-                        source="check_1c_standards",
-                        rule_id=v.rule_id,
-                        severity=v.severity,
-                        line=v.line,
-                        message=v.message,
-                        file=v.file,
-                    ))
+                    result.violations.append(
+                        Violation(
+                            source="check_1c_standards",
+                            rule_id=v.rule_id,
+                            severity=v.severity,
+                            line=v.line,
+                            message=v.message,
+                            file=v.file,
+                        )
+                    )
                 result.analyzers_run.append("check_1c_standards")
             except Exception as e:
                 logger.warning("check_1c_standards failed: %s", e)
@@ -357,14 +368,16 @@ class TaskProcessor:
                 auditor = sec_mod.SecurityAuditor()
                 sec_violations = auditor.audit_file(file_path)
                 for v in sec_violations:
-                    result.violations.append(Violation(
-                        source="security_auditor",
-                        rule_id=v.rule_id,
-                        severity=v.severity,
-                        line=v.line,
-                        message=v.message,
-                        file=str(file_path),
-                    ))
+                    result.violations.append(
+                        Violation(
+                            source="security_auditor",
+                            rule_id=v.rule_id,
+                            severity=v.severity,
+                            line=v.line,
+                            message=v.message,
+                            file=str(file_path),
+                        )
+                    )
                 result.analyzers_run.append("security_auditor")
             except Exception as e:
                 logger.warning("security_auditor failed: %s", e)
@@ -376,14 +389,16 @@ class TaskProcessor:
                 tx_checker = tx_mod.TransactionChecker()
                 tx_violations = tx_checker.check_file(file_path)
                 for v in tx_violations:
-                    result.violations.append(Violation(
-                        source="transaction_checker",
-                        rule_id=v.rule_id,
-                        severity=v.severity,
-                        line=v.line,
-                        message=v.message,
-                        file=str(file_path),
-                    ))
+                    result.violations.append(
+                        Violation(
+                            source="transaction_checker",
+                            rule_id=v.rule_id,
+                            severity=v.severity,
+                            line=v.line,
+                            message=v.message,
+                            file=str(file_path),
+                        )
+                    )
                 result.analyzers_run.append("transaction_checker")
             except Exception as e:
                 logger.warning("transaction_checker failed: %s", e)
@@ -395,14 +410,16 @@ class TaskProcessor:
                 qa_analyzer = qa_mod.QueryAnalyzer()
                 qa_issues = qa_analyzer.analyze_file(file_path)
                 for i in qa_issues:
-                    result.violations.append(Violation(
-                        source="query_analyzer",
-                        rule_id=i.rule_id,
-                        severity=i.severity,
-                        line=i.line,
-                        message=i.message,
-                        file=str(file_path),
-                    ))
+                    result.violations.append(
+                        Violation(
+                            source="query_analyzer",
+                            rule_id=i.rule_id,
+                            severity=i.severity,
+                            line=i.line,
+                            message=i.message,
+                            file=str(file_path),
+                        )
+                    )
                 result.analyzers_run.append("query_analyzer")
             except Exception as e:
                 logger.warning("query_analyzer failed: %s", e)
@@ -414,17 +431,20 @@ class TaskProcessor:
                 try:
                     # Импортируем bsl_analyzer лениво — он требует Java
                     from .bsl_analyzer import BslAnalyzer
+
                     analyzer = BslAnalyzer(self._paths)
                     bsl_result = analyzer.analyze(file_path)
                     for d in bsl_result.diagnostics:
-                        result.violations.append(Violation(
-                            source="bsl_ls",
-                            rule_id=d.get("code", ""),
-                            severity=d.get("severity", "warning"),
-                            line=d.get("line", 0),
-                            message=d.get("message", ""),
-                            file=str(file_path),
-                        ))
+                        result.violations.append(
+                            Violation(
+                                source="bsl_ls",
+                                rule_id=d.get("code", ""),
+                                severity=d.get("severity", "warning"),
+                                line=d.get("line", 0),
+                                message=d.get("message", ""),
+                                file=str(file_path),
+                            )
+                        )
                     result.analyzers_run.append("bsl_ls")
                 except Exception as e:
                     logger.warning("bsl_ls failed: %s", e)
@@ -458,23 +478,27 @@ class TaskProcessor:
 
                     # God Object как violation
                     if cm.is_god_object:
-                        result.violations.append(Violation(
-                            source="code_metrics",
-                            rule_id="GOD_OBJECT",
-                            severity="error",
-                            line=0,
-                            message=f"God Object: {cm.loc} строк, {cm.methods_count} методов",
-                            file=str(file_path),
-                        ))
+                        result.violations.append(
+                            Violation(
+                                source="code_metrics",
+                                rule_id="GOD_OBJECT",
+                                severity="error",
+                                line=0,
+                                message=f"God Object: {cm.loc} строк, {cm.methods_count} методов",
+                                file=str(file_path),
+                            )
+                        )
                     for m in cm.long_methods:
-                        result.violations.append(Violation(
-                            source="code_metrics",
-                            rule_id="LONG_METHOD",
-                            severity="warning",
-                            line=m["line_start"],
-                            message=f"Длинный метод {m['name']}: {m['lloc']} строк",
-                            file=str(file_path),
-                        ))
+                        result.violations.append(
+                            Violation(
+                                source="code_metrics",
+                                rule_id="LONG_METHOD",
+                                severity="warning",
+                                line=m["line_start"],
+                                message=f"Длинный метод {m['name']}: {m['lloc']} строк",
+                                file=str(file_path),
+                            )
+                        )
                 except Exception as e:
                     logger.warning("code_metrics failed: %s", e)
 
@@ -484,18 +508,18 @@ class TaskProcessor:
             if meta_mod:
                 try:
                     checker2 = meta_mod.MetadataStandardsChecker()
-                    meta_violations = checker2.check_path(
-                        file_path.parent if file_path.is_file() else file_path
-                    )
+                    meta_violations = checker2.check_path(file_path.parent if file_path.is_file() else file_path)
                     for v in meta_violations:
-                        result.violations.append(Violation(
-                            source="check_metadata_standards",
-                            rule_id=v.rule_id,
-                            severity=v.severity,
-                            line=v.line,
-                            message=v.message,
-                            file=v.file,
-                        ))
+                        result.violations.append(
+                            Violation(
+                                source="check_metadata_standards",
+                                rule_id=v.rule_id,
+                                severity=v.severity,
+                                line=v.line,
+                                message=v.message,
+                                file=v.file,
+                            )
+                        )
                     result.analyzers_run.append("check_metadata_standards")
                 except Exception as e:
                     logger.warning("check_metadata_standards failed: %s", e)

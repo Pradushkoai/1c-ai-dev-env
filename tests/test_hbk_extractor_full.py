@@ -2,6 +2,7 @@
 Тесты для hbk_extractor.
 Проверяем parse_hbk_file и extract_file_data на синтетическом .hbk.
 """
+
 import struct
 import sys
 import zlib
@@ -22,8 +23,8 @@ def _make_local_file_header(name: bytes, compressed_data: bytes, uncompressed_da
     crc = zlib.crc32(uncompressed_data) & 0xFFFFFFFF
 
     header = struct.pack(
-        '<IHHHHHIIIHH',
-        0x04034b50,  # PK\x03\x04
+        "<IHHHHHIIIHH",
+        0x04034B50,  # PK\x03\x04
         20,  # version
         0,  # flags
         method,  # compression method (8=deflate, 0=store)

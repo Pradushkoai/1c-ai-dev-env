@@ -31,6 +31,7 @@ Graph MCP через Neo4j) — но реализовано на networkx вме
     dependents = dg.what_depends_on("Catalog.Контрагенты")
     # → ["Document.ЗаказКлиента", "Document.РеализацияТоваров", ...]
 """
+
 from __future__ import annotations
 
 import json
@@ -39,6 +40,7 @@ from dataclasses import dataclass, field
 
 try:
     import networkx as nx
+
     HAS_NETWORKX = True
 except ImportError:
     HAS_NETWORKX = False
@@ -59,16 +61,18 @@ RELATION_TYPES = {
 @dataclass
 class DependencyEdge:
     """Ребро графа зависимостей: кто → кого → почему."""
-    source: str          # "Document.ЗаказКлиента" (кто зависит)
-    target: str          # "Catalog.Контрагенты" (от кого зависит)
-    relation: str        # uses_attribute | registered_by | in_subsystem | ...
-    detail: str = ""     # "реквизит Контрагент" | "ТЧ Товары.Номенклатура"
-    line: int = 0        # номер строки (для calls_method)
+
+    source: str  # "Document.ЗаказКлиента" (кто зависит)
+    target: str  # "Catalog.Контрагенты" (от кого зависит)
+    relation: str  # uses_attribute | registered_by | in_subsystem | ...
+    detail: str = ""  # "реквизит Контрагент" | "ТЧ Товары.Номенклатура"
+    line: int = 0  # номер строки (для calls_method)
 
 
 @dataclass
 class DependencyGraphResult:
     """Результат построения графа зависимостей."""
+
     config_name: str
     nodes: list[str] = field(default_factory=list)
     edges: list[DependencyEdge] = field(default_factory=list)
@@ -130,9 +134,7 @@ class DependencyGraph:
 
     def __init__(self):
         if not HAS_NETWORKX:
-            raise ImportError(
-                "networkx не установлен. Установите: pip install networkx"
-            )
+            raise ImportError("networkx не установлен. Установите: pip install networkx")
         self._graph: nx.DiGraph = nx.DiGraph()
         self._edges: list[DependencyEdge] = []
         self._config_name: str = ""
@@ -158,14 +160,9 @@ class DependencyGraph:
 
         result = DependencyGraphResult(config_name=config_name)
 
-        index_path = (
-            paths.root / "derived" / "configs" / config_name
-            / "unified-metadata-index.json"
-        )
+        index_path = paths.root / "derived" / "configs" / config_name / "unified-metadata-index.json"
         if not index_path.exists():
-            result.warnings.append(
-                f"unified-metadata-index.json не найден для '{config_name}'"
-            )
+            result.warnings.append(f"unified-metadata-index.json не найден для '{config_name}'")
             return result
 
         try:
@@ -212,13 +209,9 @@ class DependencyGraph:
                 for ts in children.get("tabular_sections", []):
                     ts_name = ts.get("name", "")
                     for ts_attr in ts.get("attributes", []):
-                        self._check_attribute_type(
-                            obj_full, ts_attr, f"ТЧ {ts_name}"
-                        )
+                        self._check_attribute_type(obj_full, ts_attr, f"ТЧ {ts_name}")
 
-    def _check_attribute_type(
-        self, source_obj: str, attr: dict, context: str
-    ) -> None:
+    def _check_attribute_type(self, source_obj: str, attr: dict, context: str) -> None:
         """Проверить тип реквизита на ссылочный."""
         attr_name = attr.get("name", "")
         # metadata_extractor хранит типы в 'types' (список), не в 'type' (строка)
@@ -237,8 +230,7 @@ class DependencyGraph:
         for ref_type, ref_name in refs:
             target = f"{ref_type}.{ref_name}"
             if target != source_obj:  # не ссылка на себя
-                self._add_edge(source_obj, target, "uses_attribute",
-                               f"{context} {attr_name}")
+                self._add_edge(source_obj, target, "uses_attribute", f"{context} {attr_name}")
 
     @staticmethod
     def _extract_refs(type_str: str) -> list[tuple[str, str]]:
@@ -270,9 +262,7 @@ class DependencyGraph:
 
         return refs
 
-    def _scan_register_recorders(
-        self, metadata: dict, result: DependencyGraphResult
-    ) -> None:
+    def _scan_register_recorders(self, metadata: dict, result: DependencyGraphResult) -> None:
         """Регистраторы регистров: Document.X → Register.Y.
 
         В 1С XML регистраторы хранятся в <RegisterRecords> внутри Properties документа.
@@ -281,8 +271,12 @@ class DependencyGraph:
         objects_by_type = metadata.get("objects", {})
 
         # Сначала добавляем все регистры как узлы
-        for reg_type_plural in ("InformationRegisters", "AccumulationRegisters",
-                                 "AccountingRegisters", "CalculationRegisters"):
+        for reg_type_plural in (
+            "InformationRegisters",
+            "AccumulationRegisters",
+            "AccountingRegisters",
+            "CalculationRegisters",
+        ):
             reg_type = PLURAL_TO_SINGULAR.get(reg_type_plural, reg_type_plural)
             for reg in objects_by_type.get(reg_type, []) + objects_by_type.get(reg_type_plural, []):
                 reg_full = f"{reg_type}.{reg.get('name', '')}"
@@ -304,15 +298,11 @@ class DependencyGraph:
                 if isinstance(register_records, list):
                     for reg_ref in register_records:
                         if isinstance(reg_ref, str) and reg_ref:
-                            self._add_edge(doc_full, reg_ref, "registered_by",
-                                           "регистратор")
+                            self._add_edge(doc_full, reg_ref, "registered_by", "регистратор")
                 elif isinstance(register_records, str) and register_records:
-                    self._add_edge(doc_full, register_records, "registered_by",
-                                   "регистратор")
+                    self._add_edge(doc_full, register_records, "registered_by", "регистратор")
 
-    def _scan_subsystems(
-        self, metadata: dict, result: DependencyGraphResult
-    ) -> None:
+    def _scan_subsystems(self, metadata: dict, result: DependencyGraphResult) -> None:
         """Подсистемы: объекты входят в подсистемы."""
         for subsystem in metadata.get("subsystems", []):
             ss_name = subsystem.get("name", "")
@@ -324,12 +314,9 @@ class DependencyGraph:
             content = subsystem.get("content", [])
             for item in content:
                 if isinstance(item, str) and "." in item:
-                    self._add_edge(item, ss_full, "in_subsystem",
-                                   "входит в подсистему")
+                    self._add_edge(item, ss_full, "in_subsystem", "входит в подсистему")
 
-    def _scan_event_subscriptions(
-        self, metadata: dict, result: DependencyGraphResult
-    ) -> None:
+    def _scan_event_subscriptions(self, metadata: dict, result: DependencyGraphResult) -> None:
         """Подписки на события: EventSubscription.X → CommonModule.Y.handler."""
         for es in metadata.get("event_subscriptions", []):
             es_name = es.get("name", "")
@@ -346,9 +333,7 @@ class DependencyGraph:
                     target = f"CommonModule.{handler_parts[0]}"
                     self._add_edge(es_full, target, "event_handler", handler)
 
-    def _add_edge(
-        self, source: str, target: str, relation: str, detail: str = ""
-    ) -> None:
+    def _add_edge(self, source: str, target: str, relation: str, detail: str = "") -> None:
         """Добавить ребро в граф."""
         if source not in self._graph:
             self._graph.add_node(source)
@@ -356,9 +341,7 @@ class DependencyGraph:
             self._graph.add_node(target)
 
         self._graph.add_edge(source, target, relation=relation, detail=detail)
-        self._edges.append(DependencyEdge(
-            source=source, target=target, relation=relation, detail=detail
-        ))
+        self._edges.append(DependencyEdge(source=source, target=target, relation=relation, detail=detail))
 
     # ─────────────────────────────────────────────
     # Запросы (аналоги Cypher)
@@ -382,11 +365,13 @@ class DependencyGraph:
         result = []
         for source in self._graph.predecessors(target):
             edge_data = self._graph.get_edge_data(source, target)
-            result.append({
-                "source": source,
-                "relation": edge_data.get("relation", ""),
-                "detail": edge_data.get("detail", ""),
-            })
+            result.append(
+                {
+                    "source": source,
+                    "relation": edge_data.get("relation", ""),
+                    "detail": edge_data.get("detail", ""),
+                }
+            )
         return result
 
     def dependencies_of(self, source: str) -> list[dict]:
@@ -407,11 +392,13 @@ class DependencyGraph:
         result = []
         for target in self._graph.successors(source):
             edge_data = self._graph.get_edge_data(source, target)
-            result.append({
-                "target": target,
-                "relation": edge_data.get("relation", ""),
-                "detail": edge_data.get("detail", ""),
-            })
+            result.append(
+                {
+                    "target": target,
+                    "relation": edge_data.get("relation", ""),
+                    "detail": edge_data.get("detail", ""),
+                }
+            )
         return result
 
     def find_cycles(self, max_cycles: int = 100, timeout_seconds: float = 10.0) -> list[list[str]]:

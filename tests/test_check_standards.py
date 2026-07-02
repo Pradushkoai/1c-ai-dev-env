@@ -2,6 +2,7 @@
 Тесты для check_1c_standards.py.
 Проверяем все 10 правил на синтетических .bsl файлах.
 """
+
 import importlib.util
 import sys
 from pathlib import Path
@@ -35,9 +36,10 @@ def _check_rule(std, rule_fn, bsl_content: str, file_path: Path = None):
 
 # === Тесты правил ===
 
+
 def test_no_non_breaking_spaces(std, tmp_path):
     """Неразрывные пробелы детектируются."""
-    bsl = "Сообщить(\"Привет\u00a0мир\");"  # NBSP
+    bsl = 'Сообщить("Привет\u00a0мир");'  # NBSP
     violations = _check_rule(std, std.rule_no_non_breaking_spaces, bsl)
     assert len(violations) == 1
     assert violations[0].rule_id == "no-non-breaking-space"
@@ -46,7 +48,7 @@ def test_no_non_breaking_spaces(std, tmp_path):
 
 def test_no_wrong_dashes_em_dash(std, tmp_path):
     """EM DASH (—) детектируется."""
-    bsl = "Сообщить(\"Привет—мир\");"
+    bsl = 'Сообщить("Привет—мир");'
     violations = _check_rule(std, std.rule_no_wrong_dashes, bsl)
     assert len(violations) == 1
     assert violations[0].rule_id == "no-wrong-dash"
@@ -54,14 +56,14 @@ def test_no_wrong_dashes_em_dash(std, tmp_path):
 
 def test_no_wrong_dashes_en_dash(std, tmp_path):
     """EN DASH (–) детектируется."""
-    bsl = "Сообщить(\"Привет–мир\");"
+    bsl = 'Сообщить("Привет–мир");'
     violations = _check_rule(std, std.rule_no_wrong_dashes, bsl)
     assert len(violations) == 1
 
 
 def test_no_wrong_dashes_hyphen_ok(std, tmp_path):
     """Обычный дефис НЕ детектируется."""
-    bsl = "Сообщить(\"Привет-мир\");"
+    bsl = 'Сообщить("Привет-мир");'
     violations = _check_rule(std, std.rule_no_wrong_dashes, bsl)
     assert len(violations) == 0
 
@@ -197,7 +199,7 @@ def test_no_underscore_vars_ok(std, tmp_path):
 
 def test_line_too_long(std, tmp_path):
     """Строка > 120 символов детектируется."""
-    bsl = "Сообщить(\"" + "A" * 130 + "\");"  # длинная строка
+    bsl = 'Сообщить("' + "A" * 130 + '");'  # длинная строка
     violations = _check_rule(std, std.rule_line_too_long, bsl)
     assert len(violations) == 1
     assert violations[0].rule_id == "line-too-long"
@@ -205,12 +207,13 @@ def test_line_too_long(std, tmp_path):
 
 def test_line_normal_length_ok(std, tmp_path):
     """Строка <= 120 символов НЕ детектируется."""
-    bsl = "Сообщить(\"" + "A" * 50 + "\");"
+    bsl = 'Сообщить("' + "A" * 50 + '");'
     violations = _check_rule(std, std.rule_line_too_long, bsl)
     assert len(violations) == 0
 
 
 # === Интеграционные тесты ===
+
 
 def test_checker_check_file(std, tmp_path):
     """StandardsChecker.check_file находит все нарушения."""
@@ -305,6 +308,7 @@ def test_format_violations_json(std, tmp_path):
     output = std.format_violations(violations, "json")
 
     import json
+
     data = json.loads(output)
     assert isinstance(data, list)
     assert len(data) >= 1
@@ -334,6 +338,7 @@ def test_cp1251_encoding(std, tmp_path):
 # ТЕСТЫ НОВЫХ ПРАВИЛ v3.0.0
 # ============================================================================
 
+
 def test_no_soobshit(std, tmp_path):
     """Сообщить() запрещено."""
     bsl = 'Сообщить("Привет");'
@@ -360,7 +365,7 @@ def test_no_vypolnit(std, tmp_path):
 
 def test_no_vypolnit_method_ok(std, tmp_path):
     """Запрос.Выполнить() НЕ детектируется (метод объекта)."""
-    bsl = 'Результат = Запрос.Выполнить();'
+    bsl = "Результат = Запрос.Выполнить();"
     v = _check_rule(std, std.rule_no_vypolnit, bsl)
     assert len(v) == 0
 
@@ -384,7 +389,7 @@ def test_no_ternary(std, tmp_path):
 
 def test_no_boolean_compare(std, tmp_path):
     """= Истина запрещено."""
-    bsl = 'Если Активна = Истина Тогда'
+    bsl = "Если Активна = Истина Тогда"
     v = _check_rule(std, std.rule_no_boolean_compare, bsl)
     assert len(v) == 1
     assert v[0].rule_id == "no-boolean-compare"
@@ -392,14 +397,14 @@ def test_no_boolean_compare(std, tmp_path):
 
 def test_no_boolean_compare_lozh(std, tmp_path):
     """= Ложь запрещено."""
-    bsl = 'Если Ошибка = Ложь Тогда'
+    bsl = "Если Ошибка = Ложь Тогда"
     v = _check_rule(std, std.rule_no_boolean_compare, bsl)
     assert len(v) == 1
 
 
 def test_no_boolean_compare_ok(std, tmp_path):
     """Булево выражение напрямую — ок."""
-    bsl = 'Если Активна Тогда'
+    bsl = "Если Активна Тогда"
     v = _check_rule(std, std.rule_no_boolean_compare, bsl)
     assert len(v) == 0
 
@@ -513,7 +518,7 @@ def test_no_commented_code_real_still_detected(std, tmp_path):
 
 def test_no_dot_notation(std, tmp_path):
     """Точечная нотация Товар.Цена."""
-    bsl = 'Цена = Товар.Цена;'
+    bsl = "Цена = Товар.Цена;"
     v = _check_rule(std, std.rule_no_dot_notation, bsl)
     assert len(v) == 1
     assert v[0].rule_id == "no-dot-notation"
@@ -528,7 +533,7 @@ def test_no_dot_notation_method_ok(std, tmp_path):
 
 def test_no_dot_notation_standard_object_ok(std, tmp_path):
     """Доступ к свойствам стандартных объектов — ок."""
-    bsl = 'Текст = Запрос.Текст;'
+    bsl = "Текст = Запрос.Текст;"
     v = _check_rule(std, std.rule_no_dot_notation, bsl)
     assert len(v) == 0
 
@@ -545,7 +550,7 @@ def test_no_hardcoded_credentials(std, tmp_path):
 
 def test_no_magic_numbers(std, tmp_path):
     """Магическое число 365."""
-    bsl = 'Итог = Цена * 365;'
+    bsl = "Итог = Цена * 365;"
     v = _check_rule(std, std.rule_no_magic_numbers, bsl)
     assert len(v) >= 1
     assert v[0].rule_id == "no-magic-numbers"
@@ -553,7 +558,7 @@ def test_no_magic_numbers(std, tmp_path):
 
 def test_no_magic_numbers_small_ok(std, tmp_path):
     """Маленькие числа (0, 1, 10) — ок."""
-    bsl = 'Счётчик = Счётчик + 1;'
+    bsl = "Счётчик = Счётчик + 1;"
     v = _check_rule(std, std.rule_no_magic_numbers, bsl)
     assert len(v) == 0
 
@@ -561,7 +566,7 @@ def test_no_magic_numbers_small_ok(std, tmp_path):
 def test_module_structure_no_regions(std, tmp_path):
     """Модуль > 20 строк без областей."""
     lines = [f"Строка{i} = {i};" for i in range(25)]
-    bsl = '\n'.join(lines)
+    bsl = "\n".join(lines)
     v = _check_rule(std, std.rule_module_structure, bsl)
     assert len(v) >= 1
     assert v[0].rule_id == "module-structure"
@@ -569,7 +574,7 @@ def test_module_structure_no_regions(std, tmp_path):
 
 def test_module_structure_small_ok(std, tmp_path):
     """Маленький модуль без областей — ок."""
-    bsl = 'Функция Тест()\n    Возврат 1;\nКонецФункции'
+    bsl = "Функция Тест()\n    Возврат 1;\nКонецФункции"
     v = _check_rule(std, std.rule_module_structure, bsl)
     assert len(v) == 0
 

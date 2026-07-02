@@ -16,6 +16,7 @@ GitHub Code Scanning. При загрузке SARIF в GitHub Actions в PR по
     sarif = SarifReporter().convert(result)
     SarifReporter().write(result, Path('results.sarif'))
 """
+
 from __future__ import annotations
 
 import json
@@ -84,10 +85,7 @@ class SarifReporter:
     """Конвертер CheckResult → SARIF 2.1.0."""
 
     SARIF_VERSION = "2.1.0"
-    SARIF_SCHEMA = (
-        "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/"
-        "main/Schemata/sarif-schema-2.1.0.json"
-    )
+    SARIF_SCHEMA = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/Schemata/sarif-schema-2.1.0.json"
 
     def convert(self, result: CheckResult) -> dict[str, Any]:
         """Конвертировать CheckResult в SARIF dict."""
@@ -101,11 +99,14 @@ class SarifReporter:
         results: list[dict[str, Any]] = []
 
         for source, violations in by_tool.items():
-            tool_info = TOOL_INFO.get(source, {
-                "name": source,
-                "version": "unknown",
-                "information_uri": "",
-            })
+            tool_info = TOOL_INFO.get(
+                source,
+                {
+                    "name": source,
+                    "version": "unknown",
+                    "information_uri": "",
+                },
+            )
 
             # Уникальные правила
             rules: list[dict[str, Any]] = []
@@ -136,14 +137,16 @@ class SarifReporter:
             results.extend(metric_results)
             # Если метрики добавлены — добавляем tool "code_metrics" если ещё нет
             if "code_metrics" not in by_tool:
-                tools.append({
-                    "driver": {
-                        "name": TOOL_INFO["code_metrics"]["name"],
-                        "version": TOOL_INFO["code_metrics"]["version"],
-                        "informationUri": TOOL_INFO["code_metrics"]["information_uri"],
-                        "rules": [],
+                tools.append(
+                    {
+                        "driver": {
+                            "name": TOOL_INFO["code_metrics"]["name"],
+                            "version": TOOL_INFO["code_metrics"]["version"],
+                            "informationUri": TOOL_INFO["code_metrics"]["information_uri"],
+                            "rules": [],
+                        }
                     }
-                })
+                )
 
         # SARIF 2.1.0: runs[].tool.driver — единый driver с объединёнными rules
         # Если несколько tools — объединяем rules в один driver
@@ -301,26 +304,25 @@ class SarifReporter:
         out: list[Violation] = []
         # God Object уже добавлен как violation в TaskProcessor
         # Добавляем общий note с метриками
-        out.append(Violation(
-            source="code_metrics",
-            rule_id="METRICS_SUMMARY",
-            severity="info",
-            line=1,
-            message=(
-                f"LOC={m.loc}, LLOC={m.lloc}, "
-                f"CC={m.cyclomatic_complexity:.1f}, "
-                f"CogC={m.cognitive_complexity:.1f}, "
-                f"Nesting={m.max_nesting}, "
-                f"Methods={m.methods_count}, "
-                f"Health={m.health_score:.1f}/100"
-            ),
-            file=result.file,
-        ))
+        out.append(
+            Violation(
+                source="code_metrics",
+                rule_id="METRICS_SUMMARY",
+                severity="info",
+                line=1,
+                message=(
+                    f"LOC={m.loc}, LLOC={m.lloc}, "
+                    f"CC={m.cyclomatic_complexity:.1f}, "
+                    f"CogC={m.cognitive_complexity:.1f}, "
+                    f"Nesting={m.max_nesting}, "
+                    f"Methods={m.methods_count}, "
+                    f"Health={m.health_score:.1f}/100"
+                ),
+                file=result.file,
+            )
+        )
         return out
 
     def _metrics_to_results(self, result: CheckResult) -> list[dict[str, Any]]:
         """Сконвертировать метрики в SARIF results (note level)."""
-        return [
-            self._make_result(v, "code_metrics")
-            for v in self._metrics_to_violations(result)
-        ]
+        return [self._make_result(v, "code_metrics") for v in self._metrics_to_violations(result)]

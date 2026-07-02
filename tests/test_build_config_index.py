@@ -2,6 +2,7 @@
 Тесты для build_config_index_generic.py.
 Проверяем парсинг Configuration.xml, ConfigDumpInfo.xml, генерацию индекса.
 """
+
 import importlib.util
 import sys
 from pathlib import Path
@@ -26,6 +27,7 @@ def idx():
 
 # === Хелперы ===
 
+
 def test_strip_ns(idx):
     """strip_ns убирает namespace из тега."""
     assert idx.strip_ns("{http://namespace}Tag") == "Tag"
@@ -35,6 +37,7 @@ def test_strip_ns(idx):
 def test_get_child_and_text(idx):
     """get_child и get_text находят дочерние элементы."""
     import xml.etree.ElementTree as ET
+
     root = ET.fromstring("<Root><Name>Тест</Name><Other>Значение</Other></Root>")
     child = idx.get_child(root, "Name")
     assert child is not None
@@ -46,6 +49,7 @@ def test_get_child_and_text(idx):
 def test_get_synonym_text(idx):
     """get_synonym_text извлекает синоним из <item><content>."""
     import xml.etree.ElementTree as ET
+
     root = ET.fromstring("""
     <Root>
         <Synonym>
@@ -59,6 +63,7 @@ def test_get_synonym_text(idx):
 
 
 # === parse_configuration_xml ===
+
 
 def test_parse_configuration_xml_valid(idx, tmp_path):
     """parse_configuration_xml извлекает свойства и подсистемы."""
@@ -112,6 +117,7 @@ def test_parse_configuration_xml_no_configuration_element(idx, tmp_path):
 
 
 # === parse_dumpinfo ===
+
 
 def _write_dumpinfo(tmp_path: Path, objects_xml: str) -> Path:
     """Создать ConfigDumpInfo.xml с указанными Metadata элементами."""
@@ -221,10 +227,12 @@ def test_parse_dumpinfo_unknown_type_skipped(idx, tmp_path):
 
 # === build_index ===
 
+
 def test_build_index_generates_markdown(idx, tmp_path):
     """build_index создаёт Markdown файл с метаданными."""
     # Минимальная конфигурация
-    (tmp_path / "Configuration.xml").write_text("""<?xml version="1.0"?>
+    (tmp_path / "Configuration.xml").write_text(
+        """<?xml version="1.0"?>
 <ConfigDumpInfo>
   <Configuration>
     <Properties>
@@ -234,14 +242,19 @@ def test_build_index_generates_markdown(idx, tmp_path):
     </Properties>
   </Configuration>
 </ConfigDumpInfo>
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
 
-    (tmp_path / "ConfigDumpInfo.xml").write_text("""<?xml version="1.0"?>
+    (tmp_path / "ConfigDumpInfo.xml").write_text(
+        """<?xml version="1.0"?>
 <ConfigDumpInfo>
   <Metadata name="Catalog.Товары" id="c-1"/>
   <Metadata name="Document.Заказ" id="d-1"/>
 </ConfigDumpInfo>
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
 
     output = tmp_path / "index.md"
     idx.build_index(str(tmp_path), str(output), "Тестовая конфигурация")

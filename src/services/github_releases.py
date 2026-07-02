@@ -22,6 +22,7 @@ Workflow:
     - GITHUB_TOKEN в окружении (или ~/.netrc)
     - Репозиторий на GitHub (private рекомендуется — данные User Content)
 """
+
 from __future__ import annotations
 
 import json
@@ -41,6 +42,7 @@ DEFAULT_ASSET_NAME = "1c-ai-data-package.zip"
 @dataclass
 class ReleaseInfo:
     """Информация о релизе."""
+
     tag: str
     name: str
     url: str
@@ -78,7 +80,9 @@ class GitHubReleases:
             result = subprocess.run(
                 ["git", "remote", "get-url", "origin"],
                 cwd=self._paths.root,
-                capture_output=True, text=True, timeout=5,
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
                 url = result.stdout.strip()
@@ -96,20 +100,28 @@ class GitHubReleases:
             pass
         return ""
 
-    def _api_call(self, method: str, endpoint: str, data: dict | None = None,
-                  accept: str = "application/vnd.github+json") -> tuple[int, dict | str]:
+    def _api_call(
+        self, method: str, endpoint: str, data: dict | None = None, accept: str = "application/vnd.github+json"
+    ) -> tuple[int, dict | str]:
         """Вызвать GitHub API через curl. Возвращает (status_code, response)."""
         url = endpoint if endpoint.startswith("http") else f"{GITHUB_API}{endpoint}"
         cmd = [
-            "curl", "-s", "-X", method, url,
-            "-H", f"Authorization: Bearer {self._token}",
-            "-H", f"Accept: {accept}",
-            "-H", "X-GitHub-Api-Version: 2022-11-28",
-            "-w", "\\n%{http_code}",  # статус в конце
+            "curl",
+            "-s",
+            "-X",
+            method,
+            url,
+            "-H",
+            f"Authorization: Bearer {self._token}",
+            "-H",
+            f"Accept: {accept}",
+            "-H",
+            "X-GitHub-Api-Version: 2022-11-28",
+            "-w",
+            "\\n%{http_code}",  # статус в конце
         ]
         if data is not None:
-            cmd.extend(["-H", "Content-Type: application/json",
-                        "-d", json.dumps(data)])
+            cmd.extend(["-H", "Content-Type: application/json", "-d", json.dumps(data)])
 
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         output = result.stdout.strip()
@@ -133,13 +145,23 @@ class GitHubReleases:
         """Загрузить файл как asset релиза (multipart/form-data через curl)."""
         url = f"{upload_url}?name={asset_name}"
         cmd = [
-            "curl", "-s", "-X", "POST", url,
-            "-H", f"Authorization: Bearer {self._token}",
-            "-H", "Accept: application/vnd.github+json",
-            "-H", "X-GitHub-Api-Version: 2022-11-28",
-            "-H", "Content-Type: application/zip",
-            "--data-binary", f"@{file_path}",
-            "-w", "\\n%{http_code}",
+            "curl",
+            "-s",
+            "-X",
+            "POST",
+            url,
+            "-H",
+            f"Authorization: Bearer {self._token}",
+            "-H",
+            "Accept: application/vnd.github+json",
+            "-H",
+            "X-GitHub-Api-Version: 2022-11-28",
+            "-H",
+            "Content-Type: application/zip",
+            "--data-binary",
+            f"@{file_path}",
+            "-w",
+            "\\n%{http_code}",
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
         output = result.stdout.strip()
@@ -162,10 +184,17 @@ class GitHubReleases:
         """Скачать asset по URL."""
         output_path.parent.mkdir(parents=True, exist_ok=True)
         cmd = [
-            "curl", "-sL", "-X", "GET", asset_url,
-            "-H", f"Authorization: Bearer {self._token}",
-            "-H", "Accept: application/octet-stream",
-            "-o", str(output_path),
+            "curl",
+            "-sL",
+            "-X",
+            "GET",
+            asset_url,
+            "-H",
+            f"Authorization: Bearer {self._token}",
+            "-H",
+            "Accept: application/octet-stream",
+            "-o",
+            str(output_path),
         ]
         result = subprocess.run(cmd, capture_output=True, timeout=600)
         return result.returncode == 0 and output_path.exists()
@@ -194,11 +223,14 @@ class GitHubReleases:
             return [ReleaseInfo.from_api(r) for r in data]
         return []
 
-    def push(self, package_path: Path | None = None,
-             tag: str = DEFAULT_RELEASE_TAG,
-             asset_name: str = DEFAULT_ASSET_NAME,
-             release_name: str = DEFAULT_RELEASE_NAME,
-             body: str = "") -> dict:
+    def push(
+        self,
+        package_path: Path | None = None,
+        tag: str = DEFAULT_RELEASE_TAG,
+        asset_name: str = DEFAULT_ASSET_NAME,
+        release_name: str = DEFAULT_RELEASE_NAME,
+        body: str = "",
+    ) -> dict:
         """
         Загрузить data package в GitHub Release.
 
@@ -232,14 +264,18 @@ class GitHubReleases:
         release = self.get_release(tag)
         if release is None:
             # Создать новый
-            status, data = self._api_call("POST", f"/repos/{self._repo}/releases", {
-                "tag_name": tag,
-                "name": release_name,
-                "body": body or f"Data package for 1C AI Development Environment\n\nSize: {size_mb:.1f} MB",
-                "draft": False,
-                "prerelease": False,
-                "make_latest": "true",
-            })
+            status, data = self._api_call(
+                "POST",
+                f"/repos/{self._repo}/releases",
+                {
+                    "tag_name": tag,
+                    "name": release_name,
+                    "body": body or f"Data package for 1C AI Development Environment\n\nSize: {size_mb:.1f} MB",
+                    "draft": False,
+                    "prerelease": False,
+                    "make_latest": "true",
+                },
+            )
             if status != 201:
                 return {"success": False, "error": f"Не удалось создать release: {status} {data}"}
             release = ReleaseInfo.from_api(data)
@@ -269,9 +305,9 @@ class GitHubReleases:
             "tag": tag,
         }
 
-    def pull(self, output_path: Path | None = None,
-             tag: str = DEFAULT_RELEASE_TAG,
-             asset_name: str = DEFAULT_ASSET_NAME) -> dict:
+    def pull(
+        self, output_path: Path | None = None, tag: str = DEFAULT_RELEASE_TAG, asset_name: str = DEFAULT_ASSET_NAME
+    ) -> dict:
         """
         Скачать data package из GitHub Release.
 

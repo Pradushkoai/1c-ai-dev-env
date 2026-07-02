@@ -15,6 +15,7 @@ DSL Compiler — JSON DSL → XML для объектов 1С.
 - Shorthand для реквизитов: 'Имя: Тип | req, index'
 - Русские синонимы типов: Строка, СправочникСсылка.Xxx
 """
+
 from __future__ import annotations
 
 import json
@@ -35,29 +36,29 @@ NS_DCSSET = "http://v8.1c.ru/8.1/data-composition-system/settings"
 
 # Маппинг типов объектов 1С → XML-теги и папки
 TYPE_MAP: dict[str, dict] = {
-    "Catalog":              {"xml_tag": "Catalog",              "dir": "Catalogs"},
-    "Document":             {"xml_tag": "Document",             "dir": "Documents"},
-    "Enum":                 {"xml_tag": "Enum",                 "dir": "Enums"},
-    "Constant":             {"xml_tag": "Constant",             "dir": "Constants"},
-    "InformationRegister":  {"xml_tag": "InformationRegister",  "dir": "InformationRegisters"},
+    "Catalog": {"xml_tag": "Catalog", "dir": "Catalogs"},
+    "Document": {"xml_tag": "Document", "dir": "Documents"},
+    "Enum": {"xml_tag": "Enum", "dir": "Enums"},
+    "Constant": {"xml_tag": "Constant", "dir": "Constants"},
+    "InformationRegister": {"xml_tag": "InformationRegister", "dir": "InformationRegisters"},
     "AccumulationRegister": {"xml_tag": "AccumulationRegister", "dir": "AccumulationRegisters"},
-    "AccountingRegister":   {"xml_tag": "AccountingRegister",   "dir": "AccountingRegisters"},
-    "CalculationRegister":  {"xml_tag": "CalculationRegister",  "dir": "CalculationRegisters"},
-    "ChartOfAccounts":      {"xml_tag": "ChartOfAccounts",      "dir": "ChartsOfAccounts"},
+    "AccountingRegister": {"xml_tag": "AccountingRegister", "dir": "AccountingRegisters"},
+    "CalculationRegister": {"xml_tag": "CalculationRegister", "dir": "CalculationRegisters"},
+    "ChartOfAccounts": {"xml_tag": "ChartOfAccounts", "dir": "ChartsOfAccounts"},
     "ChartOfCharacteristicTypes": {"xml_tag": "ChartOfCharacteristicTypes", "dir": "ChartsOfCharacteristicTypes"},
-    "ChartOfCalculationTypes":    {"xml_tag": "ChartOfCalculationTypes",    "dir": "ChartsOfCalculationTypes"},
-    "BusinessProcess":      {"xml_tag": "BusinessProcess",      "dir": "BusinessProcesses"},
-    "Task":                 {"xml_tag": "Task",                 "dir": "Tasks"},
-    "ExchangePlan":         {"xml_tag": "ExchangePlan",         "dir": "ExchangePlans"},
-    "DocumentJournal":      {"xml_tag": "DocumentJournal",      "dir": "DocumentJournals"},
-    "Report":               {"xml_tag": "Report",               "dir": "Reports"},
-    "DataProcessor":        {"xml_tag": "DataProcessor",        "dir": "DataProcessors"},
-    "CommonModule":         {"xml_tag": "CommonModule",         "dir": "CommonModules"},
-    "ScheduledJob":         {"xml_tag": "ScheduledJob",         "dir": "ScheduledJobs"},
-    "EventSubscription":    {"xml_tag": "EventSubscription",    "dir": "EventSubscriptions"},
-    "DefinedType":          {"xml_tag": "DefinedType",          "dir": "DefinedTypes"},
-    "HTTPService":          {"xml_tag": "HTTPService",          "dir": "HTTPServices"},
-    "WebService":           {"xml_tag": "WebService",           "dir": "WebServices"},
+    "ChartOfCalculationTypes": {"xml_tag": "ChartOfCalculationTypes", "dir": "ChartsOfCalculationTypes"},
+    "BusinessProcess": {"xml_tag": "BusinessProcess", "dir": "BusinessProcesses"},
+    "Task": {"xml_tag": "Task", "dir": "Tasks"},
+    "ExchangePlan": {"xml_tag": "ExchangePlan", "dir": "ExchangePlans"},
+    "DocumentJournal": {"xml_tag": "DocumentJournal", "dir": "DocumentJournals"},
+    "Report": {"xml_tag": "Report", "dir": "Reports"},
+    "DataProcessor": {"xml_tag": "DataProcessor", "dir": "DataProcessors"},
+    "CommonModule": {"xml_tag": "CommonModule", "dir": "CommonModules"},
+    "ScheduledJob": {"xml_tag": "ScheduledJob", "dir": "ScheduledJobs"},
+    "EventSubscription": {"xml_tag": "EventSubscription", "dir": "EventSubscriptions"},
+    "DefinedType": {"xml_tag": "DefinedType", "dir": "DefinedTypes"},
+    "HTTPService": {"xml_tag": "HTTPService", "dir": "HTTPServices"},
+    "WebService": {"xml_tag": "WebService", "dir": "WebServices"},
 }
 
 # Русские синонимы типов
@@ -115,9 +116,11 @@ RU_DATA_TYPE_SYNONYMS: dict[str, str] = {
 # МОДЕЛИ
 # ============================================================================
 
+
 @dataclass
 class CompileResult:
     """Результат компиляции DSL → XML."""
+
     object_type: str
     object_name: str
     xml_path: Path | None = None
@@ -130,6 +133,7 @@ class CompileResult:
 # ============================================================================
 # УТИЛИТЫ
 # ============================================================================
+
 
 def _gen_uuid() -> str:
     """Сгенерировать UUID в формате 1С."""
@@ -146,6 +150,7 @@ def _camel_to_words(name: str) -> str:
     """
     if not name:
         return name
+
     # Граница на переходе [а-яё][А-ЯЁ] и [a-z][A-Z]
     def replacer(m):
         if m.group(1) and m.group(2):
@@ -156,14 +161,14 @@ def _camel_to_words(name: str) -> str:
             return m.group(3) + " " + m.group(4)
         return m.group(0)
 
-    result = re.sub(r'([а-яё])([А-ЯЁ])|([a-z])([A-Z])', replacer, name)
+    result = re.sub(r"([а-яё])([А-ЯЁ])|([a-z])([A-Z])", replacer, name)
     if not result:
         return name
     # Первое слово с большой, остальные с маленькой
-    parts = result.split(' ')
+    parts = result.split(" ")
     if len(parts) == 1:
         return parts[0][0].upper() + parts[0][1:]
-    return parts[0][0].upper() + parts[0][1:] + ' ' + ' '.join(p.lower() for p in parts[1:])
+    return parts[0][0].upper() + parts[0][1:] + " " + " ".join(p.lower() for p in parts[1:])
 
 
 def _normalize_type(type_str: str) -> str:
@@ -174,7 +179,7 @@ def _normalize_type(type_str: str) -> str:
     # Проверяем русские синонимы с параметрами (СправочникСсылка.Xxx)
     for ru, en in RU_DATA_TYPE_SYNONYMS.items():
         if type_str.startswith(ru + "."):
-            return en + type_str[len(ru):]
+            return en + type_str[len(ru) :]
         if type_str.lower() == ru.lower():
             return en
 
@@ -237,7 +242,7 @@ def _parse_attribute(attr_def: str | dict) -> dict:
     for ru, en in RU_DATA_TYPE_SYNONYMS.items():
         if type_str.startswith(ru):
             # Заменяем только префикс (оставляем параметры в скобках)
-            type_str = en + type_str[len(ru):]
+            type_str = en + type_str[len(ru) :]
             break
 
     return {
@@ -246,9 +251,7 @@ def _parse_attribute(attr_def: str | dict) -> dict:
         "synonym": "",
         "comment": "",
         "fillChecking": "ShowError" if "req" in flags else "",
-        "indexing": "Index" if "index" in flags else (
-            "IndexWithAdditionalOrder" if "indexAdditional" in flags else ""
-        ),
+        "indexing": "Index" if "index" in flags else ("IndexWithAdditionalOrder" if "indexAdditional" in flags else ""),
     }
 
 
@@ -260,7 +263,7 @@ def _make_type_element(parent: ET.Element, type_str: str, tag_name: str = "Type"
     # Boolean → xs:boolean
 
     # Парсим тип
-    type_match = re.match(r'(\w+)(?:\((\d+)(?:,(\d+))?\))?(?:\.([^.]+))?', type_str)
+    type_match = re.match(r"(\w+)(?:\((\d+)(?:,(\d+))?\))?(?:\.([^.]+))?", type_str)
     if not type_match:
         return
 
@@ -319,6 +322,7 @@ def _make_type_element(parent: ET.Element, type_str: str, tag_name: str = "Type"
 # META COMPILE — компиляция объектов метаданных
 # ============================================================================
 
+
 class MetaCompiler:
     """Компилятор JSON DSL → XML для объектов метаданных 1С (23 типа)."""
 
@@ -354,8 +358,7 @@ class MetaCompiler:
         object_type = _normalize_object_type(def_dict.get("type", ""))
         if not object_type or object_type not in TYPE_MAP:
             raise ValueError(
-                f"Неподдерживаемый тип объекта: {def_dict.get('type')}. "
-                f"Поддерживается {len(TYPE_MAP)} типов."
+                f"Неподдерживаемый тип объекта: {def_dict.get('type')}. Поддерживается {len(TYPE_MAP)} типов."
             )
 
         object_name = def_dict.get("name", "")
@@ -379,9 +382,7 @@ class MetaCompiler:
 
         # Создаём XML объекта
         xml_path = output_dir / type_info["dir"] / f"{object_name}.xml"
-        self._write_object_xml(
-            xml_path, object_type, object_name, synonym, def_dict
-        )
+        self._write_object_xml(xml_path, object_type, object_name, synonym, def_dict)
         result.xml_path = xml_path
 
         # Создаём модули BSL (если нужно)
@@ -391,9 +392,7 @@ class MetaCompiler:
         # Регистрируем в Configuration.xml (если есть)
         config_xml = output_dir / "Configuration.xml"
         if config_xml.exists():
-            result.registered_in_config = self._register_in_config(
-                config_xml, object_type, object_name
-            )
+            result.registered_in_config = self._register_in_config(config_xml, object_type, object_name)
 
         return result
 
@@ -407,10 +406,7 @@ class MetaCompiler:
     ) -> None:
         """Записать XML объекта метаданных."""
         # Регистрируем namespaces
-        for prefix, uri in [
-            ("md", NS_MD), ("xr", NS_XR), ("v8", NS_V8),
-            ("xs", NS_XS), ("xsi", NS_XSI)
-        ]:
+        for prefix, uri in [("md", NS_MD), ("xr", NS_XR), ("v8", NS_V8), ("xs", NS_XS), ("xsi", NS_XSI)]:
             ET.register_namespace(prefix, uri)
 
         type_info = TYPE_MAP[object_type]
@@ -419,13 +415,21 @@ class MetaCompiler:
         root.set("name", object_name)
 
         # InternalInfo (для объектов с reference)
-        if object_type in ("Catalog", "Document", "Enum", "InformationRegister",
-                           "AccumulationRegister", "ChartOfAccounts"):
+        if object_type in (
+            "Catalog",
+            "Document",
+            "Enum",
+            "InformationRegister",
+            "AccumulationRegister",
+            "ChartOfAccounts",
+        ):
             internal_info = ET.SubElement(root, f"{{{NS_MD}}}InternalInfo")
             if object_type in ("Catalog", "Document", "Enum"):
                 # GeneratedType
                 gen_type = ET.SubElement(internal_info, f"{{{NS_XR}}}GeneratedType")
-                gen_type.set("name", f"Catalog.{object_name}" if object_type == "Catalog" else f"Document.{object_name}")
+                gen_type.set(
+                    "name", f"Catalog.{object_name}" if object_type == "Catalog" else f"Document.{object_name}"
+                )
                 gen_type.set("category", "Ref")
                 type_id = ET.SubElement(gen_type, f"{{{NS_XR}}}TypeId")
                 type_id.text = _gen_uuid()
@@ -466,8 +470,17 @@ class MetaCompiler:
     def _add_standard_attributes(self, props_elem: ET.Element, object_type: str) -> None:
         """Добавить стандартные реквизиты (Ref, Code, Description, и т.д.)."""
         std_attrs_map = {
-            "Catalog": ["PredefinedDataName", "Predefined", "Ref", "DeletionMark",
-                        "IsFolder", "Owner", "Parent", "Description", "Code"],
+            "Catalog": [
+                "PredefinedDataName",
+                "Predefined",
+                "Ref",
+                "DeletionMark",
+                "IsFolder",
+                "Owner",
+                "Parent",
+                "Description",
+                "Code",
+            ],
             "Document": ["Posted", "Ref", "DeletionMark", "Date", "Number"],
             "Enum": ["Order", "Ref"],
             "InformationRegister": ["Active", "LineNumber", "Recorder", "Period"],
@@ -482,9 +495,7 @@ class MetaCompiler:
             fill_check = ET.SubElement(std_attr, f"{{{NS_XR}}}FillChecking")
             fill_check.text = "DontCheck"
 
-    def _add_type_specific_props(
-        self, props_elem: ET.Element, object_type: str, def_dict: dict
-    ) -> None:
+    def _add_type_specific_props(self, props_elem: ET.Element, object_type: str, def_dict: dict) -> None:
         """Добавить свойства специфичные для типа объекта."""
         if object_type == "Catalog":
             # Hierarchical, CodeLength, DescriptionLength
@@ -524,9 +535,7 @@ class MetaCompiler:
             value_type = _normalize_type(def_dict.get("valueType", "String"))
             _make_type_element(type_container, value_type)
 
-    def _add_child_objects(
-        self, child_objects_elem: ET.Element, object_type: str, def_dict: dict
-    ) -> None:
+    def _add_child_objects(self, child_objects_elem: ET.Element, object_type: str, def_dict: dict) -> None:
         """Добавить дочерние объекты (реквизиты, ТЧ, формы, значения enum)."""
         # Реквизиты (attributes)
         attributes = def_dict.get("attributes", [])
@@ -570,9 +579,7 @@ class MetaCompiler:
                 content = ET.SubElement(item, f"{{{NS_V8}}}content")
                 content.text = val_synonym
 
-    def _write_attribute(
-        self, parent: ET.Element, attr: dict, tag_name: str = "Attribute"
-    ) -> None:
+    def _write_attribute(self, parent: ET.Element, attr: dict, tag_name: str = "Attribute") -> None:
         """Записать реквизит как <Attribute>."""
         attr_elem = ET.SubElement(parent, f"{{{NS_MD}}}{tag_name}")
         attr_props = ET.SubElement(attr_elem, f"{{{NS_MD}}}Properties")
@@ -600,25 +607,27 @@ class MetaCompiler:
             idx = ET.SubElement(attr_props, f"{{{NS_XR}}}Indexing")
             idx.text = attr["indexing"]
 
-    def _create_modules(
-        self, obj_dir: Path, object_type: str, def_dict: dict
-    ) -> list[Path]:
+    def _create_modules(self, obj_dir: Path, object_type: str, def_dict: dict) -> list[Path]:
         """Создать BSL-модули объекта (ObjectModule, ManagerModule)."""
         modules: list[Path] = []
 
         # ObjectModule для Catalog, Document, InformationRegister, и т.д.
         types_with_object_module = {
-            "Catalog", "Document", "InformationRegister", "AccumulationRegister",
-            "ChartOfAccounts", "BusinessProcess", "Task", "Report", "DataProcessor",
+            "Catalog",
+            "Document",
+            "InformationRegister",
+            "AccumulationRegister",
+            "ChartOfAccounts",
+            "BusinessProcess",
+            "Task",
+            "Report",
+            "DataProcessor",
         }
         if object_type in types_with_object_module:
             module_dir = obj_dir / "Ext"
             module_dir.mkdir(parents=True, exist_ok=True)
             module_path = module_dir / "ObjectModule.bsl"
-            module_path.write_text(
-                self._default_object_module(object_type, def_dict),
-                encoding="utf-8"
-            )
+            module_path.write_text(self._default_object_module(object_type, def_dict), encoding="utf-8")
             modules.append(module_path)
 
         return modules
@@ -648,9 +657,7 @@ class MetaCompiler:
             f"#КонецОбласти\n"
         )
 
-    def _register_in_config(
-        self, config_xml: Path, object_type: str, object_name: str
-    ) -> bool:
+    def _register_in_config(self, config_xml: Path, object_type: str, object_name: str) -> bool:
         """Зарегистрировать объект в ChildObjects Configuration.xml."""
         try:
             tree = ET.parse(config_xml)
@@ -690,6 +697,7 @@ class MetaCompiler:
 # ============================================================================
 # FORM COMPILE — компиляция управляемых форм
 # ============================================================================
+
 
 class FormCompiler:
     """Компилятор JSON DSL → Form.xml для управляемых форм 1С."""
@@ -731,9 +739,7 @@ class FormCompiler:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Регистрируем namespaces
-        for prefix, uri in [
-            ("md", NS_MD), ("xr", NS_XR), ("v8", NS_V8), ("v8ui", "http://v8.1c.ru/8.1/data/ui")
-        ]:
+        for prefix, uri in [("md", NS_MD), ("xr", NS_XR), ("v8", NS_V8), ("v8ui", "http://v8.1c.ru/8.1/data/ui")]:
             ET.register_namespace(prefix, uri)
 
         root = ET.Element(f"{{{NS_MD}}}Form")
@@ -806,6 +812,7 @@ class FormCompiler:
 # SKD COMPILE — компиляция схем компоновки данных
 # ============================================================================
 
+
 class SkdCompiler:
     """Компилятор JSON DSL → Template.xml для СКД 1С."""
 
@@ -845,7 +852,10 @@ class SkdCompiler:
 
         # Регистрируем namespaces
         for prefix, uri in [
-            ("s", NS_DCS), ("v8", NS_V8), ("xs", NS_XS), ("xsi", NS_XSI),
+            ("s", NS_DCS),
+            ("v8", NS_V8),
+            ("xs", NS_XS),
+            ("xsi", NS_XSI),
         ]:
             ET.register_namespace(prefix, uri)
 
@@ -1021,10 +1031,12 @@ class MxlCompiler:
             def_path = Path(definition)
             if def_path.exists():
                 import json as _json
+
                 with open(def_path, encoding="utf-8") as f:
                     def_dict = _json.load(f)
             else:
                 import json as _json
+
                 def_dict = _json.loads(str(definition))
         elif isinstance(definition, dict):
             def_dict = definition
@@ -1041,7 +1053,9 @@ class MxlCompiler:
 
         # Регистрируем namespaces
         for prefix, uri in [
-            ("ssd", NS_SSD), ("ssdx", NS_SSDX), ("v8", NS_V8),
+            ("ssd", NS_SSD),
+            ("ssdx", NS_SSDX),
+            ("v8", NS_V8),
         ]:
             ET.register_namespace(prefix, uri)
 
@@ -1122,9 +1136,7 @@ class MxlCompiler:
 
         return result
 
-    def _parse_column_widths(
-        self, column_widths: dict, columns: int, default_width: int, total_width
-    ) -> list[int]:
+    def _parse_column_widths(self, column_widths: dict, columns: int, default_width: int, total_width) -> list[int]:
         """Парсит columnWidths dict в список ширин по колонкам."""
         widths = [default_width] * columns
         for key, val in column_widths.items():
@@ -1278,13 +1290,44 @@ RIGHTS_PRESETS: dict[str, dict[str, list[str]]] = {
         "_default": ["Read", "View"],
     },
     "edit": {
-        "Catalog": ["Read", "View", "Insert", "Update", "Delete", "InputByString",
-                    "InteractiveInsert", "InteractiveUpdate", "InteractiveDelete", "InteractiveInputByString"],
-        "Document": ["Read", "View", "Insert", "Update", "Delete", "Posting", "Unposting",
-                     "InputByString", "InteractiveInsert", "InteractiveUpdate", "InteractiveDelete",
-                     "InteractivePosting", "InteractiveUnposting", "InteractiveInputByString"],
-        "InformationRegister": ["Read", "View", "Insert", "Update", "Delete",
-                                "InteractiveInsert", "InteractiveUpdate", "InteractiveDelete"],
+        "Catalog": [
+            "Read",
+            "View",
+            "Insert",
+            "Update",
+            "Delete",
+            "InputByString",
+            "InteractiveInsert",
+            "InteractiveUpdate",
+            "InteractiveDelete",
+            "InteractiveInputByString",
+        ],
+        "Document": [
+            "Read",
+            "View",
+            "Insert",
+            "Update",
+            "Delete",
+            "Posting",
+            "Unposting",
+            "InputByString",
+            "InteractiveInsert",
+            "InteractiveUpdate",
+            "InteractiveDelete",
+            "InteractivePosting",
+            "InteractiveUnposting",
+            "InteractiveInputByString",
+        ],
+        "InformationRegister": [
+            "Read",
+            "View",
+            "Insert",
+            "Update",
+            "Delete",
+            "InteractiveInsert",
+            "InteractiveUpdate",
+            "InteractiveDelete",
+        ],
         "AccumulationRegister": ["Read", "View"],
         "Constant": ["Read", "Update"],
         "Enum": ["Read", "View"],
@@ -1318,10 +1361,12 @@ class RoleCompiler:
             def_path = Path(definition)
             if def_path.exists():
                 import json as _json
+
                 with open(def_path, encoding="utf-8") as f:
                     def_dict = _json.load(f)
             else:
                 import json as _json
+
                 def_dict = _json.loads(str(definition))
         elif isinstance(definition, dict):
             def_dict = definition
@@ -1354,9 +1399,7 @@ class RoleCompiler:
 
         return result
 
-    def _write_role_metadata(
-        self, meta_path: Path, role_name: str, def_dict: dict
-    ) -> None:
+    def _write_role_metadata(self, meta_path: Path, role_name: str, def_dict: dict) -> None:
         """Записать метаданные роли (Roles/<Name>.xml)."""
         for prefix, uri in [("md", NS_MD), ("xr", NS_XR), ("v8", NS_V8)]:
             ET.register_namespace(prefix, uri)
@@ -1518,12 +1561,14 @@ class RoleCompiler:
             return {"name": obj_part, "rights": rights}
         return {"name": obj_part}
 
+
 # _write_rls_template удалён — интегрирован в _write_rights_xml
 
 
 # ============================================================================
 # Расширяем DslCompiler фасад
 # ============================================================================
+
 
 # Переписываем DslCompiler чтобы включить все 5 компиляторов
 class DslCompiler:

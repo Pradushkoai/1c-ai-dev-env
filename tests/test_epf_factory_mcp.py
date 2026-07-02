@@ -11,6 +11,7 @@
 Запуск:
   pytest tests/test_epf_factory_mcp.py -v
 """
+
 import asyncio
 import json
 import sys
@@ -54,10 +55,9 @@ async def test_list_tools_includes_epf_factory(handlers):
 async def test_epf_factory_templates(handlers):
     """epf_factory_templates возвращает 5 шаблонов."""
     call_handler = handlers[CallToolRequest]
-    result = await call_handler(CallToolRequest(
-        method="tools/call",
-        params={"name": "epf_factory_templates", "arguments": {}}
-    ))
+    result = await call_handler(
+        CallToolRequest(method="tools/call", params={"name": "epf_factory_templates", "arguments": {}})
+    )
     data = json.loads(result.root.content[0].text)
 
     assert "ext_proc" in data
@@ -82,25 +82,27 @@ async def test_epf_factory_create_with_bsl(handlers, tmp_path):
         "#Область СлужебныеПроцедурыИФункции\n\n"
         "&НаСервере\n"
         "Процедура ПриСозданииНаСервере(Отказ, СтандартнаяОбработка)\n"
-        "\tСообщить(\"Тест\");\n"
+        '\tСообщить("Тест");\n'
         "КонецПроцедуры\n\n"
         "#КонецОбласти\n"
     )
     output_epf = tmp_path / "TestCreate.epf"
 
-    result = await call_handler(CallToolRequest(
-        method="tools/call",
-        params={
-            "name": "epf_factory_create",
-            "arguments": {
-                "name": "TestCreate",
-                "synonym": "Test Create",
-                "bsl_code": bsl_code,
-                "output_path": str(output_epf),
-                "skip_bsl_validation": True,
-            }
-        }
-    ))
+    result = await call_handler(
+        CallToolRequest(
+            method="tools/call",
+            params={
+                "name": "epf_factory_create",
+                "arguments": {
+                    "name": "TestCreate",
+                    "synonym": "Test Create",
+                    "bsl_code": bsl_code,
+                    "output_path": str(output_epf),
+                    "skip_bsl_validation": True,
+                },
+            },
+        )
+    )
     data = json.loads(result.root.content[0].text)
 
     assert data["ok"] is True
@@ -123,17 +125,19 @@ async def test_epf_factory_create_default_bsl(handlers, tmp_path):
     call_handler = handlers[CallToolRequest]
     output_epf = tmp_path / "TestDefault.epf"
 
-    result = await call_handler(CallToolRequest(
-        method="tools/call",
-        params={
-            "name": "epf_factory_create",
-            "arguments": {
-                "name": "TestDefault",
-                "output_path": str(output_epf),
-                "skip_bsl_validation": True,
-            }
-        }
-    ))
+    result = await call_handler(
+        CallToolRequest(
+            method="tools/call",
+            params={
+                "name": "epf_factory_create",
+                "arguments": {
+                    "name": "TestDefault",
+                    "output_path": str(output_epf),
+                    "skip_bsl_validation": True,
+                },
+            },
+        )
+    )
     data = json.loads(result.root.content[0].text)
 
     assert data["ok"] is True
@@ -146,15 +150,17 @@ async def test_epf_factory_create_error_no_name(handlers, tmp_path):
     """epf_factory_create без name возвращает ошибку."""
     call_handler = handlers[CallToolRequest]
 
-    result = await call_handler(CallToolRequest(
-        method="tools/call",
-        params={
-            "name": "epf_factory_create",
-            "arguments": {
-                "output_path": str(tmp_path / "test.epf"),
-            }
-        }
-    ))
+    result = await call_handler(
+        CallToolRequest(
+            method="tools/call",
+            params={
+                "name": "epf_factory_create",
+                "arguments": {
+                    "output_path": str(tmp_path / "test.epf"),
+                },
+            },
+        )
+    )
     # Должен вернуть error в content
     text = result.root.content[0].text
     # Может быть как JSON так и прямой текст ошибки
@@ -164,4 +170,5 @@ async def test_epf_factory_create_error_no_name(handlers, tmp_path):
 if __name__ == "__main__":
     # Запуск без pytest
     import subprocess
+
     subprocess.run([sys.executable, "-m", "pytest", __file__, "-v"])

@@ -27,6 +27,7 @@ Usage:
     DataPackage(paths).save(Path('backup.zip'))
     DataPackage(paths).load(Path('backup.zip'))
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -43,6 +44,7 @@ from .path_manager import PathManager
 @dataclass
 class PackageManifest:
     """Метаданные пакета данных."""
+
     version: str = "1.0"
     created_at: str = ""
     project_root: str = ""
@@ -126,20 +128,22 @@ class DataPackage:
         # Информация о конфигурациях
         registry_path = self._paths.config_registry_path
         if registry_path.exists():
-            with open(registry_path, encoding='utf-8') as f:
+            with open(registry_path, encoding="utf-8") as f:
                 registry = json.load(f)
             for name, cfg in registry.get("configs", {}).items():
-                manifest.configs.append({
-                    "name": name,
-                    "version": cfg.get("version", ""),
-                    "status": cfg.get("status", ""),
-                    "objects_count": cfg.get("objects_count", 0),
-                })
+                manifest.configs.append(
+                    {
+                        "name": name,
+                        "version": cfg.get("version", ""),
+                        "status": cfg.get("status", ""),
+                        "objects_count": cfg.get("objects_count", 0),
+                    }
+                )
 
         files_count = 0
         size_bytes = 0
 
-        with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+        with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
             # 1. runtime/config-registry.json (всегда)
             if registry_path.exists():
                 zf.write(registry_path, "data-package/runtime/config-registry.json")
@@ -197,11 +201,11 @@ class DataPackage:
             "manifest": None,
         }
 
-        with zipfile.ZipFile(input_path, 'r') as zf:
+        with zipfile.ZipFile(input_path, "r") as zf:
             # Читаем манифест первым
             try:
                 with zf.open("data-package/manifest.json") as f:
-                    manifest_data = json.loads(f.read().decode('utf-8'))
+                    manifest_data = json.loads(f.read().decode("utf-8"))
                 stats["manifest"] = PackageManifest.from_dict(manifest_data)
             except KeyError:
                 # Нет манифеста — старый формат
@@ -209,7 +213,7 @@ class DataPackage:
 
             # Распаковываем всё
             for info in zf.infolist():
-                if info.filename.endswith('/'):
+                if info.filename.endswith("/"):
                     continue
                 if info.filename == "data-package/manifest.json":
                     continue
@@ -217,13 +221,13 @@ class DataPackage:
                 # Вычисляем относительный путь внутри data-package/
                 if not info.filename.startswith("data-package/"):
                     continue
-                rel_path = info.filename[len("data-package/"):]
+                rel_path = info.filename[len("data-package/") :]
 
                 # Куда распаковать
                 target = self._paths.root / rel_path
                 target.parent.mkdir(parents=True, exist_ok=True)
 
-                with zf.open(info) as src, open(target, 'wb') as dst:
+                with zf.open(info) as src, open(target, "wb") as dst:
                     dst.write(src.read())
 
                 stats["files_restored"] += 1
@@ -256,7 +260,7 @@ class DataPackage:
             "size_mb": input_path.stat().st_size / 1024 / 1024,
         }
 
-        with zipfile.ZipFile(input_path, 'r') as zf:
+        with zipfile.ZipFile(input_path, "r") as zf:
             result["total_files"] = len(zf.namelist())
 
             # Список файлов (первые 50)
@@ -266,7 +270,7 @@ class DataPackage:
             # Манифест
             try:
                 with zf.open("data-package/manifest.json") as f:
-                    manifest_data = json.loads(f.read().decode('utf-8'))
+                    manifest_data = json.loads(f.read().decode("utf-8"))
                 result["manifest"] = PackageManifest.from_dict(manifest_data).to_dict()
             except KeyError:
                 pass
@@ -329,21 +333,23 @@ class DataPackage:
         # Конфигурации
         registry_path = self._paths.config_registry_path
         if registry_path.exists():
-            with open(registry_path, encoding='utf-8') as f:
+            with open(registry_path, encoding="utf-8") as f:
                 registry = json.load(f)
             for name, cfg in registry.get("configs", {}).items():
                 derived_dir = self._paths.config_derived_dir(name)
                 api_json = self._paths.config_api_reference_json(name)
                 raw_dir = self._paths.config_path(name)
 
-                status["configs"].append({
-                    "name": name,
-                    "version": cfg.get("version", ""),
-                    "status": cfg.get("status", ""),
-                    "has_derived": derived_dir.exists(),
-                    "has_api": api_json.exists(),
-                    "has_raw": raw_dir.exists() if cfg.get("path") else False,
-                })
+                status["configs"].append(
+                    {
+                        "name": name,
+                        "version": cfg.get("version", ""),
+                        "status": cfg.get("status", ""),
+                        "has_derived": derived_dir.exists(),
+                        "has_api": api_json.exists(),
+                        "has_raw": raw_dir.exists() if cfg.get("path") else False,
+                    }
+                )
 
         # Информация об autosave
         if status["autosave_available"]:

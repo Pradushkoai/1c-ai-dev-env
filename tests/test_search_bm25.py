@@ -1,6 +1,7 @@
 """
 Тесты для BM25+триграммы поиска (services/search_bm25.py).
 """
+
 import json
 from pathlib import Path
 
@@ -22,6 +23,7 @@ from src.services.search_bm25 import (
 )
 
 # ============ СТЕММЕР ============
+
 
 class TestStemmer:
     def test_russian_basic(self):
@@ -59,6 +61,7 @@ class TestStemmer:
 
 # ============ ТОКЕНИЗАЦИЯ ============
 
+
 class TestTokenizeStemmed:
     def test_basic(self):
         tokens = tokenize_stemmed("поиск элемента")
@@ -89,6 +92,7 @@ class TestTokenizeStemmed:
 
 
 # ============ ТРИГРАММЫ ============
+
 
 class TestTrigrams:
     def test_make_trigrams_basic(self):
@@ -136,6 +140,7 @@ class TestTrigrams:
 
 # ============ BM25 ИНДЕКС ============
 
+
 @pytest.fixture
 def methods_fixture(tmp_path):
     """Создать тестовый файл с методами 1С."""
@@ -174,7 +179,7 @@ def methods_fixture(tmp_path):
         },
     ]
     methods_path = tmp_path / "methods.json"
-    with open(methods_path, 'w', encoding='utf-8') as f:
+    with open(methods_path, "w", encoding="utf-8") as f:
         json.dump(methods, f, ensure_ascii=False)
     return methods_path
 
@@ -190,58 +195,59 @@ def bm25_index(methods_fixture, tmp_path):
 
 class TestBuildIndexBM25:
     def test_creates_v2_index(self, bm25_index):
-        with open(bm25_index, encoding='utf-8') as f:
+        with open(bm25_index, encoding="utf-8") as f:
             index = json.load(f)
-        assert index['version'] == 2
-        assert index['algorithm'] == 'bm25'
+        assert index["version"] == 2
+        assert index["algorithm"] == "bm25"
 
     def test_has_required_fields(self, bm25_index):
-        with open(bm25_index, encoding='utf-8') as f:
+        with open(bm25_index, encoding="utf-8") as f:
             index = json.load(f)
-        assert 'methods' in index
-        assert 'idf' in index
-        assert 'inverted_index' in index
-        assert 'doc_lengths' in index
-        assert 'avg_doc_length' in index
-        assert 'trigrams_index' in index
-        assert 'method_trigrams' in index
-        assert 'bm25_params' in index
+        assert "methods" in index
+        assert "idf" in index
+        assert "inverted_index" in index
+        assert "doc_lengths" in index
+        assert "avg_doc_length" in index
+        assert "trigrams_index" in index
+        assert "method_trigrams" in index
+        assert "bm25_params" in index
 
     def test_bm25_params(self, bm25_index):
-        with open(bm25_index, encoding='utf-8') as f:
+        with open(bm25_index, encoding="utf-8") as f:
             index = json.load(f)
-        assert index['bm25_params']['k1'] == BM25_K1
-        assert index['bm25_params']['b'] == BM25_B
+        assert index["bm25_params"]["k1"] == BM25_K1
+        assert index["bm25_params"]["b"] == BM25_B
 
     def test_methods_count(self, bm25_index):
-        with open(bm25_index, encoding='utf-8') as f:
+        with open(bm25_index, encoding="utf-8") as f:
             index = json.load(f)
-        assert index['total_methods'] == 4
-        assert len(index['methods']) == 4
+        assert index["total_methods"] == 4
+        assert len(index["methods"]) == 4
 
     def test_trigrams_built(self, bm25_index):
-        with open(bm25_index, encoding='utf-8') as f:
+        with open(bm25_index, encoding="utf-8") as f:
             index = json.load(f)
         # Должны быть триграммы
-        assert len(index['trigrams_index']) > 0
-        assert len(index['method_trigrams']) == 4
+        assert len(index["trigrams_index"]) > 0
+        assert len(index["method_trigrams"]) == 4
 
 
 # ============ BM25 ПОИСК ============
+
 
 class TestSearchBM25:
     def test_exact_match(self, bm25_index):
         results = search_bm25(bm25_index, "найти по коду", limit=5)
         assert len(results) > 0
         # НайтиПоКоду должен быть в топ-1 или топ-2
-        top_names = [r['name_ru'] for r in results[:2]]
+        top_names = [r["name_ru"] for r in results[:2]]
         assert "НайтиПоКоду" in top_names
 
     def test_stemmed_match(self, bm25_index):
         # "поиска" → "поиск" через стеммер
         results = search_bm25(bm25_index, "поиска элемента", limit=5)
         assert len(results) > 0
-        names = [r['name_ru'] for r in results]
+        names = [r["name_ru"] for r in results]
         # Должен найти хотя бы один из методов поиска
         assert any("Найти" in n for n in names)
 
@@ -250,24 +256,24 @@ class TestSearchBM25:
         results = search_bm25(bm25_index, "найтипокоду", limit=5)
         # Благодаря триграммам должно найти
         assert len(results) > 0
-        names = [r['name_ru'] for r in results]
+        names = [r["name_ru"] for r in results]
         assert "НайтиПоКоду" in names
 
     def test_returns_score(self, bm25_index):
         results = search_bm25(bm25_index, "найти", limit=5)
         for r in results:
-            assert 'score' in r
-            assert isinstance(r['score'], (int, float))
-            assert r['score'] >= 0
+            assert "score" in r
+            assert isinstance(r["score"], (int, float))
+            assert r["score"] >= 0
 
     def test_result_fields(self, bm25_index):
         results = search_bm25(bm25_index, "найти", limit=5)
         for r in results:
-            assert 'name_ru' in r
-            assert 'name_en' in r
-            assert 'context' in r
-            assert 'syntax' in r
-            assert 'description' in r
+            assert "name_ru" in r
+            assert "name_en" in r
+            assert "context" in r
+            assert "syntax" in r
+            assert "description" in r
 
     def test_empty_query(self, bm25_index):
         results = search_bm25(bm25_index, "", limit=5)
@@ -282,14 +288,14 @@ class TestSearchBM25:
         # Может что-то найдёт через триграммы, но не должно быть confident match
         # Если результаты есть — score должен быть низким
         for r in results:
-            assert r['score'] < 0.5
+            assert r["score"] < 0.5
 
     def test_hybrid_vs_pure_bm25(self, bm25_index):
         # Гибридный должен дать лучшие результаты для опечаток
         hybrid_results = search_bm25(bm25_index, "найтипокоду", limit=5, hybrid=True)
         pure_results = search_bm25(bm25_index, "найтипокоду", limit=5, hybrid=False)
         # Гибридный должен найти НайтиПоКоду (через триграммы)
-        hybrid_names = [r['name_ru'] for r in hybrid_results]
+        hybrid_names = [r["name_ru"] for r in hybrid_results]
         assert "НайтиПоКоду" in hybrid_names
 
     def test_file_match_search(self, bm25_index):
@@ -298,11 +304,12 @@ class TestSearchBM25:
         assert len(results) > 0
         top = results[0]
         # Должен найти УдалитьФайл в топ-1 или топ-2
-        top2 = [r['name_ru'] for r in results[:2]]
+        top2 = [r["name_ru"] for r in results[:2]]
         assert "УдалитьФайл" in top2
 
 
 # ============ AUTO-DETECT ============
+
 
 class TestAutoDetect:
     def test_detect_v2(self, bm25_index):
@@ -311,13 +318,16 @@ class TestAutoDetect:
     def test_detect_v1(self, tmp_path):
         """v1 — без поля version."""
         v1_index = tmp_path / "v1.json"
-        with open(v1_index, 'w', encoding='utf-8') as f:
-            json.dump({
-                "methods": [],
-                "idf": {},
-                "inverted_index": {},
-                "total_methods": 0,
-            }, f)
+        with open(v1_index, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "methods": [],
+                    "idf": {},
+                    "inverted_index": {},
+                    "total_methods": 0,
+                },
+                f,
+            )
         assert detect_index_version(v1_index) == 1
 
     def test_detect_missing_file(self, tmp_path):
@@ -331,6 +341,7 @@ class TestAutoDetect:
         """search_auto для v1 индекса должен упасть на TF-IDF."""
         # Создаём v1 индекс
         from src.services.search import build_index
+
         methods = [
             {
                 "name_ru": "Тест",
@@ -342,7 +353,7 @@ class TestAutoDetect:
             }
         ]
         methods_path = tmp_path / "m.json"
-        with open(methods_path, 'w', encoding='utf-8') as f:
+        with open(methods_path, "w", encoding="utf-8") as f:
             json.dump(methods, f, ensure_ascii=False)
 
         v1_path = tmp_path / "v1_index.json"

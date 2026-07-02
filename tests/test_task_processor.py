@@ -3,6 +3,7 @@
 
 Все внешние зависимости (BSL LS, скрипты) замоканы.
 """
+
 from __future__ import annotations
 
 import json
@@ -53,6 +54,7 @@ def setup(tmp_path):
 # SOLVE: сбор контекста
 # ─────────────────────────────────────────────
 
+
 def test_solve_no_config_no_indexes(setup):
     """solve() без config и без индексов → TaskContext с missing_sources."""
     pm, tmp = setup
@@ -100,21 +102,24 @@ def test_solve_finds_api_modules(setup):
     api_json = pm.config_api_reference_json(config_name)
     api_json.parent.mkdir(parents=True, exist_ok=True)
     api_json.write_text(
-        json.dumps([
-            {
-                "name": "ТоварыМодуль",
-                "methods_count": 5,
-                "methods": [
-                    {"name": "НайтиТовар", "params": []},
-                    {"name": "ДобавитьТовар", "params": []},
-                ],
-            },
-            {
-                "name": "ЗаказыМодуль",
-                "methods_count": 3,
-                "methods": [],
-            },
-        ], ensure_ascii=False),
+        json.dumps(
+            [
+                {
+                    "name": "ТоварыМодуль",
+                    "methods_count": 5,
+                    "methods": [
+                        {"name": "НайтиТовар", "params": []},
+                        {"name": "ДобавитьТовар", "params": []},
+                    ],
+                },
+                {
+                    "name": "ЗаказыМодуль",
+                    "methods_count": 3,
+                    "methods": [],
+                },
+            ],
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 
@@ -131,36 +136,37 @@ def test_solve_finds_metadata_objects(setup):
     pm, tmp = setup
     config_name = "ut11"
 
-    unified_path = (
-        tmp / "derived" / "configs" / config_name / "unified-metadata-index.json"
-    )
+    unified_path = tmp / "derived" / "configs" / config_name / "unified-metadata-index.json"
     unified_path.parent.mkdir(parents=True, exist_ok=True)
     unified_path.write_text(
-        json.dumps({
-            "objects": {
-                "Catalogs": [
-                    {
-                        "type": "Catalog",
-                        "name": "Товары",
-                        "synonym": "Номенклатура",
-                        "child_objects": {
-                            "attributes": [{"name": "Артикул"}],
-                            "tabular_sections": [{"name": "Характеристики"}],
-                            "forms": [{"name": "ФормаСписка"}],
+        json.dumps(
+            {
+                "objects": {
+                    "Catalogs": [
+                        {
+                            "type": "Catalog",
+                            "name": "Товары",
+                            "synonym": "Номенклатура",
+                            "child_objects": {
+                                "attributes": [{"name": "Артикул"}],
+                                "tabular_sections": [{"name": "Характеристики"}],
+                                "forms": [{"name": "ФормаСписка"}],
+                            },
                         },
-                    },
-                    {
-                        "type": "Catalog",
-                        "name": "Контрагенты",
-                        "synonym": "Покупатели",
-                        "child_objects": {},
-                    },
-                ]
+                        {
+                            "type": "Catalog",
+                            "name": "Контрагенты",
+                            "synonym": "Покупатели",
+                            "child_objects": {},
+                        },
+                    ]
+                },
+                "subsystems": [],
+                "event_subscriptions": [],
+                "scheduled_jobs": [],
             },
-            "subsystems": [],
-            "event_subscriptions": [],
-            "scheduled_jobs": [],
-        }, ensure_ascii=False),
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 
@@ -182,19 +188,22 @@ def test_solve_finds_skd_schemas(setup):
     skd_path = tmp / "derived" / "configs" / config_name / "skd-index.json"
     skd_path.parent.mkdir(parents=True, exist_ok=True)
     skd_path.write_text(
-        json.dumps({
-            "schemas": [
-                {
-                    "parent_type": "Report",
-                    "parent_name": "ОтчётПоТовары",
-                    "name": "ОсновнаяСхема",
-                    "schema": {
-                        "data_sets": [{"name": "ds1"}],
-                        "parameters": [{"name": "p1"}],
+        json.dumps(
+            {
+                "schemas": [
+                    {
+                        "parent_type": "Report",
+                        "parent_name": "ОтчётПоТовары",
+                        "name": "ОсновнаяСхема",
+                        "schema": {
+                            "data_sets": [{"name": "ds1"}],
+                            "parameters": [{"name": "p1"}],
+                        },
                     },
-                },
-            ],
-        }, ensure_ascii=False),
+                ],
+            },
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 
@@ -214,16 +223,19 @@ def test_solve_finds_forms(setup):
     form_path = tmp / "derived" / "configs" / config_name / "form-index.json"
     form_path.parent.mkdir(parents=True, exist_ok=True)
     form_path.write_text(
-        json.dumps({
-            "forms": [
-                {
-                    "parent_type": "Catalog",
-                    "parent_name": "Товары",
-                    "name": "ФормаСписка",
-                    "form": {"element_count": 42},
-                },
-            ],
-        }, ensure_ascii=False),
+        json.dumps(
+            {
+                "forms": [
+                    {
+                        "parent_type": "Catalog",
+                        "parent_name": "Товары",
+                        "name": "ФормаСписка",
+                        "form": {"element_count": 42},
+                    },
+                ],
+            },
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 
@@ -258,9 +270,12 @@ def test_solve_total_hits(setup):
     api_json = pm.config_api_reference_json(config_name)
     api_json.parent.mkdir(parents=True, exist_ok=True)
     api_json.write_text(
-        json.dumps([
-            {"name": "ТоварыМодуль", "methods_count": 1, "methods": []},
-        ], ensure_ascii=False),
+        json.dumps(
+            [
+                {"name": "ТоварыМодуль", "methods_count": 1, "methods": []},
+            ],
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 
@@ -273,6 +288,7 @@ def test_solve_total_hits(setup):
 # ─────────────────────────────────────────────
 # CHECK: запуск анализаторов
 # ─────────────────────────────────────────────
+
 
 def test_check_file_not_found(setup):
     """check() на несуществующий файл → FileNotFoundError."""
@@ -298,8 +314,10 @@ def _make_fake_violations_module(module_name: str, attr_name: str, violations: l
     class FakeChecker:
         def check_file(self, path):
             return violations
+
         def audit_file(self, path):
             return violations
+
         def analyze_file(self, path):
             return violations
 
@@ -316,9 +334,7 @@ def test_check_quick_level_runs_4_analyzers(setup):
     bsl_file.write_text("Процедура Тест() Экспорт\nКонецПроцедуры", encoding="utf-8")
 
     # Мокаем все 4 analyzer-модуля
-    sample_v = [
-        type("V", (), {"rule_id": "R1", "severity": "error", "line": 1, "message": "test", "file": ""})()
-    ]
+    sample_v = [type("V", (), {"rule_id": "R1", "severity": "error", "line": 1, "message": "test", "file": ""})()]
     _make_fake_violations_module("check_1c_standards", "StandardsChecker", sample_v)
     _make_fake_violations_module("security_auditor", "SecurityAuditor", sample_v)
     _make_fake_violations_module("transaction_checker", "TransactionChecker", sample_v)
@@ -347,9 +363,7 @@ def test_check_to_dict_roundtrip(setup):
     bsl_file = tmp / "test.bsl"
     bsl_file.write_text("Процедура Тест() Экспорт\nКонецПроцедуры", encoding="utf-8")
 
-    sample_v = [
-        type("V", (), {"rule_id": "R1", "severity": "warning", "line": 1, "message": "w", "file": ""})()
-    ]
+    sample_v = [type("V", (), {"rule_id": "R1", "severity": "warning", "line": 1, "message": "w", "file": ""})()]
     _make_fake_violations_module("check_1c_standards", "StandardsChecker", sample_v)
     _make_fake_violations_module("security_auditor", "SecurityAuditor", [])
     _make_fake_violations_module("transaction_checker", "TransactionChecker", [])
@@ -415,12 +429,16 @@ def test_check_violation_source_tracking(setup):
     bsl_file = tmp / "test.bsl"
     bsl_file.write_text("Процедура Тест() Экспорт\nКонецПроцедуры", encoding="utf-8")
 
-    _make_fake_violations_module("check_1c_standards", "StandardsChecker", [
-        type("V", (), {"rule_id": "STD1", "severity": "error", "line": 1, "message": "m", "file": ""})()
-    ])
-    _make_fake_violations_module("security_auditor", "SecurityAuditor", [
-        type("V", (), {"rule_id": "SEC1", "severity": "critical", "line": 2, "message": "m", "file": ""})()
-    ])
+    _make_fake_violations_module(
+        "check_1c_standards",
+        "StandardsChecker",
+        [type("V", (), {"rule_id": "STD1", "severity": "error", "line": 1, "message": "m", "file": ""})()],
+    )
+    _make_fake_violations_module(
+        "security_auditor",
+        "SecurityAuditor",
+        [type("V", (), {"rule_id": "SEC1", "severity": "critical", "line": 2, "message": "m", "file": ""})()],
+    )
     _make_fake_violations_module("transaction_checker", "TransactionChecker", [])
     _make_fake_violations_module("query_analyzer", "QueryAnalyzer", [])
 

@@ -11,6 +11,7 @@ SessionManager — управление контекстом AI-сессий.
     sm.save(current_task='Реализация CFE', completed=['borrow', 'patch'], pending=['diff'])
     state = sm.restore()  # при следующем запуске
 """
+
 from __future__ import annotations
 
 import json
@@ -22,6 +23,7 @@ from pathlib import Path
 @dataclass
 class SessionState:
     """Состояние сессии для сохранения между запусками."""
+
     date: str = ""
     current_task: str = ""
     completed: list[str] = field(default_factory=list)

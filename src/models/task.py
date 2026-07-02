@@ -6,6 +6,7 @@
 TaskContext — что собрано для LLM (платформа + конфигурация + стандарты + база знаний)
 CheckResult — что нашли анализаторы (violations + verdict + metrics)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -14,6 +15,7 @@ from dataclasses import dataclass, field
 @dataclass
 class PlatformMethodHit:
     """Один результат поиска метода платформы 1С."""
+
     name_ru: str = ""
     name_en: str = ""
     score: float = 0.0
@@ -25,6 +27,7 @@ class PlatformMethodHit:
 @dataclass
 class ModuleApiHit:
     """Один модуль из api-reference.json."""
+
     name: str = ""
     methods_count: int = 0
     methods: list[dict] = field(default_factory=list)  # top-N методов
@@ -33,6 +36,7 @@ class ModuleApiHit:
 @dataclass
 class MetadataObjectHit:
     """Один объект из unified-metadata-index.json."""
+
     type: str = ""
     name: str = ""
     synonym: str = ""
@@ -44,6 +48,7 @@ class MetadataObjectHit:
 @dataclass
 class SkdSchemaHit:
     """Одна СКД-схема из skd-index.json."""
+
     parent_type: str = ""
     parent_name: str = ""
     name: str = ""
@@ -54,6 +59,7 @@ class SkdSchemaHit:
 @dataclass
 class FormHit:
     """Одна форма из form-index.json."""
+
     parent_type: str = ""
     parent_name: str = ""
     name: str = ""
@@ -63,6 +69,7 @@ class FormHit:
 @dataclass
 class KnowledgeArticleHit:
     """Статья из базы знаний."""
+
     category: str = ""
     title: str = ""
     score: float = 0.0
@@ -78,6 +85,7 @@ class TaskContext:
     - MCP: solve_context(query=..., config=...)
     - Internal: src.services.task_processor.TaskProcessor.solve()
     """
+
     query: str = ""
     config_name: str = ""
 
@@ -133,9 +141,10 @@ class TaskContext:
 @dataclass
 class Violation:
     """Одно нарушение от одного из анализаторов."""
-    source: str         # bsl_ls | check_1c_standards | security_auditor | ...
+
+    source: str  # bsl_ls | check_1c_standards | security_auditor | ...
     rule_id: str
-    severity: str       # error | warning | critical | high | info
+    severity: str  # error | warning | critical | high | info
     line: int = 0
     message: str = ""
     file: str = ""
@@ -144,6 +153,7 @@ class Violation:
 @dataclass
 class CodeMetric:
     """Метрики кода (от code_metrics analyzer)."""
+
     loc: int = 0
     lloc: int = 0
     cyclomatic_complexity: float = 0.0
@@ -161,8 +171,9 @@ class CheckResult:
 
     Единый формат для CLI / MCP / internal.
     """
+
     file: str = ""
-    level: str = "standard"   # quick | standard | full
+    level: str = "standard"  # quick | standard | full
     violations: list[Violation] = field(default_factory=list)
     metrics: CodeMetric | None = None
     bsl_ls_available: bool = False
@@ -170,17 +181,11 @@ class CheckResult:
 
     @property
     def total_errors(self) -> int:
-        return sum(
-            1 for v in self.violations
-            if v.severity.lower() in ("error", "critical", "high")
-        )
+        return sum(1 for v in self.violations if v.severity.lower() in ("error", "critical", "high"))
 
     @property
     def total_warnings(self) -> int:
-        return sum(
-            1 for v in self.violations
-            if v.severity.lower() not in ("error", "critical", "high")
-        )
+        return sum(1 for v in self.violations if v.severity.lower() not in ("error", "critical", "high"))
 
     @property
     def verdict(self) -> str:

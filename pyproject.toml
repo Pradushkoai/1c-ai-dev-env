@@ -179,6 +179,6 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@abstractmethod",
 ]
-fail_under = 30  # стартовый порог; цель — поднять до 85
+fail_under = 50  # поднят с 30 (P1.1); цель — 85
 show_missing = true
 skip_covered = false
