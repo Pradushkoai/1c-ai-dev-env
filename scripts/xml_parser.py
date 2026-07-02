@@ -5,20 +5,22 @@ xml_parser.py — Универсальный безопасный XML парсе
 Использует lxml если установлен (быстрее, C-based), иначе fallback на xml.etree.
 Оба варианта безопасны от XXE атак.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 # Пытаемся импортировать lxml (быстрее), fallback на xml.etree
 try:
     from lxml import etree as _etree
+
     _HAS_LXML = True
-    _PARSER_NAME = 'lxml'
+    _PARSER_NAME = "lxml"
 except ImportError:
     import xml.etree.ElementTree as _etree
+
     _HAS_LXML = False
-    _PARSER_NAME = 'xml.etree'
+    _PARSER_NAME = "xml.etree"
 
 
 def get_parser_name() -> str:
@@ -73,7 +75,7 @@ def fromstring(xml_string: str):
             dtd_validation=False,
             load_dtd=False,
         )
-        return _etree.fromstring(xml_string.encode('utf-8'), parser=parser)
+        return _etree.fromstring(xml_string.encode("utf-8"), parser=parser)
     else:
         return _etree.fromstring(xml_string)
 
@@ -81,5 +83,5 @@ def fromstring(xml_string: str):
 def strip_ns(tag: str) -> str:
     """Убирает namespace из тега."""
     if _HAS_LXML and isinstance(tag, bytes):
-        tag = tag.decode('utf-8')
-    return tag.split('}')[-1] if '}' in tag else tag
+        tag = tag.decode("utf-8")
+    return tag.split("}")[-1] if "}" in tag else tag

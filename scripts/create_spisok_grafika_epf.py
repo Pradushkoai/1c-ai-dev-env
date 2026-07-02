@@ -9,11 +9,11 @@
 формы «ТаблицаСписка» типа ТаблицаЗначений с колонками, создать визуальную
 таблицу и заполнить её запросом из документа (аналогично ОбщаяФорма.ФормаОбходов).
 """
+
 from __future__ import annotations
 
 import shutil
 import sys
-import uuid
 from pathlib import Path
 
 # Добавляем scripts в path
@@ -21,11 +21,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from epf_builder import (
-    extract_epf,
     build_epf,
+    extract_epf,
     rename_data_processor,
     replace_form_module,
 )
+
 # BSL-модуль вынесен в отдельный файл — там используются реальные ТАБЫ
 # для отступов (STD 456), которые невозможно сохранить в triple-quoted string
 from spisok_bsl_module import BSL_MODULE
@@ -54,7 +55,7 @@ def main():
         print(f"❌ Шаблон не найден: {TEMPLATE_EPF}")
         sys.exit(1)
 
-    work_dir = Path(f"/tmp/epf_spisok_gvo")
+    work_dir = Path("/tmp/epf_spisok_gvo")
     if work_dir.exists():
         shutil.rmtree(work_dir)
     src_dir = work_dir / "src"
@@ -92,12 +93,13 @@ def main():
     if not res["ok"]:
         print(f"❌ {res['error']}")
         sys.exit(1)
-    print(f"   Размер: {res['size_bytes']} байт ({res['size_bytes']/1024:.1f} КБ)")
+    print(f"   Размер: {res['size_bytes']} байт ({res['size_bytes'] / 1024:.1f} КБ)")
     print(f"   Файлов в исходниках: {res['files_included']}")
 
     # 5. Проверка round-trip
     print("5. Проверка round-trip...")
     from epf_builder import verify_epf
+
     res = verify_epf(OUTPUT_EPF)
     if not res["ok"]:
         print(f"❌ {res['error']}")
@@ -117,11 +119,24 @@ def main():
     bsl_path = check_dir / "Form" / "Форма" / "Form.obj.bsl"
 
     import subprocess
+
     result = subprocess.run(
-        ["/home/z/.venv/bin/python", "-m", "src.cli", "solve", "check",
-         str(bsl_path), "--level", "quick", "--config", "obhod"],
-        capture_output=True, text=True, timeout=60,
-        cwd="/home/z/my-project/repo_work"
+        [
+            "/home/z/.venv/bin/python",
+            "-m",
+            "src.cli",
+            "solve",
+            "check",
+            str(bsl_path),
+            "--level",
+            "quick",
+            "--config",
+            "obhod",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        cwd="/home/z/my-project/repo_work",
     )
     # Извлекаем итоговую строку
     for line in result.stdout.split("\n"):
@@ -131,7 +146,8 @@ def main():
     # 7. Проверка имени в собранном файле
     print("7. Проверка имени обработки в собранном файле...")
     import json as _json
-    with open(check_dir / "ExternalDataProcessor.json", "r", encoding="utf-8") as f:
+
+    with open(check_dir / "ExternalDataProcessor.json", encoding="utf-8") as f:
         meta = _json.load(f)
     print(f"   name:    {meta['name']}")
     print(f"   uuid:    {meta['uuid']}")

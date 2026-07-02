@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Загрузка с Яндекс.Диска с автоматическим обновлением ссылки."""
+
+import json
 import os
 import sys
 import time
-import json
 import urllib.request
 
 PUBLIC_KEY = "https://disk.yandex.by/d/3hhpHMzmcgyKVg"
@@ -59,7 +60,10 @@ def main():
 
                         if (current // (20 * 1024 * 1024)) > ((current - len(chunk)) // (20 * 1024 * 1024)):
                             pct = current / target_size * 100
-                            print(f"  {current / 1024 / 1024:.1f} / {target_size / 1024 / 1024:.1f} МБ ({pct:.1f}%)", flush=True)
+                            print(
+                                f"  {current / 1024 / 1024:.1f} / {target_size / 1024 / 1024:.1f} МБ ({pct:.1f}%)",
+                                flush=True,
+                            )
 
             print(f"Попытка {attempt}: скачано до {current / 1024 / 1024:.1f} МБ")
 
@@ -73,4 +77,5 @@ def main():
 
 if __name__ == "__main__":
     import urllib.parse
+
     sys.exit(0 if main() else 1)

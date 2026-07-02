@@ -21,68 +21,68 @@ import sys
 try:
     from fastembed import TextEmbedding
 except ImportError:
-    sys.exit("Этот скрипт требует опциональные зависимости: pip install -e \".[rag]\"")
-import time
+    sys.exit('Этот скрипт требует опциональные зависимости: pip install -e ".[rag]"')
 from pathlib import Path
 
 # Пути
-PROJECT_DIR = '/home/z/my-project'
-METHODS_JSON = f'{PROJECT_DIR}/indexes/syntax-helper-index.json'
-QDRANT_PATH = f'{PROJECT_DIR}/indexes/rag_qdrant'  # локальное файловое хранилище
-COLLECTION_NAME = '1c_methods'
-EMBEDDING_MODEL = 'BAAI/bge-small-en-v1.5'  # лёгкая модель, ~130 МБ
+PROJECT_DIR = "/home/z/my-project"
+METHODS_JSON = f"{PROJECT_DIR}/indexes/syntax-helper-index.json"
+QDRANT_PATH = f"{PROJECT_DIR}/indexes/rag_qdrant"  # локальное файловое хранилище
+COLLECTION_NAME = "1c_methods"
+EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"  # лёгкая модель, ~130 МБ
 
 
 def build_index():
     """Построить векторный индекс всех методов 1С."""
     from fastembed import TextEmbedding
     from qdrant_client import QdrantClient
-    from qdrant_client.models import Distance, VectorParams, PointStruct
+    from qdrant_client.models import Distance, PointStruct, VectorParams
 
-    print(f'Загружаю методы из {METHODS_JSON}...')
-    with open(METHODS_JSON, 'r', encoding='utf-8') as f:
+    print(f"Загружаю методы из {METHODS_JSON}...")
+    with open(METHODS_JSON, encoding="utf-8") as f:
         methods = json.load(f)
 
-    print(f'Загружено {len(methods)} методов')
+    print(f"Загружено {len(methods)} методов")
 
     # Подготовим тексты для embeddings — объединим имя, контекст, синтаксис, описание
     texts = []
     for i, m in enumerate(methods):
-        name_ru = m.get('name_ru', '')
-        name_en = m.get('name_en', '')
-        context = m.get('context', '')
-        syntax = m.get('syntax', '')
-        description = m.get('description', '')
-        returns = m.get('returns', '')
+        name_ru = m.get("name_ru", "")
+        name_en = m.get("name_en", "")
+        context = m.get("context", "")
+        syntax = m.get("syntax", "")
+        description = m.get("description", "")
+        returns = m.get("returns", "")
 
         # Формируем текст для embedding
-        text = f'{name_ru} ({name_en}) | {context} | {syntax} | {description[:200]} | Returns: {returns[:100]}'
+        text = f"{name_ru} ({name_en}) | {context} | {syntax} | {description[:200]} | Returns: {returns[:100]}"
         texts.append(text)
 
-    print(f'Инициализирую модель embeddings: {EMBEDDING_MODEL}...')
+    print(f"Инициализирую модель embeddings: {EMBEDDING_MODEL}...")
     model = TextEmbedding(EMBEDDING_MODEL)
 
-    print(f'Генерирую embeddings для {len(texts)} методов...', flush=True)
+    print(f"Генерирую embeddings для {len(texts)} методов...", flush=True)
     # Генерируем батчами — маленький размер для стабильности
     embeddings = []
     batch_size = 32  # меньше = стабильнее
     for i in range(0, len(texts), batch_size):
-        batch = texts[i:i+batch_size]
+        batch = texts[i : i + batch_size]
         try:
             batch_embeddings = list(model.embed(batch))
             embeddings.extend(batch_embeddings)
-            done = min(i+batch_size, len(texts))
+            done = min(i + batch_size, len(texts))
             if done % 100 == 0 or done == len(texts):
-                print(f'  Прогресс: {done}/{len(texts)} ({100*done//len(texts)}%)', flush=True)
+                print(f"  Прогресс: {done}/{len(texts)} ({100 * done // len(texts)}%)", flush=True)
         except Exception as e:
-            print(f'  Ошибка на батче {i}: {e}', flush=True)
+            print(f"  Ошибка на батче {i}: {e}", flush=True)
             # Добавляем пустые embeddings чтобы сохранить индексы
             embeddings.extend([None] * len(batch))
 
-    print(f'Создаю Qdrant коллекцию...')
+    print("Создаю Qdrant коллекцию...")
     # Удаляем старую БД если есть
     if os.path.exists(QDRANT_PATH):
         import shutil
+
         shutil.rmtree(QDRANT_PATH)
 
     client = QdrantClient(path=QDRANT_PATH)
@@ -95,22 +95,22 @@ def build_index():
     )
 
     # Загружаем точки батчами
-    print(f'Загружаю {len(methods)} точек в Qdrant...')
+    print(f"Загружаю {len(methods)} точек в Qdrant...")
     points_batch = []
     for i, (method, embedding) in enumerate(zip(methods, embeddings)):
         point = PointStruct(
             id=i,
             vector=embedding.tolist(),
             payload={
-                'name_ru': method.get('name_ru', ''),
-                'name_en': method.get('name_en', ''),
-                'context': method.get('context', ''),
-                'syntax': method.get('syntax', ''),
-                'description': method.get('description', ''),
-                'returns': method.get('returns', ''),
-                'availability': method.get('availability', ''),
-                'file': method.get('file', ''),
-            }
+                "name_ru": method.get("name_ru", ""),
+                "name_en": method.get("name_en", ""),
+                "context": method.get("context", ""),
+                "syntax": method.get("syntax", ""),
+                "description": method.get("description", ""),
+                "returns": method.get("returns", ""),
+                "availability": method.get("availability", ""),
+                "file": method.get("file", ""),
+            },
         )
         points_batch.append(point)
 
@@ -119,8 +119,8 @@ def build_index():
             points_batch = []
 
     count = client.count(collection_name=COLLECTION_NAME).count
-    print(f'\n✅ Индекс построен: {count} методов в Qdrant')
-    print(f'Хранилище: {QDRANT_PATH}')
+    print(f"\n✅ Индекс построен: {count} методов в Qdrant")
+    print(f"Хранилище: {QDRANT_PATH}")
 
 
 def search(query, limit=10):
@@ -129,7 +129,7 @@ def search(query, limit=10):
     from qdrant_client import QdrantClient
 
     if not os.path.exists(QDRANT_PATH):
-        print(f'❌ Индекс не найден. Сначала запусти: python3 {sys.argv[0]} build')
+        print(f"❌ Индекс не найден. Сначала запусти: python3 {sys.argv[0]} build")
         sys.exit(1)
 
     print(f'Поиск: "{query}"')
@@ -148,14 +148,14 @@ def search(query, limit=10):
     for i, hit in enumerate(results, 1):
         payload = hit.payload
         score = hit.score
-        name_ru = payload.get('name_ru', '')
-        name_en = payload.get('name_en', '')
-        context = payload.get('context', '')[:80]
-        syntax = payload.get('syntax', '')[:120]
+        name_ru = payload.get("name_ru", "")
+        name_en = payload.get("name_en", "")
+        context = payload.get("context", "")[:80]
+        syntax = payload.get("syntax", "")[:120]
 
-        print(f'{i}. [{score:.3f}] {name_ru} ({name_en})')
-        print(f'   Контекст: {context}')
-        print(f'   Синтаксис: {syntax}')
+        print(f"{i}. [{score:.3f}] {name_ru} ({name_en})")
+        print(f"   Контекст: {context}")
+        print(f"   Синтаксис: {syntax}")
         print()
 
 
@@ -164,41 +164,41 @@ def info():
     from qdrant_client import QdrantClient
 
     if not os.path.exists(QDRANT_PATH):
-        print(f'❌ Индекс не найден. Сначала запусти: python3 {sys.argv[0]} build')
+        print(f"❌ Индекс не найден. Сначала запусти: python3 {sys.argv[0]} build")
         return
 
     client = QdrantClient(path=QDRANT_PATH)
     count = client.count(collection_name=COLLECTION_NAME).count
-    print(f'RAG индекс: {COLLECTION_NAME}')
-    print(f'Методов в индексе: {count}')
-    print(f'Хранилище: {QDRANT_PATH}')
-    size = sum(f.stat().st_size for f in Path(QDRANT_PATH).rglob('*') if f.is_file())
-    print(f'Размер: {size / 1024 / 1024:.1f} МБ')
+    print(f"RAG индекс: {COLLECTION_NAME}")
+    print(f"Методов в индексе: {count}")
+    print(f"Хранилище: {QDRANT_PATH}")
+    size = sum(f.stat().st_size for f in Path(QDRANT_PATH).rglob("*") if f.is_file())
+    print(f"Размер: {size / 1024 / 1024:.1f} МБ")
 
 
 def main():
     if len(sys.argv) < 2:
-        print('Использование:')
-        print(f'  python3 {sys.argv[0]} build              — построить индекс')
+        print("Использование:")
+        print(f"  python3 {sys.argv[0]} build              — построить индекс")
         print(f'  python3 {sys.argv[0]} search "<запрос>"  — семантический поиск')
-        print(f'  python3 {sys.argv[0]} info               — информация об индексе')
+        print(f"  python3 {sys.argv[0]} info               — информация об индексе")
         sys.exit(1)
 
     command = sys.argv[1]
 
-    if command == 'build':
+    if command == "build":
         build_index()
-    elif command == 'search':
+    elif command == "search":
         if len(sys.argv) < 3:
             print('Укажи запрос: python3 rag_1c_methods.py search "найти элемент по коду"')
             sys.exit(1)
         search(sys.argv[2])
-    elif command == 'info':
+    elif command == "info":
         info()
     else:
-        print(f'Неизвестная команда: {command}')
+        print(f"Неизвестная команда: {command}")
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

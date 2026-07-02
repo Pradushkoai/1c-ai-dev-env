@@ -13,6 +13,7 @@ img_grid.py — Наложение сетки на изображение для
 Пример:
     python3 scripts/img_grid.py form.png -c 50 -o form-grid.png
 """
+
 from __future__ import annotations
 
 import argparse
@@ -21,6 +22,7 @@ from pathlib import Path
 
 try:
     from PIL import Image, ImageDraw, ImageFont
+
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
@@ -143,14 +145,10 @@ def overlay_grid(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Наложить пронумерованную сетку на изображение"
-    )
+    parser = argparse.ArgumentParser(description="Наложить пронумерованную сетку на изображение")
     parser.add_argument("image", help="Путь к изображению (PNG, JPG)")
-    parser.add_argument("-c", "--cols", type=int, default=50,
-                        help="Количество вертикальных делений (default: 50)")
-    parser.add_argument("-r", "--rows", type=int, default=0,
-                        help="Количество горизонтальных делений (0 = авто)")
+    parser.add_argument("-c", "--cols", type=int, default=50, help="Количество вертикальных делений (default: 50)")
+    parser.add_argument("-r", "--rows", type=int, default=0, help="Количество горизонтальных делений (0 = авто)")
     parser.add_argument("-o", "--output", help="Путь для результата")
     args = parser.parse_args()
 

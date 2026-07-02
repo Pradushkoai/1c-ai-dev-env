@@ -18,6 +18,7 @@ block_size на 512.
 Использование:
     python patch_epf_blocksize.py <input.epf> <output.epf>
 """
+
 import struct
 import sys
 from pathlib import Path
@@ -38,12 +39,12 @@ def parse_block_header(data: bytes, offset: int) -> dict | None:
     """
     if offset + BLOCK_HEADER_SIZE > len(data):
         return None
-    header_bytes = data[offset:offset + BLOCK_HEADER_SIZE]
-    if header_bytes[:2] != b'\r\n':
+    header_bytes = data[offset : offset + BLOCK_HEADER_SIZE]
+    if header_bytes[:2] != b"\r\n":
         return None
     # Парсим: \r\n + 8hex + ' ' + 8hex + ' ' + 8hex + ' \r\n
     try:
-        text = header_bytes.decode('ascii')
+        text = header_bytes.decode("ascii")
     except UnicodeDecodeError:
         return None
     # Формат: "\r\n00000054 00000200 7fffffff \r\n"
@@ -52,10 +53,10 @@ def parse_block_header(data: bytes, offset: int) -> dict | None:
         return None
     try:
         return {
-            'doc_size': int(parts[0], 16),
-            'block_size': int(parts[1], 16),
-            'next_block': int(parts[2], 16),
-            'header_size': BLOCK_HEADER_SIZE,
+            "doc_size": int(parts[0], 16),
+            "block_size": int(parts[1], 16),
+            "next_block": int(parts[2], 16),
+            "header_size": BLOCK_HEADER_SIZE,
         }
     except ValueError:
         return None
@@ -63,7 +64,7 @@ def parse_block_header(data: bytes, offset: int) -> dict | None:
 
 def make_block_header(doc_size: int, block_size: int, next_block: int) -> bytes:
     """Создать новый заголовок блока (31 байт)."""
-    return f'\r\n{doc_size:08x} {block_size:08x} {next_block:08x} \r\n'.encode('ascii')
+    return f"\r\n{doc_size:08x} {block_size:08x} {next_block:08x} \r\n".encode("ascii")
 
 
 def patch_epf(input_path: str | Path, output_path: str | Path) -> dict:
@@ -108,12 +109,14 @@ def patch_epf(input_path: str | Path, output_path: str | Path) -> dict:
     # 1. Header block_size → 512 (если не 512)
     if header_block_size != STANDARD_BLOCK_SIZE:
         struct.pack_into("<I", data, 4, STANDARD_BLOCK_SIZE)
-        block_details.append({
-            "type": "header",
-            "offset": 4,
-            "old": header_block_size,
-            "new": STANDARD_BLOCK_SIZE,
-        })
+        block_details.append(
+            {
+                "type": "header",
+                "offset": 4,
+                "old": header_block_size,
+                "new": STANDARD_BLOCK_SIZE,
+            }
+        )
         blocks_patched += 1
 
     # 2. TOC block_size → 512 (КРИТИЧНО!)
@@ -123,19 +126,21 @@ def patch_epf(input_path: str | Path, output_path: str | Path) -> dict:
     if toc_header is None:
         return {"ok": False, "error": "TOC block header не найден"}
 
-    if toc_header['block_size'] != STANDARD_BLOCK_SIZE:
+    if toc_header["block_size"] != STANDARD_BLOCK_SIZE:
         new_header = make_block_header(
-            toc_header['doc_size'],
+            toc_header["doc_size"],
             STANDARD_BLOCK_SIZE,
-            toc_header['next_block'],
+            toc_header["next_block"],
         )
-        data[toc_offset:toc_offset + BLOCK_HEADER_SIZE] = new_header
-        block_details.append({
-            "type": "toc",
-            "offset": toc_offset,
-            "old": toc_header['block_size'],
-            "new": STANDARD_BLOCK_SIZE,
-        })
+        data[toc_offset : toc_offset + BLOCK_HEADER_SIZE] = new_header
+        block_details.append(
+            {
+                "type": "toc",
+                "offset": toc_offset,
+                "old": toc_header["block_size"],
+                "new": STANDARD_BLOCK_SIZE,
+            }
+        )
         blocks_patched += 1
 
     # Description/data blocks НЕ ТРОГАЕМ — у них block_size = doc_size (как в оригинале)
@@ -162,9 +167,9 @@ def main():
     print(f"OK: {result['ok']}")
     print(f"Blocks patched: {result.get('blocks_patched', 0)} / {result.get('total_blocks', 0)}")
     print(f"Size: {result.get('size_bytes', 0)} bytes")
-    if result.get('block_details'):
+    if result.get("block_details"):
         print("\nPatched blocks:")
-        for b in result['block_details']:
+        for b in result["block_details"]:
             print(f"  {b['type']} @ {b['offset']:08x}: {b['old']:08x} → {b['new']:08x}")
     if not result["ok"]:
         print(f"Error: {result.get('error', 'unknown')}")

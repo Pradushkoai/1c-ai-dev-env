@@ -2,17 +2,18 @@
 End-to-end тест MCP-сервера через stdio: initialize + tools/list.
 Это проверяет, что сервер реально запускается и отвечает по протоколу MCP.
 """
+
 import json
 import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path('/home/z/my-project/repo_work')
+REPO_ROOT = Path("/home/z/my-project/repo_work")
 
 
 def send_jsonrpc(proc, msg: dict) -> None:
     """Отправить JSON-RPC сообщение в процесс."""
-    data = json.dumps(msg) + '\n'
+    data = json.dumps(msg) + "\n"
     proc.stdin.write(data)
     proc.stdin.flush()
 
@@ -29,7 +30,7 @@ def main():
     """Запускаем MCP-сервер и тестируем протокол."""
     # Запускаем MCP-сервер
     proc = subprocess.Popen(
-        [sys.executable, '-m', 'src.cli', 'mcp', 'serve'],
+        [sys.executable, "-m", "src.cli", "mcp", "serve"],
         cwd=str(REPO_ROOT),
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -39,16 +40,19 @@ def main():
 
     try:
         # 1. initialize
-        send_jsonrpc(proc, {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {"name": "test-client", "version": "1.0"}
-            }
-        })
+        send_jsonrpc(
+            proc,
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "test-client", "version": "1.0"},
+                },
+            },
+        )
 
         resp = read_jsonrpc(proc)
         assert resp["id"] == 1, f"Wrong id: {resp}"
@@ -59,19 +63,10 @@ def main():
         print("✅ initialize OK")
 
         # 2. Отправляем initialized notification
-        send_jsonrpc(proc, {
-            "jsonrpc": "2.0",
-            "method": "notifications/initialized",
-            "params": {}
-        })
+        send_jsonrpc(proc, {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}})
 
         # 3. tools/list
-        send_jsonrpc(proc, {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/list",
-            "params": {}
-        })
+        send_jsonrpc(proc, {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
 
         resp = read_jsonrpc(proc)
         assert resp["id"] == 2, f"Wrong id: {resp}"
@@ -81,11 +76,16 @@ def main():
         assert len(tools) == 8, f"Expected 8 tools, got {len(tools)}"
 
         expected_names = {
-            'list_configs', 'search_1c_methods', 'get_api_reference',
-            'analyze_bsl', 'check_standards', 'solve_context', 'solve_check',
-            'data_status'
+            "list_configs",
+            "search_1c_methods",
+            "get_api_reference",
+            "analyze_bsl",
+            "check_standards",
+            "solve_context",
+            "solve_check",
+            "data_status",
         }
-        actual_names = {t['name'] for t in tools}
+        actual_names = {t["name"] for t in tools}
         assert expected_names == actual_names, f"Tool names mismatch: {actual_names}"
 
         print(f"✅ tools/list OK ({len(tools)} tools)")
@@ -93,15 +93,10 @@ def main():
             print(f"   • {t['name']}")
 
         # 4. call list_configs
-        send_jsonrpc(proc, {
-            "jsonrpc": "2.0",
-            "id": 3,
-            "method": "tools/call",
-            "params": {
-                "name": "list_configs",
-                "arguments": {}
-            }
-        })
+        send_jsonrpc(
+            proc,
+            {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "list_configs", "arguments": {}}},
+        )
 
         resp = read_jsonrpc(proc)
         assert resp["id"] == 3, f"Wrong id: {resp}"
@@ -124,5 +119,5 @@ def main():
             proc.kill()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
