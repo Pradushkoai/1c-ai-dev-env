@@ -103,7 +103,7 @@ class BackupManager:
         if not backup_path.exists():
             raise FileNotFoundError(f"Backup файл не найден: {backup_path}")
 
-        stats = {
+        stats: dict[str, int | set[str]] = {
             "files_restored": 0,
             "dirs_restored": set(),
             "size_bytes": 0,

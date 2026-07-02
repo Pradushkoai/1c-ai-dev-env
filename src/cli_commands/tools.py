@@ -186,12 +186,14 @@ def cmd_dsl(project: Project, args: argparse.Namespace) -> None:
 
 def cmd_cfe(project: Project, args: argparse.Namespace) -> None:
     """Работа с расширениями конфигураций 1С (CFE)."""
+    from typing import Any
+
     from src.services.cfe_manager import CfeManager
 
     manager = CfeManager()
 
     if args.cfe_command == "borrow":
-        result = manager.borrow_object(
+        result: Any = manager.borrow_object(
             Path(args.extension_path),
             Path(args.config_path),
             args.object_ref,
@@ -281,6 +283,8 @@ def cmd_skd_trace(project: Project, args: argparse.Namespace) -> None:
 
 def cmd_depgraph(project: Project, args: argparse.Namespace) -> None:
     """Граф зависимостей метаданных 1С (networkx, без Neo4j)."""
+    from typing import Any
+
     from src.services.dependency_graph import DependencyGraph
 
     if args.depgraph_command == "build":
@@ -311,7 +315,7 @@ def cmd_depgraph(project: Project, args: argparse.Namespace) -> None:
         dg.build_from_metadata_index(args.name, project.paths)
 
         if args.query_type == "what_depends_on":
-            result = dg.what_depends_on(args.object)
+            result: Any = dg.what_depends_on(args.object)
             print(f"=== Что зависит от {args.object} ===")
             for r in result:
                 print(f"  ← {r['source']} ({r['relation']}) {r['detail']}")

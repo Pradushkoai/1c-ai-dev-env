@@ -430,9 +430,9 @@ class TaskProcessor:
                 result.bsl_ls_available = True
                 try:
                     # Импортируем bsl_analyzer лениво — он требует Java
-                    from .bsl_analyzer import BslAnalyzer
+                    from .bsl_analyzer import BSLAnalyzer
 
-                    analyzer = BslAnalyzer(self._paths)
+                    analyzer = BSLAnalyzer(self._paths)
                     bsl_result = analyzer.analyze(file_path)
                     for d in bsl_result.diagnostics:
                         result.violations.append(

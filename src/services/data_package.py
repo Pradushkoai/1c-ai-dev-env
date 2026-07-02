@@ -37,6 +37,7 @@ import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from .path_manager import PathManager
 
@@ -152,8 +153,8 @@ class DataPackage:
             # 2. derived/ (если включён)
             if include_derived and self._paths.derived_dir.exists():
                 for root, _dirs, files in os.walk(self._paths.derived_dir):
-                    for f in files:
-                        full = Path(root) / f
+                    for fname in files:
+                        full = Path(root) / fname
                         rel = full.relative_to(self._paths.root)
                         arcname = f"data-package/{rel}"
                         zf.write(full, arcname)
@@ -163,8 +164,8 @@ class DataPackage:
             # 3. data/ (если включён) — большие файлы
             if include_raw and self._paths.data_dir.exists():
                 for root, _dirs, files in os.walk(self._paths.data_dir):
-                    for f in files:
-                        full = Path(root) / f
+                    for fname in files:
+                        full = Path(root) / fname
                         rel = full.relative_to(self._paths.root)
                         arcname = f"data-package/{rel}"
                         zf.write(full, arcname)
@@ -193,7 +194,7 @@ class DataPackage:
         if not input_path.exists():
             raise FileNotFoundError(f"Пакет не найден: {input_path}")
 
-        stats = {
+        stats: dict[str, int | PackageManifest | None] = {
             "files_restored": 0,
             "configs_loaded": 0,
             "derived_restored": 0,
@@ -253,7 +254,7 @@ class DataPackage:
         if not input_path.exists():
             raise FileNotFoundError(f"Пакет не найден: {input_path}")
 
-        result = {
+        result: dict[str, Any] = {
             "manifest": None,
             "total_files": 0,
             "file_list_sample": [],
