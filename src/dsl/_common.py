@@ -32,31 +32,17 @@ NS_SSDX = "http://v8.1c.ru/8.1/data/spreadsheet/auxiliary"
 # P2.3: NS_RIGHTS для RoleCompiler
 NS_RIGHTS = "http://v8.1c.ru/8.1/data/rights"
 
-# Маппинг типов объектов 1С → XML-теги и папки
+# Маппинг типов объектов 1С → XML-теги и папки.
+# P3.17: вынесен в src/services/object_types.py — единый источник для DSL и CFE.
+# Здесь оставлен re-export для обратной совместимости с существующими импортами.
+from src.services.object_types import TYPE_MAP as _UNIFIED_TYPE_MAP
+
+# DSL поддерживает подмножество типов из полного TYPE_MAP.
+# Импортируем только поддерживаемые, чтобы не вводить в заблуждение.
+from src.services.object_types import DSL_SUPPORTED_TYPES
+
 TYPE_MAP: dict[str, dict] = {
-    "Catalog": {"xml_tag": "Catalog", "dir": "Catalogs"},
-    "Document": {"xml_tag": "Document", "dir": "Documents"},
-    "Enum": {"xml_tag": "Enum", "dir": "Enums"},
-    "Constant": {"xml_tag": "Constant", "dir": "Constants"},
-    "InformationRegister": {"xml_tag": "InformationRegister", "dir": "InformationRegisters"},
-    "AccumulationRegister": {"xml_tag": "AccumulationRegister", "dir": "AccumulationRegisters"},
-    "AccountingRegister": {"xml_tag": "AccountingRegister", "dir": "AccountingRegisters"},
-    "CalculationRegister": {"xml_tag": "CalculationRegister", "dir": "CalculationRegisters"},
-    "ChartOfAccounts": {"xml_tag": "ChartOfAccounts", "dir": "ChartsOfAccounts"},
-    "ChartOfCharacteristicTypes": {"xml_tag": "ChartOfCharacteristicTypes", "dir": "ChartsOfCharacteristicTypes"},
-    "ChartOfCalculationTypes": {"xml_tag": "ChartOfCalculationTypes", "dir": "ChartsOfCalculationTypes"},
-    "BusinessProcess": {"xml_tag": "BusinessProcess", "dir": "BusinessProcesses"},
-    "Task": {"xml_tag": "Task", "dir": "Tasks"},
-    "ExchangePlan": {"xml_tag": "ExchangePlan", "dir": "ExchangePlans"},
-    "DocumentJournal": {"xml_tag": "DocumentJournal", "dir": "DocumentJournals"},
-    "Report": {"xml_tag": "Report", "dir": "Reports"},
-    "DataProcessor": {"xml_tag": "DataProcessor", "dir": "DataProcessors"},
-    "CommonModule": {"xml_tag": "CommonModule", "dir": "CommonModules"},
-    "ScheduledJob": {"xml_tag": "ScheduledJob", "dir": "ScheduledJobs"},
-    "EventSubscription": {"xml_tag": "EventSubscription", "dir": "EventSubscriptions"},
-    "DefinedType": {"xml_tag": "DefinedType", "dir": "DefinedTypes"},
-    "HTTPService": {"xml_tag": "HTTPService", "dir": "HTTPServices"},
-    "WebService": {"xml_tag": "WebService", "dir": "WebServices"},
+    k: v for k, v in _UNIFIED_TYPE_MAP.items() if k in DSL_SUPPORTED_TYPES
 }
 
 # Русские синонимы типов

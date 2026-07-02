@@ -26,50 +26,10 @@ from .path_manager import PathManager
 NS_MD = "http://v8.1c.ru/8.3/MDClasses"
 NS_XR = "http://v8.1c.ru/8.3/xcf/extprops"
 
-# Маппинг типов объектов 1С → XML-теги и папки
-TYPE_MAP: dict[str, dict] = {
-    "Catalog": {"xml_tag": "Catalog", "dir": "Catalogs"},
-    "Document": {"xml_tag": "Document", "dir": "Documents"},
-    "Enum": {"xml_tag": "Enum", "dir": "Enums"},
-    "Constant": {"xml_tag": "Constant", "dir": "Constants"},
-    "InformationRegister": {"xml_tag": "InformationRegister", "dir": "InformationRegisters"},
-    "AccumulationRegister": {"xml_tag": "AccumulationRegister", "dir": "AccumulationRegisters"},
-    "AccountingRegister": {"xml_tag": "AccountingRegister", "dir": "AccountingRegisters"},
-    "CalculationRegister": {"xml_tag": "CalculationRegister", "dir": "CalculationRegisters"},
-    "ChartOfAccounts": {"xml_tag": "ChartOfAccounts", "dir": "ChartsOfAccounts"},
-    "ChartOfCharacteristicTypes": {"xml_tag": "ChartOfCharacteristicTypes", "dir": "ChartsOfCharacteristicTypes"},
-    "ChartOfCalculationTypes": {"xml_tag": "ChartOfCalculationTypes", "dir": "ChartsOfCalculationTypes"},
-    "BusinessProcess": {"xml_tag": "BusinessProcess", "dir": "BusinessProcesses"},
-    "Task": {"xml_tag": "Task", "dir": "Tasks"},
-    "ExchangePlan": {"xml_tag": "ExchangePlan", "dir": "ExchangePlans"},
-    "DocumentJournal": {"xml_tag": "DocumentJournal", "dir": "DocumentJournals"},
-    "Report": {"xml_tag": "Report", "dir": "Reports"},
-    "DataProcessor": {"xml_tag": "DataProcessor", "dir": "DataProcessors"},
-    "CommonModule": {"xml_tag": "CommonModule", "dir": "CommonModules"},
-    "CommonForm": {"xml_tag": "CommonForm", "dir": "CommonForms"},
-    "CommonCommand": {"xml_tag": "CommonCommand", "dir": "CommonCommands"},
-    "CommonTemplate": {"xml_tag": "CommonTemplate", "dir": "CommonTemplates"},
-    "CommonPicture": {"xml_tag": "CommonPicture", "dir": "CommonPictures"},
-    "CommonAttribute": {"xml_tag": "CommonAttribute", "dir": "CommonAttributes"},
-    "CommandGroup": {"xml_tag": "CommandGroup", "dir": "CommandGroups"},
-    "DefinedType": {"xml_tag": "DefinedType", "dir": "DefinedTypes"},
-    "DocumentNumerator": {"xml_tag": "DocumentNumerator", "dir": "DocumentNumerators"},
-    "EventSubscription": {"xml_tag": "EventSubscription", "dir": "EventSubscriptions"},
-    "FilterCriterion": {"xml_tag": "FilterCriterion", "dir": "FilterCriteria"},
-    "FunctionalOption": {"xml_tag": "FunctionalOption", "dir": "FunctionalOptions"},
-    "FunctionalOptionParameter": {"xml_tag": "FunctionalOptionParameter", "dir": "FunctionalOptionsParameters"},
-    "HTTPService": {"xml_tag": "HTTPService", "dir": "HTTPServices"},
-    "ScheduledJob": {"xml_tag": "ScheduledJob", "dir": "ScheduledJobs"},
-    "Sequence": {"xml_tag": "Sequence", "dir": "Sequences"},
-    "SessionParameter": {"xml_tag": "SessionParameter", "dir": "SessionParameters"},
-    "SettingsStorage": {"xml_tag": "SettingsStorage", "dir": "SettingsStorages"},
-    "Style": {"xml_tag": "Style", "dir": "Styles"},
-    "Subsystem": {"xml_tag": "Subsystem", "dir": "Subsystems"},
-    "Role": {"xml_tag": "Role", "dir": "Roles"},
-    "WebService": {"xml_tag": "WebService", "dir": "WebServices"},
-    "WSReference": {"xml_tag": "WSReference", "dir": "WSReferences"},
-    "XDTOPackage": {"xml_tag": "XDTOPackage", "dir": "XDTOPackages"},
-}
+# Маппинг типов объектов 1С → XML-теги и папки.
+# P3.17: вынесен в src/services/object_types.py — единый источник для DSL и CFE.
+# Здесь оставлен re-export для обратной совместимости.
+from .object_types import TYPE_MAP
 
 
 # ============================================================================
