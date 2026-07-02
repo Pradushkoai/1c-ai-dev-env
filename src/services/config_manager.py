@@ -74,7 +74,11 @@ MIN_REQUIRED_DIRS: tuple[str, ...] = ("CommonModules", "Catalogs", "Documents", 
 
 @dataclass
 class SourceValidation:
-    """Результат валидации исходников конфигурации."""
+    """Результат валидации исходников конфигурации.
+
+    Deprecated: используйте src.services.config_validator.SourceValidation.
+    Сохранён здесь для backward compat с импортами `from config_manager import SourceValidation`.
+    """
 
     is_valid: bool
     has_configuration_xml: bool = False
@@ -88,7 +92,10 @@ class SourceValidation:
 
 @dataclass
 class IndexStatus:
-    """Статус одного индекса конфигурации."""
+    """Статус одного индекса конфигурации.
+
+    Deprecated: используйте src.services.config_validator.IndexStatus.
+    """
 
     name: str  # metadata | api | skd | forms
     path: Path | None
@@ -101,7 +108,10 @@ class IndexStatus:
 
 @dataclass
 class IndexFreshnessReport:
-    """Полный отчёт об актуальности всех индексов конфигурации."""
+    """Полный отчёт об актуальности всех индексов конфигурации.
+
+    Deprecated: используйте src.services.config_validator.IndexFreshnessReport.
+    """
 
     config_name: str
     source_mtime: float | None  # самый свежий .xml/.bsl в исходниках
@@ -130,12 +140,55 @@ class IndexFreshnessReport:
         }
 
 
+# P2.11: переопределяем классы как aliases на canonical версии из config_validator.
+# Это сохраняет backward compat для `isinstance(result, SourceValidation)`:
+# любая реализация (из ConfigManager или ConfigValidator) будет того же типа.
+from .config_validator import (  # noqa: E402,F811 — переопределяем выше
+    IndexFreshnessReport,
+    IndexStatus,
+    SourceValidation,
+)
+
+
 class ConfigManager:
-    """Управление конфигурациями 1С: add, activate, archive, build, list."""
+    """Управление конфигурациями 1С: add, activate, archive, build, list.
+
+    P2.11: класс разделён на 3 ответственности (SRP):
+    - ConfigManager (этот класс) — CRUD: add_from_zip, archive, activate, remove
+    - ConfigBuilder — построение индексов: build, build_all
+    - ConfigValidator — валидация: validate_sources, check_freshness
+
+    Для backward compat все существующие методы сохранены на ConfigManager
+    и делегируют в builder/validator. Новый код должен использовать
+    соответствующие классы напрямую.
+    """
 
     def __init__(self, registry: ConfigurationRegistry, paths: PathManager):
         self._registry = registry
         self._paths = paths
+        # P2.11: lazy-init builder и validator для SRP-декомпозиции.
+        self._builder: "ConfigBuilder | None" = None
+        self._validator: "ConfigValidator | None" = None
+
+    # ─── P2.11: SRP-декомпозиция ───
+
+    @property
+    def builder(self) -> "ConfigBuilder":
+        """ConfigBuilder для построения индексов (SRP)."""
+        if self._builder is None:
+            from .config_builder import ConfigBuilder
+
+            self._builder = ConfigBuilder(self._registry, self._paths)
+        return self._builder
+
+    @property
+    def validator(self) -> "ConfigValidator":
+        """ConfigValidator для валидации исходников (SRP)."""
+        if self._validator is None:
+            from .config_validator import ConfigValidator
+
+            self._validator = ConfigValidator(self._registry, self._paths)
+        return self._validator
 
     # --- Валидация ---
 
