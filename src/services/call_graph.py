@@ -345,7 +345,7 @@ def build_call_graph(config_name: str, paths: PathManager | None = None) -> Call
             local_m = re.match(r'([А-Яа-яЁё][А-Яа-яЁё\w]*)\s*\(', stripped)
             if local_m:
                 method_name = local_m.group(1)
-                if method_name not in BSL_KEYWORDS and method_name != current_proc:
+                if method_name not in BSL_KEYWORDS and method_name != current_proc:  # noqa: SIM102
                     # Проверяем — есть ли такой метод в api-reference
                     if f"{mod_name}.{method_name}" in export_methods:
                         edge = CallEdge(

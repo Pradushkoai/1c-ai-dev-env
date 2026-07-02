@@ -42,15 +42,19 @@ test = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "pytest-benchmark>=4.0",
+    "pytest-asyncio>=0.23.0",
     "hypothesis>=6.0",
     "lxml>=4.9.0",
+    "Pillow>=10.0.0",
 ]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "pytest-benchmark>=4.0",
+    "pytest-asyncio>=0.23.0",
     "hypothesis>=6.0",
     "lxml>=4.9.0",
+    "Pillow>=10.0.0",
     "ruff>=0.5.0",
     "mypy>=1.10",
     "pre-commit>=3.7",
@@ -71,6 +75,7 @@ include = ["src*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+asyncio_mode = "auto"
 # pytest-benchmark настройки (только поддерживаемые INI опции)
 benchmark_min_rounds = 5
 benchmark_min_time = "0.000005"
@@ -114,6 +119,15 @@ ignore = [
 "tests/*" = [
     "F401",   # unused imports (могут быть в фикстурах)
     "F811",   # redefinition (pytest переопределяет)
+    "F841",   # unused local variables (часто нужны для side-effect assertions)
+    "SIM102", # collapsible-if (читаемость в тестах)
+    "SIM105", # suppressible-exception (try-except-pass ок в тестах)
+    "SIM108", # ternary operator (if-else читаемее в тестах)
+    "SIM115", # open-file-with-context-handler (часто нужно для тестирования)
+    "SIM116", # if-else-block-instead-of-dict-lookup (читаемость)
+    "E402",   # module-import-not-at-top (sys.path manipulation)
+    "E741",   # ambiguous-variable-name (l, I, O — ок в тестах)
+    "I001",   # import sort (tests/ часто имеет специальные импорты)
 ]
 "scripts/*" = [
     "B",      # bugbear слишком строг для скриптов

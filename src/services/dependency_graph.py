@@ -36,8 +36,6 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Optional
 
 try:
     import networkx as nx
@@ -46,7 +44,6 @@ except ImportError:
     HAS_NETWORKX = False
 
 from .path_manager import PathManager
-
 
 # Типы связей в графе зависимостей
 RELATION_TYPES = {

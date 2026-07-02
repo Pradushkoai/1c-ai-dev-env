@@ -426,7 +426,7 @@ def test_no_query_outside_loop_ok(std, tmp_path):
 
 def test_no_query_in_loop_docstring_ok(std, tmp_path):
     """Запрос в цикле в docstring-примере — НЕ должен детектиться (bug fix).
-    
+
     Регрессионный тест: чекер не должен находить 'Цикл' в комментариях
     docstring и считать это запросом в цикле.
     """
@@ -444,13 +444,13 @@ def test_no_query_in_loop_docstring_ok(std, tmp_path):
 //   КонецЕсли;
 //
 Функция НайтиПоАртикулу(Артикул) Экспорт
-        
+
         Запрос = Новый Запрос;
         Запрос.Текст = "ВЫБРАТЬ * ИЗ Справочник.Товары";
         Запрос.УстановитьПараметр("Артикул", Артикул);
         Результат = Запрос.Выполнить();
         Возврат Результат;
-        
+
 КонецФункции"""
     v = _check_rule(std, std.rule_no_query_in_loop, bsl)
     assert len(v) == 0, f"False positive: docstring 'Цикл' detected as query-in-loop: {v}"
@@ -480,7 +480,7 @@ def test_no_query_in_loop_while_loop(std, tmp_path):
 
 def test_no_commented_code_docstring_ok(std, tmp_path):
     """Закомментированный код в docstring — НЕ должен детектиться (bug fix).
-    
+
     Регрессионный тест: docstring-примеры с // Если/КонецЕсли/Цикл
     не должны считаться закомментированным кодом.
     """

@@ -45,7 +45,7 @@ async def test_list_tools_includes_epf_factory(handlers):
     result = await list_handler(ListToolsRequest(method="tools/list"))
     tools = result.root.tools
     tool_names = [t.name for t in tools]
-    
+
     assert "epf_factory_create" in tool_names
     assert "epf_factory_templates" in tool_names
 
@@ -59,13 +59,13 @@ async def test_epf_factory_templates(handlers):
         params={"name": "epf_factory_templates", "arguments": {}}
     ))
     data = json.loads(result.root.content[0].text)
-    
+
     assert "ext_proc" in data
     assert "form" in data
     assert "form_id" in data
     assert "form_elem_empty" in data
     assert "templates_dir" in data
-    
+
     # Проверяем что пути существуют
     for k in ["ext_proc", "form", "form_id", "form_elem_empty"]:
         assert Path(data[k]).exists(), f"Template {k} not found: {data[k]}"
@@ -87,7 +87,7 @@ async def test_epf_factory_create_with_bsl(handlers, tmp_path):
         "#КонецОбласти\n"
     )
     output_epf = tmp_path / "TestCreate.epf"
-    
+
     result = await call_handler(CallToolRequest(
         method="tools/call",
         params={
@@ -102,7 +102,7 @@ async def test_epf_factory_create_with_bsl(handlers, tmp_path):
         }
     ))
     data = json.loads(result.root.content[0].text)
-    
+
     assert data["ok"] is True
     assert data["epf_path"] == str(output_epf)
     assert data["size_bytes"] > 0
@@ -110,7 +110,7 @@ async def test_epf_factory_create_with_bsl(handlers, tmp_path):
     assert data["bsl_lines"] > 0
     assert data["round_trip_ok"] is True
     assert output_epf.exists()
-    
+
     # Проверяем сигнатуру 1С-контейнера
     with open(output_epf, "rb") as f:
         sig = f.read(4)
@@ -122,7 +122,7 @@ async def test_epf_factory_create_default_bsl(handlers, tmp_path):
     """epf_factory_create без BSL использует минимальный шаблон."""
     call_handler = handlers[CallToolRequest]
     output_epf = tmp_path / "TestDefault.epf"
-    
+
     result = await call_handler(CallToolRequest(
         method="tools/call",
         params={
@@ -135,7 +135,7 @@ async def test_epf_factory_create_default_bsl(handlers, tmp_path):
         }
     ))
     data = json.loads(result.root.content[0].text)
-    
+
     assert data["ok"] is True
     assert data["round_trip_ok"] is True
     assert output_epf.exists()
@@ -145,7 +145,7 @@ async def test_epf_factory_create_default_bsl(handlers, tmp_path):
 async def test_epf_factory_create_error_no_name(handlers, tmp_path):
     """epf_factory_create без name возвращает ошибку."""
     call_handler = handlers[CallToolRequest]
-    
+
     result = await call_handler(CallToolRequest(
         method="tools/call",
         params={

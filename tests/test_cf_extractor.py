@@ -124,7 +124,7 @@ def make_container_32(files: list[tuple[str, bytes]]) -> bytes:
 
     # Пересобираем TOC с правильными offset'ами
     toc_data = b''
-    for desc_off, data_off in zip(desc_offsets, data_offsets):
+    for desc_off, data_off in zip(desc_offsets, data_offsets, strict=False):
         toc_data += struct.pack('<3i', desc_off, data_off, END_MARKER)
     toc_block = make_block_32(toc_data, END_MARKER, DEFAULT_BLOCK_SIZE)
 
@@ -169,7 +169,7 @@ def make_container_64(files: list[tuple[str, bytes]]) -> bytes:
 
     # Пересобираем TOC
     toc_data = b''
-    for desc_off, data_off in zip(desc_offsets, data_offsets):
+    for desc_off, data_off in zip(desc_offsets, data_offsets, strict=False):
         toc_data += struct.pack('<3Q', desc_off, data_off, END_MARKER_64)
     toc_block = make_block_64(toc_data, END_MARKER_64, DEFAULT_BLOCK_SIZE_64)
 

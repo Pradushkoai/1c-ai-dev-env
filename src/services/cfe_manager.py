@@ -18,7 +18,6 @@ import uuid
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from .path_manager import PathManager
 
@@ -93,7 +92,7 @@ class PatchMethodResult:
     module_path: str          # Catalog.Контрагенты.ObjectModule
     method_name: str
     interceptor_type: str     # Before | After | ModificationAndControl
-    bsl_file: Optional[Path] = None
+    bsl_file: Path | None = None
     bsl_content: str = ""
     warnings: list[str] = field(default_factory=list)
 
@@ -116,7 +115,7 @@ class CfeDiffResult:
 class CfeManager:
     """Управление расширениями конфигураций 1С."""
 
-    def __init__(self, paths: Optional[PathManager] = None):
+    def __init__(self, paths: PathManager | None = None):
         self._paths = paths
 
     # ─────────────────────────────────────────────
@@ -228,7 +227,7 @@ class CfeManager:
             source_uuid=source_uuid,
             name_prefix=name_prefix,
         )
-        result.xml_created.append(obj_xml_dir / "1.xml" if False else obj_xml_path)  # просто путь
+        result.xml_created.append(obj_xml_path)
 
         # 6. Регистрируем в Configuration.xml расширения (в ChildObjects)
         registered = self._register_in_config(ext_config_xml, object_type, object_name)
@@ -340,7 +339,7 @@ class CfeManager:
 
             tree.write(config_xml, encoding="utf-8", xml_declaration=True)
             return True
-        except (ET.ParseError, OSError) as e:
+        except (ET.ParseError, OSError):
             return False
 
     # ─────────────────────────────────────────────
@@ -477,7 +476,7 @@ class CfeManager:
 
         lines = [
             f"// Перехватчик: {method_name} ({interceptor_type})",
-            f"// Сгенерировано CfeManager",
+            "// Сгенерировано CfeManager",
             "",
             f"{decorator}",
             f"{keyword} {procedure_name}()",
@@ -487,7 +486,7 @@ class CfeManager:
         if interceptor_type == "Before":
             lines.append("\t// TODO: Код ДО вызова оригинального метода")
             lines.append("\t")
-            lines.append(f"\t// Вызов оригинального метода (вызывается автоматически)")
+            lines.append("\t// Вызов оригинального метода (вызывается автоматически)")
         elif interceptor_type == "After":
             lines.append("\t// Оригинальный метод уже выполнен")
             lines.append("\t")
@@ -582,7 +581,7 @@ class CfeManager:
         object_type: str,
         object_name: str,
         config_path: Path,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Проанализировать XML заимствованного объекта."""
         try:
             tree = ET.parse(xml_file)
@@ -645,7 +644,7 @@ class CfeManager:
             module_path = str(bsl_file)
 
         # Регэксп для декораторов
-        decorator_re = re.compile(
+        re.compile(
             r"^(&Перед|&После|&ИзменениеИКонтроль)\s*$",
             re.MULTILINE
         )

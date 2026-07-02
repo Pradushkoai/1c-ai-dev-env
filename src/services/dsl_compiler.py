@@ -23,7 +23,6 @@ import uuid
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Union
 
 # XML namespaces 1С
 NS_MD = "http://v8.1c.ru/8.3/MDClasses"
@@ -121,7 +120,7 @@ class CompileResult:
     """Результат компиляции DSL → XML."""
     object_type: str
     object_name: str
-    xml_path: Optional[Path] = None
+    xml_path: Path | None = None
     module_paths: list[Path] = field(default_factory=list)
     registered_in_config: bool = False
     warnings: list[str] = field(default_factory=list)
@@ -197,7 +196,7 @@ def _normalize_object_type(type_str: str) -> str:
     return type_str
 
 
-def _parse_attribute(attr_def: Union[str, dict]) -> dict:
+def _parse_attribute(attr_def: str | dict) -> dict:
     """Разбор определения реквизита (строка или объект).
 
     Форматы:
@@ -325,8 +324,8 @@ class MetaCompiler:
 
     def compile(
         self,
-        definition: Union[str, dict, Path],
-        output_dir: Union[str, Path],
+        definition: str | dict | Path,
+        output_dir: str | Path,
     ) -> CompileResult:
         """Скомпилировать JSON DSL → XML.
 
@@ -697,8 +696,8 @@ class FormCompiler:
 
     def compile(
         self,
-        definition: Union[str, dict, Path],
-        output_path: Union[str, Path],
+        definition: str | dict | Path,
+        output_path: str | Path,
     ) -> CompileResult:
         """Скомпилировать JSON DSL → Form.xml.
 
@@ -812,8 +811,8 @@ class SkdCompiler:
 
     def compile(
         self,
-        definition: Union[str, dict, Path],
-        output_path: Union[str, Path],
+        definition: str | dict | Path,
+        output_path: str | Path,
     ) -> CompileResult:
         """Скомпилировать JSON DSL → СКД Template.xml.
 
@@ -1009,9 +1008,9 @@ class MxlCompiler:
 
     def compile(
         self,
-        definition: Union[str, dict, Path],
-        output_path: Union[str, Path],
-    ) -> CommitResult if False else "CompileResult":  # type: ignore
+        definition: str | dict | Path,
+        output_path: str | Path,
+    ) -> CompileResult:
         """Скомпилировать JSON DSL → MXL Template.xml.
 
         Args:
@@ -1132,10 +1131,7 @@ class MxlCompiler:
             # Ключи: "1", "2-8", "5,7,9"
             indices = self._parse_column_keys(key, columns)
             # Значение: число или "Nx"
-            if isinstance(val, str) and val.endswith("x"):
-                w = int(float(val[:-1]) * default_width)
-            else:
-                w = int(val)
+            w = int(float(val[:-1]) * default_width) if isinstance(val, str) and val.endswith("x") else int(val)
             for idx in indices:
                 if 1 <= idx <= columns:
                     widths[idx - 1] = w
@@ -1244,7 +1240,6 @@ RU_OBJECT_TYPE_SYNONYMS: dict[str, str] = {
     "Отчёт": "Report",
     "Отчет": "Report",
     "ОбщийМодуль": "CommonModule",
-    "РегистрСведений": "InformationRegister",
 }
 
 # Русские синонимы прав
@@ -1310,8 +1305,8 @@ class RoleCompiler:
 
     def compile(
         self,
-        definition: Union[str, dict, Path],
-        output_dir: Union[str, Path],
+        definition: str | dict | Path,
+        output_dir: str | Path,
     ) -> CompileResult:
         """Скомпилировать JSON DSL → Rights.xml + метаданные роли.
 

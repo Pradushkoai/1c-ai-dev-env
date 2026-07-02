@@ -152,7 +152,7 @@ class BSLAnalyzer:
         if self._baseline is not None:
             self._baseline_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self._baseline_path, "w", encoding="utf-8") as f:
-                json.dump(sorted(list(self._baseline)), f, ensure_ascii=False)
+                json.dump(sorted(self._baseline), f, ensure_ascii=False)
 
     def _load_baseline_from_file(self) -> None:
         """Загрузить baseline из JSON файла."""

@@ -14,10 +14,9 @@ SessionManager — управление контекстом AI-сессий.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -37,7 +36,7 @@ class SessionState:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict) -> "SessionState":
+    def from_dict(cls, d: dict) -> SessionState:
         return cls(
             date=d.get("date", ""),
             current_task=d.get("current_task", ""),
@@ -161,7 +160,7 @@ class SessionManager:
 
         return self._notes_path
 
-    def restore(self) -> Optional[SessionState]:
+    def restore(self) -> SessionState | None:
         """Восстановить состояние сессии.
 
         Возвращает None если нет сохранённой сессии.

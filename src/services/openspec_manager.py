@@ -53,10 +53,9 @@ openspec-archive). Реализовано как Python-модуль без вн
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -72,7 +71,7 @@ class Task:
         return f"{index}. {checkbox} {self.description}{notes}"
 
     @classmethod
-    def from_markdown(cls, line: str) -> Optional["Task"]:
+    def from_markdown(cls, line: str) -> Task | None:
         """Парсит строку '1. [x] Описание' или '1. [ ] Описание'."""
         m = re.match(r"\d+\.\s+\[([x ])\]\s+(.+?)(?:\s+—\s+(.+))?$", line)
         if not m:
@@ -336,7 +335,7 @@ class OpenSpecManager:
 
         return change
 
-    def load_change(self, change_id: str) -> Optional[Change]:
+    def load_change(self, change_id: str) -> Change | None:
         """Загрузить существующий change из файловой системы."""
         change_dir = self._changes_dir / change_id
         if not change_dir.exists():
