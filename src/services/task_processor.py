@@ -525,3 +525,61 @@ class TaskProcessor:
                     logger.warning("check_metadata_standards failed: %s", e)
 
         return result
+
+    # ─────────────────────────────────────────────
+    # P2.12: новый OCP-compliant API через Analyzer protocol
+    # ─────────────────────────────────────────────
+
+    def check_via_analyzers(
+        self,
+        file_path: Path,
+        level: str = "standard",
+    ) -> CheckResult:
+        """
+        Новый API проверки через Analyzer protocol (P2.12).
+
+        В отличие от check(), использует список self._analyzers и итеративно
+        вызывает analyzer.check_file() для каждого. Добавление нового
+        analyzer'а не требует модификации этого метода — соответствует OCP.
+
+        Возвращает тот же формат CheckResult, что и check(), поэтому
+        результаты полностью совместимы.
+
+        Args:
+            file_path: путь к .bsl файлу
+            level: quick | standard | full (см. check() для деталей)
+
+        Returns:
+            CheckResult с violations и analyzers_run.
+
+        Note:
+            BSL LS (standard level) в этой версии НЕ запускается через
+            Analyzer protocol — он требует Java и обрабатывается отдельно
+            в check(). В будущей миграции будет добавлен BSLAnalyzerAdapter.
+        """
+        if not file_path.exists():
+            raise FileNotFoundError(f"Файл не найден: {file_path}")
+
+        # Lazy import чтобы избежать циклических зависимостей.
+        from .analyzers import get_default_analyzers, run_analyzers
+
+        result = CheckResult(file=str(file_path), level=level)
+
+        analyzers = get_default_analyzers(self._paths)
+        violations, analyzers_run = run_analyzers(analyzers, file_path, level=level)
+
+        # Преобразуем AnalyzerViolation в Violation (доменный объект).
+        for v in violations:
+            result.violations.append(
+                Violation(
+                    source=v.source,
+                    rule_id=v.rule_id,
+                    severity=v.severity,
+                    line=v.line,
+                    message=v.message,
+                    file=v.file or str(file_path),
+                )
+            )
+        result.analyzers_run.extend(analyzers_run)
+
+        return result
