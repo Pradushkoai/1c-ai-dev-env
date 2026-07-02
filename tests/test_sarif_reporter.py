@@ -203,30 +203,30 @@ def test_sarif_line_zero_becomes_one():
 # ─────────────────────────────────────────────
 
 def test_sarif_tools_count_matches_sources(simple_result):
-    """Количество tools = количество уникальных sources."""
+    """В SARIF 2.1.0 один driver с объединёнными rules из всех sources.
+
+    Проверяем, что rules содержат правила из обоих sources.
+    """
     sarif = SarifReporter().convert(simple_result)
     # simple_result имеет 2 sources: check_1c_standards + security_auditor
     tool = sarif["runs"][0]["tool"]
-    # При одном tool — "tool", при нескольких — "tools"
-    if "tools" in tool:
-        tools_list = tool["tools"]
-    else:
-        tools_list = [tool["tool"]]
-    assert len(tools_list) == 2
+    # SARIF 2.1.0: один driver с объединёнными rules
+    driver = tool["driver"]
+    # rules должны содержать правила из обоих sources
+    rule_ids = [r["id"] for r in driver["rules"]]
+    # Должны быть правила из check_1c_standards (no-yo-in-code, line-too-long)
+    assert "no-yo-in-code" in rule_ids
+    # И из security_auditor (rule_id = SQL_INJECTION в simple_result fixture)
+    assert "SQL_INJECTION" in rule_ids
 
 
 def test_sarif_rules_unique_per_tool(simple_result):
-    """rules внутри tool уникальны (no duplicates)."""
+    """rules внутри driver уникальны (no duplicates)."""
     sarif = SarifReporter().convert(simple_result)
     tool = sarif["runs"][0]["tool"]
-    if "tools" in tool:
-        tools_list = tool["tools"]
-    else:
-        tools_list = [tool["tool"]]
+    driver = tool["driver"]
 
-    # check_1c_standards tool должен иметь 2 уникальных rule
-    std_tool = next(t for t in tools_list if "Standards" in t["driver"]["name"])
-    rule_ids = [r["id"] for r in std_tool["driver"]["rules"]]
+    rule_ids = [r["id"] for r in driver["rules"]]
     assert len(rule_ids) == len(set(rule_ids))  # нет дублей
     assert "no-yo-in-code" in rule_ids
     assert "line-too-long" in rule_ids
@@ -238,7 +238,7 @@ def test_sarif_tool_has_driver_metadata():
     result = CheckResult(file="t.bsl", violations=[v])
     sarif = SarifReporter().convert(result)
 
-    tool = sarif["runs"][0]["tool"]["tool"]
+    tool = sarif["runs"][0]["tool"]
     driver = tool["driver"]
     assert "name" in driver
     assert "version" in driver

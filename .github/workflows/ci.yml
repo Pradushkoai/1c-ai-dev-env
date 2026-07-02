@@ -145,26 +145,32 @@ jobs:
       - name: Run synthetic benchmarks
         run: |
           # Synthetic benchmarks — работают всегда (не нужны UT11 данные)
-          # Используем file:// storage (pytest-benchmark не поддерживает github:// схему)
+          # Используем file:// storage с относительным путём (pytest-benchmark не поддерживает github:// схему)
+          mkdir -p .benchmarks
           python3 -m pytest tests/test_benchmarks_synthetic.py \
             --benchmark-only \
             --benchmark-min-rounds=5 \
             --benchmark-warmup=off \
             --benchmark-sort=name \
-            --benchmark-storage=file:///.benchmarks \
+            --benchmark-storage=file://.benchmarks \
             --benchmark-autosave \
             -v
 
       - name: Compare with baseline (если есть)
         run: |
           # Сравнение с предыдущим baseline — ловит регрессии
-          python3 -m pytest tests/test_benchmarks_synthetic.py \
-            --benchmark-only \
-            --benchmark-min-rounds=5 \
-            --benchmark-warmup=off \
-            --benchmark-compare=0001 \
-            --benchmark-compare-fail=mean:30% \
-            || echo "⚠️ Baseline не найден или есть регрессии >30%"
+          # Если baseline нет (первый запуск) — шаг не падает
+          if [ -d .benchmarks ] && ls .benchmarks/Linux-*/0001_*.json 1>/dev/null 2>&1; then
+            python3 -m pytest tests/test_benchmarks_synthetic.py \
+              --benchmark-only \
+              --benchmark-min-rounds=5 \
+              --benchmark-warmup=off \
+              --benchmark-compare=0001 \
+              --benchmark-compare-fail=mean:30% \
+              || echo "⚠️ Есть регрессии >30%"
+          else
+            echo "ℹ️ Baseline не найден — это первый запуск или storage пустой. Пропускаем compare."
+          fi
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
