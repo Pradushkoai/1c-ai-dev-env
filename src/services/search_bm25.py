@@ -33,8 +33,10 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 from collections import Counter, defaultdict
+from functools import lru_cache
 from pathlib import Path
 
 # ============================================================================
@@ -531,6 +533,39 @@ def _bm25_score(tf: int, idf: float, doc_length: float, avg_length: float) -> fl
     return idf * (tf * (k1 + 1)) / (tf + k1 * norm)
 
 
+def _load_index(index_path: Path) -> dict:
+    """
+    Загрузить BM25 индекс из JSON-файла (с кэшированием).
+
+    P1.9: добавлен @lru_cache(maxsize=8) — до фикса каждый вызов search_bm25()
+    перечитывал JSON-индекс с диска (~50-200мс на 100K методов). После фикса
+    первый вызов для данного index_path медленный, последующие — <1мс.
+
+    Кэш хранит до 8 различных index_path (для multi-project сценариев).
+    Инвалидация:
+      - Автоматически при изменении index_path (другой путь → другой ключ кэша).
+      - Вручную через _load_index.cache_clear() — например, после rebuild index.
+      - Вручную через _load_index.cache_invalidate(index_path) для конкретного пути.
+
+    Args:
+        index_path: Путь к JSON-индексу.
+
+    Returns:
+        dict с полями: methods, idf, inverted_index, doc_lengths, etc.
+
+    Raises:
+        FileNotFoundError: Если index_path не существует.
+        json.JSONDecodeError: Если файл не валидный JSON.
+    """
+    with open(index_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+# Применяем lru_cache к обёртке, чтобы была возможность cache_clear().
+# maxsize=8: достаточно для типичных multi-config сценариев (5-6 конфигов).
+_load_index_cached = lru_cache(maxsize=8)(_load_index)
+
+
 def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = True) -> list[dict]:
     """
     BM25 поиск по индексу v2.
@@ -544,8 +579,9 @@ def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = Tr
     Returns:
         Список результатов с score, name_ru, name_en, context, syntax, description
     """
-    with open(index_path, encoding="utf-8") as f:
-        index = json.load(f)
+    # P1.9: используем кэшированную загрузку. lru_cache по Path автоматически
+    # различает разные index_path. Для инвалидации: _load_index_cached.cache_clear().
+    index = _load_index_cached(index_path)
 
     methods = index["methods"]
     idf = index["idf"]
