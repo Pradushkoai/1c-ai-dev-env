@@ -50,5 +50,6 @@ jobs:
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
+        continue-on-error: true  # Code Scanning может быть не включен в настройках репо
         with:
           category: "/language:${{ matrix.language }}"
