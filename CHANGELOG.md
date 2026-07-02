@@ -1,6 +1,28 @@
 # Changelog
 
 
+## [5.3.0](https://github.com/Pradushkoai/1c-ai-dev-env/compare/v5.2.0...v5.3.0) (2026-07-02)
+
+
+### Features
+
+* **p2.7:** integration-тесты включены в coverage job ([2682f26](https://github.com/Pradushkoai/1c-ai-dev-env/commit/2682f261f49366c0c633bddef3e529b42bcd05e0))
+* **p3.1:** CODEOWNERS + обновлённый PR template ([f6181fc](https://github.com/Pradushkoai/1c-ai-dev-env/commit/f6181fc13ebf1f9419f89331febee99f98ed8baf))
+* **p3.2:** commitlint для conventional commits ([6fe31ba](https://github.com/Pradushkoai/1c-ai-dev-env/commit/6fe31baedf0989107d04b1858bc589bbf1cb86ab))
+* **p3.3:** benchmarking с авторегрессией — CI блокирует при regress &gt;30% ([bbbad7d](https://github.com/Pradushkoai/1c-ai-dev-env/commit/bbbad7d6bb3616a5ffa741cb85028403b5a4c52b))
+* **p3.5:** openapi 3.0 spec для mcp tools ([35a9054](https://github.com/Pradushkoai/1c-ai-dev-env/commit/35a905435ccd7ff028117022b80950d4d1c6e660))
+* **p3.8:** локализация сообщений (en/ru) для mcp tools и cli ([4c74f1a](https://github.com/Pradushkoai/1c-ai-dev-env/commit/4c74f1a4bb147e478062ec24a005400723657806))
+* release-please extra-files + sync_versions.py ([75d8b84](https://github.com/Pradushkoai/1c-ai-dev-env/commit/75d8b84c33a8971f379235fead25fbc338ba57df))
+
+
+### Bug Fixes
+
+* benchmark compare — информационный (не блокирующий CI) ([4aaee16](https://github.com/Pradushkoai/1c-ai-dev-env/commit/4aaee16c706959d0aeb1a060488bd1cf38bd68d2))
+* **p2.8:** version sync 5.3.0 + release-please-manifest в version-check ([c2251bd](https://github.com/Pradushkoai/1c-ai-dev-env/commit/c2251bd7a8ad0263e9a9bd289c0de13a680160a7))
+* version sync 5.3.1 (manifest + README + release-please-manifest) ([60bce52](https://github.com/Pradushkoai/1c-ai-dev-env/commit/60bce5280e83ae7dda75f28c329d1202a898a485))
+* убрать continue-on-error из SARIF и CodeQL (Code Scanning включён) ([007c020](https://github.com/Pradushkoai/1c-ai-dev-env/commit/007c020c02958281bfeee3f4a632127ed48967d8))
+* удалить codeql.yml — конфликт с Default Setup ([c7c5031](https://github.com/Pradushkoai/1c-ai-dev-env/commit/c7c5031f2f798d4e14390c63bd8cf2104566e6cd))
+
 ## [5.3.1](https://github.com/Pradushkoai/1c-ai-dev-env/compare/v5.3.0...v5.3.1) (2026-07-02)
 
 
