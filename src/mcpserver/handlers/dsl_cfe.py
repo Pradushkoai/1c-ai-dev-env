@@ -311,9 +311,6 @@ async def handle_cfe_diff(project: Project, arguments: dict) -> list[types.TextC
 
 async def handle_skd_trace(project: Project, arguments: dict) -> list[types.TextContent]:
     """Трассировка поля через всю цепочку СКД."""
-    sys.path.insert(0, str(project.paths.scripts_dir))
-    from skd_parser import trace_field as _trace_field
-
     template_path = arguments.get("template_path", "")
     field_name = arguments.get("field_name", "")
 
@@ -326,6 +323,9 @@ async def handle_skd_trace(project: Project, arguments: dict) -> list[types.Text
         ]
 
     try:
+        sys.path.insert(0, str(project.paths.scripts_dir))
+        from skd_parser import trace_field as _trace_field
+
         result = _trace_field(Path(template_path), field_name)
         return [types.TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
     except Exception as e:
