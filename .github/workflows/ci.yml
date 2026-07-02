@@ -173,18 +173,21 @@ jobs:
             --benchmark-autosave \
             -v
 
-      - name: Compare with baseline (если есть)
+      - name: Compare with baseline (блокирующий при регрессии >30%)
+        # P3.3: авторегрессия — CI падает если производительность упала >30%
         run: |
           # Сравнение с предыдущим baseline — ловит регрессии
-          # Если baseline нет (первый запуск) — шаг не падает
+          # Если baseline нет (первый запуск) — шаг пропускается
           if [ -d .benchmarks ] && ls .benchmarks/Linux-*/0001_*.json 1>/dev/null 2>&1; then
+            echo "📊 Baseline найдён, запускаем сравнение..."
             python3 -m pytest tests/test_benchmarks_synthetic.py \
               --benchmark-only \
               --benchmark-min-rounds=5 \
               --benchmark-warmup=off \
               --benchmark-compare=0001 \
               --benchmark-compare-fail=mean:30% \
-              || echo "⚠️ Есть регрессии >30%"
+              -v
+            # БЕЗ || echo — если регрессия >30%, CI падает
           else
             echo "ℹ️ Baseline не найден — это первый запуск или storage пустой. Пропускаем compare."
           fi
