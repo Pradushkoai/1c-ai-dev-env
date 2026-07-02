@@ -197,9 +197,3 @@ def test_multiple_simple_props():
     # ID должны идти по порядку
     for i, prop in enumerate(form_elem["props"], start=1):
         assert prop["id"] == str(i)
-
-
-if __name__ == "__main__":
-    import subprocess
-
-    subprocess.run([sys.executable, "-m", "pytest", __file__, "-v"])
