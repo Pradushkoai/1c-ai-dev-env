@@ -46,7 +46,6 @@ jobs:
               {"type": "ci", "section": "👷 CI/CD", "hidden": false},
               {"type": "chore", "section": "🔧 Misc", "hidden": true}
             ]
-        # continue-on-error: release-please может не иметь permission
-        # создавать PR — нужно включить 'Allow GitHub Actions to create pull requests'
-        # в Settings → Actions → General → Workflow permissions
-        continue-on-error: true
+        # P1.6: workflow permissions включены через API
+        # default_workflow_permissions: write
+        # can_approve_pull_request_reviews: true
