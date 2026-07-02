@@ -41,3 +41,6 @@ sarif-reports/
 # pytest-benchmark
 .benchmarks/
 
+# Credentials
+*.credentials
+.git-credentials

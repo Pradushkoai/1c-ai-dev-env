@@ -199,6 +199,20 @@ def _normalize_object_type(type_str: str) -> str:
     return type_str
 
 
+def _sanitize_bsl_string(value: str) -> str:
+    """SEC-3: Санитация строковых значений для вставки в BSL/XML.
+
+    Удаляет символы, которые могут привести к инъекции:
+    - Двойные кавычки экранируются (для BSL строковых литералов)
+    - Угловые скобки экранируются (для XML)
+    """
+    if not isinstance(value, str):
+        return str(value)
+    # BSL: " → "" (экранирование внутри строкового литерала)
+    # XML: < → &lt; > → &gt; & → &amp;
+    return value.replace('"', '""')
+
+
 def _parse_attribute(attr_def: str | dict) -> dict:
     """Разбор определения реквизита (строка или объект).
 

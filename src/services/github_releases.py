@@ -70,6 +70,11 @@ class GitHubReleases:
     """
 
     def __init__(self, paths: PathManager, repo: str = "", token: str = ""):
+        """SEC-7: Валидация repo name — защита от injection."""
+        import re
+
+        if repo and not re.match(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$", repo):
+            raise ValueError(f"Недопустимое имя репозитория '{repo}': ожидается формат 'owner/repo'")
         self._paths = paths
         self._repo = repo or self._detect_repo()
         self._token = token or os.environ.get("GITHUB_TOKEN", "")

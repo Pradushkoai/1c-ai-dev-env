@@ -137,10 +137,29 @@ class ConfigManager:
         self._registry = registry
         self._paths = paths
 
+    # --- Валидация ---
+
+    @staticmethod
+    def _validate_config_name(name: str) -> None:
+        """SEC-2: Валидация имени конфигурации — защита от path traversal.
+
+        Разрешает: латиница, кириллица, цифры, дефис, подчёркивание.
+        Запрещает: ../, /, \\, :, *, ?, ", <, >, |, пробелы.
+        """
+        import re
+
+        if not name:
+            raise ValueError("Имя конфигурации не может быть пустым")
+        if not re.match(r"^[A-Za-zА-Яа-яЁё0-9_-]+$", name):
+            raise ValueError(
+                f"Недопустимое имя конфигурации '{name}': разрешены только буквы, цифры, дефис и подчёркивание"
+            )
+
     # --- Добавление ---
 
     def add_from_zip(self, name: str, zip_path: Path, title: str = "") -> Configuration:
         """Распаковать ZIP и зарегистрировать конфигурацию."""
+        self._validate_config_name(name)
         if name in self._registry:
             raise ValueError(f"Конфигурация '{name}' уже существует")
         if not zip_path.exists():
@@ -165,6 +184,7 @@ class ConfigManager:
 
     def register_existing(self, name: str, path: Path, title: str = "") -> Configuration:
         """Зарегистрировать существующую папку."""
+        self._validate_config_name(name)
         if name in self._registry:
             raise ValueError(f"Конфигурация '{name}' уже существует")
 
@@ -181,6 +201,7 @@ class ConfigManager:
         После распаковки конвертирует структуру v8unpack в формат,
         совместимый с build_api_reference (через cf_to_xml_adapter).
         """
+        self._validate_config_name(name)
         if name in self._registry:
             raise ValueError(f"Конфигурация '{name}' уже существует")
         if not cf_path.exists():
