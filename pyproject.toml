@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "1c-ai-dev-env"
-version = "5.2.0"
+version = "5.3.0"
 description = "Среда разработки 1С с ИИ-ассистентом"
 readme = "README.md"
 requires-python = ">=3.10"

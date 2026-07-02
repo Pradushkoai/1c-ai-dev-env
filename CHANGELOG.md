@@ -1,6 +1,13 @@
 # Changelog
 
 
+## [5.3.0](https://github.com/Pradushkoai/1c-ai-dev-env/compare/v5.2.0...v5.3.0) (2026-07-02)
+
+
+### Features
+
+* **p2.7:** integration-тесты включены в coverage job ([63ade74](https://github.com/Pradushkoai/1c-ai-dev-env/commit/63ade741d730a1988b30d9871d69f1831b2ec412))
+
 ## [5.2.0] — 2026-07-02
 
 ### NEW: AGENTS.md — правила для AI-агентов (инцидент-ориентированный подход)
