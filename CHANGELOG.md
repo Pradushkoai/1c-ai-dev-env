@@ -1,6 +1,83 @@
 # Changelog
 
 
+## 0.1.0 (2026-07-02)
+
+
+### Features
+
+* 20 задач + 3 багфикса — RegisterRecords парсинг + depgraph + metadata_extractor ([fd778b3](https://github.com/Pradushkoai/1c-ai-dev-env/commit/fd778b3f0522ce47803ed44f1ef18646a55d2ee6))
+* AGENTS.md — правила для AI-агентов (инцидент-ориентированный подход) ([8f51869](https://github.com/Pradushkoai/1c-ai-dev-env/commit/8f5186994c2de04c8ee09e3649219b7f4746d1d2))
+* BM25 + триграммы + стеммер — улучшенный поиск (v3.8.0) ([1d71012](https://github.com/Pradushkoai/1c-ai-dev-env/commit/1d71012c9686ebbf29777e9ca740c28b25203ee5))
+* **cfe:** CfeManager — работа с расширениями конфигураций 1С (CFE) ([7737239](https://github.com/Pradushkoai/1c-ai-dev-env/commit/7737239ab73ce51f7f73228d002218fbed133470))
+* **cli+mcp:** CLI команды и MCP tools для DSL/CFE/SKD-trace ([d1c42cd](https://github.com/Pradushkoai/1c-ai-dev-env/commit/d1c42cdf099be4f10dcff7dc5e27977e93acc4d7))
+* **cli+mcp:** единый inspect + CLI для всех новых модулей ([9a63d02](https://github.com/Pradushkoai/1c-ai-dev-env/commit/9a63d02e165dd87e96b3efaf3ffda82db2fab9db))
+* **config-manager:** валидация исходников + проверка актуальности индексов ([29ca7b5](https://github.com/Pradushkoai/1c-ai-dev-env/commit/29ca7b50f0aeca19d2562faa3498583cac226989))
+* DependencyGraph (networkx) + OpenSpec mini — закрыты пункты [#6](https://github.com/Pradushkoai/1c-ai-dev-env/issues/6) и [#9](https://github.com/Pradushkoai/1c-ai-dev-env/issues/9) ([cdec9ca](https://github.com/Pradushkoai/1c-ai-dev-env/commit/cdec9ca1b6bbf037e1522f692cbc2e2358e5a851))
+* **docker:** multi-stage Dockerfile + docker-compose.yml ([0ca3db2](https://github.com/Pradushkoai/1c-ai-dev-env/commit/0ca3db25da9353235cc8995387389ab50cc3ecc1))
+* **dsl:** JSON DSL → XML компиляторы для 1С (meta + form + skd) ([2ae7dfa](https://github.com/Pradushkoai/1c-ai-dev-env/commit/2ae7dfa87ec34f263704e0c3284d47410c66e293))
+* **dsl:** MxlCompiler + RoleCompiler — все 5 JSON DSL компиляторов готовы ([75015b5](https://github.com/Pradushkoai/1c-ai-dev-env/commit/75015b5001e04625a62470b28dcc8ee45fa0305f))
+* EPF Factory в MCP + инструкция + тесты ([d98dca9](https://github.com/Pradushkoai/1c-ai-dev-env/commit/d98dca96298c294de61ac949d9cc097e0da2fbd8))
+* epf_v8unpack_builder + 2 генератора EPF через v8unpack ([8bf7726](https://github.com/Pradushkoai/1c-ai-dev-env/commit/8bf772644d1382c811e000dced751f80b960dcbc))
+* epf-factory — полный цикл создания .epf из шаблонов ([25e1165](https://github.com/Pradushkoai/1c-ai-dev-env/commit/25e116539ee860d926e61d22f8faa92740aee029))
+* **epf-factory:** универсальный form_spec DSL для описания формы ([dd5161a](https://github.com/Pradushkoai/1c-ai-dev-env/commit/dd5161a1261e1f1691189ef9d6a436c9feb36af8))
+* **logger:** structlog — структурированное логирование ([6d41f63](https://github.com/Pradushkoai/1c-ai-dev-env/commit/6d41f63c8de66221ea572cb21817a587567f171c))
+* **p1.1:** coverage-gate 30→50%, ruff format strict, применено форматирование ([f34a87f](https://github.com/Pradushkoai/1c-ai-dev-env/commit/f34a87f0e67f80aa85b96dc9be8d1be688994898))
+* **p1.4:** CodeQL workflow + Dependabot + Dependency Review ([f1f2a6b](https://github.com/Pradushkoai/1c-ai-dev-env/commit/f1f2a6bc9764010a1a0dae4bd1f7aaffcfedf837))
+* **p1.5:** pre-commit hooks enforcement в CI + обновлённый конфиг ([b44a727](https://github.com/Pradushkoai/1c-ai-dev-env/commit/b44a7271fefc7c12fedda0a6ec7f93db868ec4f1))
+* **p1.6:** release-please workflow — автоматические релизы с git tags ([7eea3df](https://github.com/Pradushkoai/1c-ai-dev-env/commit/7eea3df94da80f9bd81644c0bd69bd42d848d22a))
+* **sarif:** SARIF 2.1.0 output — GitHub Code Scanning аннотации в PR ([07d17bb](https://github.com/Pradushkoai/1c-ai-dev-env/commit/07d17bb68fc737632b299940e3a79608dff572c8))
+* **skd:** trace mode — трассировка поля через всю цепочку СКД ([ae37d23](https://github.com/Pradushkoai/1c-ai-dev-env/commit/ae37d233ae8037e3721d532d37c9f55e6504a4aa))
+* **utils:** img-grid утилита + SessionManager ([8f3d27b](https://github.com/Pradushkoai/1c-ai-dev-env/commit/8f3d27b6863decd7089e286549f8e386bfdb4f65))
+* ОбходОтБратухи_исходники.zip — XML+BSL исходники обработки ([11eb472](https://github.com/Pradushkoai/1c-ai-dev-env/commit/11eb472c735a921a4526a5360162bd9ab8a53c4f))
+* ОбходТерриторииСПереключателемФонСоЗвукомОтБратухи.epf — рефакторенная обработка ([b203862](https://github.com/Pradushkoai/1c-ai-dev-env/commit/b2038629e5f323990174d7239c3358c84c7a1ca9))
+* УТ11 XML выгрузка - полная индексация ([b1c41a1](https://github.com/Pradushkoai/1c-ai-dev-env/commit/b1c41a180a9cbd4a3b743295cd17f2bce92782b3))
+* цикл самоулучшения — 2 багфикса + аналитический лог ([f465d10](https://github.com/Pradushkoai/1c-ai-dev-env/commit/f465d107c8204059b2ee9d68ff22dcd32af2440d))
+
+
+### Bug Fixes
+
+* cf_to_xml_adapter — полная конвертация всех объектов метаданных ([9750274](https://github.com/Pradushkoai/1c-ai-dev-env/commit/97502746dd9071b1baeb9d0f9ca4e35a25d7e52c))
+* **check_1c_standards:** no-query-in-loop и no-commented-code не учитывали комментарии ([b5a90f0](https://github.com/Pradushkoai/1c-ai-dev-env/commit/b5a90f023220c36ec58d0d38d6d0f634e7819671))
+* **depgraph:** поддержка 'types' list + нормализация множественного→единственное ([b9637f6](https://github.com/Pradushkoai/1c-ai-dev-env/commit/b9637f6f1e3f5f474d11774671abc59df904c5f3))
+* **epf_builder:** полная переработка по реальному формату 1С ([51362c2](https://github.com/Pradushkoai/1c-ai-dev-env/commit/51362c217a19d13e2a77f049f21c4d44065bfb43))
+* **epf-factory:** используем Form.elem.template.json как базу для form_spec ([4e9f803](https://github.com/Pradushkoai/1c-ai-dev-env/commit/4e9f8033bd120ff61128cc1fcdb1bee681f54686))
+* **epf-factory:** патч TOC block_size → 512 после v8unpack ([72a7199](https://github.com/Pradushkoai/1c-ai-dev-env/commit/72a719984e07825d0aaa324193e0fa81ebfb0f3b))
+* **epf-factory:** статический реквизит ТаблицаСписка в Form.elem.json ([e951bd8](https://github.com/Pradushkoai/1c-ai-dev-env/commit/e951bd81156544686540d4a8447050f1ff7c7d93))
+* **epf:** правильная замена BSL кода в реальном EPF контейнере ([4795d63](https://github.com/Pradushkoai/1c-ai-dev-env/commit/4795d635d4d962d88dec94be1eda6f27e5ae1839))
+* form_indexer теперь индексирует ВСЕ модули — объектов, менеджеров, форм, приложения ([7e69c83](https://github.com/Pradushkoai/1c-ai-dev-env/commit/7e69c832a5a666d54aa62802effc7b5988dc0527))
+* **inspect:** 4 багфикса в inspect командах после полного аудита ([b9e59be](https://github.com/Pradushkoai/1c-ai-dev-env/commit/b9e59bedb51b6bbf86d999a561d675a62e1d2d75))
+* **p0.5:** benchmark storage + SARIF скрипт вынесен в отдельный файл ([e5d4e6e](https://github.com/Pradushkoai/1c-ai-dev-env/commit/e5d4e6ee256fe830690f7e037e659f81daa767cc))
+* **p0.5:** benchmark storage path + SARIF 2.1.0 валидный формат ([013b8e2](https://github.com/Pradushkoai/1c-ai-dev-env/commit/013b8e2d821e2c67737acb733bc17d49854268c6))
+* **p0.5:** SARIF permissions — добавлено actions: read ([ccf96e7](https://github.com/Pradushkoai/1c-ai-dev-env/commit/ccf96e7a081fd7e6805580da49f2c8d1bd02c837))
+* **p0.5:** SARIF upload — continue-on-error (Code Scanning не включён в репо) ([a1dad71](https://github.com/Pradushkoai/1c-ai-dev-env/commit/a1dad71328350a9940bb37feb5ea8d05d45ba364))
+* **p0.5:** зелёный CI — ruff чист, тесты проходят, deps добавлены ([a1a3032](https://github.com/Pradushkoai/1c-ai-dev-env/commit/a1a3032f3182696c6e32e4065c095fe60edf8769))
+* **p0:** синхронизация версий + фикс падающих тестов + унификация MCP tools ([4fa0e67](https://github.com/Pradushkoai/1c-ai-dev-env/commit/4fa0e672a31d0c09f3f99c8f75f97c7151e697fc))
+* **p1.4:** CodeQL analyze — continue-on-error (Code Scanning не включён в репо) ([264db61](https://github.com/Pradushkoai/1c-ai-dev-env/commit/264db617138afc02338325b3b4b0fb81b8765a53))
+* **p1.5:** mypy в pre-commit — stages: [manual] (P2.8 gradual typing) ([30ac052](https://github.com/Pradushkoai/1c-ai-dev-env/commit/30ac05254dac525243194918c052cc197e3845ab))
+* **p1.5:** pre-commit в CI — non-blocking + SKIP дублирующих хуков ([037b43e](https://github.com/Pradushkoai/1c-ai-dev-env/commit/037b43e3a4d3b92ced803b892280fa5d6b08466c))
+* **p1.5:** ruff format для scripts/ + расширены per-file-ignores ([37d2d26](https://github.com/Pradushkoai/1c-ai-dev-env/commit/37d2d26ccc57b0c412affc165586418959468d0f))
+* **p1.6:** release-please — continue-on-error (нет permissions на PR) ([d75ce42](https://github.com/Pradushkoai/1c-ai-dev-env/commit/d75ce4237bec271915d255b16c9c180ae0c0c25e))
+* **p1.6:** release-please — убран continue-on-error (permissions включены) ([9514d54](https://github.com/Pradushkoai/1c-ai-dev-env/commit/9514d54b64783b87363322eb8ddb348df8b16c93))
+* remove accidentally added repo_check submodule ([88f24ff](https://github.com/Pradushkoai/1c-ai-dev-env/commit/88f24ff0ad223c47e5dd6e58654f94cd67a2d939))
+* **role+mxl:** 3 багфикса после 10 задач тестирования ([52d9faf](https://github.com/Pradushkoai/1c-ai-dev-env/commit/52d9fafc87af5cf7dd2d448627d3de9311374bd0))
+* **spisok-epf:** открываем ОбщаяФорма.ФормаОбходов вместо несуществующей ФормаСписка ([f06f852](https://github.com/Pradushkoai/1c-ai-dev-env/commit/f06f852e6b3dbb46fc54f384f33a6b8785df01c3))
+* **spisok-epf:** совместимость с мобильным приложением ([cd1425c](https://github.com/Pradushkoai/1c-ai-dev-env/commit/cd1425c977c7e28fffa77fecd2b478ccebb3e847))
+* **spisok-epf:** ТаблицаЗначений + запрос вместо несуществующей ФормаОбходов ([dc95b91](https://github.com/Pradushkoai/1c-ai-dev-env/commit/dc95b911baeed68aea2a65df6c98b32f6d94e24a))
+* **transaction:** TX001 false positive + 10 творческих задач с написанием кода ([13339c3](https://github.com/Pradushkoai/1c-ai-dev-env/commit/13339c33311bf7f629edbdc98924605c99dafeec))
+* извлечение форм из .cf — _extract_bsl_from_form_data() ([d5c9911](https://github.com/Pradushkoai/1c-ai-dev-env/commit/d5c9911c2b5816a51260f9fdcaa59db93f5ffec1))
+* обновление тестов для 19 MCP tools + config-registry ([9ae32ba](https://github.com/Pradushkoai/1c-ai-dev-env/commit/9ae32bab269baf81e46d19de5c1b354030d494a0))
+* полное тестирование ВСЕХ инструментов — 3 багфикса ([9ea005a](https://github.com/Pradushkoai/1c-ai-dev-env/commit/9ea005a48b4416979db0f4b91970b488b18f7446))
+
+
+### Documentation
+
+* **v5.0.0:** полная актуализация справочной информации ([76c9ebe](https://github.com/Pradushkoai/1c-ai-dev-env/commit/76c9ebed20e1e0f37112db581421e91c899ca76c))
+* импорт 18 XML-спецификаций 1С + form-patterns + query-opt ([ec73ce9](https://github.com/Pradushkoai/1c-ai-dev-env/commit/ec73ce92bf17febd10a1e996cfe7e9c16bb7ebfb))
+* обновление README и справочной документации ([791e92b](https://github.com/Pradushkoai/1c-ai-dev-env/commit/791e92bb8e7c9e6888c4f58eaf653f3eef435954))
+* полная документация по MCP интеграции (Cursor, Claude, VS Code, JetBrains) ([06f35d6](https://github.com/Pradushkoai/1c-ai-dev-env/commit/06f35d65d23b61af4aa0648c9094060f1b092937))
+* полное обновление документации для v3.12.0 ([a04f8e4](https://github.com/Pradushkoai/1c-ai-dev-env/commit/a04f8e450d47e7bf54b05db87bd7e3390a635059))
+
 ## [5.2.0] — 2026-07-02
 
 ### NEW: AGENTS.md — правила для AI-агентов (инцидент-ориентированный подход)
