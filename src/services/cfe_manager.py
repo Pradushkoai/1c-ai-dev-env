@@ -66,7 +66,7 @@ TYPE_MAP: dict[str, dict] = {
     "Style": {"xml_tag": "Style", "dir": "Styles"},
     "Subsystem": {"xml_tag": "Subsystem", "dir": "Subsystems"},
     "Role": {"xml_tag": "Role", "dir": "Roles"},
-    "WebServce": {"xml_tag": "WebService", "dir": "WebServices"},
+    "WebService": {"xml_tag": "WebService", "dir": "WebServices"},
     "WSReference": {"xml_tag": "WSReference", "dir": "WSReferences"},
     "XDTOPackage": {"xml_tag": "XDTOPackage", "dir": "XDTOPackages"},
 }
