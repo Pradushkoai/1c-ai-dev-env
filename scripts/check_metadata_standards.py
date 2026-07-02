@@ -23,21 +23,20 @@ check_metadata_standards.py — Проверка метаданных конфи
 Пример:
     python3 check_metadata_standards.py data/configs/priemka
 """
+
 from __future__ import annotations
 
-import os
 import json
-import re
 import sys
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterator, Optional
 
 
 @dataclass
 class MetadataViolation:
     """Одно нарушение стандарта в метаданных."""
+
     file: str
     object_type: str
     object_name: str
@@ -46,10 +45,7 @@ class MetadataViolation:
     message: str
 
     def format_text(self) -> str:
-        return (
-            f"  {self.severity.upper():7} {self.rule_id:30} "
-            f"{self.object_type}.{self.object_name}  {self.message}"
-        )
+        return f"  {self.severity.upper():7} {self.rule_id:30} {self.object_type}.{self.object_name}  {self.message}"
 
 
 def _strip_ns(tag: str) -> str:
@@ -177,57 +173,72 @@ def _check_configuration(config_path: Path) -> list[MetadataViolation]:
     # Vendor должен быть заполнен (STD 16)
     vendor = _get_text(props, "Vendor")
     if not vendor:
-        violations.append(MetadataViolation(
-            file=str(config_path), object_type="Configuration",
-            object_name=obj_name,
-            rule_id="empty-vendor",
-            severity="warning",
-            message="Vendor не указан — заполните свойство (STD 16)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(config_path),
+                object_type="Configuration",
+                object_name=obj_name,
+                rule_id="empty-vendor",
+                severity="warning",
+                message="Vendor не указан — заполните свойство (STD 16)",
+            )
+        )
 
     # Version должна быть заполнена (STD 16)
     version = _get_text(props, "Version")
     if not version:
-        violations.append(MetadataViolation(
-            file=str(config_path), object_type="Configuration",
-            object_name=obj_name,
-            rule_id="empty-version",
-            severity="warning",
-            message="Version не указана — заполните свойство (STD 16)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(config_path),
+                object_type="Configuration",
+                object_name=obj_name,
+                rule_id="empty-version",
+                severity="warning",
+                message="Version не указана — заполните свойство (STD 16)",
+            )
+        )
 
     # NamePrefix должен быть заполнен (STD 01)
     name_prefix = _get_text(props, "NamePrefix")
     if not name_prefix:
-        violations.append(MetadataViolation(
-            file=str(config_path), object_type="Configuration",
-            object_name=obj_name,
-            rule_id="empty-name-prefix",
-            severity="warning",
-            message="NamePrefix не указан — нужен префикс для избежания конфликтов (STD 01)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(config_path),
+                object_type="Configuration",
+                object_name=obj_name,
+                rule_id="empty-name-prefix",
+                severity="warning",
+                message="NamePrefix не указан — нужен префикс для избежания конфликтов (STD 01)",
+            )
+        )
 
     # CompatibilityMode должен быть указан (STD 01)
     compat = _get_text(props, "CompatibilityMode")
     if not compat:
-        violations.append(MetadataViolation(
-            file=str(config_path), object_type="Configuration",
-            object_name=obj_name,
-            rule_id="empty-compatibility-mode",
-            severity="warning",
-            message="CompatibilityMode не указан — укажите версию совместимости (STD 01)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(config_path),
+                object_type="Configuration",
+                object_name=obj_name,
+                rule_id="empty-compatibility-mode",
+                severity="warning",
+                message="CompatibilityMode не указан — укажите версию совместимости (STD 01)",
+            )
+        )
 
     # ScriptVariant должен быть Russian (STD 04)
     script = _get_text(props, "ScriptVariant")
     if script and script != "Russian":
-        violations.append(MetadataViolation(
-            file=str(config_path), object_type="Configuration",
-            object_name=obj_name,
-            rule_id="non-russian-script",
-            severity="warning",
-            message=f"ScriptVariant={script} — рекомендуется Russian (STD 04)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(config_path),
+                object_type="Configuration",
+                object_name=obj_name,
+                rule_id="non-russian-script",
+                severity="warning",
+                message=f"ScriptVariant={script} — рекомендуется Russian (STD 04)",
+            )
+        )
 
     return violations
 
@@ -245,33 +256,42 @@ def _check_object(xml_path: Path, obj_type: str) -> list[MetadataViolation]:
     # 1. Синоним должен быть заполнен (STD 01)
     synonym = _get_synonym(props)
     if not synonym:
-        violations.append(MetadataViolation(
-            file=str(xml_path), object_type=actual_type,
-            object_name=obj_name,
-            rule_id="empty-synonym",
-            severity="warning",
-            message=f"Синоним не заполнен — добавьте пользовательское название (STD 01)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(xml_path),
+                object_type=actual_type,
+                object_name=obj_name,
+                rule_id="empty-synonym",
+                severity="warning",
+                message="Синоним не заполнен — добавьте пользовательское название (STD 01)",
+            )
+        )
 
     # 2. Имя не должно содержать пробелы (STD 01)
     if " " in obj_name:
-        violations.append(MetadataViolation(
-            file=str(xml_path), object_type=actual_type,
-            object_name=obj_name,
-            rule_id="name-with-spaces",
-            severity="error",
-            message="Имя содержит пробелы — недопустимо (STD 01)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(xml_path),
+                object_type=actual_type,
+                object_name=obj_name,
+                rule_id="name-with-spaces",
+                severity="error",
+                message="Имя содержит пробелы — недопустимо (STD 01)",
+            )
+        )
 
     # 3. Имя не должно начинаться с цифры (STD 01)
     if obj_name and obj_name[0].isdigit():
-        violations.append(MetadataViolation(
-            file=str(xml_path), object_type=actual_type,
-            object_name=obj_name,
-            rule_id="name-starts-with-digit",
-            severity="error",
-            message="Имя начинается с цифры — недопустимо (STD 01)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(xml_path),
+                object_type=actual_type,
+                object_name=obj_name,
+                rule_id="name-starts-with-digit",
+                severity="error",
+                message="Имя начинается с цифры — недопустимо (STD 01)",
+            )
+        )
 
     # 4. Специфичные проверки для Catalog
     if actual_type == "Catalog":
@@ -300,35 +320,44 @@ def _check_catalog(xml_path: Path, name: str, props: ET.Element) -> list[Metadat
     code_length = _get_text(props, "CodeLength", "0")
     check_unique = _get_text(props, "CheckUnique", "false")
     if int(code_length) > 0 and check_unique.lower() != "true":
-        violations.append(MetadataViolation(
-            file=str(xml_path), object_type="Catalog",
-            object_name=name,
-            rule_id="catalog-no-check-unique",
-            severity="warning",
-            message="CheckUnique=false при наличии кода — должна быть проверка уникальности (STD 01)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(xml_path),
+                object_type="Catalog",
+                object_name=name,
+                rule_id="catalog-no-check-unique",
+                severity="warning",
+                message="CheckUnique=false при наличии кода — должна быть проверка уникальности (STD 01)",
+            )
+        )
 
     # Должна быть DefaultListForm (STD 01)
     default_list_form = _get_text(props, "DefaultListForm")
     if not default_list_form:
-        violations.append(MetadataViolation(
-            file=str(xml_path), object_type="Catalog",
-            object_name=name,
-            rule_id="catalog-no-list-form",
-            severity="warning",
-            message="DefaultListForm не указана — добавьте форму списка (STD 01)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(xml_path),
+                object_type="Catalog",
+                object_name=name,
+                rule_id="catalog-no-list-form",
+                severity="warning",
+                message="DefaultListForm не указана — добавьте форму списка (STD 01)",
+            )
+        )
 
     # Должна быть DefaultObjectForm (STD 01)
     default_obj_form = _get_text(props, "DefaultObjectForm")
     if not default_obj_form:
-        violations.append(MetadataViolation(
-            file=str(xml_path), object_type="Catalog",
-            object_name=name,
-            rule_id="catalog-no-object-form",
-            severity="warning",
-            message="DefaultObjectForm не указана — добавьте форму элемента (STD 01)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(xml_path),
+                object_type="Catalog",
+                object_name=name,
+                rule_id="catalog-no-object-form",
+                severity="warning",
+                message="DefaultObjectForm не указана — добавьте форму элемента (STD 01)",
+            )
+        )
 
     return violations
 
@@ -340,24 +369,30 @@ def _check_common_module(xml_path: Path, name: str, props: ET.Element) -> list[M
     # Comment должен быть заполнен (STD 04)
     comment = _get_text(props, "Comment")
     if not comment:
-        violations.append(MetadataViolation(
-            file=str(xml_path), object_type="CommonModule",
-            object_name=name,
-            rule_id="module-no-comment",
-            severity="warning",
-            message="Comment не заполнен — добавьте описание назначения модуля (STD 04)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(xml_path),
+                object_type="CommonModule",
+                object_name=name,
+                rule_id="module-no-comment",
+                severity="warning",
+                message="Comment не заполнен — добавьте описание назначения модуля (STD 04)",
+            )
+        )
 
     # Синоним должен быть заполнен (STD 01)
     synonym = _get_synonym(props)
     if not synonym:
-        violations.append(MetadataViolation(
-            file=str(xml_path), object_type="CommonModule",
-            object_name=name,
-            rule_id="module-no-synonym",
-            severity="warning",
-            message="Синоним не заполнен — добавьте пользовательское название (STD 01)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(xml_path),
+                object_type="CommonModule",
+                object_name=name,
+                rule_id="module-no-synonym",
+                severity="warning",
+                message="Синоним не заполнен — добавьте пользовательское название (STD 01)",
+            )
+        )
 
     # Проверка суффиксов имени (STD 04)
     # Серверные модули должны иметь суффикс ...Сервер
@@ -370,35 +405,44 @@ def _check_common_module(xml_path: Path, name: str, props: ET.Element) -> list[M
     if server and not server_call and not client_managed:
         # Только серверный модуль — должен иметь суффикс Сервер
         if not name.endswith("Сервер") and not name.endswith("Server"):
-            violations.append(MetadataViolation(
-                file=str(xml_path), object_type="CommonModule",
-                object_name=name,
-                rule_id="module-server-no-suffix",
-                severity="warning",
-                message="Серверный модуль без суффикса 'Сервер' — добавьте для ясности (STD 04)",
-            ))
+            violations.append(
+                MetadataViolation(
+                    file=str(xml_path),
+                    object_type="CommonModule",
+                    object_name=name,
+                    rule_id="module-server-no-suffix",
+                    severity="warning",
+                    message="Серверный модуль без суффикса 'Сервер' — добавьте для ясности (STD 04)",
+                )
+            )
 
     if client_managed and not server:
         # Клиентский модуль — должен иметь суффикс Клиент
         if not name.endswith("Клиент") and not name.endswith("Client"):
-            violations.append(MetadataViolation(
-                file=str(xml_path), object_type="CommonModule",
-                object_name=name,
-                rule_id="module-client-no-suffix",
-                severity="warning",
-                message="Клиентский модуль без суффикса 'Клиент' — добавьте для ясности (STD 04)",
-            ))
+            violations.append(
+                MetadataViolation(
+                    file=str(xml_path),
+                    object_type="CommonModule",
+                    object_name=name,
+                    rule_id="module-client-no-suffix",
+                    severity="warning",
+                    message="Клиентский модуль без суффикса 'Клиент' — добавьте для ясности (STD 04)",
+                )
+            )
 
     if server_call:
         # Модуль с ServerCall — должен иметь суффикс ВызовСервера
         if not name.endswith("ВызовСервера") and not name.endswith("ServerCall"):
-            violations.append(MetadataViolation(
-                file=str(xml_path), object_type="CommonModule",
-                object_name=name,
-                rule_id="module-servercall-no-suffix",
-                severity="warning",
-                message="Модуль с ServerCall без суффикса 'ВызовСервера' — добавьте (STD 04)",
-            ))
+            violations.append(
+                MetadataViolation(
+                    file=str(xml_path),
+                    object_type="CommonModule",
+                    object_name=name,
+                    rule_id="module-servercall-no-suffix",
+                    severity="warning",
+                    message="Модуль с ServerCall без суффикса 'ВызовСервера' — добавьте (STD 04)",
+                )
+            )
 
     return violations
 
@@ -410,25 +454,31 @@ def _check_document(xml_path: Path, name: str, props: ET.Element) -> list[Metada
     # Должна быть DefaultListForm
     default_list_form = _get_text(props, "DefaultListForm")
     if not default_list_form:
-        violations.append(MetadataViolation(
-            file=str(xml_path), object_type="Document",
-            object_name=name,
-            rule_id="document-no-list-form",
-            severity="warning",
-            message="DefaultListForm не указана — добавьте форму списка (STD 01)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(xml_path),
+                object_type="Document",
+                object_name=name,
+                rule_id="document-no-list-form",
+                severity="warning",
+                message="DefaultListForm не указана — добавьте форму списка (STD 01)",
+            )
+        )
 
     # Номер должен быть уникальным
     num_length = _get_text(props, "NumberLength", "0")
     check_unique = _get_text(props, "CheckUnique", "true")
     if int(num_length) > 0 and check_unique.lower() != "true":
-        violations.append(MetadataViolation(
-            file=str(xml_path), object_type="Document",
-            object_name=name,
-            rule_id="document-no-check-unique",
-            severity="warning",
-            message="CheckUnique=false при наличии номера — должна быть проверка (STD 01)",
-        ))
+        violations.append(
+            MetadataViolation(
+                file=str(xml_path),
+                object_type="Document",
+                object_name=name,
+                rule_id="document-no-check-unique",
+                severity="warning",
+                message="CheckUnique=false при наличии номера — должна быть проверка (STD 01)",
+            )
+        )
 
     return violations
 
@@ -456,6 +506,7 @@ def format_violations(violations: list[MetadataViolation], output_format: str = 
         return "✅ Нарушений в метаданных не найдено."
 
     from collections import defaultdict
+
     by_type = defaultdict(list)
     for v in violations:
         by_type[v.object_type].append(v)
@@ -476,7 +527,7 @@ def format_violations(violations: list[MetadataViolation], output_format: str = 
 
 
 def main():
-    import json
+
     if len(sys.argv) < 2:
         print("Использование: python3 check_metadata_standards.py <config_dir>")
         print()

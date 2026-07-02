@@ -20,18 +20,17 @@ code_generator.py — Генератор BSL-кода и XML-метаданны�
     generate_processing(name="ВыгрузкаНоменклатуры", synonym="Выгрузка номенклатуры", output_dir="/tmp/my_processing")
     generate_report(name="ОтчетПоПродажам", synonym="Отчёт по продажам", output_dir="/tmp/my_report")
 """
+
 from __future__ import annotations
 
-import json
-import os
 import sys
 import uuid
 from pathlib import Path
 
-
 # ============================================================================
 # УТИЛИТЫ
 # ============================================================================
+
 
 def _gen_uuid() -> str:
     """Генерирует UUID в формате 1С."""
@@ -47,20 +46,20 @@ def _load_template(template_name: str) -> str:
     """Загружает шаблон из templates/ директории."""
     # Ищем в нескольких местах
     candidates = [
-        Path(__file__).parent.parent / 'templates' / template_name,
-        Path(__file__).parent / 'templates' / template_name,
-        Path('/home/z/my-project/repo_work/templates') / template_name,
+        Path(__file__).parent.parent / "templates" / template_name,
+        Path(__file__).parent / "templates" / template_name,
+        Path("/home/z/my-project/repo_work/templates") / template_name,
     ]
     for path in candidates:
         if path.exists():
-            return path.read_text(encoding='utf-8')
+            return path.read_text(encoding="utf-8")
     raise FileNotFoundError(f"Template not found: {template_name}")
 
 
 def _fill_template(template: str, replacements: dict) -> str:
     """Заполняет шаблон значениями."""
     for key, value in replacements.items():
-        template = template.replace(f'{{{{{key}}}}}', str(value))
+        template = template.replace(f"{{{{{key}}}}}", str(value))
     return template
 
 
@@ -68,8 +67,8 @@ def _fill_template(template: str, replacements: dict) -> str:
 # ГЕНЕРАЦИЯ ОБРАБОТКИ
 # ============================================================================
 
-def generate_processing(name: str, synonym: str, output_dir: str,
-                         description: str = '', author: str = '') -> dict:
+
+def generate_processing(name: str, synonym: str, output_dir: str, description: str = "", author: str = "") -> dict:
     """Генерирует структуру внешней обработки.
 
     Args:
@@ -95,73 +94,73 @@ def generate_processing(name: str, synonym: str, output_dir: str,
     value_id_3 = _gen_uuid()
 
     replacements = {
-        'NAME': name,
-        'SYNONYM': synonym,
-        'UUID': obj_uuid,
-        'TYPE_ID_1': type_id_1,
-        'VALUE_ID_1': value_id_1,
-        'TYPE_ID_2': type_id_2,
-        'VALUE_ID_2': value_id_2,
-        'TYPE_ID_3': type_id_3,
-        'VALUE_ID_3': value_id_3,
+        "NAME": name,
+        "SYNONYM": synonym,
+        "UUID": obj_uuid,
+        "TYPE_ID_1": type_id_1,
+        "VALUE_ID_1": value_id_1,
+        "TYPE_ID_2": type_id_2,
+        "VALUE_ID_2": value_id_2,
+        "TYPE_ID_3": type_id_3,
+        "VALUE_ID_3": value_id_3,
     }
 
     files = []
 
     # 1. Метаданные обработки (Обработка.xml или корневой файл)
-    xml_template = _load_template('xml/data_processor_template.xml')
+    xml_template = _load_template("xml/data_processor_template.xml")
     xml_content = _fill_template(xml_template, replacements)
-    xml_path = output_dir / f'{name}.xml'
-    xml_path.write_text(xml_content, encoding='utf-8')
-    files.append({'path': str(xml_path), 'type': 'metadata', 'size': len(xml_content)})
+    xml_path = output_dir / f"{name}.xml"
+    xml_path.write_text(xml_content, encoding="utf-8")
+    files.append({"path": str(xml_path), "type": "metadata", "size": len(xml_content)})
 
     # 2. Модуль объекта (Ext/Module.bsl)
-    obj_module_template = _load_template('bsl/processing_object_module.bsl')
+    obj_module_template = _load_template("bsl/processing_object_module.bsl")
     obj_module_content = _fill_template(obj_module_template, replacements)
-    obj_module_path = output_dir / 'Ext' / 'Module.bsl'
+    obj_module_path = output_dir / "Ext" / "Module.bsl"
     obj_module_path.parent.mkdir(parents=True, exist_ok=True)
-    obj_module_path.write_text(obj_module_content, encoding='utf-8')
-    files.append({'path': str(obj_module_path), 'type': 'bsl_object_module', 'size': len(obj_module_content)})
+    obj_module_path.write_text(obj_module_content, encoding="utf-8")
+    files.append({"path": str(obj_module_path), "type": "bsl_object_module", "size": len(obj_module_content)})
 
     # 3. Форма обработки (Forms/Форма/)
-    form_dir = output_dir / 'Forms' / 'Форма'
+    form_dir = output_dir / "Forms" / "Форма"
     form_dir.mkdir(parents=True, exist_ok=True)
 
     # 3a. Модуль формы
-    form_module_template = _load_template('bsl/processing_form_module.bsl')
+    form_module_template = _load_template("bsl/processing_form_module.bsl")
     form_module_content = _fill_template(form_module_template, replacements)
-    form_module_path = form_dir / 'Ext' / 'Form' / 'Module.bsl'
+    form_module_path = form_dir / "Ext" / "Form" / "Module.bsl"
     form_module_path.parent.mkdir(parents=True, exist_ok=True)
-    form_module_path.write_text(form_module_content, encoding='utf-8')
-    files.append({'path': str(form_module_path), 'type': 'bsl_form_module', 'size': len(form_module_content)})
+    form_module_path.write_text(form_module_content, encoding="utf-8")
+    files.append({"path": str(form_module_path), "type": "bsl_form_module", "size": len(form_module_content)})
 
     # 3b. XML формы (упрощённый)
-    form_xml = _generate_form_xml(name, synonym, form_type='processing')
-    form_xml_path = form_dir / 'Ext' / 'Form.xml'
-    form_xml_path.write_text(form_xml, encoding='utf-8')
-    files.append({'path': str(form_xml_path), 'type': 'form_xml', 'size': len(form_xml)})
+    form_xml = _generate_form_xml(name, synonym, form_type="processing")
+    form_xml_path = form_dir / "Ext" / "Form.xml"
+    form_xml_path.write_text(form_xml, encoding="utf-8")
+    files.append({"path": str(form_xml_path), "type": "form_xml", "size": len(form_xml)})
 
     # 3c. Метаданные формы
-    form_meta_xml = _generate_form_metadata_xml(name, 'Форма')
-    form_meta_path = form_dir / 'Форма.xml'
-    form_meta_path.write_text(form_meta_xml, encoding='utf-8')
-    files.append({'path': str(form_meta_path), 'type': 'form_metadata', 'size': len(form_meta_path.read_bytes())})
+    form_meta_xml = _generate_form_metadata_xml(name, "Форма")
+    form_meta_path = form_dir / "Форма.xml"
+    form_meta_path.write_text(form_meta_xml, encoding="utf-8")
+    files.append({"path": str(form_meta_path), "type": "form_metadata", "size": len(form_meta_path.read_bytes())})
 
     # 4. README
-    readme = _generate_readme(name, synonym, description, author, 'processing')
-    readme_path = output_dir / 'README.md'
-    readme_path.write_text(readme, encoding='utf-8')
-    files.append({'path': str(readme_path), 'type': 'readme', 'size': len(readme)})
+    readme = _generate_readme(name, synonym, description, author, "processing")
+    readme_path = output_dir / "README.md"
+    readme_path.write_text(readme, encoding="utf-8")
+    files.append({"path": str(readme_path), "type": "readme", "size": len(readme)})
 
     return {
-        'files': files,
-        'stats': {
-            'total_files': len(files),
-            'bsl_files': sum(1 for f in files if 'bsl' in f['type']),
-            'xml_files': sum(1 for f in files if 'xml' in f['type']),
-            'object_type': 'DataProcessor',
-            'name': name,
-            'uuid': obj_uuid,
+        "files": files,
+        "stats": {
+            "total_files": len(files),
+            "bsl_files": sum(1 for f in files if "bsl" in f["type"]),
+            "xml_files": sum(1 for f in files if "xml" in f["type"]),
+            "object_type": "DataProcessor",
+            "name": name,
+            "uuid": obj_uuid,
         },
     }
 
@@ -170,9 +169,16 @@ def generate_processing(name: str, synonym: str, output_dir: str,
 # ГЕНЕРАЦИЯ ОТЧЁТА НА СКД
 # ============================================================================
 
-def generate_report(name: str, synonym: str, output_dir: str,
-                     description: str = '', author: str = '',
-                     data_source: str = '', main_query: str = '') -> dict:
+
+def generate_report(
+    name: str,
+    synonym: str,
+    output_dir: str,
+    description: str = "",
+    author: str = "",
+    data_source: str = "",
+    main_query: str = "",
+) -> dict:
     """Генерирует структуру отчёта на СКД.
 
     Args:
@@ -199,90 +205,90 @@ def generate_report(name: str, synonym: str, output_dir: str,
     value_id_3 = _gen_uuid()
 
     replacements = {
-        'NAME': name,
-        'SYNONYM': synonym,
-        'UUID': obj_uuid,
-        'TYPE_ID_1': type_id_1,
-        'VALUE_ID_1': value_id_1,
-        'TYPE_ID_2': type_id_2,
-        'VALUE_ID_2': value_id_2,
-        'TYPE_ID_3': type_id_3,
-        'VALUE_ID_3': value_id_3,
+        "NAME": name,
+        "SYNONYM": synonym,
+        "UUID": obj_uuid,
+        "TYPE_ID_1": type_id_1,
+        "VALUE_ID_1": value_id_1,
+        "TYPE_ID_2": type_id_2,
+        "VALUE_ID_2": value_id_2,
+        "TYPE_ID_3": type_id_3,
+        "VALUE_ID_3": value_id_3,
     }
 
     files = []
 
     # 1. Метаданные отчёта
-    xml_template = _load_template('xml/report_template.xml')
+    xml_template = _load_template("xml/report_template.xml")
     xml_content = _fill_template(xml_template, replacements)
-    xml_path = output_dir / f'{name}.xml'
-    xml_path.write_text(xml_content, encoding='utf-8')
-    files.append({'path': str(xml_path), 'type': 'metadata', 'size': len(xml_content)})
+    xml_path = output_dir / f"{name}.xml"
+    xml_path.write_text(xml_content, encoding="utf-8")
+    files.append({"path": str(xml_path), "type": "metadata", "size": len(xml_content)})
 
     # 2. Модуль объекта отчёта (с СКД-логикой)
-    obj_module_template = _load_template('bsl/skd_report_object_module.bsl')
+    obj_module_template = _load_template("bsl/skd_report_object_module.bsl")
     obj_module_content = _fill_template(obj_module_template, replacements)
-    obj_module_path = output_dir / 'Ext' / 'Module.bsl'
+    obj_module_path = output_dir / "Ext" / "Module.bsl"
     obj_module_path.parent.mkdir(parents=True, exist_ok=True)
-    obj_module_path.write_text(obj_module_content, encoding='utf-8')
-    files.append({'path': str(obj_module_path), 'type': 'bsl_object_module', 'size': len(obj_module_content)})
+    obj_module_path.write_text(obj_module_content, encoding="utf-8")
+    files.append({"path": str(obj_module_path), "type": "bsl_object_module", "size": len(obj_module_content)})
 
     # 3. СКД-схема (Templates/ОсновнаяСхемаКомпоновкиДанных/)
-    skd_dir = output_dir / 'Templates' / 'ОсновнаяСхемаКомпоновкиДанных'
+    skd_dir = output_dir / "Templates" / "ОсновнаяСхемаКомпоновкиДанных"
     skd_dir.mkdir(parents=True, exist_ok=True)
 
     skd_xml = _generate_skd_schema_xml(name, synonym, data_source, main_query)
-    skd_xml_path = skd_dir / 'Ext' / 'Template.xml'
+    skd_xml_path = skd_dir / "Ext" / "Template.xml"
     skd_xml_path.parent.mkdir(parents=True, exist_ok=True)
-    skd_xml_path.write_text(skd_xml, encoding='utf-8')
-    files.append({'path': str(skd_xml_path), 'type': 'skd_schema', 'size': len(skd_xml)})
+    skd_xml_path.write_text(skd_xml, encoding="utf-8")
+    files.append({"path": str(skd_xml_path), "type": "skd_schema", "size": len(skd_xml)})
 
     # Метаданные макета
-    skd_meta = _generate_template_metadata_xml('ОсновнаяСхемаКомпоновкиДанных')
-    skd_meta_path = skd_dir / 'ОсновнаяСхемаКомпоновкиДанных.xml'
-    skd_meta_path.write_text(skd_meta, encoding='utf-8')
-    files.append({'path': str(skd_meta_path), 'type': 'template_metadata', 'size': len(skd_meta)})
+    skd_meta = _generate_template_metadata_xml("ОсновнаяСхемаКомпоновкиДанных")
+    skd_meta_path = skd_dir / "ОсновнаяСхемаКомпоновкиДанных.xml"
+    skd_meta_path.write_text(skd_meta, encoding="utf-8")
+    files.append({"path": str(skd_meta_path), "type": "template_metadata", "size": len(skd_meta)})
 
     # 4. Форма отчёта
-    form_dir = output_dir / 'Forms' / 'ФормаОтчета'
+    form_dir = output_dir / "Forms" / "ФормаОтчета"
     form_dir.mkdir(parents=True, exist_ok=True)
 
     # 4a. Модуль формы отчёта
-    form_module_template = _load_template('bsl/skd_report_form_module.bsl')
+    form_module_template = _load_template("bsl/skd_report_form_module.bsl")
     form_module_content = _fill_template(form_module_template, replacements)
-    form_module_path = form_dir / 'Ext' / 'Form' / 'Module.bsl'
+    form_module_path = form_dir / "Ext" / "Form" / "Module.bsl"
     form_module_path.parent.mkdir(parents=True, exist_ok=True)
-    form_module_path.write_text(form_module_content, encoding='utf-8')
-    files.append({'path': str(form_module_path), 'type': 'bsl_form_module', 'size': len(form_module_content)})
+    form_module_path.write_text(form_module_content, encoding="utf-8")
+    files.append({"path": str(form_module_path), "type": "bsl_form_module", "size": len(form_module_content)})
 
     # 4b. XML формы отчёта
-    form_xml = _generate_form_xml(name, synonym, form_type='report')
-    form_xml_path = form_dir / 'Ext' / 'Form.xml'
-    form_xml_path.write_text(form_xml, encoding='utf-8')
-    files.append({'path': str(form_xml_path), 'type': 'form_xml', 'size': len(form_xml)})
+    form_xml = _generate_form_xml(name, synonym, form_type="report")
+    form_xml_path = form_dir / "Ext" / "Form.xml"
+    form_xml_path.write_text(form_xml, encoding="utf-8")
+    files.append({"path": str(form_xml_path), "type": "form_xml", "size": len(form_xml)})
 
     # 4c. Метаданные формы
-    form_meta_xml = _generate_form_metadata_xml(name, 'ФормаОтчета')
-    form_meta_path = form_dir / 'ФормаОтчета.xml'
-    form_meta_path.write_text(form_meta_xml, encoding='utf-8')
-    files.append({'path': str(form_meta_path), 'type': 'form_metadata', 'size': len(form_meta_path.read_bytes())})
+    form_meta_xml = _generate_form_metadata_xml(name, "ФормаОтчета")
+    form_meta_path = form_dir / "ФормаОтчета.xml"
+    form_meta_path.write_text(form_meta_xml, encoding="utf-8")
+    files.append({"path": str(form_meta_path), "type": "form_metadata", "size": len(form_meta_path.read_bytes())})
 
     # 5. README
-    readme = _generate_readme(name, synonym, description, author, 'report')
-    readme_path = output_dir / 'README.md'
-    readme_path.write_text(readme, encoding='utf-8')
-    files.append({'path': str(readme_path), 'type': 'readme', 'size': len(readme)})
+    readme = _generate_readme(name, synonym, description, author, "report")
+    readme_path = output_dir / "README.md"
+    readme_path.write_text(readme, encoding="utf-8")
+    files.append({"path": str(readme_path), "type": "readme", "size": len(readme)})
 
     return {
-        'files': files,
-        'stats': {
-            'total_files': len(files),
-            'bsl_files': sum(1 for f in files if 'bsl' in f['type']),
-            'xml_files': sum(1 for f in files if 'xml' in f['type']),
-            'object_type': 'Report',
-            'name': name,
-            'uuid': obj_uuid,
-            'has_skd_schema': True,
+        "files": files,
+        "stats": {
+            "total_files": len(files),
+            "bsl_files": sum(1 for f in files if "bsl" in f["type"]),
+            "xml_files": sum(1 for f in files if "xml" in f["type"]),
+            "object_type": "Report",
+            "name": name,
+            "uuid": obj_uuid,
+            "has_skd_schema": True,
         },
     }
 
@@ -291,16 +297,17 @@ def generate_report(name: str, synonym: str, output_dir: str,
 # ВСПОМОГАТЕЛЬНЫЕ ГЕНЕРАТОРЫ
 # ============================================================================
 
-def _generate_form_xml(name: str, synonym: str, form_type: str = 'processing') -> str:
+
+def _generate_form_xml(name: str, synonym: str, form_type: str = "processing") -> str:
     """Генерирует упрощённый Form.xml."""
-    if form_type == 'report':
-        data_path = 'Результат'
-        button_name = 'СформироватьОтчет'
-        button_title = 'Сформировать отчёт'
+    if form_type == "report":
+        data_path = "Результат"
+        button_name = "СформироватьОтчет"
+        button_title = "Сформировать отчёт"
     else:
-        data_path = 'Объект'
-        button_name = 'ВыполнитьОбработку'
-        button_title = 'Выполнить'
+        data_path = "Объект"
+        button_name = "ВыполнитьОбработку"
+        button_title = "Выполнить"
 
     return f'''<?xml version="1.0" encoding="UTF-8"?>
 <Form xmlns="http://v8.1c.ru/8.3/xcf/logform" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:dcscor="http://v8.1c.ru/8.1/data-composition-system/core" xmlns:dcsset="http://v8.1c.ru/8.1/data-composition-system/settings" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.18">
@@ -378,25 +385,24 @@ def _generate_template_metadata_xml(template_name: str) -> str:
 </MetaDataObject>'''
 
 
-def _generate_skd_schema_xml(name: str, synonym: str, data_source: str = '',
-                              main_query: str = '') -> str:
+def _generate_skd_schema_xml(name: str, synonym: str, data_source: str = "", main_query: str = "") -> str:
     """Генерирует базовую СКД-схему."""
     if not main_query:
         if data_source:
-            main_query = f'''ВЫБРАТЬ
+            main_query = f"""ВЫБРАТЬ
 \t*
 ИЗ
-\t{data_source}'''
+\t{data_source}"""
         else:
-            main_query = '''ВЫБРАТЬ
+            main_query = """ВЫБРАТЬ
 \t*
 ИЗ
-\tСправочник.Номенклатура'''
+\tСправочник.Номенклатура"""
 
     # Экранируем & в запросе для XML
-    main_query_xml = main_query.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    main_query_xml = main_query.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-    return f'''<?xml version="1.0" encoding="UTF-8"?>
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
 <DataCompositionSchema xmlns="http://v8.1c.ru/8.1/data-composition-system/schema" xmlns:dcscom="http://v8.1c.ru/8.1/data-composition-system/common" xmlns:dcscor="http://v8.1c.ru/8.1/data-composition-system/core" xmlns:dcsset="http://v8.1c.ru/8.1/data-composition-system/settings" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 \t<dataSource>
 \t\t<name>ИсточникДанных1</name>
@@ -428,25 +434,24 @@ def _generate_skd_schema_xml(name: str, synonym: str, data_source: str = '',
 \t\t\t</selection>
 \t\t</item>
 \t</settings>
-</DataCompositionSchema>'''
+</DataCompositionSchema>"""
 
 
-def _generate_readme(name: str, synonym: str, description: str, author: str,
-                      obj_type: str) -> str:
+def _generate_readme(name: str, synonym: str, description: str, author: str, obj_type: str) -> str:
     """Генерирует README.md для обработки/отчёта."""
-    type_ru = 'Обработка' if obj_type == 'processing' else 'Отчёт на СКД'
+    type_ru = "Обработка" if obj_type == "processing" else "Отчёт на СКД"
 
-    return f'''# {synonym}
+    return f"""# {synonym}
 
 ## Информация
 - **Тип:** {type_ru}
 - **Имя:** {name}
 - **Синоним:** {synonym}
-- **Автор:** {author or 'не указан'}
-- **Дата создания:** {__import__('datetime').datetime.now().strftime('%Y-%m-%d')}
+- **Автор:** {author or "не указан"}
+- **Дата создания:** {__import__("datetime").datetime.now().strftime("%Y-%m-%d")}
 
 ## Описание
-{description or 'Описание не указано.'}
+{description or "Описание не указано."}
 
 ## Структура файлов
 - `{name}.xml` — метаданные объекта
@@ -454,11 +459,13 @@ def _generate_readme(name: str, synonym: str, description: str, author: str,
 - `Forms/Форма/` (или `Forms/ФормаОтчета/`) — форма
   - `Ext/Form/Module.bsl` — модуль формы
   - `Ext/Form.xml` — описание элементов формы
-'''
+"""
+
 
 # ============================================================================
 # CLI
 # ============================================================================
+
 
 def main():
     if len(sys.argv) < 4:
@@ -474,21 +481,21 @@ def main():
     obj_type = sys.argv[1]
     name = sys.argv[2]
     synonym = sys.argv[3]
-    output_dir = sys.argv[4] if len(sys.argv) > 4 else f'/tmp/{name}'
+    output_dir = sys.argv[4] if len(sys.argv) > 4 else f"/tmp/{name}"
 
-    if obj_type == 'processing':
+    if obj_type == "processing":
         result = generate_processing(name, synonym, output_dir)
-    elif obj_type == 'report':
+    elif obj_type == "report":
         result = generate_report(name, synonym, output_dir)
     else:
         print(f"❌ Неизвестный тип: {obj_type}")
         sys.exit(1)
 
     print(f"\n✅ Сгенерировано {result['stats']['total_files']} файлов:")
-    for f in result['files']:
+    for f in result["files"]:
         print(f"  [{f['type']}] {f['path']} ({f['size']} байт)")
     print(f"\n📁 Структура сохранена в: {output_dir}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

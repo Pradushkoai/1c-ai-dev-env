@@ -131,6 +131,17 @@ ignore = [
 ]
 "scripts/*" = [
     "B",      # bugbear слишком строг для скриптов
+    "F401",   # unused imports (скрипты часто импортируют для side-effects)
+    "F841",   # unused local variables
+    "E741",   # ambiguous variable name (l, I, O)
+    "SIM102", # collapsible-if (читаемость в скриптах)
+    "SIM105", # suppressible-exception (try-except-pass ок в скриптах)
+    "SIM108", # ternary operator
+    "SIM115", # open-file-with-context-handler (ок в CLI утилитах)
+    "SIM116", # if-else-block-instead-of-dict-lookup (читаемость)
+    "E402",   # module-import-not-at-top (sys.path manipulation)
+    "C401",   # unnecessary-generator-set
+    "C416",   # unnecessary-comprehension
 ]
 
 [tool.ruff.format]

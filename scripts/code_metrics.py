@@ -19,21 +19,22 @@ code_metrics.py — Метрики кода BSL 1С.
     analyzer = CodeMetricsAnalyzer()
     metrics = analyzer.analyze_file(Path('module.bsl'))
 """
+
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterator
-
 
 # ============================================================================
 # МОДЕЛИ ДАННЫХ
 # ============================================================================
 
+
 @dataclass
 class MethodMetrics:
     """Метрики метода (процедуры/функции)."""
+
     name: str
     method_type: str  # Процедура или Функция
     line_start: int
@@ -51,7 +52,8 @@ class MethodMetrics:
 @dataclass
 class CodeMetrics:
     """Метрики всего модуля."""
-    file_path: str = ''
+
+    file_path: str = ""
     # LOC
     total_lines: int = 0
     code_lines: int = 0  # lloc
@@ -88,35 +90,54 @@ class CodeMetrics:
 # АНАЛИЗАТОР МЕТРИК
 # ============================================================================
 
+
 class CodeMetricsAnalyzer:
     """Анализатор метрик BSL кода."""
 
     # Ключевые слова для цикломатической сложности
     COMPLEXITY_KEYWORDS = [
-        r'\bЕсли\b', r'\bИначе\b', r'\bИначеЕсли\b',
-        r'\bПока\b', r'\bДля\b', r'\bДля\s+Каждого\b',
-        r'\bПопытка\b', r'\bИсключение\b',
-        r'\bИ\b', r'\bИЛИ\b', r'\bНЕ\b',
+        r"\bЕсли\b",
+        r"\bИначе\b",
+        r"\bИначеЕсли\b",
+        r"\bПока\b",
+        r"\bДля\b",
+        r"\bДля\s+Каждого\b",
+        r"\bПопытка\b",
+        r"\bИсключение\b",
+        r"\bИ\b",
+        r"\bИЛИ\b",
+        r"\bНЕ\b",
     ]
 
     # Ключевые слова для вложенности
-    NESTING_OPEN = [r'\bЕсли\b.*\bТогда\b', r'\bПока\b.*\bЦикл\b',
-                    r'\bДля\b.*\bЦикл\b', r'\bПопытка\b', r'\bФункция\b', r'\bПроцедура\b']
-    NESTING_CLOSE = [r'\bКонецЕсли\b', r'\bКонецЦикла\b', r'\bКонецПопытки\b',
-                     r'\bКонецФункции\b', r'\bКонецПроцедуры\b']
+    NESTING_OPEN = [
+        r"\bЕсли\b.*\bТогда\b",
+        r"\bПока\b.*\bЦикл\b",
+        r"\bДля\b.*\bЦикл\b",
+        r"\bПопытка\b",
+        r"\bФункция\b",
+        r"\bПроцедура\b",
+    ]
+    NESTING_CLOSE = [
+        r"\bКонецЕсли\b",
+        r"\bКонецЦикла\b",
+        r"\bКонецПопытки\b",
+        r"\bКонецФункции\b",
+        r"\bКонецПроцедуры\b",
+    ]
 
     def analyze_file(self, file_path: Path) -> CodeMetrics:
         """Анализ одного BSL файла."""
         try:
-            content = file_path.read_text(encoding='utf-8-sig', errors='replace')
+            content = file_path.read_text(encoding="utf-8-sig", errors="replace")
         except Exception:
             return CodeMetrics(file_path=str(file_path))
 
         return self.analyze_code(content, str(file_path))
 
-    def analyze_code(self, code: str, file_path: str = '') -> CodeMetrics:
+    def analyze_code(self, code: str, file_path: str = "") -> CodeMetrics:
         """Анализ BSL кода."""
-        lines = code.split('\n')
+        lines = code.split("\n")
         metrics = CodeMetrics(file_path=file_path)
 
         # 1. LOC метрики
@@ -145,7 +166,7 @@ class CodeMetricsAnalyzer:
     def analyze_path(self, dir_path: Path) -> list[CodeMetrics]:
         """Анализ всех BSL файлов в директории."""
         results = []
-        for bsl_file in sorted(dir_path.rglob('*.bsl')):
+        for bsl_file in sorted(dir_path.rglob("*.bsl")):
             results.append(self.analyze_file(bsl_file))
         return results
 
@@ -159,15 +180,15 @@ class CodeMetricsAnalyzer:
         total_debt = sum(m.technical_debt_minutes for m in metrics_list)
 
         return {
-            'total_files': total_files,
-            'total_code_lines': total_lines,
-            'total_methods': total_methods,
-            'god_objects': god_objects,
-            'long_methods': long_methods,
-            'avg_complexity': sum(m.avg_cyclomatic for m in metrics_list) / total_files if total_files else 0,
-            'avg_health': sum(m.health_score for m in metrics_list) / total_files if total_files else 0,
-            'total_debt_hours': total_debt / 60,
-            'total_debt_minutes': total_debt,
+            "total_files": total_files,
+            "total_code_lines": total_lines,
+            "total_methods": total_methods,
+            "god_objects": god_objects,
+            "long_methods": long_methods,
+            "avg_complexity": sum(m.avg_cyclomatic for m in metrics_list) / total_files if total_files else 0,
+            "avg_health": sum(m.health_score for m in metrics_list) / total_files if total_files else 0,
+            "total_debt_hours": total_debt / 60,
+            "total_debt_minutes": total_debt,
         }
 
     # =====================================================================
@@ -182,7 +203,7 @@ class CodeMetricsAnalyzer:
             stripped = line.strip()
             if not stripped:
                 metrics.blank_lines += 1
-            elif stripped.startswith('//'):
+            elif stripped.startswith("//"):
                 metrics.comment_lines += 1
             else:
                 metrics.code_lines += 1
@@ -193,14 +214,8 @@ class CodeMetricsAnalyzer:
 
     def _parse_methods(self, lines: list[str], metrics: CodeMetrics):
         """Парсинг процедур и функций."""
-        method_pattern = re.compile(
-            r'^(Процедура|Функция)\s+(\w+)\s*\(([^)]*)\)(\s+Экспорт)?',
-            re.IGNORECASE
-        )
-        end_pattern = re.compile(
-            r'^(КонецПроцедуры|КонецФункции)',
-            re.IGNORECASE
-        )
+        method_pattern = re.compile(r"^(Процедура|Функция)\s+(\w+)\s*\(([^)]*)\)(\s+Экспорт)?", re.IGNORECASE)
+        end_pattern = re.compile(r"^(КонецПроцедуры|КонецФункции)", re.IGNORECASE)
 
         current_method = None
 
@@ -215,7 +230,7 @@ class CodeMetricsAnalyzer:
                 params = m.group(3).strip()
                 is_export = m.group(4) is not None
 
-                param_count = len([p for p in params.split(',') if p.strip()]) if params else 0
+                param_count = len([p for p in params.split(",") if p.strip()]) if params else 0
 
                 current_method = MethodMetrics(
                     name=name,
@@ -234,14 +249,11 @@ class CodeMetricsAnalyzer:
                 current_method.loc = i - current_method.line_start + 1
 
                 # LLOC — логические строки
-                method_lines = lines[current_method.line_start - 1:i]
-                current_method.lloc = sum(
-                    1 for l in method_lines
-                    if l.strip() and not l.strip().startswith('//')
-                )
+                method_lines = lines[current_method.line_start - 1 : i]
+                current_method.lloc = sum(1 for l in method_lines if l.strip() and not l.strip().startswith("//"))
 
                 metrics.methods.append(current_method)
-                if current_method.method_type.lower() == 'процедура':
+                if current_method.method_type.lower() == "процедура":
                     metrics.procedures_count += 1
                 else:
                     metrics.functions_count += 1
@@ -260,7 +272,7 @@ class CodeMetricsAnalyzer:
         total_cc = 1  # базовая сложность
         for line in lines:
             stripped = line.strip()
-            if stripped.startswith('//'):
+            if stripped.startswith("//"):
                 continue
             for pattern in self.COMPLEXITY_KEYWORDS:
                 total_cc += len(re.findall(pattern, stripped, re.IGNORECASE))
@@ -274,11 +286,11 @@ class CodeMetricsAnalyzer:
             nesting = 0
             max_nesting = 0
 
-            method_lines = lines[method.line_start - 1:method.line_end]
+            method_lines = lines[method.line_start - 1 : method.line_end]
 
             for line in method_lines:
                 stripped = line.strip()
-                if stripped.startswith('//'):
+                if stripped.startswith("//"):
                     continue
 
                 # Цикломатическая
@@ -325,53 +337,63 @@ class CodeMetricsAnalyzer:
         for method in metrics.methods:
             if method.lloc > 50:
                 metrics.long_methods.append(method)
-                metrics.issues.append({
-                    'type': 'long_method',
-                    'severity': 'warning',
-                    'method': method.name,
-                    'line': method.line_start,
-                    'message': f'Метод {method.name} слишком длинный: {method.lloc} строк (рекомендуется < 50)',
-                })
+                metrics.issues.append(
+                    {
+                        "type": "long_method",
+                        "severity": "warning",
+                        "method": method.name,
+                        "line": method.line_start,
+                        "message": f"Метод {method.name} слишком длинный: {method.lloc} строк (рекомендуется < 50)",
+                    }
+                )
 
         # Too Many Parameters — > 5
         for method in metrics.methods:
             if method.param_count > 5:
                 metrics.too_many_params.append(method)
-                metrics.issues.append({
-                    'type': 'too_many_params',
-                    'severity': 'warning',
-                    'method': method.name,
-                    'line': method.line_start,
-                    'message': f'Метод {method.name} имеет {method.param_count} параметров (рекомендуется < 5)',
-                })
+                metrics.issues.append(
+                    {
+                        "type": "too_many_params",
+                        "severity": "warning",
+                        "method": method.name,
+                        "line": method.line_start,
+                        "message": f"Метод {method.name} имеет {method.param_count} параметров (рекомендуется < 5)",
+                    }
+                )
 
         # God Object — > 1000 строк кода или > 50 методов
         if metrics.code_lines > 1000 or len(metrics.methods) > 50:
             metrics.is_god_object = True
-            metrics.issues.append({
-                'type': 'god_object',
-                'severity': 'error',
-                'line': 0,
-                'message': f'God Object: {metrics.code_lines} строк, {len(metrics.methods)} методов (рекомендуется < 1000 строк, < 50 методов)',
-            })
+            metrics.issues.append(
+                {
+                    "type": "god_object",
+                    "severity": "error",
+                    "line": 0,
+                    "message": f"God Object: {metrics.code_lines} строк, {len(metrics.methods)} методов (рекомендуется < 1000 строк, < 50 методов)",
+                }
+            )
 
         # Высокая сложность
         if metrics.max_cyclomatic > 15:
-            metrics.issues.append({
-                'type': 'high_complexity',
-                'severity': 'warning',
-                'line': 0,
-                'message': f'Высокая цикломатическая сложность: max={metrics.max_cyclomatic} (рекомендуется < 15)',
-            })
+            metrics.issues.append(
+                {
+                    "type": "high_complexity",
+                    "severity": "warning",
+                    "line": 0,
+                    "message": f"Высокая цикломатическая сложность: max={metrics.max_cyclomatic} (рекомендуется < 15)",
+                }
+            )
 
         # Глубокая вложенность
         if metrics.max_nesting > 4:
-            metrics.issues.append({
-                'type': 'deep_nesting',
-                'severity': 'warning',
-                'line': 0,
-                'message': f'Глубокая вложенность: max={metrics.max_nesting} (рекомендуется < 4)',
-            })
+            metrics.issues.append(
+                {
+                    "type": "deep_nesting",
+                    "severity": "warning",
+                    "line": 0,
+                    "message": f"Глубокая вложенность: max={metrics.max_nesting} (рекомендуется < 4)",
+                }
+            )
 
     # =====================================================================
     # ДУБЛИРОВАНИЕ
@@ -385,12 +407,13 @@ class CodeMetricsAnalyzer:
         dup_lines = 0
 
         for i in range(len(lines) - min_block_size):
-            block = tuple(l.strip() for l in lines[i:i + min_block_size]
-                          if l.strip() and not l.strip().startswith('//'))
+            block = tuple(
+                l.strip() for l in lines[i : i + min_block_size] if l.strip() and not l.strip().startswith("//")
+            )
             if len(block) < min_block_size:
                 continue
 
-            block_key = '\n'.join(block)
+            block_key = "\n".join(block)
             if block_key in seen_blocks:
                 duplicates += 1
                 dup_lines += min_block_size
@@ -401,12 +424,14 @@ class CodeMetricsAnalyzer:
         metrics.duplicate_lines = dup_lines
 
         if duplicates > 0:
-            metrics.issues.append({
-                'type': 'code_duplication',
-                'severity': 'warning',
-                'line': 0,
-                'message': f'Найдено {duplicates} дублирующихся блоков ({dup_lines} строк)',
-            })
+            metrics.issues.append(
+                {
+                    "type": "code_duplication",
+                    "severity": "warning",
+                    "line": 0,
+                    "message": f"Найдено {duplicates} дублирующихся блоков ({dup_lines} строк)",
+                }
+            )
 
     # =====================================================================
     # ТЕХДОЛГ
@@ -462,8 +487,10 @@ class CodeMetricsAnalyzer:
 # CLI
 # ============================================================================
 
+
 def main():
     import sys
+
     if len(sys.argv) < 2:
         print("Использование: python3 code_metrics.py <file.bsl|directory>")
         sys.exit(1)
@@ -484,12 +511,14 @@ def main():
 
 
 def _print_metrics(m: CodeMetrics):
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"МЕТРИКИ КОДА: {m.file_path}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"\nLOC: {m.total_lines} всего, {m.code_lines} кода, {m.comment_lines} комментариев, {m.blank_lines} пустых")
     print(f"Методы: {m.procedures_count} процедур, {m.functions_count} функций, {m.export_count} экспортных")
-    print(f"Сложность: cyclomatic={m.total_cyclomatic} (avg={m.avg_cyclomatic:.1f}, max={m.max_cyclomatic}), cognitive={m.total_cognitive} (max={m.max_cognitive})")
+    print(
+        f"Сложность: cyclomatic={m.total_cyclomatic} (avg={m.avg_cyclomatic:.1f}, max={m.max_cyclomatic}), cognitive={m.total_cognitive} (max={m.max_cognitive})"
+    )
     print(f"Вложенность: max={m.max_nesting}")
     print(f"Дублирование: {m.duplicate_blocks} блоков ({m.duplicate_lines} строк)")
     print(f"Техдолг: {m.technical_debt_minutes} мин ({m.technical_debt_minutes / 60:.1f} ч)")
@@ -515,9 +544,9 @@ def _print_metrics(m: CodeMetrics):
 
 
 def _print_summary(summary: dict, results: list[CodeMetrics]):
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"СВОДКА ПО {summary['total_files']} ФАЙЛАМ")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Всего строк кода: {summary['total_code_lines']}")
     print(f"Всего методов: {summary['total_methods']}")
     print(f"God Objects: {summary['god_objects']}")
@@ -527,5 +556,5 @@ def _print_summary(summary: dict, results: list[CodeMetrics]):
     print(f"Техдолг: {summary['total_debt_hours']:.1f} ч ({summary['total_debt_minutes']} мин)")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
