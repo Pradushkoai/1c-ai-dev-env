@@ -1,0 +1,35 @@
+name: "Dependency Review"
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'pyproject.toml'
+      - '.github/dependabot.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    name: Review dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          # Проверяем лицензии и уязвимости
+          fail-on-severity: moderate
+          # Разрешённые лицензии (MIT, Apache-2.0, BSD-*, ISC, MPL-2.0)
+          allow-licenses: >-
+            MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0,
+            Python-2.0, Unlicense, Zlib
+          # Запрещённые лицензии (GPL-*, AGPL-*, commercial)
+          deny-licenses: >-
+            GPL-2.0, GPL-3.0, AGPL-3.0, LGPL-2.1, LGPL-3.0
+          # Комментируем PR с результатами
+          comment-summary-in-pr: always
