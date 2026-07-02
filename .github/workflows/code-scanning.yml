@@ -50,6 +50,7 @@ jobs:
 
       - name: Upload SARIF to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true  # Code Scanning может быть не включен в настройках репо
         with:
           sarif_file: sarif-reports/1c-ai.sarif
           category: 1c-ai-analyzers
