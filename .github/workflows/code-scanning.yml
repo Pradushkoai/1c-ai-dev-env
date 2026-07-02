@@ -17,6 +17,7 @@ on:
 permissions:
   contents: read
   security-events: write  # нужно для загрузки SARIF
+  actions: read  # нужно для github/codeql-action/upload-sarif
 
 jobs:
   sarif:
