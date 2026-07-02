@@ -29,6 +29,7 @@ Usage:
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import zipfile
@@ -146,7 +147,7 @@ class DataPackage:
 
             # 2. derived/ (если включён)
             if include_derived and self._paths.derived_dir.exists():
-                for root, dirs, files in os.walk(self._paths.derived_dir):
+                for root, _dirs, files in os.walk(self._paths.derived_dir):
                     for f in files:
                         full = Path(root) / f
                         rel = full.relative_to(self._paths.root)
@@ -157,7 +158,7 @@ class DataPackage:
 
             # 3. data/ (если включён) — большие файлы
             if include_raw and self._paths.data_dir.exists():
-                for root, dirs, files in os.walk(self._paths.data_dir):
+                for root, _dirs, files in os.walk(self._paths.data_dir):
                     for f in files:
                         full = Path(root) / f
                         rel = full.relative_to(self._paths.root)
@@ -346,9 +347,7 @@ class DataPackage:
 
         # Информация об autosave
         if status["autosave_available"]:
-            try:
+            with contextlib.suppress(Exception):
                 status["autosave_info"] = self.info(self.default_package_path)
-            except Exception:
-                pass
 
         return status

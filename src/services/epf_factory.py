@@ -49,6 +49,7 @@ Usage (CLI):
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import shutil
@@ -56,9 +57,8 @@ import subprocess
 import sys
 import tempfile
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 # Python-интерпретатор с установленным v8unpack
 _PYTHON = sys.executable
@@ -101,7 +101,7 @@ class EpfFactoryResult:
     """Результат работы EpfFactory.create_epf."""
     ok: bool = False
     error: str = ""
-    epf_path: Optional[Path] = None
+    epf_path: Path | None = None
     size_bytes: int = 0
     name: str = ""
     synonym: str = ""
@@ -111,7 +111,7 @@ class EpfFactoryResult:
     bsl_warnings: int = 0
     bsl_errors: int = 0
     round_trip_ok: bool = False
-    work_dir: Optional[Path] = None  # если save_sources=True
+    work_dir: Path | None = None  # если save_sources=True
 
 
 # ────────────────────────────────────────────────────────────────
@@ -191,7 +191,7 @@ def validate_bsl(bsl_path: Path) -> dict:
         return {"ok": False, "error": "BSL LS отчёт не создан",
                 "errors": 0, "warnings": 0, "infos": 0}
 
-    with open(report_path, "r", encoding="utf-8") as f:
+    with open(report_path, encoding="utf-8") as f:
         report = json.load(f)
 
     errors = warnings = infos = 0
@@ -214,10 +214,8 @@ def validate_bsl(bsl_path: Path) -> dict:
             })
 
     # Чистим
-    try:
+    with contextlib.suppress(Exception):
         shutil.rmtree(out_dir)
-    except Exception:
-        pass
 
     return {
         "ok": True,
@@ -314,7 +312,7 @@ class EpfFactory:
                         result.error = f"form_spec файл не найден: {spec_path}"
                         return result
                     import json as _json
-                    with open(spec_path, "r", encoding="utf-8") as f:
+                    with open(spec_path, encoding="utf-8") as f:
                         spec_dict = _json.load(f)
                 elif isinstance(form_spec, dict):
                     spec_dict = form_spec
@@ -344,7 +342,7 @@ class EpfFactory:
         # 4. Подстановка в ExternalDataProcessor.json
         # UUID формы из шаблона Form.id.json — это "старый" UUID формы
         form_id_path = form_dir / "Form.id.json"
-        with open(form_id_path, "r", encoding="utf-8") as f:
+        with open(form_id_path, encoding="utf-8") as f:
             old_form_uuid = json.load(f).get("uuid", "")
 
         try:
@@ -415,7 +413,6 @@ class EpfFactory:
         # v8unpack 1.2.6 пишет block_size = doc_size (фактический размер),
         # а 1С ожидает всегда block_size = 0x200 (512). Иначе "Ошибка формата потока".
         try:
-            from pathlib import Path as _Path
             patch_script = _REPO_ROOT / "scripts" / "patch_epf_blocksize.py"
             if patch_script.exists():
                 patched_path = output_epf.parent / f"{output_epf.stem}__patched.epf"
@@ -454,10 +451,8 @@ class EpfFactory:
             if temp_dir.exists():
                 shutil.rmtree(temp_dir)
         else:
-            try:
+            with contextlib.suppress(Exception):
                 shutil.rmtree(work_dir)
-            except Exception:
-                pass
 
         result.ok = True
         return result
@@ -488,7 +483,7 @@ class EpfFactory:
           - file_uuid (UUID файла-контейнера) — встречается в 2 местах
         Все три нужно заменять, иначе v8unpack при распаковке не найдёт форму.
         """
-        with open(json_path, "r", encoding="utf-8") as f:
+        with open(json_path, encoding="utf-8") as f:
             data = json.load(f)
 
         # Если old_proc_uuid не задан — берём из шаблона
@@ -530,7 +525,7 @@ class EpfFactory:
 
     def _patch_form_id_json(self, json_path: Path, new_uuid: str):
         """Записать UUID формы в Form.id.json."""
-        with open(json_path, "r", encoding="utf-8") as f:
+        with open(json_path, encoding="utf-8") as f:
             data = json.load(f)
         data["uuid"] = new_uuid
         with open(json_path, "w", encoding="utf-8") as f:

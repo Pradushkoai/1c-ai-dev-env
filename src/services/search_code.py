@@ -91,7 +91,7 @@ def _build_index_for_config(config_name: str, paths: PathManager) -> dict | None
         'documents': documents,
         'idf': idf_bm25,
         'inverted_index': dict(inverted_index),
-        'doc_lengths': {i: length for i, length in enumerate(doc_lengths)},
+        'doc_lengths': dict(enumerate(doc_lengths)),
         'avg_doc_length': avg_doc_length,
         'total_methods': N,
     }
@@ -149,7 +149,7 @@ def search_code(config_name: str, query: str, limit: int = 10, paths: PathManage
     bm25_scores: dict[int, float] = defaultdict(float)
     query_tf = Counter(query_tokens)
 
-    for t, q_tf in query_tf.items():
+    for t, _q_tf in query_tf.items():
         if t not in inverted_index:
             continue
         idf_t = idf.get(t, 0)

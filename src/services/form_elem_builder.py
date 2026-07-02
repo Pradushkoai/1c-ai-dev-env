@@ -47,7 +47,6 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 # Идентификатор типа "ТаблицаЗначений" во внутреннем формате 1С
 # (взят из Form.elem.template.json, реквизит ПорядокОбхода)
@@ -268,7 +267,7 @@ def build_form_elem(form_spec: dict, base_template_path: str | Path | None = Non
     if base_template_path is not None:
         # Загружаем template как базу
         import json as _json
-        with open(base_template_path, "r", encoding="utf-8") as f:
+        with open(base_template_path, encoding="utf-8") as f:
             base = _json.load(f)
 
         # Добавляем новые реквизиты в конец props
@@ -368,7 +367,6 @@ def build_and_save_form_elem(form_spec: dict, output_path: Path) -> dict:
 # ─── CLI ─────────────────────────────────────────────────────────
 
 def _cli():
-    import sys
     import argparse
 
     parser = argparse.ArgumentParser(

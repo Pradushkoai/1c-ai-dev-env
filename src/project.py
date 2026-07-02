@@ -120,11 +120,11 @@ class Project:
     def get_api_methods(self, config_name: str, module_name: str = "") -> list[dict[str, Any]]:
         """
         Получить экспортные методы конфигурации.
-        
+
         Args:
             config_name: Имя конфигурации
             module_name: Имя модуля (если пусто — все модули)
-        
+
         Returns:
             Список методов: [{module, name, type, params, description, returns}]
         """
@@ -157,15 +157,15 @@ class Project:
     def search_methods(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         TF-IDF/BM25 поиск по методам платформы 1С.
-        
+
         Авто-выбор алгоритма:
         - v2 индекс (BM25) → гибридный поиск (BM25 + триграммы)
         - v1 индекс (TF-IDF) → классический TF-IDF (legacy)
-        
+
         Args:
             query: Поисковый запрос
             limit: Кол-во результатов
-        
+
         Returns:
             Список: [{score, name_ru, name_en, context, syntax, description}]
         """

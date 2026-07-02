@@ -180,7 +180,7 @@ BSL_SYNONYMS = {
 
 def _apply_synonyms(tokens: list[str]) -> list[str]:
     """Применяет BSL-синонимы: для каждого токена добавляет его синоним.
-    
+
     "стрнайти" → ["стрнайти", "strfind"]
     "findbycode" → ["findbycode", "найтипокоду"]
     """
@@ -203,11 +203,11 @@ def _apply_synonyms(tokens: list[str]) -> list[str]:
 def tokenize_stemmed(text: str) -> list[str]:
     """
     Токенизация + стемминг + BSL-синонимы.
-    
+
     Для CamelCase (mixed-case) — разбиваем на слова.
     Для lowercase токенов — оставляем целиком (стеммер нормализует).
     BSL-синонимы: "стрнайти" → добавляет "strfind", и наоборот.
-    
+
     Возвращает список стеммированных токенов с синонимами.
     """
     # Сначала разбиваем mixed-case CamelCase на слова
@@ -262,7 +262,7 @@ BM25_B = 0.75  # нормализация длины документа
 def build_index_bm25(methods_json_path: Path, output_path: Path) -> int:
     """
     Построить BM25 + триграммы индекс.
-    
+
     Returns: кол-во проиндексированных методов
     """
     with open(methods_json_path, encoding='utf-8') as f:
@@ -338,7 +338,7 @@ def build_index_bm25(methods_json_path: Path, output_path: Path) -> int:
         del doc['tokens']
 
     # Длины документов в dict
-    doc_lengths_dict = {i: length for i, length in enumerate(doc_lengths)}
+    doc_lengths_dict = dict(enumerate(doc_lengths))
 
     index_data = {
         'version': 2,
@@ -372,13 +372,13 @@ def _bm25_score(tf: int, idf: float, doc_length: float, avg_length: float) -> fl
 def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = True) -> list[dict]:
     """
     BM25 поиск по индексу v2.
-    
+
     Args:
         index_path: Путь к индексу
         query: Поисковый запрос
         limit: Кол-во результатов
         hybrid: Если True — гибридный режим (BM25 + триграммы)
-    
+
     Returns:
         Список результатов с score, name_ru, name_en, context, syntax, description
     """
@@ -400,7 +400,7 @@ def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = Tr
     bm25_scores: dict[int, float] = defaultdict(float)
     query_tf = Counter(query_tokens)
 
-    for t, q_tf in query_tf.items():
+    for t, _q_tf in query_tf.items():
         if t not in inverted_index:
             continue
         idf_t = idf.get(t, 0)
@@ -450,14 +450,14 @@ def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = Tr
 def _trigram_search(index: dict, query: str, candidate_ids=None) -> dict[int, float]:
     """
     Триграммный поиск — для устойчивости к опечаткам.
-    
+
     Ищет методы, чьи имена похожи на слова из запроса.
-    
+
     Args:
         index: Загруженный индекс
         query: Поисковый запрос
         candidate_ids: Если указано — ограничиваем поиск этими doc_ids (для оптимизации)
-    
+
     Returns: {doc_id: score}
     """
     trigrams_index = index.get('trigrams_index', {})
@@ -515,7 +515,7 @@ def detect_index_version(index_path: Path) -> int:
 def search_auto(index_path: Path, query: str, limit: int = 10) -> list[dict]:
     """
     Авто-выбор алгоритма поиска по версии индекса.
-    
+
     v1 (TF-IDF) → services.search.search()
     v2 (BM25) → search_bm25()
     """

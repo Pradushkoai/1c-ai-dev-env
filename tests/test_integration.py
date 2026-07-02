@@ -121,8 +121,16 @@ def project_env(tmp_path, monkeypatch):
     # Скрипты должны быть доступны — используем реальные scripts/ из setup/
     setup_scripts = Path(__file__).parent.parent / "scripts"
     if setup_scripts.exists():
-        # Копируем только нужные скрипты
-        for script_name in ["build_config_index_generic.py", "build_api_reference.py"]:
+        # Копируем все нужные скрипты, которые ConfigManager вызывает через subprocess
+        for script_name in [
+            "build_config_index_generic.py",
+            "build_api_reference.py",
+            "metadata_extractor.py",
+            "form_indexer.py",
+            "skd_parser.py",
+            "v8_metadata_parser.py",
+            "xml_parser.py",
+        ]:
             src = setup_scripts / script_name
             if src.exists():
                 shutil.copy(src, tmp_path / "scripts" / script_name)

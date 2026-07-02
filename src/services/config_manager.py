@@ -17,7 +17,12 @@ from ..models.config_registry import ConfigurationRegistry
 from ..models.configuration import Configuration
 from .path_manager import PathManager
 
-logger = logging.getLogger(__name__)
+# Используем structlog если доступен, иначе fallback на logging
+try:
+    from .logger import get_logger
+    logger = get_logger(__name__)
+except ImportError:
+    logger = logging.getLogger(__name__)
 
 
 # --- Директории 1С, которые считаются валидными метаданными ---
@@ -441,7 +446,7 @@ class ConfigManager:
         scripts_dir = self._paths.scripts_dir
 
         # Список парсеров: (ключ отчёта, путь к скрипту, индекс-файл, аргументы)
-        parsers: list[tuple[str, Path, Path, list[str]]] = [
+        [
             (
                 "metadata",
                 scripts_dir / "metadata_extractor.py",

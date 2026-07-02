@@ -148,13 +148,12 @@ class BackupManager:
 
     def _get_target_dir(self, dir_name: str) -> Path | None:
         """Возвращает целевую директорию по имени."""
-        if dir_name == 'data':
-            return self.paths.data_dir
-        elif dir_name == 'runtime':
-            return self.paths.runtime_dir
-        elif dir_name == 'derived':
-            return self.paths.derived_dir
-        return None
+        dirs = {
+            'data': self.paths.data_dir,
+            'runtime': self.paths.runtime_dir,
+            'derived': self.paths.derived_dir,
+        }
+        return dirs.get(dir_name)
 
     def list_backups(self, backup_dir: Path) -> list[dict]:
         """

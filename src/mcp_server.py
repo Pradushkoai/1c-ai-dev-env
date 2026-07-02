@@ -8,6 +8,7 @@ MCP-сервер для 1C AI Development Environment.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 import sys
@@ -18,7 +19,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 
 from .project import Project
-from .services.logger import get_logger, configure_logging
+from .services.logger import configure_logging, get_logger
 
 # MCP-сервер пишет логи в stderr (stdout занят под MCP-протокол)
 # JSON-формат включается через LOG_FORMAT=json
@@ -29,7 +30,7 @@ log = get_logger("src.mcp_server")
 def _get_tools_description() -> list[dict]:
     """
     Статическое описание tools (для CLI без запуска сервера).
-    
+
     Возвращает: [{name, description, required_params, optional_params}]
     """
     return [
@@ -938,10 +939,8 @@ def create_mcp_server() -> Server:
     async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
         """Выполняет tool и возвращает результат."""
         # Структурированный лог каждого вызова — для отладки и аудита
-        try:
+        with contextlib.suppress(Exception):
             log.info(f"mcp_tool_called: {name} args={list(arguments.keys()) if arguments else []}")
-        except Exception:
-            pass  # лог не должен ломать выполнение
 
         if name == "list_configs":
             configs = project.list_configs_info()
@@ -1435,7 +1434,7 @@ def create_mcp_server() -> Server:
                     text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
         elif name == "openspec_proposal":
-            from .services.openspec_manager import OpenSpecManager, SpecDelta
+            from .services.openspec_manager import OpenSpecManager
             change_id = arguments.get("change_id", "")
             title = arguments.get("title", "")
             context = arguments.get("context", "")
@@ -1487,7 +1486,7 @@ def create_mcp_server() -> Server:
             from .services.openspec_manager import OpenSpecManager
             change_id = arguments.get("change_id", "")
             task_index = arguments.get("task_index", 0)
-            completed = arguments.get("completed", None)
+            completed = arguments.get("completed")
             notes = arguments.get("notes", "")
 
             if not change_id:
@@ -1680,7 +1679,7 @@ def create_mcp_server() -> Server:
                     metadata = json.load(f)
                 # unified format: objects is dict by type, each value is list
                 all_objects = []
-                for type_name, objs in metadata.get('objects', {}).items():
+                for _type_name, objs in metadata.get('objects', {}).items():
                     all_objects.extend(objs)
 
                 # Также добавляем roles, subsystems, event_subscriptions, scheduled_jobs
@@ -1809,10 +1808,10 @@ def create_mcp_server() -> Server:
 
             if not found:
                 # Fuzzy search
-                suggestions = list(set(
+                suggestions = list({
                     s.get('parent_name', '') for s in schemas
                     if report_name.lower() in s.get('parent_name', '').lower()
-                ))[:10]
+                })[:10]
                 return [types.TextContent(type="text",
                     text=json.dumps({
                         "error": f"SKD schema for '{report_name}' not found in config '{config_name}'",
@@ -1880,11 +1879,11 @@ def create_mcp_server() -> Server:
 
             if not found:
                 # Fuzzy search
-                suggestions = list(set(
+                suggestions = list({
                     f"{fr.get('parent_name', '')}.{fr.get('name', '')}"
                     for fr in forms
                     if form_name.lower() in fr.get('name', '').lower()
-                ))[:10]
+                })[:10]
                 return [types.TextContent(type="text",
                     text=json.dumps({
                         "error": f"Form '{form_name}' not found in config '{config_name}'",

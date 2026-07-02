@@ -1331,7 +1331,6 @@ def cmd_epf_factory(project: Project, args: argparse.Namespace) -> None:
         return
 
     if args.epf_command == "create":
-        import json as json_mod
         from pathlib import Path as PathMod
 
         bsl_path = PathMod(args.bsl)
@@ -1399,7 +1398,7 @@ def cmd_dsl(project: Project, args: argparse.Namespace) -> None:
             for p in result.module_paths:
                 print(f"     • {p}")
         if result.registered_in_config:
-            print(f"   Registered in Configuration.xml: ✅")
+            print("   Registered in Configuration.xml: ✅")
         if result.warnings:
             for w in result.warnings:
                 print(f"   ⚠️ {w}")
@@ -1489,7 +1488,7 @@ def cmd_cfe(project: Project, args: argparse.Namespace) -> None:
         for p in result.xml_created:
             print(f"     • {p}")
         if result.registered_in_config:
-            print(f"   Регистрация в Configuration.xml: ✅")
+            print("   Регистрация в Configuration.xml: ✅")
         for w in result.warnings:
             print(f"   ⚠️ {w}")
 
@@ -1510,7 +1509,7 @@ def cmd_cfe(project: Project, args: argparse.Namespace) -> None:
             Path(args.extension_path),
             Path(args.config_path),
         )
-        print(f"=== CFE Diff ===")
+        print("=== CFE Diff ===")
         print(f"Расширение: {result.extension_path}")
         print(f"Конфигурация: {result.config_path}")
         print()
@@ -1624,21 +1623,21 @@ def cmd_depgraph(project: Project, args: argparse.Namespace) -> None:
 
         elif args.query_type == "find_cycles":
             result = dg.find_cycles()
-            print(f"=== Циклические зависимости ===")
+            print("=== Циклические зависимости ===")
             for i, cycle in enumerate(result, 1):
                 print(f"  {i}. {' → '.join(cycle)}")
             print(f"\nИтого: {len(result)} циклов")
 
         elif args.query_type == "find_unused_objects":
             result = dg.find_unused_objects()
-            print(f"=== Мёртвый код (на кого не ссылаются) ===")
+            print("=== Мёртвый код (на кого не ссылаются) ===")
             for r in result:
                 print(f"  • {r}")
             print(f"\nИтого: {len(result)} объектов")
 
         elif args.query_type == "find_root_objects":
             result = dg.find_root_objects()
-            print(f"=== Корневые объекты (на них ссылаются, сами ни на кого) ===")
+            print("=== Корневые объекты (на них ссылаются, сами ни на кого) ===")
             for r in result:
                 print(f"  • {r}")
             print(f"\nИтого: {len(result)} объектов")
@@ -1656,7 +1655,7 @@ def cmd_depgraph(project: Project, args: argparse.Namespace) -> None:
 
         elif args.query_type == "stats":
             stats = dg.get_stats()
-            print(f"=== Статистика графа ===")
+            print("=== Статистика графа ===")
             for k, v in stats.items():
                 print(f"  {k}: {v}")
 
@@ -1666,7 +1665,7 @@ def cmd_depgraph(project: Project, args: argparse.Namespace) -> None:
         dg.build_from_metadata_index(args.name, project.paths)
         stats = dg.get_stats()
         if stats["is_dag"]:
-            print(f"✅ Граф — DAG (нет циклов)")
+            print("✅ Граф — DAG (нет циклов)")
         else:
             print(f"❌ Граф содержит циклы: {stats['cycles']}")
             cycles = dg.find_cycles()
@@ -1680,7 +1679,7 @@ def cmd_depgraph(project: Project, args: argparse.Namespace) -> None:
 
 def cmd_openspec(project: Project, args: argparse.Namespace) -> None:
     """OpenSpec — управление изменениями."""
-    from .services.openspec_manager import OpenSpecManager, SpecDelta
+    from .services.openspec_manager import OpenSpecManager
 
     osm = OpenSpecManager(project_root=project.paths.root)
 
@@ -1821,7 +1820,6 @@ def cmd_inspect(project: Project, args: argparse.Namespace) -> None:
     - subsystem-info (подсистема)
     - depgraph-info (граф зависимостей)
     """
-    import json as json_mod
 
     target = args.target
     mode = args.mode
@@ -1915,7 +1913,7 @@ def _inspect_cf(config_path: Path, mode: str) -> None:
     # Ищем Properties внутри
     config = root
     config_type = _strip_ns(root.tag)
-    
+
     if config_type == "MetaDataObject":
         # Ищем Configuration внутри MetaDataObject
         for child in root:
@@ -1929,7 +1927,7 @@ def _inspect_cf(config_path: Path, mode: str) -> None:
             props = elem
             break
 
-    print(f"=== Configuration ===")
+    print("=== Configuration ===")
     if props is not None:
         for prop in props:
             tag = _strip_ns(prop.tag)
@@ -1949,7 +1947,7 @@ def _inspect_cf(config_path: Path, mode: str) -> None:
         for child in child_objects:
             tag = _strip_ns(child.tag)
             type_counts[tag] = type_counts.get(tag, 0) + 1
-        print(f"\n=== Объекты по типам ===")
+        print("\n=== Объекты по типам ===")
         for t, count in sorted(type_counts.items()):
             print(f"  {t}: {count}")
 
@@ -2024,7 +2022,7 @@ def _inspect_meta(meta_path: Path, mode: str, name: str | None = None) -> None:
             break
 
     if child_objects is not None and len(child_objects) > 0:
-        print(f"\n=== Дочерние объекты ===")
+        print("\n=== Дочерние объекты ===")
         type_counts: dict[str, int] = {}
         for child in child_objects:
             tag = _strip_ns(child.tag)
@@ -2043,7 +2041,7 @@ def _inspect_form(form_path: Path, mode: str) -> None:
     def _strip_ns(tag):
         return tag.split("}")[-1] if "}" in tag else tag
 
-    print(f"=== Form ===")
+    print("=== Form ===")
 
     # Считаем элементы
     item_counts: dict[str, int] = {}
@@ -2056,7 +2054,7 @@ def _inspect_form(form_path: Path, mode: str) -> None:
                     "TrackBar", "CommandBar", "UsualGroup"):
             item_counts[tag] = item_counts.get(tag, 0) + 1
 
-    print(f"Элементы:")
+    print("Элементы:")
     for t, count in sorted(item_counts.items(), key=lambda x: -x[1]):
         print(f"  {t}: {count}")
 
@@ -2076,7 +2074,7 @@ def _inspect_skd(skd_path: Path, mode: str) -> None:
     def _strip_ns(tag):
         return tag.split("}")[-1] if "}" in tag else tag
 
-    print(f"=== СКД ===")
+    print("=== СКД ===")
 
     # DataSets
     data_sets = []
@@ -2101,9 +2099,8 @@ def _inspect_skd(skd_path: Path, mode: str) -> None:
             for item in elem:
                 if _strip_ns(item.tag) == "item":
                     for child in item:
-                        if _strip_ns(child.tag) == "parameter":
-                            if child.text:
-                                params.append(child.text)
+                        if _strip_ns(child.tag) == "parameter" and child.text:
+                            params.append(child.text)
             break
 
     # Fallback: если dataParameters пустой, ищем parameter с name
@@ -2172,7 +2169,7 @@ def _inspect_mxl(mxl_path: Path, mode: str) -> None:
     def _strip_ns(tag):
         return tag.split("}")[-1] if "}" in tag else tag
 
-    print(f"=== MXL Макет ===")
+    print("=== MXL Макет ===")
 
     # Areas
     areas = []
@@ -2232,7 +2229,7 @@ def _inspect_role(role_path: Path, mode: str) -> None:
     def _strip_ns(tag):
         return tag.split("}")[-1] if "}" in tag else tag
 
-    print(f"=== Role ===")
+    print("=== Role ===")
 
     # Реальный формат Rights.xml: <object><name>...</name><right><name>View</name><value>true</value></right></object>
     # Ищем все <object> (с маленькой буквы) или <Object>
@@ -2314,7 +2311,7 @@ def _inspect_subsystem(subsystem_path: Path, mode: str) -> None:
                 obj_elem = child
                 break
 
-    print(f"=== Subsystem ===")
+    print("=== Subsystem ===")
 
     # Properties
     props = None
@@ -2338,7 +2335,7 @@ def _inspect_subsystem(subsystem_path: Path, mode: str) -> None:
             break
 
     if child_objects is not None and len(child_objects) > 0:
-        print(f"\n=== Содержимое ===")
+        print("\n=== Содержимое ===")
         type_counts: dict[str, int] = {}
         for child in child_objects:
             tag = _strip_ns(child.tag)
