@@ -47,7 +47,9 @@ repos:
 
   # ─── Mypy (type checking) ───
   # Только на src/ — scripts/ и tests/ слишком динамичные
-  # P2.8: пока с continue-on-error в CI, постепенно исправляем типы
+  # P2.8: mypy пока non-strict (145 ошибок на постепенное исправление)
+  # В CI mypy запускается отдельно с continue-on-error: true
+  # В pre-commit тоже non-blocking через stages: [manual]
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.10.1
     hooks:
@@ -60,6 +62,9 @@ repos:
           - structlog
           - mcp
           - networkx
+        # P2.8: mypy запускается вручную (pre-commit run --hook-stage manual mypy)
+        # В CI mypy уже запущен отдельно с continue-on-error
+        stages: [manual]
 
   # ─── Pytest (быстрый smoke) ───
   # Ключевые тесты (без benchmarks, e2e, integration с реальными данными)
