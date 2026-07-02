@@ -34,6 +34,15 @@ repos:
       - id: debug-statements
       # P1.3: requirements-txt-fixer удалён — мы перешли на pyproject-only модель
 
+  # ─── Commitlint (conventional commits) ───
+  # P3.2: проверка формата коммитов
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.18.0
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        additional_dependencies: ['@commitlint/config-conventional']
+
   # ─── Ruff (lint + format) ───
   # Заменяет flake8 + black + isort одним инструментом
   # P1.5: версия ruff в pre-commit должна совпадать с локальной и CI
