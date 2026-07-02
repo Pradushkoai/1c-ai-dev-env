@@ -2,7 +2,7 @@
 
 > **Универсальная среда разработки на 1С с ИИ-ассистентом**: парсинг и анализ метаданных 1С из XML-выгрузок, 45 MCP tools для IDE/LLM, 11 анализаторов BSL-кода (150+ правил), JSON DSL → XML компиляторы (5 типов объектов), работа с расширениями CFE, граф зависимостей метаданных, трассировка СКД, генерация обработок/отчётов/макетов/ролей, **создание внешних обработок .epf с нуля без 1С**, SARIF для GitHub Code Scanning.
 
-[![Version](https://img.shields.io/badge/version-5.2.0-brightgreen.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.3.0-brightgreen.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Java 17+](https://img.shields.io/badge/Java-17+-orange.svg)](https://openjdk.org/)

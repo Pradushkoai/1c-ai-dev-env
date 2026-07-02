@@ -1,5 +1,5 @@
 {
-  "version": "5.2.0",
+  "version": "5.3.0",
   "name": "1C AI Development Environment",
   "description": "Среда разработки 1С с ИИ-ассистентом: 45 MCP tools, 11 анализаторов BSL, JSON DSL компиляторы, CFE, граф зависимостей, SARIF",
   "system_dependencies": {
