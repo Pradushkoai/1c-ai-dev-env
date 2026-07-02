@@ -113,7 +113,7 @@ jobs:
             --cov-report=xml:coverage.xml \
             --cov-report=html:coverage_html \
             --cov-fail-under=50 \
-            -k "not IntegrationRealData and not test_benchmarks and not test_e2e and not test_integration" \
+            -k "not IntegrationRealData and not test_benchmarks and not test_e2e" \
             --benchmark-min-rounds=1 --benchmark-warmup=off
 
       - name: Coverage summary
