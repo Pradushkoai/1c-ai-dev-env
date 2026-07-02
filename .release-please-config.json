@@ -7,8 +7,17 @@
       "release-type": "python",
       "extra-files": [
         "manifest.json",
-        "README.md",
-        "docs/ARCHITECTURE.md"
+        ".release-please-manifest.json",
+        {
+          "path": "README.md",
+          "type": "regex",
+          "pattern": "version-%%VERSION%%"
+        },
+        {
+          "path": "docs/ARCHITECTURE.md",
+          "type": "regex",
+          "pattern": "MCP-сервер \\(\\d+ tools\\)"
+        }
       ],
       "changelog-path": "CHANGELOG.md",
       "versioning": "python"
