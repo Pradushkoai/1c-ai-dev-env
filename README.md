@@ -1,13 +1,13 @@
 # 1C AI Development Environment
 
-> **Универсальная среда разработки на 1С с ИИ-ассистентом**: парсинг и анализ метаданных 1С из XML-выгрузок, 38 MCP tools для IDE/LLM, 11 анализаторов BSL-кода (150+ правил), JSON DSL → XML компиляторы (5 типов объектов), работа с расширениями CFE, граф зависимостей метаданных, трассировка СКД, генерация обработок/отчётов/макетов/ролей, **создание внешних обработок .epf с нуля без 1С**, SARIF для GitHub Code Scanning.
+> **Универсальная среда разработки на 1С с ИИ-ассистентом**: парсинг и анализ метаданных 1С из XML-выгрузок, 45 MCP tools для IDE/LLM, 11 анализаторов BSL-кода (150+ правил), JSON DSL → XML компиляторы (5 типов объектов), работа с расширениями CFE, граф зависимостей метаданных, трассировка СКД, генерация обработок/отчётов/макетов/ролей, **создание внешних обработок .epf с нуля без 1С**, SARIF для GitHub Code Scanning.
 
 [![Version](https://img.shields.io/badge/version-5.2.0-brightgreen.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Java 17+](https://img.shields.io/badge/Java-17+-orange.svg)](https://openjdk.org/)
 [![Tests](https://img.shields.io/badge/tests-333%20passing-success.svg)](#тесты)
-[![MCP Tools](https://img.shields.io/badge/MCP%20tools-38-blue.svg)](#подключение-к-ide--llm-через-mcp)
+[![MCP Tools](https://img.shields.io/badge/MCP%20tools-45-blue.svg)](#подключение-к-ide--llm-через-mcp)
 [![CLI Commands](https://img.shields.io/badge/CLI%20commands-19-success.svg)](#cli-команды)
 
 ---
@@ -304,7 +304,7 @@ docker compose run --rm lint
 
 ## Подключение к IDE / LLM через MCP
 
-Проект включает собственный MCP-сервер с 36 tools для Cursor / Claude Desktop / VS Code / JetBrains.
+Проект включает собственный MCP-сервер с 45 tools для Cursor / Claude Desktop / VS Code / JetBrains.
 
 ### Настройка
 
