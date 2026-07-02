@@ -9,11 +9,14 @@
 #
 # Хуки срабатывают на git commit. Если хук падает — коммит отменяется,
 # нужно исправить и закоммитить снова.
+#
+# P1.5: эти же хуки запускаются в CI lint job (см. .github/workflows/ci.yml),
+# поэтому обход хука локально через --no-verbose всё равно будет пойман в CI.
 
 repos:
   # ─── Базовые проверки ───
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
         exclude: '^data/|^derived/|^runtime/|^setup/'
@@ -29,7 +32,7 @@ repos:
         args: ['--maxkb=500']
         exclude: '^data/|^derived/|^runtime/|^download/'
       - id: debug-statements
-      - id: requirements-txt-fixer
+      # P1.3: requirements-txt-fixer удалён — мы перешли на pyproject-only модель
 
   # ─── Ruff (lint + format) ───
   # Заменяет flake8 + black + isort одним инструментом
@@ -44,6 +47,7 @@ repos:
 
   # ─── Mypy (type checking) ───
   # Только на src/ — scripts/ и tests/ слишком динамичные
+  # P2.8: пока с continue-on-error в CI, постепенно исправляем типы
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.10.1
     hooks:
@@ -53,9 +57,13 @@ repos:
         additional_dependencies:
           - types-PyYAML
           - pytest
+          - structlog
+          - mcp
+          - networkx
 
   # ─── Pytest (быстрый smoke) ───
-  # Только key-тесты (без benchmarks, e2e, integration с реальными данными)
+  # Ключевые тесты (без benchmarks, e2e, integration с реальными данными)
+  # Эти тесты гарантируют: нельзя закоммитить код, который ломает core-функциональность
   - repo: local
     hooks:
       - id: pytest-fast
@@ -69,9 +77,12 @@ repos:
           - tests/test_mcp_server.py
           - tests/test_configuration.py
           - tests/test_solve.py
+          - tests/test_exceptions.py
+          - tests/test_search_code.py
           - -q
           - --no-header
           - --tb=short
+          - --benchmark-disable
         language: system
         types: [python]
         pass_filenames: false
