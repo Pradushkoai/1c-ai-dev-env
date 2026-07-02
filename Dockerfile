@@ -18,14 +18,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
-# Копируем только manifests для pip install (кэширование слоёв)
-COPY pyproject.toml requirements*.txt ./
+# Копируем только pyproject.toml для pip install (кэширование слоёв)
+# P1.3: requirements*.txt удалены, используем pyproject-only модель
+COPY pyproject.toml ./
+# README нужен для setuptools (readme = "README.md" в pyproject.toml)
+COPY README.md ./
 
 # Устанавливаем зависимости в отдельную директорию
 RUN pip install --no-cache-dir --target=/build/deps \
     -e ".[dev]" 2>/dev/null || \
     pip install --no-cache-dir --target=/build/deps \
-    pytest pytest-cov pytest-benchmark hypothesis ruff mypy structlog mcp python-dotenv
+    pytest pytest-cov pytest-benchmark pytest-asyncio hypothesis lxml Pillow \
+    ruff mypy structlog mcp python-dotenv networkx v8unpack
 
 # Скачиваем BSL Language Server
 RUN curl -sL "https://github.com/1c-syntax/bsl-language-server/releases/download/v1.0.1/bsl-language-server_nix.zip" -o /tmp/bsl-ls.zip && \

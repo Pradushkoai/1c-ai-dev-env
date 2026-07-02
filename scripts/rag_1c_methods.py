@@ -21,7 +21,7 @@ import sys
 try:
     from fastembed import TextEmbedding
 except ImportError:
-    sys.exit("Этот скрипт требует опциональные зависимости: pip install -r requirements-optional.txt")
+    sys.exit("Этот скрипт требует опциональные зависимости: pip install -e \".[rag]\"")
 import time
 from pathlib import Path
 

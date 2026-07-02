@@ -1,6 +1,0 @@
-# Обязательные Python-зависимости
-# Полное описание — в pyproject.toml [project] dependencies
-python-dotenv>=1.0.0
-structlog>=24.0
-networkx>=3.0
-v8unpack>=1.2.6

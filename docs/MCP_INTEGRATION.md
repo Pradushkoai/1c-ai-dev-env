@@ -28,7 +28,7 @@
 cd /path/to/1c-ai-dev-env
 pip install -e ".[mcp]"
 # или явно:
-pip install -r requirements-optional.txt
+pip install -e ".[mcp]"
 ```
 
 ### 2. Проверьте установку

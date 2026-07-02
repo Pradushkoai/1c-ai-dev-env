@@ -145,16 +145,14 @@ python3 -m pytest tests/ --cov=src --cov-report=term-missing
 │   ├── check_1c_standards.py 56 правил
 │   ├── check_metadata_standards.py  18 правил XML
 │   └── test_mcp_e2e.py       E2E тест MCP-сервера
-├── tests/                    314 pytest-тестов
+├── tests/                    pytest-тесты
 ├── docs/                     Документация
 │   ├── ARCHITECTURE.md       4-слойная архитектура
 │   └── MCP_INTEGRATION.md    Подключение к IDE
 ├── .github/workflows/        CI
 ├── install.sh                Установщик (BSL LS + git-репозитории)
-├── pyproject.toml            Упаковка + 1c-ai CLI entry point
-├── requirements.txt          Обязательные Python-зависимости
-├── requirements-optional.txt Опциональные (mcp, fastembed, qdrant)
-├── requirements-dev.txt      Для разработки (pytest + mcp)
+├── pyproject.toml            Упаковка + 1c-ai CLI entry point + все зависимости
+│                             (P1.3: requirements*.txt удалены, pyproject-only модель)
 ├── paths.env                 Конфиг путей (shell)
 ├── paths.py                  Legacy (deprecated)
 └── manifest.json             Реестр компонентов
@@ -165,7 +163,7 @@ python3 -m pytest tests/ --cov=src --cov-report=term-missing
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`) запускается на каждый push/PR:
-1. Установка зависимостей (`requirements.txt` + `requirements-dev.txt`)
+1. Установка зависимостей (`pip install -e ".[dev]"` — все в pyproject.toml)
 2. Проверка синтаксиса всех Python файлов (`py_compile`)
 3. Запуск `pytest tests/`
 

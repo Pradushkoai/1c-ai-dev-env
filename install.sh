@@ -61,8 +61,8 @@ echo ""
 # ============================================================================
 echo "=== Шаг 3/8: Python зависимости ==="
 
-pip3 install -q -r "$SETUP_DIR/requirements.txt" 2>&1 | tail -1
-echo "  ✅ python-dotenv (базовые)"
+pip3 install -q -e "$SETUP_DIR" 2>&1 | tail -1
+echo "  ✅ python-dotenv, structlog, networkx, v8unpack (базовые)"
 echo ""
 
 # ============================================================================
