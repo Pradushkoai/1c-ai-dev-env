@@ -118,7 +118,7 @@
 
 ### Push
 - Только в `main` после прохождения CI.
-- PAT токен: `<YOUR_GITHUB_TOKEN>` (хранится в git remote URL, НЕ коммитить).
+- PAT токен: использовать `gh auth login` (НЕ хранить токен в git remote URL).
 
 ---
 
