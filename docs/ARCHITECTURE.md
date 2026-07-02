@@ -74,7 +74,7 @@ src/
 │   ├── epf_factory.py      Создание .epf с нуля без 1С (шаблоны + BSL LS + round-trip)
 │   └── logger.py           Structlog (структурированное логирование)
 │
-├── mcp_server.py           MCP-сервер (38 tools)
+├── mcp_server.py           MCP-сервер (45 tools)
 ├── project.py              Project — оркестратор
 ├── cli.py                  Единый CLI (19 команд)
 └── exceptions.py           Кастомные исключения

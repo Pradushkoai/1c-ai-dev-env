@@ -15,10 +15,10 @@ from src.mcp_server import _get_tools_description, create_mcp_server
 
 # ============ _get_tools_description ============
 
-def test_get_tools_description_returns_27_tools():
-    """Должно быть 27 tools (v4.9 — все анализаторы)."""
+def test_get_tools_description_returns_29_tools():
+    """Должно быть 29 tools (v5.2 — все анализаторы + epf_factory)."""
     tools = _get_tools_description()
-    assert len(tools) == 27
+    assert len(tools) == 29
 
 
 def test_get_tools_description_names():
@@ -38,7 +38,9 @@ def test_get_tools_description_names():
         'analyze_queries',
         'check_form_quality',
         'check_skd_quality',
-        'diff_configs'
+        'diff_configs',
+        'epf_factory_create',
+        'epf_factory_templates',
     }
     actual = {t['name'] for t in tools}
     assert actual == expected
@@ -289,14 +291,20 @@ def test_call_unknown_tool(mcp_server_with_mock_project):
 
 
 def test_call_list_tools(mcp_server_with_mock_project):
-    """list_tools handler возвращает 9 Tool объектов."""
+    """list_tools handler возвращает все зарегистрированные Tool объекты.
+
+    Включает tools из _get_tools_description() (29) + дополнительные tools,
+    зарегистрированные динамически через @server.tool (build_dependency_graph,
+    dependency_query, openspec_*, dsl_compile_*, cfe_*, skd_trace, inspect).
+    """
     server, project = mcp_server_with_mock_project
     from mcp.types import ListToolsRequest
     handler = next((h for req_type, h in server.request_handlers.items() if req_type == ListToolsRequest), None)
     assert handler is not None
 
     result = asyncio.run(handler(ListToolsRequest(method='tools/list')))
-    assert len(result.root.tools) == 43
+    # 29 (из _get_tools_description) + 16 (динамически зарегистрированные) = 45
+    assert len(result.root.tools) == 45
     names = {t.name for t in result.root.tools}
     assert 'list_configs' in names
     assert 'solve_check' in names

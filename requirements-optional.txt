@@ -1,8 +1,14 @@
-# Опциональные — для RAG с нейросетевыми embeddings
+# Опциональные зависимости
+# Полное описание — в pyproject.toml [project.optional-dependencies]
+
+# ─── RAG с нейросетевыми embeddings ───
 # TF-IDF поиск (fast_search_1c.py) работает БЕЗ этих пакетов
 fastembed>=0.8.0
 qdrant-client>=1.0.0
-# MCP-сервер — для интеграции с IDE/LLM (Cursor, Claude Desktop, VS Code)
+
+# ─── MCP-сервер — для интеграции с IDE/LLM (Cursor, Claude Desktop, VS Code) ───
 # Команда: 1c-ai mcp serve
 mcp>=1.0.0
-lxml>=4.9.0  # Опционально: быстрый XML парсер (3-5x быстрее xml.etree)
+
+# ─── Быстрый XML-парсер (опционально, 3-5x быстрее xml.etree) ───
+lxml>=4.9.0
