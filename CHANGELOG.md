@@ -1,6 +1,13 @@
 # Changelog
 
 
+## [5.3.1](https://github.com/Pradushkoai/1c-ai-dev-env/compare/v5.3.0...v5.3.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* **p2.8:** version sync 5.3.0 + release-please-manifest в version-check ([f43b880](https://github.com/Pradushkoai/1c-ai-dev-env/commit/f43b88031e3f7976f98022da57847234cb10150e))
+
 ## [5.3.0](https://github.com/Pradushkoai/1c-ai-dev-env/compare/v5.2.0...v5.3.0) (2026-07-02)
 
 
