@@ -1094,105 +1094,14 @@ def create_mcp_server() -> Server:
         if handler is not None:
             return await handler(project, arguments)
 
-        if name == "openspec_proposal":
-            from .services.openspec_manager import OpenSpecManager
+        # P2.2: dict-dispatch для handlers группы 4 (openspec)
+        from .mcpserver.handlers import MISC_HANDLERS
 
-            change_id = arguments.get("change_id", "")
-            title = arguments.get("title", "")
-            context = arguments.get("context", "")
-            approach = arguments.get("approach", "")
-            tasks = arguments.get("tasks", [])
-            files = arguments.get("files", [])
+        handler = MISC_HANDLERS.get(name)
+        if handler is not None:
+            return await handler(project, arguments)
 
-            if not all([change_id, title]):
-                return [
-                    types.TextContent(
-                        type="text", text=json.dumps({"error": "change_id, title required"}, ensure_ascii=False)
-                    )
-                ]
-
-            try:
-                osm = OpenSpecManager(project_root=project.paths.root)
-                if not osm.exists():
-                    osm.init_project()
-                change = osm.create_proposal(
-                    change_id=change_id,
-                    title=title,
-                    context=context,
-                    approach=approach,
-                    tasks=tasks,
-                    files=files,
-                )
-                return [
-                    types.TextContent(
-                        type="text",
-                        text=json.dumps(
-                            {
-                                "change_id": change.change_id,
-                                "title": change.title,
-                                "status": change.status,
-                                "tasks_count": len(change.tasks),
-                            },
-                            ensure_ascii=False,
-                            indent=2,
-                        ),
-                    )
-                ]
-            except Exception as e:
-                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
-
-        elif name == "openspec_list":
-            from .services.openspec_manager import OpenSpecManager
-
-            include_archived = arguments.get("include_archived", False)
-
-            try:
-                osm = OpenSpecManager(project_root=project.paths.root)
-                changes = osm.list_changes(include_archived=include_archived)
-                return [
-                    types.TextContent(type="text", text=json.dumps({"changes": changes}, ensure_ascii=False, indent=2))
-                ]
-            except Exception as e:
-                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
-
-        elif name == "openspec_update_task":
-            from .services.openspec_manager import OpenSpecManager
-
-            change_id = arguments.get("change_id", "")
-            task_index = arguments.get("task_index", 0)
-            completed = arguments.get("completed")
-            notes = arguments.get("notes", "")
-
-            if not change_id:
-                return [
-                    types.TextContent(type="text", text=json.dumps({"error": "change_id required"}, ensure_ascii=False))
-                ]
-
-            try:
-                osm = OpenSpecManager(project_root=project.paths.root)
-                result = osm.update_task(change_id, task_index, completed, notes)
-                return [types.TextContent(type="text", text=json.dumps({"updated": result}, ensure_ascii=False))]
-            except Exception as e:
-                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
-
-        elif name == "openspec_archive":
-            from .services.openspec_manager import OpenSpecManager
-
-            change_id = arguments.get("change_id", "")
-
-            if not change_id:
-                return [
-                    types.TextContent(type="text", text=json.dumps({"error": "change_id required"}, ensure_ascii=False))
-                ]
-
-            try:
-                osm = OpenSpecManager(project_root=project.paths.root)
-                result = osm.archive(change_id)
-                return [types.TextContent(type="text", text=json.dumps({"archived": result}, ensure_ascii=False))]
-            except Exception as e:
-                return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
-
-        elif name == "inspect":
+        if name == "inspect":
             """Единый inspect — анализ объектов 1С с режимами (как у конкурента).
 
             target: cf | meta | form | skd | mxl | role | subsystem
