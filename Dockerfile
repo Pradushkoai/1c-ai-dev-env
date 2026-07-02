@@ -64,7 +64,7 @@ COPY src/ /app/src/
 COPY scripts/ /app/scripts/
 COPY templates/ /app/templates/
 COPY knowledge_base/ /app/knowledge_base/
-COPY pyproject.toml README.md manifest.json paths.env paths.py /app/
+COPY pyproject.toml README.md manifest.json paths.env /app/
 
 # Устанавливаем пакет (без зависимостей — они уже скопированы)
 RUN pip install --no-cache-dir --no-deps -e .

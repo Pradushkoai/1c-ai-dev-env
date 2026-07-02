@@ -15,18 +15,19 @@ import json
 import os
 import re
 
-# Пути из единого конфига
+# Пути из PathManager (P2.15: paths.py удалён как dead code)
 import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from paths import PATHS
+from src.services.path_manager import PathManager
 
-SH_DIR = PATHS.syntax_helper_dir
-OUTPUT_INDEX = PATHS.syntax_helper_index_md
-OUTPUT_JSON = PATHS.syntax_helper_index_json
+_PATHS = PathManager()
+SH_DIR = _PATHS.syntax_helper_dir
+OUTPUT_INDEX = _PATHS.syntax_helper_index_md
+OUTPUT_JSON = _PATHS.syntax_helper_index_json
 
 # Основные директории с методами
 KEY_DIRS = [

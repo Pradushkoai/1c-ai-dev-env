@@ -52,19 +52,12 @@ try:
 except ImportError:
     _HAS_SERVICE = False
 
-# Пути — через PathManager если есть, иначе через paths.py
-try:
-    from src.services.path_manager import PathManager
+# Пути — через PathManager (P2.15: paths.py удалён как dead code)
+from src.services.path_manager import PathManager
 
-    _pm = PathManager()
-    METHODS_JSON = _pm.syntax_helper_index_json
-    INDEX_FILE = _pm.fast_search_index
-except ImportError:
-    sys.path.insert(0, str(PROJECT_ROOT / "runtime"))
-    from paths import PATHS
-
-    METHODS_JSON = Path(PATHS.syntax_helper_index_json)
-    INDEX_FILE = Path(PATHS.fast_search_index)
+_pm = PathManager()
+METHODS_JSON = _pm.syntax_helper_index_json
+INDEX_FILE = _pm.fast_search_index
 
 
 def build_index(algo: str = "bm25") -> None:

@@ -106,7 +106,7 @@ python3 -m pytest tests/ --cov=src --cov-report=term-missing
 
 ### Python скрипты
 - Python 3.10+
-- **Используй `PathManager`** из `src.services.path_manager` — НЕ `paths.py` (он deprecated)
+- **Используй `PathManager`** из `src.services.path_manager` (paths.py удалён в P2.15)
 - Типы — через type hints (`from __future__ import annotations` для | None синтаксиса)
 - Для CLI — argparse, единая точка входа `python3 -m src.cli`
 - Для нового кода — `logging` вместо `print` для диагностических сообщений
@@ -154,7 +154,6 @@ python3 -m pytest tests/ --cov=src --cov-report=term-missing
 ├── pyproject.toml            Упаковка + 1c-ai CLI entry point + все зависимости
 │                             (P1.3: requirements*.txt удалены, pyproject-only модель)
 ├── paths.env                 Конфиг путей (shell)
-├── paths.py                  Legacy (deprecated)
 └── manifest.json             Реестр компонентов
 ```
 

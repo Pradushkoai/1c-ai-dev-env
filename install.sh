@@ -80,11 +80,9 @@ echo "  ✅ Скрипты: $(ls "$PROJECT_DIR/scripts/" | wc -l) файлов"
 pip3 install -e "$SETUP_DIR" -q 2>&1 | tail -2
 echo "  ✅ Python-пакет установлен (editable mode): 1c-ai CLI + src.* импорты"
 
-# paths.env, paths.py, config-registry.json → runtime/
+# paths.env, config-registry.json → runtime/  (P2.15: paths.py удалён как dead code)
 cp "$SETUP_DIR/paths.env" "$PROJECT_DIR/runtime/paths.env"
     sed -i "s|/home/z/my-project|$PROJECT_DIR|g" "$PROJECT_DIR/runtime/paths.env"
-cp "$SETUP_DIR/paths.py" "$PROJECT_DIR/runtime/paths.py"
-    sed -i "s|/home/z/my-project|$PROJECT_DIR|g" "$PROJECT_DIR/runtime/paths.py"
 cp "$SETUP_DIR/config-registry.json" "$PROJECT_DIR/runtime/config-registry.json" 2>/dev/null || true
 
 # .bsl-language-server.json → runtime/
@@ -99,7 +97,6 @@ BSLCFG
 
 # Симлинки в корне
 ln -sf runtime/paths.env "$PROJECT_DIR/paths.env"
-ln -sf runtime/paths.py "$PROJECT_DIR/paths.py"
 
 # Runtime файлы (soul, user-profile, role-switching, session-resume)
 for f in soul.md user-profile.md role-switching-protocol.md; do
