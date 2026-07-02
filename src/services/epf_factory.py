@@ -238,7 +238,12 @@ def validate_bsl(bsl_path: Path) -> dict:
 # Главный класс
 # ────────────────────────────────────────────────────────────────
 class EpfFactory:
-    """Полный цикл создания внешней обработки 1С (.epf) из шаблонов."""
+    """Полный цикл создания внешней обработки 1С (.epf) из шаблонов.
+
+    P2.4: create_epf разбит на pipeline из 10 этапов.
+    Каждый этап — отдельный метод, который возвращает True/False (успех/провал)
+    и записывает ошибку в result.error при провале.
+    """
 
     def create_epf(
         self,
@@ -254,31 +259,27 @@ class EpfFactory:
     ) -> EpfFactoryResult:
         """Создать .epf с указанными параметрами.
 
+        Pipeline из 10 этапов:
+        1. _prepare_work_dir — подготовка рабочего каталога
+        2. _copy_templates — копирование шаблонов v8unpack
+        3. _apply_form_spec — генерация Form.elem.json из DSL (опционально)
+        4. _generate_uuids — генерация новых UUID для обработки и формы
+        5. _patch_ext_proc — подстановка name/synonym/UUID в ExternalDataProcessor.json
+        6. _patch_form_id — подстановка UUID в Form.id.json
+        7. _write_bsl_module — запись BSL-кода и подсчёт строк
+        8. _validate_bsl — проверка через BSL LS (опционально)
+        9. _build_epf — сборка .epf через v8unpack + патч block_size
+        10. _verify_and_finalize — round-trip проверка + сигнатура + cleanup
+
         Args:
             name: Имя обработки (латиница/кириллица, без пробелов)
             synonym: Синоним (если None — = name)
             bsl_code: BSL-код модуля формы
             output_epf: Куда сохранить .epf
             form_name: Имя формы (по умолчанию "Форма")
-            form_spec: Описание формы для генерации Form.elem.json.
-                Может быть:
-                - dict: сразу DSL-описание
-                - str/Path: путь к JSON-файлу с DSL
-                - None: использовать пустой шаблон (только реквизит Объект)
-                Пример DSL:
-                    {
-                      "props": [
-                        {"name": "Объект", "type": "DataProcessorObject"},
-                        {"name": "ТаблицаСписка", "type": "ValueTable",
-                         "synonym": "Список обходов",
-                         "columns": [
-                           {"name": "Дата", "type": "Date"},
-                           {"name": "Номер", "type": "String", "length": 50}
-                         ]}
-                      ]
-                    }
+            form_spec: Описание формы (dict / str-путь / Path / None)
             work_dir: Рабочий каталог (по умолчанию /tmp/epf_factory_<uuid>)
-            save_sources: Сохранить v8unpack-исходники в work_dir (не удалять)
+            save_sources: Сохранить v8unpack-исходники в work_dir
             skip_bsl_validation: Пропустить проверку BSL LS
 
         Returns:
@@ -287,16 +288,64 @@ class EpfFactory:
         result = EpfFactoryResult(name=name, synonym=synonym or name)
         output_epf = Path(output_epf)
 
-        # 1. Подготовка рабочего каталога
+        # Pipeline context — передаётся между этапами
+        ctx: dict = {
+            "name": name,
+            "synonym": synonym or name,
+            "bsl_code": bsl_code,
+            "output_epf": output_epf,
+            "form_name": form_name,
+            "form_spec": form_spec,
+            "work_dir": Path(work_dir) if work_dir else None,
+            "save_sources": save_sources,
+            "skip_bsl_validation": skip_bsl_validation,
+            "src_dir": None,
+            "form_dir": None,
+            "bsl_path": None,
+            "temp_dir": None,
+        }
+
+        # Pipeline — каждый этап может прервать выполнение, вернув False
+        pipeline = [
+            self._prepare_work_dir,
+            self._copy_templates,
+            self._apply_form_spec,
+            self._generate_uuids,
+            self._patch_ext_proc,
+            self._patch_form_id,
+            self._write_bsl_module,
+            self._validate_bsl,
+            self._build_epf,
+            self._verify_and_finalize,
+        ]
+
+        for stage in pipeline:
+            if not stage(result, ctx):
+                return result  # ошибка уже в result.error
+
+        result.ok = True
+        return result
+
+    # ─── Pipeline этапы (P2.4) ──────────────────────────────────
+
+    def _prepare_work_dir(self, result: EpfFactoryResult, ctx: dict) -> bool:
+        """Этап 1: Подготовка рабочего каталога."""
+        work_dir = ctx["work_dir"]
         if work_dir is None:
             work_dir = Path(tempfile.gettempdir()) / f"epf_factory_{uuid.uuid4().hex[:8]}"
         work_dir = Path(work_dir)
         if work_dir.exists():
             shutil.rmtree(work_dir)
-        src_dir = work_dir / "src"
-        form_dir = src_dir / "Form" / form_name
+        ctx["work_dir"] = work_dir
+        ctx["src_dir"] = work_dir / "src"
+        ctx["form_dir"] = ctx["src_dir"] / "Form" / ctx["form_name"]
+        ctx["temp_dir"] = work_dir / "build_temp"
+        return True
 
-        # 2. Копирование шаблонов
+    def _copy_templates(self, result: EpfFactoryResult, ctx: dict) -> bool:
+        """Этап 2: Копирование шаблонов v8unpack."""
+        src_dir = ctx["src_dir"]
+        form_dir = ctx["form_dir"]
         try:
             src_dir.mkdir(parents=True, exist_ok=True)
             form_dir.mkdir(parents=True, exist_ok=True)
@@ -306,174 +355,172 @@ class EpfFactory:
             shutil.copy(TPL_FORM_ELEM_EMPTY, form_dir / "Form.elem.json")
         except Exception as e:
             result.error = f"Ошибка копирования шаблонов: {e}"
-            return result
+            return False
+        return True
 
-        # 2.5. Если задан form_spec — сгенерировать Form.elem.json из DSL
-        if form_spec is not None:
-            try:
-                from .form_elem_builder import build_form_elem
+    def _apply_form_spec(self, result: EpfFactoryResult, ctx: dict) -> bool:
+        """Этап 3: Генерация Form.elem.json из form_spec DSL (опционально)."""
+        form_spec = ctx["form_spec"]
+        if form_spec is None:
+            return True  # опциональный этап
 
-                # form_spec может быть dict, str (путь к файлу) или Path
-                if isinstance(form_spec, (str, Path)):
-                    spec_path = Path(form_spec)
-                    if not spec_path.exists():
-                        result.error = f"form_spec файл не найден: {spec_path}"
-                        return result
-                    import json as _json
+        form_dir = ctx["form_dir"]
+        try:
+            from .form_elem_builder import build_form_elem
 
-                    with open(spec_path, encoding="utf-8") as f:
-                        spec_dict = _json.load(f)
-                elif isinstance(form_spec, dict):
-                    spec_dict = form_spec
-                else:
-                    result.error = f"form_spec должен быть dict, str или Path, получен {type(form_spec).__name__}"
-                    return result
+            # form_spec может быть dict, str (путь к файлу) или Path
+            if isinstance(form_spec, (str, Path)):
+                spec_path = Path(form_spec)
+                if not spec_path.exists():
+                    result.error = f"form_spec файл не найден: {spec_path}"
+                    return False
+                with open(spec_path, encoding="utf-8") as f:
+                    spec_dict = json.load(f)
+            elif isinstance(form_spec, dict):
+                spec_dict = form_spec
+            else:
+                result.error = f"form_spec должен быть dict, str или Path, получен {type(form_spec).__name__}"
+                return False
 
-                # Генерируем Form.elem.json из DSL, ИСПОЛЬЗУЯ template как базу
-                # Это критично: без template v8unpack неправильно сериализует
-                # пустую форму, и 1С выдаёт "Ошибка формата потока".
-                # Template уже прошёл проверку 1С, поэтому добавление новых
-                # реквизитов в конец props сохраняет валидность.
-                form_elem = build_form_elem(
-                    spec_dict,
-                    base_template_path=TPL_FORM_ELEM_TEMPLATE,
-                )
-                with open(form_dir / "Form.elem.json", "w", encoding="utf-8") as f:
-                    json.dump(form_elem, f, ensure_ascii=False, indent=2)
-            except Exception as e:
-                result.error = f"Ошибка генерации Form.elem.json из form_spec: {e}"
-                return result
+            # Генерируем Form.elem.json из DSL, ИСПОЛЬЗУЯ template как базу
+            # Template уже прошёл проверку 1С — добавление реквизитов сохраняет валидность.
+            form_elem = build_form_elem(spec_dict, base_template_path=TPL_FORM_ELEM_TEMPLATE)
+            with open(form_dir / "Form.elem.json", "w", encoding="utf-8") as f:
+                json.dump(form_elem, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            result.error = f"Ошибка генерации Form.elem.json из form_spec: {e}"
+            return False
+        return True
 
-        # 3. Генерация новых UUID
+    def _generate_uuids(self, result: EpfFactoryResult, ctx: dict) -> bool:
+        """Этап 4: Генерация новых UUID для обработки и формы."""
         result.proc_uuid = str(uuid.uuid4())
         result.form_uuid = str(uuid.uuid4())
-
-        # 4. Подстановка в ExternalDataProcessor.json
-        # UUID формы из шаблона Form.id.json — это "старый" UUID формы
-        form_id_path = form_dir / "Form.id.json"
+        # Сохраняем old_form_uuid из шаблона для _patch_ext_proc
+        form_id_path = ctx["form_dir"] / "Form.id.json"
         with open(form_id_path, encoding="utf-8") as f:
-            old_form_uuid = json.load(f).get("uuid", "")
+            ctx["old_form_uuid"] = json.load(f).get("uuid", "")
+        return True
 
+    def _patch_ext_proc(self, result: EpfFactoryResult, ctx: dict) -> bool:
+        """Этап 5: Подстановка name/synonym/UUID в ExternalDataProcessor.json."""
         try:
             self._patch_ext_proc_json(
-                src_dir / "ExternalDataProcessor.json",
+                ctx["src_dir"] / "ExternalDataProcessor.json",
                 old_name="ОбходТерриторииСПереключателемФонСоЗвуком",
-                new_name=name,
+                new_name=ctx["name"],
                 old_synonym="Обход территории с переключателем фон со звуком",
-                new_synonym=synonym or name,
+                new_synonym=ctx["synonym"],
                 old_proc_uuid="",  # будет заполнено из шаблона
                 new_proc_uuid=result.proc_uuid,
-                old_form_uuid=old_form_uuid,
+                old_form_uuid=ctx["old_form_uuid"],
                 new_form_uuid=result.form_uuid,
             )
         except Exception as e:
             result.error = f"Ошибка патча ExternalDataProcessor.json: {e}"
-            return result
+            return False
+        return True
 
-        # 5. Подстановка в Form.id.json
+    def _patch_form_id(self, result: EpfFactoryResult, ctx: dict) -> bool:
+        """Этап 6: Подстановка UUID в Form.id.json."""
         try:
-            self._patch_form_id_json(form_dir / "Form.id.json", result.form_uuid)
+            self._patch_form_id_json(ctx["form_dir"] / "Form.id.json", result.form_uuid)
         except Exception as e:
             result.error = f"Ошибка патча Form.id.json: {e}"
-            return result
+            return False
+        return True
 
-        # 6. Запись BSL-модуля
-        bsl_path = form_dir / "Form.obj.bsl"
-        bsl_path.write_text(bsl_code, encoding="utf-8")
-        result.bsl_lines = bsl_code.count("\n") + (0 if bsl_code.endswith("\n") else 1)
+    def _write_bsl_module(self, result: EpfFactoryResult, ctx: dict) -> bool:
+        """Этап 7: Запись BSL-кода модуля формы."""
+        bsl_path = ctx["form_dir"] / "Form.obj.bsl"
+        bsl_path.write_text(ctx["bsl_code"], encoding="utf-8")
+        result.bsl_lines = ctx["bsl_code"].count("\n") + (0 if ctx["bsl_code"].endswith("\n") else 1)
+        ctx["bsl_path"] = bsl_path
+        return True
 
-        # 7. Проверка BSL через BSL LS
-        if not skip_bsl_validation:
-            bsl_res = validate_bsl(bsl_path)
-            if bsl_res.get("ok"):
-                result.bsl_errors = bsl_res["errors"]
-                result.bsl_warnings = bsl_res["warnings"]
-            # Не блокируем сборку при ошибках BSL LS — это только предупреждения
+    def _validate_bsl(self, result: EpfFactoryResult, ctx: dict) -> bool:
+        """Этап 8: Проверка BSL через BSL LS (опционально)."""
+        if ctx["skip_bsl_validation"]:
+            return True
+        bsl_res = validate_bsl(ctx["bsl_path"])
+        if bsl_res.get("ok"):
+            result.bsl_errors = bsl_res["errors"]
+            result.bsl_warnings = bsl_res["warnings"]
+        # Не блокируем сборку при ошибках BSL LS — это только предупреждения
+        return True
 
-        # 8. Сборка .epf через v8unpack
+    def _build_epf(self, result: EpfFactoryResult, ctx: dict) -> bool:
+        """Этап 9: Сборка .epf через v8unpack + патч block_size."""
+        output_epf = ctx["output_epf"]
+        src_dir = ctx["src_dir"]
+        temp_dir = ctx["temp_dir"]
+
         output_epf.parent.mkdir(parents=True, exist_ok=True)
         if output_epf.exists():
             output_epf.unlink()
-        temp_dir = work_dir / "build_temp"
         if temp_dir.exists():
             shutil.rmtree(temp_dir)
 
-        cmd = [
-            _PYTHON,
-            "-m",
-            "v8unpack",
-            "-B",
-            str(src_dir),
-            str(output_epf),
-            "--temp",
-            str(temp_dir),
-        ]
+        cmd = [_PYTHON, "-m", "v8unpack", "-B", str(src_dir), str(output_epf), "--temp", str(temp_dir)]
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False)
         except subprocess.TimeoutExpired:
             result.error = "v8unpack timeout при сборке"
-            return result
+            return False
 
         if proc.returncode != 0:
             result.error = f"v8unpack -B failed: {proc.stderr or proc.stdout}"
-            return result
+            return False
 
         if not output_epf.exists():
             result.error = f"Выходной файл не создан: {output_epf}"
-            return result
+            return False
 
-        # 8.5. Патч block_size → 512 (v8unpack пишет неправильный)
-        # v8unpack 1.2.6 пишет block_size = doc_size (фактический размер),
-        # а 1С ожидает всегда block_size = 0x200 (512). Иначе "Ошибка формата потока".
+        # Патч block_size → 512 (v8unpack 1.2.6 пишет неправильный)
+        # v8unpack пишет block_size = doc_size, а 1С ожидает 0x200 (512).
         try:
             patch_script = _REPO_ROOT / "scripts" / "patch_epf_blocksize.py"
             if patch_script.exists():
                 patched_path = output_epf.parent / f"{output_epf.stem}__patched.epf"
-                patch_cmd = [
-                    _PYTHON,
-                    str(patch_script),
-                    str(output_epf),
-                    str(patched_path),
-                ]
-                patch_proc = subprocess.run(
-                    patch_cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                    check=False,
-                )
+                patch_cmd = [_PYTHON, str(patch_script), str(output_epf), str(patched_path)]
+                patch_proc = subprocess.run(patch_cmd, capture_output=True, text=True, timeout=30, check=False)
                 if patch_proc.returncode == 0 and patched_path.exists():
-                    # Заменяем оригинал пропатченной версией
                     shutil.move(str(patched_path), str(output_epf))
         except Exception as e:
             # Патч не критичен — продолжаем, но предупреждаем
             result.error = f"Предупреждение: patch_epf_blocksize не сработал: {e}"
-            # Не возвращаем — продолжаем
+            # Не возвращаем False — продолжаем
 
         # Проверяем сигнатуру 1С-контейнера
         with open(output_epf, "rb") as f:
             sig = f.read(4)
         if sig != b"\xff\xff\xff\x7f":
             result.error = f"Неверная сигнатура .epf: {sig.hex()}"
-            return result
+            return False
 
         result.epf_path = output_epf
         result.size_bytes = output_epf.stat().st_size
+        return True
 
-        # 9. Проверка round-trip
+    def _verify_and_finalize(self, result: EpfFactoryResult, ctx: dict) -> bool:
+        """Этап 10: Round-trip проверка + cleanup."""
+        output_epf = ctx["output_epf"]
+        src_dir = ctx["src_dir"]
+        work_dir = ctx["work_dir"]
+        temp_dir = ctx["temp_dir"]
+
+        # Round-trip: распаковать .epf и сравнить BSL-модуль
         result.round_trip_ok = self._verify_round_trip(output_epf, src_dir, work_dir)
 
-        # 10. Чистим temp (если save_sources=False)
-        if save_sources:
+        # Cleanup
+        if ctx["save_sources"]:
             result.work_dir = work_dir
             if temp_dir.exists():
                 shutil.rmtree(temp_dir)
         else:
             with contextlib.suppress(Exception):
                 shutil.rmtree(work_dir)
-
-        result.ok = True
-        return result
+        return True
 
     # ─── Патчеры JSON ───────────────────────────────────────────
     def _patch_ext_proc_json(
