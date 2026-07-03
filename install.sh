@@ -1,26 +1,143 @@
 #!/bin/bash
 # ============================================================================
-# 1C AI Development Environment — Установщик v2.0 (4-слойная архитектура)
+# 1C AI Development Environment — Установщик v2.1 (4-слойная архитектура)
 # ============================================================================
 # Создаёт: data/ (данные) → derived/ (индексы) → tools/ (инструменты) → runtime/ (работа)
 #
 # Использование:
 #   ./install.sh                    — интерактивная установка
 #   ./install.sh --non-interactive  — без вопросов (только инструменты)
+#   ./install.sh --target /path     — явный путь установки
+#   ./install.sh --help             — справка
+#
+# P1.4: убран хардкод /home/z/my-project. Целевая директория определяется:
+#   1. --target аргумент (приоритет)
+#   2. ONEC_AI_DEV_ENV_ROOT env var
+#   3. PROJECT_DIR env var (legacy, deprecated)
+#   4. Ошибка если ничего не задано
 # ============================================================================
 
 set -e
 
-PROJECT_DIR="${PROJECT_DIR:-/home/z/my-project}"
+# ============================================================================
+# Парсинг аргументов и определение PROJECT_DIR
+# ============================================================================
 SETUP_DIR="$(cd "$(dirname "$0")" && pwd)"
 INTERACTIVE=true
+TARGET_DIR=""
 
-if [ "$1" == "--non-interactive" ]; then
-    INTERACTIVE=false
+# Парсим --help и --non-interactive и --target
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h)
+            cat << 'HELP'
+1C AI Development Environment — Установщик v2.1
+
+Использование:
+  ./install.sh [ОПЦИИ]
+
+Опции:
+  --target PATH        Целевая директория для установки
+  --non-interactive    Без интерактивных вопросов (только инструменты)
+  --help, -h           Показать эту справку
+
+Переменные окружения:
+  ONEC_AI_DEV_ENV_ROOT  Целевая директория (рекомендуется)
+  PROJECT_DIR           Legacy alias для ONEC_AI_DEV_ENV_ROOT (deprecated)
+
+Примеры:
+  # Через --target
+  ./install.sh --target /opt/1c-ai-dev-env
+
+  # Через env var
+  export ONEC_AI_DEV_ENV_ROOT=/opt/1c-ai-dev-env
+  ./install.sh
+
+  # Non-interactive (для CI)
+  ONEC_AI_DEV_ENV_ROOT=/tmp/1c-ai ./install.sh --non-interactive
+
+P1.4: хардкод /home/z/my-project удалён. Целевая директория обязательна.
+HELP
+            exit 0
+            ;;
+        --non-interactive)
+            INTERACTIVE=false
+            shift
+            ;;
+        --target)
+            if [[ $# -lt 2 ]]; then
+                echo "❌ --target требует аргумент: --target /path/to/dir"
+                exit 1
+            fi
+            TARGET_DIR="$2"
+            shift 2
+            ;;
+        --target=*)
+            TARGET_DIR="${1#--target=}"
+            shift
+            ;;
+        *)
+            echo "❌ Неизвестный аргумент: $1"
+            echo "Используйте: ./install.sh --help"
+            exit 1
+            ;;
+    esac
+done
+
+# Определяем PROJECT_DIR: --target > ONEC_AI_DEV_ENV_ROOT > PROJECT_DIR (legacy)
+if [[ -n "$TARGET_DIR" ]]; then
+    PROJECT_DIR="$TARGET_DIR"
+elif [[ -n "$ONEC_AI_DEV_ENV_ROOT" ]]; then
+    PROJECT_DIR="$ONEC_AI_DEV_ENV_ROOT"
+elif [[ -n "$PROJECT_DIR" ]]; then
+    # Legacy env var (deprecated, но работает для backward compat)
+    :
+else
+    PROJECT_DIR=""
+fi
+
+# Если всё ещё пусто — ошибка
+if [[ -z "$PROJECT_DIR" ]]; then
+    echo "╔══════════════════════════════════════════════════════╗"
+    echo "║  ❌ ОШИБКА: целевая директория не указана            ║"
+    echo "╚══════════════════════════════════════════════════════╝"
+    echo ""
+    echo "P1.4: хардкод /home/z/my-project удалён."
+    echo "Укажите целевую директорию одним из способов:"
+    echo ""
+    echo "  1. --target аргумент:"
+    echo "     ./install.sh --target /opt/1c-ai-dev-env"
+    echo ""
+    echo "  2. ONEC_AI_DEV_ENV_ROOT env var:"
+    echo "     export ONEC_AI_DEV_ENV_ROOT=/opt/1c-ai-dev-env"
+    echo "     ./install.sh"
+    echo ""
+    echo "  3. PROJECT_DIR env var (legacy, deprecated):"
+    echo "     PROJECT_DIR=/opt/1c-ai-dev-env ./install.sh"
+    echo ""
+    echo "Справка: ./install.sh --help"
+    exit 1
+fi
+
+# Валидация: если директория существует и не пуста и не содержит paths.env — предупреждение
+if [[ -d "$PROJECT_DIR" ]]; then
+    if [[ -n "$(ls -A "$PROJECT_DIR" 2>/dev/null)" ]] && [[ ! -f "$PROJECT_DIR/paths.env" ]]; then
+        echo "⚠️  ВНИМАНИЕ: директория '$PROJECT_DIR' существует и не пуста,"
+        echo "   и не содержит paths.env (признак предыдущей установки)."
+        if [[ "$INTERACTIVE" == "true" ]]; then
+            read -p "Продолжить? Существующие файлы могут быть перезаписаны [y/N]: " CONFIRM
+            if [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]]; then
+                echo "Установка отменена."
+                exit 0
+            fi
+        else
+            echo "   Non-interactive режим: продолжаю (файлы могут быть перезаписаны)."
+        fi
+    fi
 fi
 
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║  1C AI Development Environment — Установка v2.0      ║"
+echo "║  1C AI Development Environment — Установка v2.1      ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
 echo "Путь: $PROJECT_DIR"

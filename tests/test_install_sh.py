@@ -127,3 +127,172 @@ class TestInstallShQuotedProperly:
         """--name "$CFG_NAME" должен быть в кавычках."""
         content = INSTALL_SH.read_text(encoding="utf-8")
         assert '--name "$CFG_NAME"' in content
+
+
+# ============================================================================
+# P1.4: Tests — install.sh не должен содержать хардкод /home/z/my-project
+# ============================================================================
+
+
+class TestInstallShNoHardcodedPath:
+    """P1.4: install.sh не должен хардкодить /home/z/my-project как дефолт.
+
+    Regression: до P1.4 строка 14 содержала:
+        PROJECT_DIR="${PROJECT_DIR:-/home/z/my-project}"
+    Это делало установку непортабельной. P1.4 требует явного указания
+    целевой директории через --target или ONEC_AI_DEV_ENV_ROOT env var.
+    """
+
+    def test_no_hardcoded_default_in_project_dir_assignment(self) -> None:
+        """Строка PROJECT_DIR не должна содержать дефолт /home/z/my-project."""
+        content = INSTALL_SH.read_text(encoding="utf-8")
+        # Ищем pattern: PROJECT_DIR="${...:-/home/z/my-project}"
+        # или PROJECT_DIR="/home/z/my-project"
+        import re
+
+        # Pattern 1: PROJECT_DIR="${VAR:-/home/z/my-project}"
+        pattern1 = re.compile(r'PROJECT_DIR\s*=\s*"\$\{[^}]*:-/home/z/my-project\}"')
+        # Pattern 2: PROJECT_DIR="/home/z/my-project" (без env var)
+        pattern2 = re.compile(r'PROJECT_DIR\s*=\s*"/home/z/my-project"')
+        assert not pattern1.search(content), (
+            "install.sh содержит хардкод /home/z/my-project в PROJECT_DIR "
+            "(P1.4 regression). Используйте --target или ONEC_AI_DEV_ENV_ROOT."
+        )
+        assert not pattern2.search(content), (
+            "install.sh содержит хардкод /home/z/my-project в PROJECT_DIR "
+            "(P1.4 regression). Используйте --target или ONEC_AI_DEV_ENV_ROOT."
+        )
+
+    def test_install_sh_requires_target_or_env_var(self) -> None:
+        """install.sh без аргументов и env var должен завершаться с ошибкой (exit 1)."""
+        # Запускаем без аргументов и без env var
+        env = {"PATH": "/usr/bin:/bin:/usr/local/bin"}
+        result = subprocess.run(
+            ["bash", str(INSTALL_SH)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=env,
+        )
+        assert result.returncode == 1, (
+            f"install.sh без аргументов должен exit 1, got {result.returncode}.\n"
+            f"stdout={result.stdout}\nstderr={result.stderr}"
+        )
+        assert "целевая директория не указана" in result.stdout or "не указана" in result.stdout, (
+            f"install.sh должен показать сообщение об ошибке.\nstdout={result.stdout}"
+        )
+
+    def test_install_sh_help_works(self) -> None:
+        """install.sh --help должен показать справку и exit 0."""
+        result = subprocess.run(
+            ["bash", str(INSTALL_SH), "--help"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert result.returncode == 0
+        assert "ONEC_AI_DEV_ENV_ROOT" in result.stdout, "install.sh --help должен упоминать ONEC_AI_DEV_ENV_ROOT"
+        assert "--target" in result.stdout, "install.sh --help должен упоминать --target"
+
+    def test_install_sh_target_arg_accepted(self) -> None:
+        """install.sh --target /tmp/... должен принять путь (не упасть на arg parsing).
+
+        Установка может занять минуты (pip install, git clone), поэтому
+        проверяем только arg parsing: запускаем с коротким timeout и
+        проверяем, что 'целевая директория не указана' НЕ выведено,
+        а 'Путь: /tmp/...' выведено. TimeoutExpired приемлем.
+        """
+        import shutil
+
+        try:
+            result = subprocess.run(
+                ["bash", str(INSTALL_SH), "--target", "/tmp/test-p1x-install", "--non-interactive"],
+                capture_output=True,
+                text=True,
+                timeout=8,
+            )
+            stdout = result.stdout
+        except subprocess.TimeoutExpired as e:
+            # Timeout OK — значит arg parsing прошёл и установка началась
+            stdout = (
+                (e.stdout or b"").decode("utf-8", errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+            )
+
+        assert "целевая директория не указана" not in stdout, (
+            f"--target должен принять путь, но получена ошибка.\nstdout={stdout}"
+        )
+        assert "Путь: /tmp/test-p1x-install" in stdout, (
+            f"install.sh должен показать 'Путь: /tmp/test-p1x-install'.\nstdout={stdout}"
+        )
+        # Cleanup
+        shutil.rmtree("/tmp/test-p1x-install", ignore_errors=True)
+
+    def test_install_sh_onec_ai_dev_env_root_env_var_accepted(self) -> None:
+        """ONEC_AI_DEV_ENV_ROOT env var должна приниматься как целевая директория."""
+        import shutil
+
+        env = {
+            "PATH": "/usr/bin:/bin:/usr/local/bin",
+            "HOME": "/tmp",
+            "ONEC_AI_DEV_ENV_ROOT": "/tmp/test-p1x-env-install",
+        }
+        try:
+            result = subprocess.run(
+                ["bash", str(INSTALL_SH), "--non-interactive"],
+                capture_output=True,
+                text=True,
+                timeout=8,
+                env=env,
+            )
+            stdout = result.stdout
+        except subprocess.TimeoutExpired as e:
+            stdout = (
+                (e.stdout or b"").decode("utf-8", errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+            )
+
+        assert "целевая директория не указана" not in stdout, f"ONEC_AI_DEV_ENV_ROOT должна приняться.\nstdout={stdout}"
+        assert "Путь: /tmp/test-p1x-env-install" in stdout, (
+            f"install.sh должен показать путь из env var.\nstdout={stdout}"
+        )
+        # Cleanup
+        shutil.rmtree("/tmp/test-p1x-env-install", ignore_errors=True)
+
+    def test_install_sh_project_dir_legacy_env_var_still_works(self) -> None:
+        """PROJECT_DIR env var (legacy) должна работать для backward compat."""
+        import shutil
+
+        env = {
+            "PATH": "/usr/bin:/bin:/usr/local/bin",
+            "HOME": "/tmp",
+            "PROJECT_DIR": "/tmp/test-p1x-legacy-install",
+        }
+        try:
+            result = subprocess.run(
+                ["bash", str(INSTALL_SH), "--non-interactive"],
+                capture_output=True,
+                text=True,
+                timeout=8,
+                env=env,
+            )
+            stdout = result.stdout
+        except subprocess.TimeoutExpired as e:
+            stdout = (
+                (e.stdout or b"").decode("utf-8", errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+            )
+
+        assert "целевая директория не указана" not in stdout, f"PROJECT_DIR (legacy) должна приняться.\nstdout={stdout}"
+        # Cleanup
+        shutil.rmtree("/tmp/test-p1x-legacy-install", ignore_errors=True)
+
+    def test_install_sh_unknown_arg_rejected(self) -> None:
+        """Неизвестный аргумент должен вызвать ошибку (exit 1)."""
+        result = subprocess.run(
+            ["bash", str(INSTALL_SH), "--unknown-flag"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert result.returncode == 1, f"Неизвестный аргумент должен exit 1, got {result.returncode}"
+        assert "Неизвестный аргумент" in result.stdout or "Неизвестный аргумент" in result.stderr, (
+            f"Должно быть сообщение 'Неизвестный аргумент'.\nstdout={result.stdout}\nstderr={result.stderr}"
+        )
