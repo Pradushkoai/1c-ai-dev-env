@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Java 17+](https://img.shields.io/badge/Java-17+-orange.svg)](https://openjdk.org/)
-[![Tests](https://img.shields.io/badge/tests-333%20passing-success.svg)](#тесты)
+[![Tests](https://img.shields.io/badge/tests-1595%20passing-success.svg)](#тесты)
 [![MCP Tools](https://img.shields.io/badge/MCP%20tools-45-blue.svg)](#подключение-к-ide--llm-через-mcp)
 [![CLI Commands](https://img.shields.io/badge/CLI%20commands-19-success.svg)](#cli-команды)
 
@@ -426,11 +426,11 @@ pre-commit run --all-files
 
 | Метрика | Значение |
 |---------|----------|
-| Тестовых файлов | 46 |
-| Тест-функций | 328 |
+| Тестовых файлов | 100 |
+| Тест-функций | 1595 (unit + integration + e2e + snapshot) |
 | Property-based тестов | 13 (hypothesis, ~1300 cases) |
 | Synthetic benchmarks | 19 |
-| Coverage gate | 30% (цель: 85%) |
+| Coverage gate | 70% (цель: 85%, факт: 71.4%) |
 | Pre-commit hooks | ruff + mypy + pytest |
 
 ---
