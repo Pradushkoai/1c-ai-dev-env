@@ -76,24 +76,15 @@ def cmd_mcp(project: Project, args: argparse.Namespace) -> None:
             print("   Установите: pip install mcp")
             sys.exit(1)
     elif args.mcp_command == "tools":
-        # Выводим список tools — парсим из mcp_server.py
-        import re
+        # Выводим список tools — импортируем tool_definitions напрямую
+        # (раньше был regex-парсинг mcp_server.py — хрупко и устарело).
+        from .mcpserver.tools import get_all_tool_definitions
 
-        mcp_src = Path(__file__).parent / "mcp_server.py"
-        src = mcp_src.read_text(encoding="utf-8")
-        # Извлекаем все name="..." из types.Tool( блоков
-        tools = re.findall(r'name="([a-z_0-9]+)"', src)
-        # Убираем дубликаты сохраняя порядок
-        seen = set()
-        unique_tools = []
-        for t in tools:
-            if t not in seen:
-                seen.add(t)
-                unique_tools.append(t)
-        print(f"MCP tools ({len(unique_tools)}):")
+        tools = get_all_tool_definitions()
+        print(f"MCP tools ({len(tools)}):")
         print()
-        for t in unique_tools:
-            print(f"  • {t}")
+        for t in tools:
+            print(f"  • {t.name}")
 
 
 def cmd_data(project: Project, args: argparse.Namespace) -> None:

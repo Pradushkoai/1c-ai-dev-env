@@ -129,3 +129,13 @@ def is_supported_type(type_name: str) -> bool:
 def is_dsl_supported(type_name: str) -> bool:
     """Проверить, поддерживается ли тип в DSL-компиляторах."""
     return type_name in DSL_SUPPORTED_TYPES
+
+
+# ─── Derived constants (single source of truth) ───
+# Все валидные директории метаданных 1С — derived из TYPE_MAP.
+# Используется config_manager.py для валидации XML-выгрузок.
+REQUIRED_TYPE_DIRS: tuple[str, ...] = tuple(sorted({v["dir"] for v in TYPE_MAP.values()}))
+
+# Минимальный набор директорий, чтобы считать выгрузку валидной 1С-конфигурацией.
+# Хотя бы одна из этих директорий должна присутствовать в распакованной выгрузке.
+MIN_REQUIRED_DIRS: tuple[str, ...] = ("CommonModules", "Catalogs", "Documents", "Subsystems")

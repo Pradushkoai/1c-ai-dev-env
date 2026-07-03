@@ -37,8 +37,8 @@ pytest tests/ --cov=src --cov-fail-under=70 -q --no-header \
 ## Готово!
 
 Проект установлен и работает. Дальше:
-- [README.md](README.md) — полный обзор
-- [AGENTS.md](AGENTS.md) — правила для AI-агентов
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — архитектура
-- [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) — подключение к IDE
-- [adr/](adr/) — Architecture Decision Records
+- [README.md](../README.md) — полный обзор
+- [AGENTS.md](../AGENTS.md) — правила для AI-агентов
+- [ARCHITECTURE.md](ARCHITECTURE.md) — архитектура
+- [MCP_INTEGRATION.md](MCP_INTEGRATION.md) — подключение к IDE
+- [adr/](../adr/) — Architecture Decision Records

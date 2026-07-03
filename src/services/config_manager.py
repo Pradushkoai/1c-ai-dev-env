@@ -32,48 +32,16 @@ except ImportError:
 
 
 # --- Директории 1С, которые считаются валидными метаданными ---
+# P0.9 (doc-drift fix): ранее REQUIRED_TYPE_DIRS и MIN_REQUIRED_DIRS были
+# захардкожены здесь (36 типов) и расходились с TYPE_MAP в object_types.py
+# (41 тип). Теперь оба множества derived из единого источника — TYPE_MAP.
+from .object_types import MIN_REQUIRED_DIRS, REQUIRED_TYPE_DIRS  # noqa: E402
 
-REQUIRED_TYPE_DIRS: tuple[str, ...] = (
-    "Catalogs",
-    "Documents",
-    "Enums",
-    "Constants",
-    "CommonModules",
-    "InformationRegisters",
-    "AccumulationRegisters",
-    "Reports",
-    "DataProcessors",
-    "CommonForms",
-    "CommonTemplates",
-    "CommonCommands",
-    "CommonPictures",
-    "Roles",
-    "Subsystems",
-    "EventSubscriptions",
-    "ScheduledJobs",
-    "DefinedTypes",
-    "FunctionalOptions",
-    "ExchangePlans",
-    "ChartsOfCharacteristicTypes",
-    "HTTPServices",
-    "WebServices",
-    "XDTOPackages",
-    "FilterCriteria",
-    "SessionParameters",
-    "CommandGroups",
-    "SettingsStorages",
-    "BusinessProcesses",
-    "Tasks",
-    "DocumentJournals",
-    "DocumentNumerators",
-    "Sequences",
-    "FunctionalOptionsParameters",
-    "CommonAttributes",
-    "WSReferences",
-)
-
-# Минимум одна из этих директорий должна быть, чтобы считать выгрузку валидной
-MIN_REQUIRED_DIRS: tuple[str, ...] = ("CommonModules", "Catalogs", "Documents", "Subsystems")
+# Re-export для backward compat: `from config_manager import REQUIRED_TYPE_DIRS`.
+__all__ = [
+    "MIN_REQUIRED_DIRS",
+    "REQUIRED_TYPE_DIRS",
+]
 
 
 # P2.11: классы перенесены в config_validator.py для SRP.
