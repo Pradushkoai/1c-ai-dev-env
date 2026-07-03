@@ -1,0 +1,65 @@
+name: "CodeQL Python Security Analysis"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**.py'
+      - 'scripts/**.py'
+      - 'tests/**.py'
+      - '.github/workflows/codeql-python.yml'
+  pull_request:
+    paths:
+      - 'src/**.py'
+      - 'scripts/**.py'
+      - 'tests/**.py'
+      - '.github/workflows/codeql-python.yml'
+  schedule:
+    # Каждый понедельник в 03:00 UTC — регулярный scan зависимостей
+    - cron: '0 3 * * 1'
+  workflow_dispatch: # ручной запуск
+
+permissions:
+  contents: read
+  security-events: write  # нужно для загрузки результатов в GitHub Code Scanning
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['python']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Дополнительные query suites для deeper analysis
+          queries: +security-and-quality, security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          # Sarif вывод будет автоматически загружен в GitHub Code Scanning
+          output: sarif-results
+
+      - name: Upload SARIF results artifact
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: codeql-python-sarif
+          path: sarif-results/*.sarif
+          retention-days: 14
