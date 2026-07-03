@@ -198,6 +198,6 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@abstractmethod",
 ]
-fail_under = 65  # P0.1: поднят с 60 → 65 (sprint 2); цель — 70 к концу P0
+fail_under = 70  # P0.1: поднят с 65 → 70 (sprint 3); цель достигнута досрочно
 show_missing = true
 skip_covered = false
