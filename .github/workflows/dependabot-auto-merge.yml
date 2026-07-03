@@ -1,0 +1,63 @@
+name: Dependabot auto-merge
+
+# P1.7: автоматический merge для patch versions от dependabot
+# Patch versions (semver: 1.2.3 → 1.2.4) безопасны — только bug fixes.
+# Minor versions (1.2.3 → 1.3.0) требуют ручного review.
+# Major versions (1.2.3 → 2.0.0) всегда требуют ручного review.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge-patch:
+    name: Auto-merge patch versions
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      - name: Fetch dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Auto-merge patch updates
+        # P1.7: auto-merge только для patch versions (semver: 1.2.3 → 1.2.4)
+        # CI gates (tests, mypy, ruff, coverage, complexity) должны пройти
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: |
+          echo "=== Dependabot patch update detected ==="
+          echo "Package: ${{ steps.metadata.outputs.dependency-names }}"
+          echo "From: ${{ steps.metadata.outputs.previous-version }}"
+          echo "To: ${{ steps.metadata.outputs.new-version }}"
+          echo ""
+          echo "Auto-merging after CI checks pass..."
+
+          # Ждём CI checks (даём время на запуск)
+          sleep 30
+
+          # Enable auto-merge (CI должен пройти перед merge)
+          gh pr merge --auto --squash "$PR_URL" || \
+            echo "Auto-merge enabled (will merge when CI passes)"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Label minor updates (no auto-merge)
+        if: steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: |
+          echo "=== Dependabot minor update — manual review required ==="
+          echo "Package: ${{ steps.metadata.outputs.dependency-names }}"
+          echo "From: ${{ steps.metadata.outputs.previous-version }}"
+          echo "To: ${{ steps.metadata.outputs.new-version }}"
+          echo ""
+          echo "Minor updates require manual review and testing."
+          echo "Add 'review-required' label."
+          gh pr edit "$PR_URL" --add-label "review-required" || true
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

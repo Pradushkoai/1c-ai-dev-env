@@ -69,6 +69,10 @@ dev = [
     # P0.3: complexity budget + mutation testing
     "radon>=6.0,<7.0",
     "mutmut>=3.0,<4.0",
+    # P1.7: dependency hygiene
+    "pip-audit>=2.0,<3.0",
+    "safety>=3.0,<4.0",
+    "pip-licenses>=5.0,<6.0",
 ]
 
 # P0.3: Mutation testing configuration
