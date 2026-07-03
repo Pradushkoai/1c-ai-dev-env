@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import re
 from collections import Counter, defaultdict
 from functools import lru_cache
@@ -611,7 +610,7 @@ def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = Tr
     if hybrid and "trigrams_index" in index:
         # Если BM25 что-то нашёл — ограничиваем триграммы кандидатами (оптимизация).
         # Если ничего не нашёл — триграммы ищут по всему индексу (важно для опечаток).
-        candidates = bm25_scores.keys() if bm25_scores else None
+        candidates = list(bm25_scores.keys()) if bm25_scores else None
         trigram_scores = _trigram_search(index, query, candidates)
 
         # Нормализуем обе скоринговые системы к [0, 1]
@@ -647,7 +646,7 @@ def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = Tr
     return results
 
 
-def _trigram_search(index: dict, query: str, candidate_ids=None) -> dict[int, float]:
+def _trigram_search(index: dict, query: str, candidate_ids: list[int] | None = None) -> dict[int, float]:
     """
     Триграммный поиск — для устойчивости к опечаткам.
 

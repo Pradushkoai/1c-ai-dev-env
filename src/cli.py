@@ -268,18 +268,18 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
         print(f"   Repo: {gh._repo}")
         print(f"   Пакет: {dp.default_package_path}")
         print()
-        result = gh.push(body=args.body or "Autosave data package")
-        if result.get("success"):
-            print(f"✅ Загружено в release '{result['tag']}'")
-            print(f"   Размер: {result['size_mb']:.1f} МБ")
-            print(f"   Release: {result['release_url']}")
-            print(f"   Asset: {result['asset_url']}")
+        push_result: dict = gh.push(body=args.body or "Autosave data package")
+        if push_result.get("success"):
+            print(f"✅ Загружено в release '{push_result['tag']}'")
+            print(f"   Размер: {push_result['size_mb']:.1f} МБ")
+            print(f"   Release: {push_result['release_url']}")
+            print(f"   Asset: {push_result['asset_url']}")
             print()
             print("В новой сессии восстановите:")
             print("   1c-ai data release-pull")
             print("   1c-ai data autoload")
         else:
-            print(f"❌ Ошибка: {result.get('error', 'неизвестная')}")
+            print(f"❌ Ошибка: {push_result.get('error', 'неизвестная')}")
             sys.exit(1)
 
     elif args.data_command == "release-pull":
@@ -296,16 +296,16 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
         print(f"   Repo: {gh._repo}")
         print(f"   Target: {dp.default_package_path}")
         print()
-        result = gh.pull()
-        if result.get("success"):
-            print(f"✅ Скачано в: {result['path']}")
-            print(f"   Размер: {result['size_mb']:.1f} МБ")
-            print(f"   Release tag: {result['tag']}")
+        pull_result: dict = gh.pull()
+        if pull_result.get("success"):
+            print(f"✅ Скачано в: {pull_result['path']}")
+            print(f"   Размер: {pull_result['size_mb']:.1f} МБ")
+            print(f"   Release tag: {pull_result['tag']}")
             print()
             print("Восстановите данные:")
             print("   1c-ai data autoload")
         else:
-            print(f"❌ Ошибка: {result.get('error', 'неизвестная')}")
+            print(f"❌ Ошибка: {pull_result.get('error', 'неизвестная')}")
             sys.exit(1)
 
     elif args.data_command == "release-status":

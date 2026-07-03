@@ -132,7 +132,7 @@ class DependencyGraph:
     Альтернатива Neo4j из 1c-ai-development-kit, но без внешних зависимостей.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         if not HAS_NETWORKX:
             raise ImportError("networkx не установлен. Установите: pip install networkx")
         self._graph: nx.DiGraph = nx.DiGraph()
@@ -420,7 +420,7 @@ class DependencyGraph:
         cycles: list[list[str]] = []
         timed_out = False
 
-        def _find():
+        def _find() -> None:
             nonlocal cycles, timed_out
             try:
                 start = time.time()

@@ -60,6 +60,7 @@ import tempfile
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 # Python-интерпретатор с установленным v8unpack
 _PYTHON = sys.executable
@@ -119,7 +120,7 @@ class EpfFactoryResult:
 # ────────────────────────────────────────────────────────────────
 # Утилиты для замены в JSON-дереве v8unpack
 # ────────────────────────────────────────────────────────────────
-def _replace_in_tree(obj, replacements: dict):
+def _replace_in_tree(obj: Any, replacements: dict) -> Any:
     """Рекурсивно заменить значения в JSON-дереве v8unpack.
 
     replacements: {old_value: new_value} — применяется ко всем строковым узлам.
@@ -536,7 +537,7 @@ class EpfFactory:
         new_form_uuid: str,
         old_file_uuid: str = "",
         new_file_uuid: str = "",
-    ):
+    ) -> None:
         """Заменить name, synonym, uuid в ExternalDataProcessor.json.
 
         Берёт шаблон (с именем и UUID из исходной обработки) и заменяет все
@@ -588,7 +589,7 @@ class EpfFactory:
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-    def _patch_form_id_json(self, json_path: Path, new_uuid: str):
+    def _patch_form_id_json(self, json_path: Path, new_uuid: str) -> None:
         """Записать UUID формы в Form.id.json."""
         with open(json_path, encoding="utf-8") as f:
             data = json.load(f)
@@ -658,7 +659,7 @@ class EpfFactory:
 # ────────────────────────────────────────────────────────────────
 # CLI-обёртка для быстрого тестирования
 # ────────────────────────────────────────────────────────────────
-def _cli():
+def _cli() -> None:
     if len(sys.argv) < 2:
         print("Usage: python epf_factory.py <create|templates> ...")
         sys.exit(1)

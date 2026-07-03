@@ -289,12 +289,12 @@ def cmd_depgraph(project: Project, args: argparse.Namespace) -> None:
 
     if args.depgraph_command == "build":
         dg = DependencyGraph()
-        result = dg.build_from_metadata_index(args.name, project.paths)
-        print(f"✅ Граф зависимостей: {result.config_name}")
-        print(f"   Узлов: {len(result.nodes)}")
-        print(f"   Рёбер: {len(result.edges)}")
-        if result.warnings:
-            for w in result.warnings:
+        build_result = dg.build_from_metadata_index(args.name, project.paths)
+        print(f"✅ Граф зависимостей: {build_result.config_name}")
+        print(f"   Узлов: {len(build_result.nodes)}")
+        print(f"   Рёбер: {len(build_result.edges)}")
+        if build_result.warnings:
+            for w in build_result.warnings:
                 print(f"   ⚠️ {w}")
         # Сохраняем в файл
         output = args.output or f"derived/configs/{args.name}/dependency-graph.json"
@@ -315,62 +315,62 @@ def cmd_depgraph(project: Project, args: argparse.Namespace) -> None:
         dg.build_from_metadata_index(args.name, project.paths)
 
         if args.query_type == "what_depends_on":
-            result: Any = dg.what_depends_on(args.object)
+            query_result: Any = dg.what_depends_on(args.object)
             print(f"=== Что зависит от {args.object} ===")
-            for r in result:
+            for r in query_result:
                 print(f"  ← {r['source']} ({r['relation']}) {r['detail']}")
-            print(f"\nИтого: {len(result)} зависимых")
+            print(f"\nИтого: {len(query_result)} зависимых")
 
         elif args.query_type == "dependencies_of":
-            result = dg.dependencies_of(args.object)
+            query_result = dg.dependencies_of(args.object)
             print(f"=== На что ссылается {args.object} ===")
-            for r in result:
+            for r in query_result:
                 print(f"  → {r['target']} ({r['relation']}) {r['detail']}")
-            print(f"\nИтого: {len(result)} зависимостей")
+            print(f"\nИтого: {len(query_result)} зависимостей")
 
         elif args.query_type == "transitive_dependencies":
-            result = dg.transitive_dependencies(args.object)
+            query_result = dg.transitive_dependencies(args.object)
             print(f"=== Транзитивные зависимости {args.object} ===")
-            for r in result:
+            for r in query_result:
                 print(f"  → {r}")
-            print(f"\nИтого: {len(result)}")
+            print(f"\nИтого: {len(query_result)}")
 
         elif args.query_type == "transitive_dependents":
-            result = dg.transitive_dependents(args.object)
+            query_result = dg.transitive_dependents(args.object)
             print(f"=== Кто зависит от {args.object} (транзитивно) ===")
-            for r in result:
+            for r in query_result:
                 print(f"  ← {r}")
-            print(f"\nИтого: {len(result)}")
+            print(f"\nИтого: {len(query_result)}")
 
         elif args.query_type == "find_cycles":
-            result = dg.find_cycles()
+            query_result = dg.find_cycles()
             print("=== Циклические зависимости ===")
-            for i, cycle in enumerate(result, 1):
+            for i, cycle in enumerate(query_result, 1):
                 print(f"  {i}. {' → '.join(cycle)}")
-            print(f"\nИтого: {len(result)} циклов")
+            print(f"\nИтого: {len(query_result)} циклов")
 
         elif args.query_type == "find_unused_objects":
-            result = dg.find_unused_objects()
+            query_result = dg.find_unused_objects()
             print("=== Мёртвый код (на кого не ссылаются) ===")
-            for r in result:
+            for r in query_result:
                 print(f"  • {r}")
-            print(f"\nИтого: {len(result)} объектов")
+            print(f"\nИтого: {len(query_result)} объектов")
 
         elif args.query_type == "find_root_objects":
-            result = dg.find_root_objects()
+            query_result = dg.find_root_objects()
             print("=== Корневые объекты (на них ссылаются, сами ни на кого) ===")
-            for r in result:
+            for r in query_result:
                 print(f"  • {r}")
-            print(f"\nИтого: {len(result)} объектов")
+            print(f"\nИтого: {len(query_result)} объектов")
 
         elif args.query_type == "shortest_path":
             if not args.target:
                 print("❌ Укажите --target")
                 sys.exit(2)
-            result = dg.shortest_path(args.object, args.target)
-            if result:
+            query_result = dg.shortest_path(args.object, args.target)
+            if query_result:
                 print(f"=== Кратчайший путь {args.object} → {args.target} ===")
-                print(f"  {' → '.join(result)}")
+                print(f"  {' → '.join(query_result)}")
             else:
                 print(f"❌ Путь не найден: {args.object} → {args.target}")
 

@@ -370,7 +370,7 @@ def build_and_save_form_elem(form_spec: dict, output_path: Path) -> dict:
 # ─── CLI ─────────────────────────────────────────────────────────
 
 
-def _cli():
+def _cli() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(

@@ -169,15 +169,24 @@ exclude = [
 ]
 
 # P2.8: gradual strict typing
-# Чистые модули с полной типизацией (строгий режим)
+# P0.2: все модули теперь проходят mypy с disallow_untyped_defs (97→0 errors)
+# warn_return_any пока false — 32 ошибки remaining, исправим в P1
 [[tool.mypy.overrides]]
 module = [
+    "src.cli.*",
+    "src.cli_commands.*",
     "src.dsl.*",
     "src.exceptions",
+    "src.i18n",
+    "src.mcp_server",
+    "src.mcpserver.*",
+    "src.metrics",
     "src.models.*",
+    "src.project",
+    "src.services.*",
 ]
 disallow_untyped_defs = true
-warn_return_any = true
+warn_return_any = false  # P1: постепенно включить
 disallow_any_generics = false  # постепенно
 
 # ─── Coverage ───

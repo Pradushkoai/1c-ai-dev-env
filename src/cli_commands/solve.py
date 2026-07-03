@@ -200,9 +200,9 @@ def _solve_context(project: Project, args: argparse.Namespace) -> None:
         print(f"=== 4. СКД-схемы '{config_name}' ===")
         if ctx.skd_schemas:
             print(f"  Найдено {len(ctx.skd_schemas)} СКД-схем:")
-            for s in ctx.skd_schemas:
-                print(f"  • {s.parent_type}: {s.parent_name}: {s.name}")
-                print(f"    Наборов данных: {s.data_sets_count}, Параметров: {s.parameters_count}")
+            for schema in ctx.skd_schemas:
+                print(f"  • {schema.parent_type}: {schema.parent_name}: {schema.name}")
+                print(f"    Наборов данных: {schema.data_sets_count}, Параметров: {schema.parameters_count}")
             print()
         else:
             if any("skd" in m for m in ctx.missing_sources):
@@ -231,8 +231,8 @@ def _solve_context(project: Project, args: argparse.Namespace) -> None:
     print("=== 6. База знаний 1С ===")
     if ctx.knowledge_articles:
         print(f"  Найдено {len(ctx.knowledge_articles)} статей:")
-        for r in ctx.knowledge_articles:
-            print(f"  • [{r.category}] {r.title} (score={r.score})")
+        for article in ctx.knowledge_articles:
+            print(f"  • [{article.category}] {article.title} (score={article.score})")
         print()
     else:
         print("  Статьи не найдены.\n")

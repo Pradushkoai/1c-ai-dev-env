@@ -34,10 +34,10 @@ jobs:
           ruff format --check src/ tests/
         # P1.1: убран continue-on-error — форматирование приведено к общему стилю
 
-      - name: Mypy type checking
+      - name: Mypy type checking (strict, blocking)
         run: |
           mypy src/ --config-file pyproject.toml
-        continue-on-error: true  # P2.8: 145 ошибок, gradual strict typing
+        # P0.2: mypy теперь blocking — 0 errors с disallow_untyped_defs для всех модулей
 
       - name: Pre-commit hooks (all files, non-blocking)
         # P1.5: pre-commit hooks проверяют базовые вещи (whitespace, end-of-file, и т.д.)

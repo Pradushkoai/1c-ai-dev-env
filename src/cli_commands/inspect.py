@@ -115,7 +115,7 @@ def _inspect_cf(config_path: Path, mode: str) -> None:
     tree = ET.parse(config_path)
     root = tree.getroot()
 
-    def _strip_ns(tag):
+    def _strip_ns(tag: str) -> str:
         return tag.split("}")[-1] if "}" in tag else tag
 
     # Configuration.xml имеет root <MetaDataObject> или <Configuration>
@@ -190,7 +190,7 @@ def _inspect_meta(meta_path: Path, mode: str, name: str | None = None) -> None:
     tree = ET.parse(meta_path)
     root = tree.getroot()
 
-    def _strip_ns(tag):
+    def _strip_ns(tag: str) -> str:
         return tag.split("}")[-1] if "}" in tag else tag
 
     # Реальные файлы 1С имеют обёртку <MetaDataObject><Catalog>...</Catalog></MetaDataObject>
@@ -245,7 +245,7 @@ def _inspect_form(form_path: Path, mode: str) -> None:
     tree = ET.parse(form_path)
     root = tree.getroot()
 
-    def _strip_ns(tag):
+    def _strip_ns(tag: str) -> str:
         return tag.split("}")[-1] if "}" in tag else tag
 
     print("=== Form ===")
@@ -292,7 +292,7 @@ def _inspect_skd(skd_path: Path, mode: str) -> None:
     tree = ET.parse(skd_path)
     root = tree.getroot()
 
-    def _strip_ns(tag):
+    def _strip_ns(tag: str) -> str:
         return tag.split("}")[-1] if "}" in tag else tag
 
     print("=== СКД ===")
@@ -386,7 +386,7 @@ def _inspect_mxl(mxl_path: Path, mode: str) -> None:
     tree = ET.parse(mxl_path)
     root = tree.getroot()
 
-    def _strip_ns(tag):
+    def _strip_ns(tag: str) -> str:
         return tag.split("}")[-1] if "}" in tag else tag
 
     print("=== MXL Макет ===")
@@ -445,7 +445,7 @@ def _inspect_role(role_path: Path, mode: str) -> None:
     tree = ET.parse(role_path)
     root = tree.getroot()
 
-    def _strip_ns(tag):
+    def _strip_ns(tag: str) -> str:
         return tag.split("}")[-1] if "}" in tag else tag
 
     print("=== Role ===")
@@ -518,7 +518,7 @@ def _inspect_subsystem(subsystem_path: Path, mode: str) -> None:
     tree = ET.parse(subsystem_path)
     root = tree.getroot()
 
-    def _strip_ns(tag):
+    def _strip_ns(tag: str) -> str:
         return tag.split("}")[-1] if "}" in tag else tag
 
     # Поддержка обёртки MetaDataObject

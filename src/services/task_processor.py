@@ -25,6 +25,7 @@ import json
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 from ..models.task import (
     CheckResult,
@@ -324,7 +325,7 @@ class TaskProcessor:
 
         scripts_dir = self._paths.scripts_dir
 
-        def _load_script(script_name: str):
+        def _load_script(script_name: str) -> Any:
             # Если модуль уже загружен (например, тестом через sys.modules) — не перезагружаем
             if script_name in sys.modules:
                 return sys.modules[script_name]

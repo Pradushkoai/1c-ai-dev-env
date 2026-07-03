@@ -19,7 +19,10 @@ import logging
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .path_manager import PathManager
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +30,7 @@ logger = logging.getLogger(__name__)
 class BackupManager:
     """Управление backup/restore данных проекта."""
 
-    def __init__(self, paths):
+    def __init__(self, paths: PathManager) -> None:
         """paths — объект PathManager."""
         self.paths = paths
 
@@ -149,7 +152,7 @@ class BackupManager:
 
     def _get_target_dir(self, dir_name: str) -> Path | None:
         """Возвращает целевую директорию по имени."""
-        dirs = {
+        dirs: dict[str, Path | None] = {
             "data": self.paths.data_dir,
             "runtime": self.paths.runtime_dir,
             "derived": self.paths.derived_dir,
