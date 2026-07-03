@@ -221,9 +221,10 @@ class Project:
 
     def search_methods(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """
-        TF-IDF/BM25 поиск по методам платформы 1С.
+        Поиск по методам платформы 1С (P1.1: гибридный BM25 + vector).
 
         Авто-выбор алгоритма:
+        - Если доступен векторный поиск (fastembed + Qdrant) → гибридный (BM25 + vector)
         - v2 индекс (BM25) → гибридный поиск (BM25 + триграммы)
         - v1 индекс (TF-IDF) → классический TF-IDF (legacy)
 
@@ -234,12 +235,13 @@ class Project:
         Returns:
             Список: [{score, name_ru, name_en, context, syntax, description}]
         """
-        from .services.search_bm25 import search_auto
+        # P1.1: предпочитаем гибридный поиск (BM25 + vector) если доступен
+        from .services.search_hybrid import search_hybrid_auto
 
         index_path = self.paths.fast_search_index
         if not index_path.exists():
             return []
-        return search_auto(index_path, query, limit)
+        return search_hybrid_auto(index_path, query, limit)
 
     def __repr__(self) -> str:
         return f"Project(root={self.paths.root}, configs={len(self.registry)})"
