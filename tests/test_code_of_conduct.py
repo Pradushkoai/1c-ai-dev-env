@@ -27,16 +27,13 @@ class TestCodeOfConduct:
         content = COC_FILE.read_text(encoding="utf-8")
         line_count = len(content.splitlines())
         assert line_count >= 100, (
-            f"CODE_OF_CONDUCT.md must have >=100 lines (Contributor Covenant 2.1), "
-            f"got {line_count}"
+            f"CODE_OF_CONDUCT.md must have >=100 lines (Contributor Covenant 2.1), got {line_count}"
         )
 
     def test_mentions_contributor_covenant(self) -> None:
         """Должен ссылаться на Contributor Covenant."""
         content = COC_FILE.read_text(encoding="utf-8")
-        assert "Contributor Covenant" in content, (
-            "CODE_OF_CONDUCT.md must mention 'Contributor Covenant'"
-        )
+        assert "Contributor Covenant" in content, "CODE_OF_CONDUCT.md must mention 'Contributor Covenant'"
 
     def test_version_2_1(self) -> None:
         """Должна быть версия 2.1."""

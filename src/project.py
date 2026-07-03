@@ -14,7 +14,6 @@ from .services.bsl_analyzer import BSLAnalyzer
 from .services.config_manager import ConfigManager
 from .services.path_manager import PathManager
 
-
 # Маркеры корня проекта — файлы/директории, которые однозначно указывают,
 # что текущий каталог является корнем 1c-ai-dev-env.
 # Порядок важен: paths.env — наиболее специфичный маркер.
@@ -53,7 +52,7 @@ class Project:
         self._bsl_analyzer: BSLAnalyzer | None = None
 
     @classmethod
-    def from_cwd(cls, start: Path | None = None) -> "Project":
+    def from_cwd(cls, start: Path | None = None) -> Project:
         """
         Создать Project, автоматически обнаружив корень репозитория.
 
@@ -82,9 +81,7 @@ class Project:
         if env_root:
             root = Path(env_root).resolve()
             if not root.is_dir():
-                raise FileNotFoundError(
-                    f"ONEC_AI_DEV_ENV_ROOT points to non-existent dir: {root}"
-                )
+                raise FileNotFoundError(f"ONEC_AI_DEV_ENV_ROOT points to non-existent dir: {root}")
             return cls(project_root=root)
 
         # 2. Восходящий поиск маркера.

@@ -125,9 +125,7 @@ class TestConfigValidatorOnActiveConfig:
             encoding="utf-8",
         )
         (cfg_dir / "CommonModules").mkdir()
-        (cfg_dir / "CommonModules" / "TestModule.bsl").write_text(
-            "// test", encoding="utf-8"
-        )
+        (cfg_dir / "CommonModules" / "TestModule.bsl").write_text("// test", encoding="utf-8")
 
         # Регистрируем конфигурацию
         from src.models.configuration import Configuration
@@ -155,9 +153,7 @@ class TestConfigValidatorOnActiveConfig:
 class TestConfigBuilderStandalone:
     """ConfigBuilder работает независимо от ConfigManager."""
 
-    def test_builder_can_be_instantiated(
-        self, project_setup: tuple[PathManager, ConfigurationRegistry, Path]
-    ) -> None:
+    def test_builder_can_be_instantiated(self, project_setup: tuple[PathManager, ConfigurationRegistry, Path]) -> None:
         """ConfigBuilder инстанцируется с registry и paths."""
         pm, reg, _ = project_setup
         builder = ConfigBuilder(reg, pm)
@@ -172,9 +168,7 @@ class TestConfigBuilderStandalone:
         with pytest.raises(ValueError, match="не активна"):
             builder.build("nonexistent")
 
-    def test_build_all_returns_list(
-        self, project_setup: tuple[PathManager, ConfigurationRegistry, Path]
-    ) -> None:
+    def test_build_all_returns_list(self, project_setup: tuple[PathManager, ConfigurationRegistry, Path]) -> None:
         """build_all возвращает список (пустой если нет активных конфигов)."""
         pm, reg, _ = project_setup
         builder = ConfigBuilder(reg, pm)
@@ -223,9 +217,7 @@ class TestConfigManagerDelegation:
         assert cm._builder is not None
         assert cm._validator is not None
 
-    def test_builder_cached(
-        self, project_setup: tuple[PathManager, ConfigurationRegistry, Path]
-    ) -> None:
+    def test_builder_cached(self, project_setup: tuple[PathManager, ConfigurationRegistry, Path]) -> None:
         """Повторное обращение к builder возвращает тот же объект."""
         pm, reg, _ = project_setup
         cm = ConfigManager(reg, pm)
@@ -233,9 +225,7 @@ class TestConfigManagerDelegation:
         b2 = cm.builder
         assert b1 is b2
 
-    def test_validator_cached(
-        self, project_setup: tuple[PathManager, ConfigurationRegistry, Path]
-    ) -> None:
+    def test_validator_cached(self, project_setup: tuple[PathManager, ConfigurationRegistry, Path]) -> None:
         """Повторное обращение к validator возвращает тот же объект."""
         pm, reg, _ = project_setup
         cm = ConfigManager(reg, pm)
@@ -252,9 +242,7 @@ class TestConfigManagerDelegation:
 class TestConfigManagerBackwardCompat:
     """Все существующие методы ConfigManager должны работать как раньше."""
 
-    def test_all_existing_methods_present(
-        self, project_setup: tuple[PathManager, ConfigurationRegistry, Path]
-    ) -> None:
+    def test_all_existing_methods_present(self, project_setup: tuple[PathManager, ConfigurationRegistry, Path]) -> None:
         """ConfigManager сохраняет все public методы."""
         pm, reg, _ = project_setup
         cm = ConfigManager(reg, pm)
@@ -316,9 +304,7 @@ class TestSRP:
         assert not hasattr(validator, "build")
         assert not hasattr(validator, "build_all")
 
-    def test_config_builder_only_builds(
-        self, project_setup: tuple[PathManager, ConfigurationRegistry, Path]
-    ) -> None:
+    def test_config_builder_only_builds(self, project_setup: tuple[PathManager, ConfigurationRegistry, Path]) -> None:
         """ConfigBuilder не должен иметь CRUD или validate методов."""
         pm, reg, _ = project_setup
         builder = ConfigBuilder(reg, pm)

@@ -54,13 +54,9 @@ class TestFromCwdDetectsRoot:
         project = Project.from_cwd()
         assert project.paths.root == fake_project_root
 
-    def test_finds_root_via_pyproject_only(
-        self, isolated_env, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_finds_root_via_pyproject_only(self, isolated_env, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Если есть только pyproject.toml — это тоже валидный маркер."""
-        (tmp_path / "pyproject.toml").write_text(
-            '[project]\nname = "x"\n', encoding="utf-8"
-        )
+        (tmp_path / "pyproject.toml").write_text('[project]\nname = "x"\n', encoding="utf-8")
         monkeypatch.chdir(tmp_path)
         project = Project.from_cwd()
         assert project.paths.root == tmp_path
@@ -86,9 +82,7 @@ class TestFromCwdDetectsRoot:
         project = Project.from_cwd(start=nested)
         assert project.paths.root == fake_project_root
 
-    def test_env_var_overrides_auto_detection(
-        self, fake_project_root: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_env_var_overrides_auto_detection(self, fake_project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """ONEC_AI_DEV_ENV_ROOT имеет высший приоритет."""
         # chdir в /tmp (точно не корень проекта), но env указывает на реальный корень
         monkeypatch.chdir(Path("/tmp"))
@@ -106,9 +100,7 @@ class TestFromCwdRaisesWhenRootNotFound:
     """from_cwd должен ЯВНО падать, если корень не найден — это лучше,
     чем молча вернуть cwd и получить пустой SARIF (корень бага P0.1)."""
 
-    def test_raises_in_dir_without_markers(
-        self, isolated_env, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_raises_in_dir_without_markers(self, isolated_env, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """В /tmp без маркеров — FileNotFoundError."""
         # /tmp может содержать случайные файлы, используем tmp_path без маркеров
         empty_dir = tmp_path / "empty"
@@ -117,28 +109,20 @@ class TestFromCwdRaisesWhenRootNotFound:
         with pytest.raises(FileNotFoundError, match="Project root not found"):
             Project.from_cwd()
 
-    def test_raises_with_explicit_start_without_markers(
-        self, isolated_env, tmp_path: Path
-    ) -> None:
+    def test_raises_with_explicit_start_without_markers(self, isolated_env, tmp_path: Path) -> None:
         """Явный start без маркеров — тоже FileNotFoundError."""
         empty_dir = tmp_path / "no_markers"
         empty_dir.mkdir()
         with pytest.raises(FileNotFoundError, match="none of"):
             Project.from_cwd(start=empty_dir)
 
-    def test_env_var_pointing_to_nonexistent_dir_raises(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_env_var_pointing_to_nonexistent_dir_raises(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """ONEC_AI_DEV_ENV_ROOT указывает на несуществующий путь — FileNotFoundError."""
-        monkeypatch.setenv(
-            "ONEC_AI_DEV_ENV_ROOT", str(tmp_path / "does_not_exist")
-        )
+        monkeypatch.setenv("ONEC_AI_DEV_ENV_ROOT", str(tmp_path / "does_not_exist"))
         with pytest.raises(FileNotFoundError, match="non-existent dir"):
             Project.from_cwd()
 
-    def test_error_message_lists_markers(
-        self, isolated_env, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_error_message_lists_markers(self, isolated_env, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Сообщение об ошибке упоминает все маркеры — помогает отладке."""
         empty_dir = tmp_path / "empty2"
         empty_dir.mkdir()
@@ -177,9 +161,7 @@ class TestRunSarifScanIntegration:
             text=True,
             timeout=30,
         )
-        assert result.returncode == 0, (
-            f"run_sarif_scan.py failed: stderr={result.stderr}\nstdout={result.stdout}"
-        )
+        assert result.returncode == 0, f"run_sarif_scan.py failed: stderr={result.stderr}\nstdout={result.stdout}"
         assert out_sarif.exists(), "SARIF file was not created"
         # SARIF должен быть валидным JSON 2.1.0
         data = json.loads(out_sarif.read_text(encoding="utf-8"))

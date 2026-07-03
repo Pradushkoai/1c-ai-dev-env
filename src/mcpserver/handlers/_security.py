@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 def resolve_path_within_project(
     raw_path: str,
-    project: "Project",
+    project: Project,
     *,
     must_exist: bool = False,
 ) -> Path | None:
@@ -60,7 +60,7 @@ def resolve_path_within_project(
     project_root = project.paths.root.resolve()
 
     # Шаг 1: делаем путь абсолютным (relative → relative to project root).
-    if os.path.isabs(raw_path):
+    if os.path.isabs(raw_path):  # noqa: SIM108 - явный if-else для читаемости security-кода
         candidate = Path(raw_path)
     else:
         candidate = project_root / raw_path
@@ -91,7 +91,7 @@ def resolve_path_within_project(
     return resolved
 
 
-def is_path_within_project(path: Path, project: "Project") -> bool:
+def is_path_within_project(path: Path, project: Project) -> bool:
     """
     Быстрая проверка: находится ли path внутри project.paths.root.
 

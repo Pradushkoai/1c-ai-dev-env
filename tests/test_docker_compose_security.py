@@ -55,12 +55,8 @@ class TestDockerComposeSecurity:
             for v in vols:
                 v_str = str(v)
                 # ${HOME} или $HOME — оба варианта запрещены
-                assert "${HOME}" not in v_str, (
-                    f"Service '{svc_name}' mounts ${{HOME}}: {v_str} (P1.7 violation)"
-                )
-                assert "$HOME" not in v_str, (
-                    f"Service '{svc_name}' mounts $HOME: {v_str} (P1.7 violation)"
-                )
+                assert "${HOME}" not in v_str, f"Service '{svc_name}' mounts ${{HOME}}: {v_str} (P1.7 violation)"
+                assert "$HOME" not in v_str, f"Service '{svc_name}' mounts $HOME: {v_str} (P1.7 violation)"
                 # /host:ro может присутствовать только если это конкретная директория
                 # (не $HOME). Допускаем ./host:/app/host:ro и подобные.
 
@@ -77,9 +73,7 @@ class TestDockerComposeSecurity:
             if stripped.startswith("#"):
                 continue
             # Активная монтировка $HOME
-            assert "${HOME}" not in stripped, (
-                f"Line {line_num}: active ${{HOME}} mount: {line}"
-            )
+            assert "${HOME}" not in stripped, f"Line {line_num}: active ${{HOME}} mount: {line}"
             # Проверяем что /host:ro не используется с $HOME
             if "/host:ro" in stripped and not stripped.startswith("#"):
                 # Допускаем только явные относительные пути (./...) или именованные volumes
@@ -97,15 +91,9 @@ class TestDockerComposeSecurity:
             cfg = yaml.safe_load(f)
         cli_vols = cfg["services"]["cli"].get("volumes", [])
         vol_strs = [str(v) for v in cli_vols]
-        assert any("./data:/app/data" in s for s in vol_strs), (
-            "cli service must mount ./data:/app/data"
-        )
-        assert any("./derived:/app/derived" in s for s in vol_strs), (
-            "cli service must mount ./derived:/app/derived"
-        )
-        assert any("./runtime:/app/runtime" in s for s in vol_strs), (
-            "cli service must mount ./runtime:/app/runtime"
-        )
+        assert any("./data:/app/data" in s for s in vol_strs), "cli service must mount ./data:/app/data"
+        assert any("./derived:/app/derived" in s for s in vol_strs), "cli service must mount ./derived:/app/derived"
+        assert any("./runtime:/app/runtime" in s for s in vol_strs), "cli service must mount ./runtime:/app/runtime"
 
     def test_comment_documents_replacement(self) -> None:
         """В комментарии должно быть указано как явно примонтировать конкретную
@@ -113,6 +101,5 @@ class TestDockerComposeSecurity:
         content = COMPOSE_FILE.read_text(encoding="utf-8")
         # Должен быть комментарий с инструкцией
         assert "bsl-sources" in content or "конкретную директорию" in content, (
-            "docker-compose.yml should have a comment explaining how to mount "
-            "a specific directory instead of $HOME"
+            "docker-compose.yml should have a comment explaining how to mount a specific directory instead of $HOME"
         )

@@ -36,9 +36,7 @@ class TestUnifiedTypeMap:
 
     def test_unified_type_map_has_all_41_types(self) -> None:
         """Unified TYPE_MAP должен содержать все 41 типа 1С."""
-        assert len(UNIFIED_TYPE_MAP) >= 41, (
-            f"Unified TYPE_MAP must have >=41 types, got {len(UNIFIED_TYPE_MAP)}"
-        )
+        assert len(UNIFIED_TYPE_MAP) >= 41, f"Unified TYPE_MAP must have >=41 types, got {len(UNIFIED_TYPE_MAP)}"
 
     def test_each_entry_has_xml_tag_and_dir(self) -> None:
         """Каждая запись должна иметь xml_tag и dir."""
@@ -55,9 +53,7 @@ class TestUnifiedTypeMap:
         """
         # Проверяем что нет типичных опечаток
         for typo in ("WebServce", "Catalogg", "Documentt", "Rol"):
-            assert typo not in UNIFIED_TYPE_MAP, (
-                f"Typo '{typo}' found in TYPE_MAP (regression)"
-            )
+            assert typo not in UNIFIED_TYPE_MAP, f"Typo '{typo}' found in TYPE_MAP (regression)"
 
     def test_webservice_present(self) -> None:
         """WebService должен быть в TYPE_MAP (P0.2 regression)."""
@@ -88,33 +84,26 @@ class TestDrySingleSource:
         """CFE TYPE_MAP должен быть identity-equal unified TYPE_MAP."""
         # Поскольку cfe_manager делает `from .object_types import TYPE_MAP`,
         # они должны быть одним и тем же объектом.
-        assert CFE_TYPE_MAP is UNIFIED_TYPE_MAP, (
-            "CFE TYPE_MAP must be the SAME object as unified (not a copy)"
-        )
+        assert CFE_TYPE_MAP is UNIFIED_TYPE_MAP, "CFE TYPE_MAP must be the SAME object as unified (not a copy)"
 
     def test_dsl_is_subset_of_unified(self) -> None:
         """DSL TYPE_MAP должен быть подмножеством unified (по ключам)."""
         dsl_keys = set(DSL_TYPE_MAP.keys())
         unified_keys = set(UNIFIED_TYPE_MAP.keys())
-        assert dsl_keys.issubset(unified_keys), (
-            f"DSL types not in unified: {dsl_keys - unified_keys}"
-        )
+        assert dsl_keys.issubset(unified_keys), f"DSL types not in unified: {dsl_keys - unified_keys}"
 
     def test_dsl_entries_match_unified(self) -> None:
         """Для каждого типа в DSL, запись должна совпадать с unified."""
         for type_name, dsl_info in DSL_TYPE_MAP.items():
             unified_info = UNIFIED_TYPE_MAP[type_name]
             assert dsl_info == unified_info, (
-                f"DSL entry for {type_name} ({dsl_info}) differs from "
-                f"unified ({unified_info})"
+                f"DSL entry for {type_name} ({dsl_info}) differs from unified ({unified_info})"
             )
 
     def test_dsl_does_not_include_unsupported_types(self) -> None:
         """DSL не должен включать типы, не входящие в DSL_SUPPORTED_TYPES."""
         for type_name in DSL_TYPE_MAP:
-            assert type_name in DSL_SUPPORTED_TYPES, (
-                f"{type_name} in DSL TYPE_MAP but not in DSL_SUPPORTED_TYPES"
-            )
+            assert type_name in DSL_SUPPORTED_TYPES, f"{type_name} in DSL TYPE_MAP but not in DSL_SUPPORTED_TYPES"
 
 
 # ============================================================================
@@ -177,18 +166,32 @@ class TestBackwardCompatibility:
         """DSL TYPE_MAP должен содержать все типы, что и до рефакторинга."""
         # Типы, которые были в dsl/_common.py до P3.17
         expected_dsl_types = {
-            "Catalog", "Document", "Enum", "Constant",
-            "InformationRegister", "AccumulationRegister",
-            "AccountingRegister", "CalculationRegister",
-            "ChartOfAccounts", "ChartOfCharacteristicTypes",
-            "ChartOfCalculationTypes", "BusinessProcess", "Task",
-            "ExchangePlan", "DocumentJournal", "Report", "DataProcessor",
-            "CommonModule", "ScheduledJob", "EventSubscription",
-            "DefinedType", "HTTPService", "WebService",
+            "Catalog",
+            "Document",
+            "Enum",
+            "Constant",
+            "InformationRegister",
+            "AccumulationRegister",
+            "AccountingRegister",
+            "CalculationRegister",
+            "ChartOfAccounts",
+            "ChartOfCharacteristicTypes",
+            "ChartOfCalculationTypes",
+            "BusinessProcess",
+            "Task",
+            "ExchangePlan",
+            "DocumentJournal",
+            "Report",
+            "DataProcessor",
+            "CommonModule",
+            "ScheduledJob",
+            "EventSubscription",
+            "DefinedType",
+            "HTTPService",
+            "WebService",
         }
         assert set(DSL_TYPE_MAP.keys()) == expected_dsl_types, (
-            f"DSL TYPE_MAP keys changed: expected {expected_dsl_types}, "
-            f"got {set(DSL_TYPE_MAP.keys())}"
+            f"DSL TYPE_MAP keys changed: expected {expected_dsl_types}, got {set(DSL_TYPE_MAP.keys())}"
         )
 
     def test_cfe_has_same_keys_as_before(self) -> None:
@@ -196,19 +199,28 @@ class TestBackwardCompatibility:
         # Типы, которые были в cfe_manager.py до P3.17
         # (41 тип, включая добавленные в CFE только)
         cfe_only_types = {
-            "CommonForm", "CommonCommand", "CommonTemplate", "CommonPicture",
-            "CommonAttribute", "CommandGroup", "DocumentNumerator",
-            "FilterCriterion", "FunctionalOption", "FunctionalOptionParameter",
-            "Sequence", "SessionParameter", "SettingsStorage",
-            "Style", "Subsystem", "Role", "WSReference", "XDTOPackage",
+            "CommonForm",
+            "CommonCommand",
+            "CommonTemplate",
+            "CommonPicture",
+            "CommonAttribute",
+            "CommandGroup",
+            "DocumentNumerator",
+            "FilterCriterion",
+            "FunctionalOption",
+            "FunctionalOptionParameter",
+            "Sequence",
+            "SessionParameter",
+            "SettingsStorage",
+            "Style",
+            "Subsystem",
+            "Role",
+            "WSReference",
+            "XDTOPackage",
         }
         # Все CFE-only типы должны быть в CFE_TYPE_MAP
         for t in cfe_only_types:
-            assert t in CFE_TYPE_MAP, (
-                f"CFE-only type {t} missing from CFE TYPE_MAP"
-            )
+            assert t in CFE_TYPE_MAP, f"CFE-only type {t} missing from CFE TYPE_MAP"
         # И НЕ должны быть в DSL_TYPE_MAP
         for t in cfe_only_types:
-            assert t not in DSL_TYPE_MAP, (
-                f"CFE-only type {t} should NOT be in DSL TYPE_MAP"
-            )
+            assert t not in DSL_TYPE_MAP, f"CFE-only type {t} should NOT be in DSL TYPE_MAP"

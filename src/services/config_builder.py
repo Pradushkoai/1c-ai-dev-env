@@ -65,8 +65,8 @@ class ConfigBuilder:
 
     def __init__(
         self,
-        registry: "ConfigurationRegistry",
-        paths: "PathManager",
+        registry: ConfigurationRegistry,
+        paths: PathManager,
     ) -> None:
         self._registry = registry
         self._paths = paths
@@ -100,10 +100,7 @@ class ConfigBuilder:
         # Валидация исходников перед индексацией
         validation = self._validator.validate_sources(name)
         if not validation.is_valid:
-            raise ValueError(
-                f"Исходники конфигурации '{name}' невалидны: "
-                + "; ".join(validation.errors)
-            )
+            raise ValueError(f"Исходники конфигурации '{name}' невалидны: " + "; ".join(validation.errors))
 
         # Проверка актуальности (если не force)
         skipped: list[str] = []
@@ -249,13 +246,11 @@ class ConfigBuilder:
             timeout=600,
         )
         if result.returncode != 0:
-            raise RuntimeError(
-                f"{script_path.name} failed: {result.stderr[-500:]}"
-            )
+            raise RuntimeError(f"{script_path.name} failed: {result.stderr[-500:]}")
 
     def _build_api_reference(
         self,
-        config: "Configuration",
+        config: Configuration,
         output_md: Path,
         output_json: Path,
     ) -> None:
@@ -287,17 +282,42 @@ class ConfigBuilder:
     def _count_objects(config_dir: Path) -> int:
         """Посчитать количество объектов метаданных в директории конфигурации."""
         type_dirs = [
-            "Catalogs", "Documents", "Enums", "Constants", "CommonModules",
-            "InformationRegisters", "AccumulationRegisters", "Reports",
-            "DataProcessors", "CommonForms", "CommonTemplates",
-            "CommonCommands", "CommonPictures", "Roles", "Subsystems",
-            "EventSubscriptions", "ScheduledJobs", "DefinedTypes",
-            "FunctionalOptions", "ExchangePlans", "ChartsOfCharacteristicTypes",
-            "HTTPServices", "WebServices", "XDTOPackages", "FilterCriteria",
-            "SessionParameters", "CommandGroups", "SettingsStorages",
-            "BusinessProcesses", "Tasks", "DocumentJournals",
-            "DocumentNumerators", "Sequences", "FunctionalOptionsParameters",
-            "CommonAttributes", "WSReferences",
+            "Catalogs",
+            "Documents",
+            "Enums",
+            "Constants",
+            "CommonModules",
+            "InformationRegisters",
+            "AccumulationRegisters",
+            "Reports",
+            "DataProcessors",
+            "CommonForms",
+            "CommonTemplates",
+            "CommonCommands",
+            "CommonPictures",
+            "Roles",
+            "Subsystems",
+            "EventSubscriptions",
+            "ScheduledJobs",
+            "DefinedTypes",
+            "FunctionalOptions",
+            "ExchangePlans",
+            "ChartsOfCharacteristicTypes",
+            "HTTPServices",
+            "WebServices",
+            "XDTOPackages",
+            "FilterCriteria",
+            "SessionParameters",
+            "CommandGroups",
+            "SettingsStorages",
+            "BusinessProcesses",
+            "Tasks",
+            "DocumentJournals",
+            "DocumentNumerators",
+            "Sequences",
+            "FunctionalOptionsParameters",
+            "CommonAttributes",
+            "WSReferences",
         ]
         count = 0
         for type_dir in type_dirs:

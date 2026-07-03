@@ -142,7 +142,9 @@ class MxlCompiler:
 
         return result
 
-    def _parse_column_widths(self, column_widths: dict, columns: int, default_width: int, total_width: int | None = None) -> list[int]:
+    def _parse_column_widths(
+        self, column_widths: dict, columns: int, default_width: int, total_width: int | None = None
+    ) -> list[int]:
         """Парсит columnWidths dict в список ширин по колонкам."""
         widths = [default_width] * columns
         for key, val in column_widths.items():

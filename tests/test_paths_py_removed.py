@@ -30,15 +30,11 @@ class TestPathsPyRemoved:
 
     def test_paths_py_not_in_root(self) -> None:
         """paths.py НЕ должен существовать в корне репозитория."""
-        assert not (REPO_ROOT / "paths.py").exists(), (
-            "paths.py must be removed (P2.15) — use PathManager instead"
-        )
+        assert not (REPO_ROOT / "paths.py").exists(), "paths.py must be removed (P2.15) — use PathManager instead"
 
     def test_paths_py_not_in_runtime(self) -> None:
         """paths.py НЕ должен существовать в runtime/."""
-        assert not (REPO_ROOT / "runtime" / "paths.py").exists(), (
-            "runtime/paths.py must be removed (P2.15)"
-        )
+        assert not (REPO_ROOT / "runtime" / "paths.py").exists(), "runtime/paths.py must be removed (P2.15)"
 
     def test_no_paths_module_imports(self) -> None:
         """Ни один Python-файл НЕ должен импортировать paths module.
@@ -59,9 +55,7 @@ class TestPathsPyRemoved:
             timeout=10,
         )
         # grep exit code 1 = no matches (что нам и нужно)
-        assert result.returncode == 1, (
-            f"Found imports of 'paths' module (P2.15 violation):\n{result.stdout}"
-        )
+        assert result.returncode == 1, f"Found imports of 'paths' module (P2.15 violation):\n{result.stdout}"
 
     def test_paths_py_not_in_dockerfile(self) -> None:
         """Dockerfile не должен копировать paths.py."""
@@ -76,9 +70,7 @@ class TestPathsPyRemoved:
             if stripped.startswith("#"):
                 continue
             if "COPY" in stripped and "paths.py" in stripped:
-                pytest.fail(
-                    f"Dockerfile still copies paths.py: {line}"
-                )
+                pytest.fail(f"Dockerfile still copies paths.py: {line}")
 
     def test_paths_py_not_in_install_sh(self) -> None:
         """install.sh не должен ссылаться на paths.py (кроме комментариев)."""
@@ -91,13 +83,8 @@ class TestPathsPyRemoved:
             # Активные команды с paths.py
             if "paths.py" in stripped:
                 # Допускаем упоминание в echo-сообщениях, но не в cp/ln
-                if any(
-                    cmd in stripped
-                    for cmd in ("cp ", "ln -sf", "mv ", "rm ")
-                ):
-                    pytest.fail(
-                        f"install.sh line {line_num} still references paths.py: {line}"
-                    )
+                if any(cmd in stripped for cmd in ("cp ", "ln -sf", "mv ", "rm ")):
+                    pytest.fail(f"install.sh line {line_num} still references paths.py: {line}")
 
 
 # ============================================================================
@@ -136,18 +123,12 @@ class TestPathManagerReplacement:
         ):
             script_path = REPO_ROOT / "scripts" / script_name
             content = script_path.read_text(encoding="utf-8")
-            assert "PathManager" in content, (
-                f"{script_name} must use PathManager (P2.15)"
-            )
+            assert "PathManager" in content, f"{script_name} must use PathManager (P2.15)"
             # Не должно быть активного импорта paths
             import re
 
-            active_imports = re.findall(
-                r"^\s*from paths\s+import|^\s*import paths", content, re.MULTILINE
-            )
-            assert not active_imports, (
-                f"{script_name} still imports paths module: {active_imports}"
-            )
+            active_imports = re.findall(r"^\s*from paths\s+import|^\s*import paths", content, re.MULTILINE)
+            assert not active_imports, f"{script_name} still imports paths module: {active_imports}"
 
 
 # ============================================================================
@@ -172,9 +153,5 @@ class TestNoDeprecationWarningNeeded:
 
             importlib.reload(pm_module)
             # Не должно быть warning про paths.py
-            paths_warnings = [
-                warning for warning in w if "paths.py" in str(warning.message)
-            ]
-            assert not paths_warnings, (
-                f"Unexpected paths.py deprecation warnings: {paths_warnings}"
-            )
+            paths_warnings = [warning for warning in w if "paths.py" in str(warning.message)]
+            assert not paths_warnings, f"Unexpected paths.py deprecation warnings: {paths_warnings}"

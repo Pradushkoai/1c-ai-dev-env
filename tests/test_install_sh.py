@@ -58,9 +58,7 @@ class TestInstallShCommandsExist:
             text=True,
             timeout=10,
         )
-        assert result.returncode == 0, (
-            f"install.sh has bash syntax errors:\n{result.stderr}"
-        )
+        assert result.returncode == 0, f"install.sh has bash syntax errors:\n{result.stderr}"
 
     def test_no_references_to_nonexistent_register_config(self) -> None:
         """install.sh НЕ должен вызывать scripts/register_config.py (он удалён).
@@ -73,10 +71,7 @@ class TestInstallShCommandsExist:
         # Находим все ВЫЗОВЫ register_config.py (не комментарии)
         call_pattern = re.compile(r"^\s*python3\s+.*register_config\.py", re.MULTILINE)
         matches = call_pattern.findall(content)
-        assert not matches, (
-            f"install.sh still calls register_config.py (P0.3 regression):\n"
-            f"{matches}"
-        )
+        assert not matches, f"install.sh still calls register_config.py (P0.3 regression):\n{matches}"
 
     def test_install_sh_uses_src_cli_config_commands(self) -> None:
         """install.sh должен использовать `python3 -m src.cli config add/build`."""
@@ -103,8 +98,7 @@ class TestInstallShCommandsExist:
             timeout=15,
         )
         assert result.returncode == 0, (
-            f"`python3 -m src.cli {cli_subcommand} --help` failed:\n"
-            f"stderr={result.stderr}\nstdout={result.stdout}"
+            f"`python3 -m src.cli {cli_subcommand} --help` failed:\nstderr={result.stderr}\nstdout={result.stdout}"
         )
 
     def test_install_sh_final_report_uses_src_cli(self) -> None:

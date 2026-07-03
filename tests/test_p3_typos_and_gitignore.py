@@ -22,9 +22,7 @@ class TestP318CallGraphTypo:
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 1, (
-            f"Found truncated 'Сре' (should be 'Сред'):\n{result.stdout}"
-        )
+        assert result.returncode == 1, f"Found truncated 'Сре' (should be 'Сред'):\n{result.stdout}"
 
     def test_sred_present(self) -> None:
         """BSL_KEYWORDS должен содержать 'Сред' (Mid function)."""
@@ -43,10 +41,7 @@ class TestP319LoggerTypo:
         # Простой поиск CJK иероглифов
         for char in content:
             if "\u4e00" <= char <= "\u9fff":
-                pytest.fail(
-                    f"Chinese character '{char}' found in logger.py "
-                    f"(should be Russian after P3.19 fix)"
-                )
+                pytest.fail(f"Chinese character '{char}' found in logger.py (should be Russian after P3.19 fix)")
 
     def test_mnogokratno_present(self) -> None:
         """В docstring должно быть 'многократно'."""
@@ -98,9 +93,7 @@ class TestP320Gitignore:
                 capture_output=True,
                 text=True,
             )
-            assert result.returncode == 0, (
-                f".vscode/settings.json should be gitignored, got: {result.stderr}"
-            )
+            assert result.returncode == 0, f".vscode/settings.json should be gitignored, got: {result.stderr}"
         finally:
             if not original_exists:
                 test_file.unlink(missing_ok=True)

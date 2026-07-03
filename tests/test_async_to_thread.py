@@ -100,10 +100,7 @@ class TestRunSync:
 
         result = await run_sync(capture_thread)
         assert result == captured_thread
-        assert result != main_thread, (
-            f"sync function must run in a different thread, "
-            f"got same as main: {main_thread}"
-        )
+        assert result != main_thread, f"sync function must run in a different thread, got same as main: {main_thread}"
 
 
 # ============================================================================
@@ -171,29 +168,22 @@ class TestHandlersUseRunSync:
         project.paths = tmp_path
 
         # Патчим TaskProcessor и run_sync
-        with patch(
-            "src.services.task_processor.TaskProcessor"
-        ) as mock_tp_class, patch(
-            "src.mcpserver.handlers.analyzers.run_sync", new_callable=AsyncMock
-        ) as mock_run_sync:
+        with (
+            patch("src.services.task_processor.TaskProcessor") as mock_tp_class,
+            patch("src.mcpserver.handlers.analyzers.run_sync", new_callable=AsyncMock) as mock_run_sync,
+        ):
             processor = mock_tp_class.return_value
             mock_result = MagicMock()
             mock_result.to_dict.return_value = {"ok": True}
             mock_run_sync.return_value = mock_result
 
-            result = await handle_solve_check(
-                project, {"file_path": "test.bsl", "level": "standard"}
-            )
+            result = await handle_solve_check(project, {"file_path": "test.bsl", "level": "standard"})
 
             # run_sync должен быть вызван (а не processor.check напрямую)
-            assert mock_run_sync.called, (
-                "handle_solve_check must call run_sync() — not processor.check() directly"
-            )
+            assert mock_run_sync.called, "handle_solve_check must call run_sync() — not processor.check() directly"
             # Первый аргумент run_sync — это processor.check
             called_args = mock_run_sync.call_args
-            assert called_args.args[0] == processor.check, (
-                "run_sync must be called with processor.check as first arg"
-            )
+            assert called_args.args[0] == processor.check, "run_sync must be called with processor.check as first arg"
 
     @pytest.mark.asyncio
     async def test_search_1c_methods_uses_to_thread(self) -> None:
@@ -202,18 +192,12 @@ class TestHandlersUseRunSync:
 
         project = MagicMock()
 
-        with patch(
-            "src.mcpserver.handlers.config_search.run_sync", new_callable=AsyncMock
-        ) as mock_run_sync:
+        with patch("src.mcpserver.handlers.config_search.run_sync", new_callable=AsyncMock) as mock_run_sync:
             mock_run_sync.return_value = []
 
-            await handle_search_1c_methods(
-                project, {"query": "Найти", "limit": 5}
-            )
+            await handle_search_1c_methods(project, {"query": "Найти", "limit": 5})
 
-            assert mock_run_sync.called, (
-                "handle_search_1c_methods must use run_sync for project.search_methods"
-            )
+            assert mock_run_sync.called, "handle_search_1c_methods must use run_sync for project.search_methods"
             called_args = mock_run_sync.call_args
             assert called_args.args[0] == project.search_methods, (
                 "run_sync must be called with project.search_methods as first arg"
@@ -226,9 +210,7 @@ class TestHandlersUseRunSync:
 
         project = MagicMock()
 
-        with patch(
-            "src.mcpserver.handlers.analyzers.run_sync", new_callable=AsyncMock
-        ) as mock_run_sync:
+        with patch("src.mcpserver.handlers.analyzers.run_sync", new_callable=AsyncMock) as mock_run_sync:
             mock_result = MagicMock()
             mock_result.total = 0
             mock_result.by_code = {}
@@ -237,9 +219,7 @@ class TestHandlersUseRunSync:
 
             await handle_analyze_bsl(project, {"file_path": "test.bsl"})
 
-            assert mock_run_sync.called, (
-                "handle_analyze_bsl must use run_sync for bsl_analyzer.analyze"
-            )
+            assert mock_run_sync.called, "handle_analyze_bsl must use run_sync for bsl_analyzer.analyze"
             called_args = mock_run_sync.call_args
             assert called_args.args[0] == project.bsl_analyzer.analyze
 
@@ -260,6 +240,7 @@ class TestConcurrentMcpRequests:
         from src.mcpserver.handlers.config_search import handle_search_1c_methods
 
         project = MagicMock()
+
         # Делаем search_methods медленным (sync-функция)
         def slow_search(query, limit):
             time.sleep(0.2)  # 200мс sync блокировка
@@ -268,9 +249,7 @@ class TestConcurrentMcpRequests:
         project.search_methods = slow_search
 
         async def make_call(query: str) -> str:
-            result = await handle_search_1c_methods(
-                project, {"query": query, "limit": 1}
-            )
+            result = await handle_search_1c_methods(project, {"query": query, "limit": 1})
             import json
 
             return json.loads(result[0].text)[0]["name"]

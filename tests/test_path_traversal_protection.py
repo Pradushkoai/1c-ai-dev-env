@@ -79,8 +79,7 @@ class TestResolvePathWithinProject:
         project = _make_project(tmp_path)
         result = resolve_path_within_project("../../../etc/passwd", project)
         assert result is None, (
-            "Path traversal via '..' must be blocked — got: "
-            f"{result} (would allow access to files outside project)"
+            f"Path traversal via '..' must be blocked — got: {result} (would allow access to files outside project)"
         )
 
     def test_absolute_path_outside_project_blocked(self, tmp_path: Path) -> None:
@@ -98,15 +97,11 @@ class TestResolvePathWithinProject:
         """must_exist=True → None если файл не существует."""
         project = _make_project(tmp_path)
         # Файл не существует
-        result = resolve_path_within_project(
-            "nonexistent.bsl", project, must_exist=True
-        )
+        result = resolve_path_within_project("nonexistent.bsl", project, must_exist=True)
         assert result is None
         # Создаём файл
         (tmp_path / "exists.bsl").write_text("// ok", encoding="utf-8")
-        result = resolve_path_within_project(
-            "exists.bsl", project, must_exist=True
-        )
+        result = resolve_path_within_project("exists.bsl", project, must_exist=True)
         assert result is not None
 
     def test_nested_dotdot_within_project_ok(self, tmp_path: Path) -> None:
@@ -137,10 +132,7 @@ class TestResolvePathWithinProject:
                 pytest.skip("symlink creation not supported on this platform")
             # Через симлинк пытаемся прочитать secret
             result = resolve_path_within_project("link_to_secret.bsl", project)
-            assert result is None, (
-                f"Symlink escape must be blocked — got: {result} "
-                f"(would allow reading {secret_file})"
-            )
+            assert result is None, f"Symlink escape must be blocked — got: {result} (would allow reading {secret_file})"
         finally:
             if secret_file.exists():
                 secret_file.unlink()
@@ -158,9 +150,7 @@ class TestHandlerPathTraversalBlocked:
     async def test_audit_security_blocks_traversal(self, tmp_path: Path) -> None:
         """handle_audit_security('file_path=../../../etc/passwd') → error."""
         project = _make_project(tmp_path)
-        result = await handle_audit_security(
-            project, {"file_path": "../../../etc/passwd"}
-        )
+        result = await handle_audit_security(project, {"file_path": "../../../etc/passwd"})
         data = _parse(result)
         assert "error" in data
         assert "path traversal" in data["error"].lower()
@@ -169,9 +159,7 @@ class TestHandlerPathTraversalBlocked:
     async def test_get_code_metrics_blocks_traversal(self, tmp_path: Path) -> None:
         """handle_get_code_metrics('file_path=../../../etc/passwd') → error."""
         project = _make_project(tmp_path)
-        result = await handle_get_code_metrics(
-            project, {"file_path": "../../../etc/passwd"}
-        )
+        result = await handle_get_code_metrics(project, {"file_path": "../../../etc/passwd"})
         data = _parse(result)
         assert "error" in data
         assert "path traversal" in data["error"].lower()
@@ -180,9 +168,7 @@ class TestHandlerPathTraversalBlocked:
     async def test_check_transactions_blocks_traversal(self, tmp_path: Path) -> None:
         """handle_check_transactions('file_path=../../../etc/passwd') → error."""
         project = _make_project(tmp_path)
-        result = await handle_check_transactions(
-            project, {"file_path": "../../../etc/passwd"}
-        )
+        result = await handle_check_transactions(project, {"file_path": "../../../etc/passwd"})
         data = _parse(result)
         assert "error" in data
         assert "path traversal" in data["error"].lower()
@@ -191,17 +177,13 @@ class TestHandlerPathTraversalBlocked:
     async def test_analyze_architecture_blocks_traversal(self, tmp_path: Path) -> None:
         """handle_analyze_architecture('config_dir=../../../etc') → error."""
         project = _make_project(tmp_path)
-        result = await handle_analyze_architecture(
-            project, {"config_dir": "../../../etc"}
-        )
+        result = await handle_analyze_architecture(project, {"config_dir": "../../../etc"})
         data = _parse(result)
         assert "error" in data
         assert "path traversal" in data["error"].lower()
 
     @pytest.mark.asyncio
-    async def test_diff_configs_blocks_traversal_in_old_path(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_diff_configs_blocks_traversal_in_old_path(self, tmp_path: Path) -> None:
         """handle_diff_configs('old_path=../../../etc/passwd', ...) → error."""
         project = _make_project(tmp_path)
         result = await handle_diff_configs(
@@ -216,9 +198,7 @@ class TestHandlerPathTraversalBlocked:
         assert "path traversal" in data["error"].lower()
 
     @pytest.mark.asyncio
-    async def test_diff_configs_blocks_traversal_in_new_path(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_diff_configs_blocks_traversal_in_new_path(self, tmp_path: Path) -> None:
         """handle_diff_configs('new_path=../../../etc/passwd', ...) → error."""
         project = _make_project(tmp_path)
         result = await handle_diff_configs(
@@ -233,14 +213,10 @@ class TestHandlerPathTraversalBlocked:
         assert "path traversal" in data["error"].lower()
 
     @pytest.mark.asyncio
-    async def test_audit_security_blocks_absolute_outside(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_audit_security_blocks_absolute_outside(self, tmp_path: Path) -> None:
         """handle_audit_security('file_path=/etc/passwd') → error."""
         project = _make_project(tmp_path)
-        result = await handle_audit_security(
-            project, {"file_path": "/etc/passwd"}
-        )
+        result = await handle_audit_security(project, {"file_path": "/etc/passwd"})
         data = _parse(result)
         assert "error" in data
         assert "path traversal" in data["error"].lower()
@@ -255,35 +231,27 @@ class TestHandlerValidPathsStillWork:
     """После P1.8 валидные пути внутри проекта продолжают работать."""
 
     @pytest.mark.asyncio
-    async def test_audit_security_valid_path_no_traversal_error(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_audit_security_valid_path_no_traversal_error(self, tmp_path: Path) -> None:
         """handle_audit_security с валидным путём НЕ возвращает path traversal."""
         project = _make_project(tmp_path)
         # Создаём .bsl файл внутри проекта
         bsl_file = tmp_path / "test.bsl"
         bsl_file.write_text("// empty", encoding="utf-8")
         # security_auditor.py не существует → другой error, но НЕ path traversal
-        result = await handle_audit_security(
-            project, {"file_path": "test.bsl"}
-        )
+        result = await handle_audit_security(project, {"file_path": "test.bsl"})
         data = _parse(result)
         # Ожидаем либо success, либо error про security_auditor.py — но НЕ path traversal
         assert "path traversal" not in data.get("error", "").lower()
 
     @pytest.mark.asyncio
-    async def test_audit_security_relative_path_resolves(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_audit_security_relative_path_resolves(self, tmp_path: Path) -> None:
         """Относительный путь резолвится относительно project root."""
         project = _make_project(tmp_path)
         # Создаём .bsl в подпапке
         (tmp_path / "src").mkdir(exist_ok=True)
         bsl_file = tmp_path / "src" / "test.bsl"
         bsl_file.write_text("// empty", encoding="utf-8")
-        result = await handle_audit_security(
-            project, {"file_path": "src/test.bsl"}
-        )
+        result = await handle_audit_security(project, {"file_path": "src/test.bsl"})
         data = _parse(result)
         # Должен пройти path traversal check (возможно другая ошибка —
         # security_auditor.py отсутствует, но это OK)
@@ -299,9 +267,7 @@ class TestHandlerBackwardCompatibility:
     """Существующее поведение для отсутствующих/пустых параметров сохранено."""
 
     @pytest.mark.asyncio
-    async def test_audit_security_missing_file_path_still_error(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_audit_security_missing_file_path_still_error(self, tmp_path: Path) -> None:
         """handle_audit_security({}) → 'file_path is required' (как раньше)."""
         project = _make_project(tmp_path)
         result = await handle_audit_security(project, {})
@@ -310,9 +276,7 @@ class TestHandlerBackwardCompatibility:
         assert "file_path is required" in data["error"]
 
     @pytest.mark.asyncio
-    async def test_diff_configs_missing_paths_still_error(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_diff_configs_missing_paths_still_error(self, tmp_path: Path) -> None:
         """handle_diff_configs({}) → 'old_path and new_path required'."""
         project = _make_project(tmp_path)
         result = await handle_diff_configs(project, {})

@@ -4,6 +4,7 @@
 Проверяет, что количество функций с complexity ≥ D не превышает baseline.
 CI gate основан на radon, этот тест — для локальной проверки.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -22,6 +23,7 @@ def test_complexity_budget_not_exceeded() -> None:
     except FileNotFoundError:
         # radon не установлен — skip
         import pytest
+
         pytest.skip("radon не установлен")
 
     # Подсчитываем функции/методы с complexity ≥ D
@@ -50,6 +52,7 @@ def test_no_extreme_complexity_functions() -> None:
         )
     except FileNotFoundError:
         import pytest
+
         pytest.skip("radon не установлен")
 
     # Считаем функции с complexity F

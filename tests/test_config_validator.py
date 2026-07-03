@@ -58,13 +58,9 @@ def active_config_with_files(
         encoding="utf-8",
     )
     (cfg_dir / "CommonModules").mkdir()
-    (cfg_dir / "CommonModules" / "TestModule.bsl").write_text(
-        "// test code\n", encoding="utf-8"
-    )
+    (cfg_dir / "CommonModules" / "TestModule.bsl").write_text("// test code\n", encoding="utf-8")
     (cfg_dir / "Subsystems").mkdir()
-    (cfg_dir / "Subsystems" / "Main.xml").write_text(
-        "<Subsystem/>", encoding="utf-8"
-    )
+    (cfg_dir / "Subsystems" / "Main.xml").write_text("<Subsystem/>", encoding="utf-8")
 
     config = Configuration(
         name="test_cfg",
@@ -193,9 +189,7 @@ class TestCheckFreshnessWithIndexes:
         os.utime(metadata_idx, (future_time, future_time))
 
         report = validator.check_freshness(name)
-        metadata_status = next(
-            s for s in report.indexes if s.name == "metadata"
-        )
+        metadata_status = next(s for s in report.indexes if s.name == "metadata")
         assert metadata_status.exists is True
         assert metadata_status.size_bytes == len(test_content.encode("utf-8"))
 
@@ -284,9 +278,7 @@ class TestValidateSourcesAdditional:
             encoding="utf-8",
         )
         (cfg_dir / "Subsystems").mkdir()
-        (cfg_dir / "Subsystems" / "Main.xml").write_text(
-            "<Subsystem/>", encoding="utf-8"
-        )
+        (cfg_dir / "Subsystems" / "Main.xml").write_text("<Subsystem/>", encoding="utf-8")
         # Нет .bsl файлов
 
         config = Configuration(
@@ -312,9 +304,7 @@ class TestValidateSourcesAdditional:
         cfg_dir.mkdir(parents=True)
         # Нет Configuration.xml
         (cfg_dir / "Subsystems").mkdir()
-        (cfg_dir / "Subsystems" / "Main.xml").write_text(
-            "<Subsystem/>", encoding="utf-8"
-        )
+        (cfg_dir / "Subsystems" / "Main.xml").write_text("<Subsystem/>", encoding="utf-8")
 
         config = Configuration(
             name="no_xml",

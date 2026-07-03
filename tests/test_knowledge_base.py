@@ -105,9 +105,7 @@ def kb_dir(tmp_path: Path) -> Path:
         }
     }
 
-    (kb / "index.json").write_text(
-        json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    (kb / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
     return kb
 
 

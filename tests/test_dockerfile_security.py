@@ -42,16 +42,11 @@ class TestDockerfileSecurity:
         # Ищем USER <name> (не USER root, не USER 0)
         match = re.search(r"^USER\s+(\S+)\s*$", content, re.MULTILINE)
         assert match is not None, (
-            "Dockerfile must contain 'USER <name>' directive (P1.6 fix). "
-            "Container must not run as root."
+            "Dockerfile must contain 'USER <name>' directive (P1.6 fix). Container must not run as root."
         )
         username = match.group(1)
-        assert username not in ("root", "0"), (
-            f"USER must not be 'root' or '0', got: {username}"
-        )
-        assert username == "1c-ai", (
-            f"Expected USER 1c-ai, got USER {username}"
-        )
+        assert username not in ("root", "0"), f"USER must not be 'root' or '0', got: {username}"
+        assert username == "1c-ai", f"Expected USER 1c-ai, got USER {username}"
 
     def test_dockerfile_creates_non_root_user(self) -> None:
         """Должны быть команды создания пользователя (useradd/groupadd)."""
@@ -72,8 +67,7 @@ class TestDockerfileSecurity:
         assert chown_pos != -1, "Dockerfile must have 'chown -R 1c-ai' before USER"
         assert user_pos != -1, "Dockerfile must have 'USER 1c-ai'"
         assert chown_pos < user_pos, (
-            "chown -R 1c-ai must come BEFORE 'USER 1c-ai' — otherwise "
-            "the 1c-ai user cannot read/write /app files"
+            "chown -R 1c-ai must come BEFORE 'USER 1c-ai' — otherwise the 1c-ai user cannot read/write /app files"
         )
 
     def test_no_root_in_healthcheck_or_runtime(self) -> None:
@@ -84,9 +78,7 @@ class TestDockerfileSecurity:
         assert user_match is not None
         # Все USER directives (если их несколько) должны быть 1c-ai
         all_users = re.findall(r"^USER\s+(\S+)\s*$", content, re.MULTILINE)
-        assert all(u == "1c-ai" for u in all_users), (
-            f"All USER directives must be '1c-ai', got: {all_users}"
-        )
+        assert all(u == "1c-ai" for u in all_users), f"All USER directives must be '1c-ai', got: {all_users}"
 
     def test_uid_is_1000(self) -> None:
         """UID 1000 — стандартный непривилегированный UID в Debian/Ubuntu.
@@ -95,12 +87,8 @@ class TestDockerfileSecurity:
         Использование system UID (<1000) или root UID (0) — плохая практика.
         """
         content = DOCKERFILE.read_text(encoding="utf-8")
-        assert "--uid 1000" in content, (
-            "Dockerfile should use UID 1000 for non-root user"
-        )
-        assert "--gid 1000" in content, (
-            "Dockerfile should use GID 1000 for non-root user group"
-        )
+        assert "--uid 1000" in content, "Dockerfile should use UID 1000 for non-root user"
+        assert "--gid 1000" in content, "Dockerfile should use GID 1000 for non-root user group"
 
     def test_user_directive_comes_before_entrypoint(self) -> None:
         """USER должен идти перед ENTRYPOINT/CMD — чтобы они выполнялись от 1c-ai."""
@@ -110,10 +98,7 @@ class TestDockerfileSecurity:
         cmd_pos = content.find("\nCMD")
         assert user_pos != -1, "USER 1c-ai directive missing"
         assert entrypoint_pos != -1, "ENTRYPOINT missing"
-        assert user_pos < entrypoint_pos, (
-            "USER 1c-ai must come before ENTRYPOINT — otherwise container "
-            "starts as root"
-        )
+        assert user_pos < entrypoint_pos, "USER 1c-ai must come before ENTRYPOINT — otherwise container starts as root"
         if cmd_pos != -1:
             assert user_pos < cmd_pos, "USER 1c-ai must come before CMD"
 
@@ -137,8 +122,7 @@ class TestDockerfileBuildIntegrity:
         user_pos = content.find("\nUSER 1c-ai")
         pip_install_pos = content.rfind("pip install", 0, user_pos)
         assert pip_install_pos != -1, (
-            "pip install must come before USER 1c-ai — non-root user "
-            "cannot install packages system-wide"
+            "pip install must come before USER 1c-ai — non-root user cannot install packages system-wide"
         )
 
     def test_mkdir_before_user_switch(self) -> None:
@@ -147,6 +131,4 @@ class TestDockerfileBuildIntegrity:
         user_pos = content.find("\nUSER 1c-ai")
         mkdir_pos = content.find("mkdir -p /app/data")
         assert mkdir_pos != -1, "mkdir for /app/data must exist"
-        assert mkdir_pos < user_pos, (
-            "mkdir must come before USER 1c-ai (or use chown after)"
-        )
+        assert mkdir_pos < user_pos, "mkdir must come before USER 1c-ai (or use chown after)"

@@ -106,9 +106,7 @@ class TestLruCacheBasics:
         assert info.misses == 1
         assert info.hits == 0
 
-    def test_different_paths_cached_separately(
-        self, bm25_index: Path, tmp_path: Path
-    ) -> None:
+    def test_different_paths_cached_separately(self, bm25_index: Path, tmp_path: Path) -> None:
         """Разные index_path — разные записи в кэше."""
         # Создаём второй индекс
         methods2 = tmp_path / "methods2.json"
@@ -138,9 +136,7 @@ class TestLruCacheBasics:
     def test_maxsize_is_8(self) -> None:
         """lru_cache должен иметь maxsize=8 (multi-config scenario)."""
         info = _load_index_cached.cache_info()
-        assert info.maxsize == 8, (
-            f"Expected maxsize=8 (for multi-config), got {info.maxsize}"
-        )
+        assert info.maxsize == 8, f"Expected maxsize=8 (for multi-config), got {info.maxsize}"
 
 
 # ============================================================================
@@ -169,9 +165,7 @@ class TestSearchBm25UsesCache:
         results2 = search_bm25(bm25_index, "Найти")
         assert results1 == results2, "Cache must not affect search correctness"
 
-    def test_search_returns_results_after_cache_clear(
-        self, bm25_index: Path
-    ) -> None:
+    def test_search_returns_results_after_cache_clear(self, bm25_index: Path) -> None:
         """После cache_clear() поиск продолжает работать корректно."""
         search_bm25(bm25_index, "Запрос")
         _load_index_cached.cache_clear()
@@ -216,9 +210,7 @@ class TestCachePerformance:
             f"miss={miss_time * 1e6:.1f}μs, hit={hit_time * 1e6:.3f}μs, ratio={ratio:.1f}x"
         )
 
-    def test_repeated_search_does_not_re_read_file(
-        self, bm25_index: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_repeated_search_does_not_re_read_file(self, bm25_index: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """При cache hit файл НЕ должен открываться повторно.
 
         Мокаем builtins.open и считаем вызовы.
@@ -252,8 +244,7 @@ class TestCachePerformance:
 
         assert first_calls >= 1, "First search should open the file"
         assert cached_calls == 0, (
-            f"Subsequent searches must NOT open the file (cache hit). "
-            f"Got {cached_calls} open() calls for index_path."
+            f"Subsequent searches must NOT open the file (cache hit). Got {cached_calls} open() calls for index_path."
         )
 
 
@@ -342,9 +333,7 @@ class TestCacheInvalidation:
         # ПОСЛЕ cache_clear — новый индекс подхвачен
         _load_index_cached.cache_clear()
         results_with_clear = search_bm25(index_path, "Новый")
-        assert any("Новый" in r["name_ru"] for r in results_with_clear), (
-            "After cache_clear, rebuilt index must be used"
-        )
+        assert any("Новый" in r["name_ru"] for r in results_with_clear), "After cache_clear, rebuilt index must be used"
 
 
 # ============================================================================

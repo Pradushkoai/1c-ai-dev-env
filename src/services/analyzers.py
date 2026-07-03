@@ -19,12 +19,11 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from .path_manager import PathManager
-
 
 # ============================================================================
 # Protocol
@@ -62,7 +61,7 @@ class Analyzer(Protocol):
         """
         ...
 
-    def check_file(self, file_path: Path) -> list["AnalyzerViolation"]:
+    def check_file(self, file_path: Path) -> list[AnalyzerViolation]:
         """
         Запустить analyzer на файле.
 

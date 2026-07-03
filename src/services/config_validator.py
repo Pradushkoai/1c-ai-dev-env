@@ -19,30 +19,52 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..models.config_registry import ConfigurationRegistry
-    from ..models.configuration import Configuration
     from .path_manager import PathManager
 
 
 # --- Директории 1С, которые считаются валидными метаданными ---
 
 REQUIRED_TYPE_DIRS: tuple[str, ...] = (
-    "Catalogs", "Documents", "Enums", "Constants", "CommonModules",
-    "InformationRegisters", "AccumulationRegisters", "Reports", "DataProcessors",
-    "CommonForms", "CommonTemplates", "CommonCommands", "CommonPictures",
-    "Roles", "Subsystems", "EventSubscriptions", "ScheduledJobs",
-    "DefinedTypes", "FunctionalOptions", "ExchangePlans",
-    "ChartsOfCharacteristicTypes", "HTTPServices", "WebServices",
-    "XDTOPackages", "FilterCriteria", "SessionParameters",
-    "CommandGroups", "SettingsStorages", "BusinessProcesses",
-    "Tasks", "DocumentJournals", "DocumentNumerators",
-    "Sequences", "FunctionalOptionsParameters", "CommonAttributes",
+    "Catalogs",
+    "Documents",
+    "Enums",
+    "Constants",
+    "CommonModules",
+    "InformationRegisters",
+    "AccumulationRegisters",
+    "Reports",
+    "DataProcessors",
+    "CommonForms",
+    "CommonTemplates",
+    "CommonCommands",
+    "CommonPictures",
+    "Roles",
+    "Subsystems",
+    "EventSubscriptions",
+    "ScheduledJobs",
+    "DefinedTypes",
+    "FunctionalOptions",
+    "ExchangePlans",
+    "ChartsOfCharacteristicTypes",
+    "HTTPServices",
+    "WebServices",
+    "XDTOPackages",
+    "FilterCriteria",
+    "SessionParameters",
+    "CommandGroups",
+    "SettingsStorages",
+    "BusinessProcesses",
+    "Tasks",
+    "DocumentJournals",
+    "DocumentNumerators",
+    "Sequences",
+    "FunctionalOptionsParameters",
+    "CommonAttributes",
     "WSReferences",
 )
 
 # Минимум одна из этих директорий должна быть, чтобы считать выгрузку валидной
-MIN_REQUIRED_DIRS: tuple[str, ...] = (
-    "CommonModules", "Catalogs", "Documents", "Subsystems"
-)
+MIN_REQUIRED_DIRS: tuple[str, ...] = ("CommonModules", "Catalogs", "Documents", "Subsystems")
 
 
 # ============================================================================
@@ -114,8 +136,8 @@ class ConfigValidator:
 
     def __init__(
         self,
-        registry: "ConfigurationRegistry",
-        paths: "PathManager",
+        registry: ConfigurationRegistry,
+        paths: PathManager,
     ) -> None:
         self._registry = registry
         self._paths = paths
@@ -149,9 +171,7 @@ class ConfigValidator:
         cfg_xml = config_dir / "Configuration.xml"
         result.has_configuration_xml = cfg_xml.exists()
         if not result.has_configuration_xml:
-            result.errors.append(
-                "Configuration.xml не найден — это не полная XML выгрузка"
-            )
+            result.errors.append("Configuration.xml не найден — это не полная XML выгрузка")
             result.is_valid = False
 
         # 2. Метаданные-директории
@@ -164,10 +184,7 @@ class ConfigValidator:
         result.has_metadata_dirs = has_critical
         if not has_critical:
             result.missing_critical = list(MIN_REQUIRED_DIRS)
-            result.errors.append(
-                "Ни одна из критических директорий не найдена: "
-                + ", ".join(MIN_REQUIRED_DIRS)
-            )
+            result.errors.append("Ни одна из критических директорий не найдена: " + ", ".join(MIN_REQUIRED_DIRS))
             result.is_valid = False
 
         # 3. .bsl файлы (предупреждение)
@@ -176,8 +193,7 @@ class ConfigValidator:
             result.has_bsl_files = bsl_count > 0
             if not result.has_bsl_files:
                 result.warnings.append(
-                    ".bsl файлы не найдены — api-reference будет пустым. "
-                    "Возможно это .cf распаковка без адаптации."
+                    ".bsl файлы не найдены — api-reference будет пустым. Возможно это .cf распаковка без адаптации."
                 )
         except (OSError, PermissionError) as e:
             result.warnings.append(f"Не удалось проверить .bsl файлы: {e}")
@@ -223,9 +239,7 @@ class ConfigValidator:
         )
 
         for idx_name, idx_path in index_files.items():
-            status = IndexStatus(
-                name=idx_name, path=idx_path, exists=False, mtime=None
-            )
+            status = IndexStatus(name=idx_name, path=idx_path, exists=False, mtime=None)
 
             if idx_path and idx_path.exists():
                 status.exists = True

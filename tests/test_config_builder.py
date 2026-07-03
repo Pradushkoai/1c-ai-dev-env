@@ -63,9 +63,7 @@ def active_config(
         encoding="utf-8",
     )
     (cfg_dir / "CommonModules").mkdir()
-    (cfg_dir / "CommonModules" / "TestModule.bsl").write_text(
-        "// test", encoding="utf-8"
-    )
+    (cfg_dir / "CommonModules" / "TestModule.bsl").write_text("// test", encoding="utf-8")
 
     config = Configuration(
         name="test_cfg",
@@ -122,9 +120,11 @@ class TestBuildForce:
     ) -> None:
         """force=True → не проверяет freshness, строит все индексы."""
         builder, name, _ = active_config
-        with patch.object(builder, "_run_script") as mock_run, \
-             patch.object(builder, "_build_api_reference") as mock_api, \
-             patch.object(builder, "_count_objects", return_value=5):
+        with (
+            patch.object(builder, "_run_script") as mock_run,
+            patch.object(builder, "_build_api_reference") as mock_api,
+            patch.object(builder, "_count_objects", return_value=5),
+        ):
             result = builder.build(name, force=True)
             assert result["name"] == name
             assert mock_run.call_count == 3  # metadata, skd, forms
@@ -136,9 +136,11 @@ class TestBuildForce:
     ) -> None:
         """force=True → все 4 индекса пытаются построиться."""
         builder, name, _ = active_config
-        with patch.object(builder, "_run_script") as mock_run, \
-             patch.object(builder, "_build_api_reference"), \
-             patch.object(builder, "_count_objects", return_value=0):
+        with (
+            patch.object(builder, "_run_script") as mock_run,
+            patch.object(builder, "_build_api_reference"),
+            patch.object(builder, "_count_objects", return_value=0),
+        ):
             builder.build(name, force=True)
             # 3 скрипта (metadata, skd, forms) + 1 api reference
             assert mock_run.call_count == 3
@@ -149,9 +151,11 @@ class TestBuildForce:
     ) -> None:
         """force=True → report не содержит 'skipped: [all]'."""
         builder, name, _ = active_config
-        with patch.object(builder, "_run_script"), \
-             patch.object(builder, "_build_api_reference"), \
-             patch.object(builder, "_count_objects", return_value=0):
+        with (
+            patch.object(builder, "_run_script"),
+            patch.object(builder, "_build_api_reference"),
+            patch.object(builder, "_count_objects", return_value=0),
+        ):
             result = builder.build(name, force=True)
             assert result.get("skipped") != ["all"]
 
@@ -166,11 +170,10 @@ class TestBuildSkipIfFresh:
         """Все индексы свежие → report с skipped=['all']."""
         builder, name, _ = active_config
         fresh_report = _make_freshness_report(name, all_fresh=True)
-        with patch.object(
-            builder._validator, "check_freshness", return_value=fresh_report
-        ), patch.object(
-            builder._validator, "validate_sources"
-        ) as mock_validate:
+        with (
+            patch.object(builder._validator, "check_freshness", return_value=fresh_report),
+            patch.object(builder._validator, "validate_sources") as mock_validate,
+        ):
             mock_validate.return_value = SourceValidation(
                 is_valid=True,
                 has_configuration_xml=True,
@@ -190,19 +193,13 @@ class TestBuildSkipIfFresh:
     ) -> None:
         """Только metadata устарел → пересобирается только metadata."""
         builder, name, _ = active_config
-        fresh_report = _make_freshness_report(
-            name, all_fresh=False, stale_indexes=["metadata"]
-        )
-        with patch.object(
-            builder._validator, "check_freshness", return_value=fresh_report
-        ), patch.object(
-            builder._validator, "validate_sources"
-        ) as mock_validate, patch.object(
-            builder, "_run_script"
-        ) as mock_run, patch.object(
-            builder, "_build_api_reference"
-        ) as mock_api, patch.object(
-            builder, "_count_objects", return_value=0
+        fresh_report = _make_freshness_report(name, all_fresh=False, stale_indexes=["metadata"])
+        with (
+            patch.object(builder._validator, "check_freshness", return_value=fresh_report),
+            patch.object(builder._validator, "validate_sources") as mock_validate,
+            patch.object(builder, "_run_script") as mock_run,
+            patch.object(builder, "_build_api_reference") as mock_api,
+            patch.object(builder, "_count_objects", return_value=0),
         ):
             mock_validate.return_value = SourceValidation(
                 is_valid=True,
@@ -233,10 +230,11 @@ class TestBuildParserErrors:
     ) -> None:
         """Ошибка metadata_extractor → report['metadata']=False, остальные строятся."""
         builder, name, _ = active_config
-        with patch.object(
-            builder, "_run_script", side_effect=[RuntimeError("metadata failed"), None, None]
-        ), patch.object(builder, "_build_api_reference"), \
-             patch.object(builder, "_count_objects", return_value=0):
+        with (
+            patch.object(builder, "_run_script", side_effect=[RuntimeError("metadata failed"), None, None]),
+            patch.object(builder, "_build_api_reference"),
+            patch.object(builder, "_count_objects", return_value=0),
+        ):
             result = builder.build(name, force=True)
             assert result["metadata"] is False
             assert result["skd"] is True
@@ -248,11 +246,15 @@ class TestBuildParserErrors:
     ) -> None:
         """Ошибка skd_parser → report['skd']=False."""
         builder, name, _ = active_config
-        with patch.object(
-            builder, "_run_script",
-            side_effect=[None, RuntimeError("skd failed"), None],
-        ), patch.object(builder, "_build_api_reference"), \
-             patch.object(builder, "_count_objects", return_value=0):
+        with (
+            patch.object(
+                builder,
+                "_run_script",
+                side_effect=[None, RuntimeError("skd failed"), None],
+            ),
+            patch.object(builder, "_build_api_reference"),
+            patch.object(builder, "_count_objects", return_value=0),
+        ):
             result = builder.build(name, force=True)
             assert result["metadata"] is True
             assert result["skd"] is False
@@ -264,11 +266,15 @@ class TestBuildParserErrors:
     ) -> None:
         """Ошибка form_analyzer → report['forms']=False."""
         builder, name, _ = active_config
-        with patch.object(
-            builder, "_run_script",
-            side_effect=[None, None, RuntimeError("forms failed")],
-        ), patch.object(builder, "_build_api_reference"), \
-             patch.object(builder, "_count_objects", return_value=0):
+        with (
+            patch.object(
+                builder,
+                "_run_script",
+                side_effect=[None, None, RuntimeError("forms failed")],
+            ),
+            patch.object(builder, "_build_api_reference"),
+            patch.object(builder, "_count_objects", return_value=0),
+        ):
             result = builder.build(name, force=True)
             assert result["forms"] is False
             assert result["metadata"] is True
@@ -280,12 +286,15 @@ class TestBuildParserErrors:
     ) -> None:
         """Ошибка build_api_reference → report['api']=False."""
         builder, name, _ = active_config
-        with patch.object(builder, "_run_script"), \
-             patch.object(
-                 builder, "_build_api_reference",
-                 side_effect=RuntimeError("api failed"),
-             ), \
-             patch.object(builder, "_count_objects", return_value=0):
+        with (
+            patch.object(builder, "_run_script"),
+            patch.object(
+                builder,
+                "_build_api_reference",
+                side_effect=RuntimeError("api failed"),
+            ),
+            patch.object(builder, "_count_objects", return_value=0),
+        ):
             result = builder.build(name, force=True)
             assert result["api"] is False
             assert result["metadata"] is True
@@ -318,9 +327,11 @@ class TestBuildNoCommonModules:
         reg.add(config)
 
         builder = ConfigBuilder(reg, pm)
-        with patch.object(builder, "_run_script"), \
-             patch.object(builder, "_build_api_reference") as mock_api, \
-             patch.object(builder, "_count_objects", return_value=0):
+        with (
+            patch.object(builder, "_run_script"),
+            patch.object(builder, "_build_api_reference") as mock_api,
+            patch.object(builder, "_count_objects", return_value=0),
+        ):
             result = builder.build("no_cm", force=True)
             assert result["api"] is False
             mock_api.assert_not_called()
@@ -446,9 +457,11 @@ class TestBuildAll:
             reg.add(config)
 
         builder = ConfigBuilder(reg, pm)
-        with patch.object(builder, "_run_script"), \
-             patch.object(builder, "_build_api_reference"), \
-             patch.object(builder, "_count_objects", return_value=0):
+        with (
+            patch.object(builder, "_run_script"),
+            patch.object(builder, "_build_api_reference"),
+            patch.object(builder, "_count_objects", return_value=0),
+        ):
             results = builder.build_all(force=True)
             assert len(results) == 3
             assert all(r["name"].startswith("cfg_") for r in results)

@@ -489,9 +489,7 @@ def test_check_standard_level_bsl_ls_available(setup):
     bsl_ls_bin.write_text("#!/bin/bash\necho ok", encoding="utf-8")
     bsl_ls_bin.chmod(0o755)
     # Патчим property bsl_ls_binary
-    with patch.object(
-        type(pm), "bsl_ls_binary", new_callable=lambda: property(lambda self: bsl_ls_bin)
-    ):
+    with patch.object(type(pm), "bsl_ls_binary", new_callable=lambda: property(lambda self: bsl_ls_bin)):
         _make_fake_violations_module("check_1c_standards", "StandardsChecker", [])
         _make_fake_violations_module("security_auditor", "SecurityAuditor", [])
         _make_fake_violations_module("transaction_checker", "TransactionChecker", [])
@@ -525,9 +523,7 @@ def test_check_standard_level_bsl_ls_exception(setup):
     bsl_ls_bin.write_text("#!/bin/bash\necho ok", encoding="utf-8")
     bsl_ls_bin.chmod(0o755)
 
-    with patch.object(
-        type(pm), "bsl_ls_binary", new_callable=lambda: property(lambda self: bsl_ls_bin)
-    ):
+    with patch.object(type(pm), "bsl_ls_binary", new_callable=lambda: property(lambda self: bsl_ls_bin)):
         _make_fake_violations_module("check_1c_standards", "StandardsChecker", [])
         _make_fake_violations_module("security_auditor", "SecurityAuditor", [])
         _make_fake_violations_module("transaction_checker", "TransactionChecker", [])

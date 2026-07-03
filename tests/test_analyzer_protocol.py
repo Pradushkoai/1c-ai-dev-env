@@ -95,9 +95,7 @@ def fake_analyzer_modules():
     _make_fake_violations_module("transaction_checker", "TransactionChecker", sample_v)
     _make_fake_violations_module("query_analyzer", "QueryAnalyzer", sample_v)
     _make_fake_violations_module("code_metrics", "CodeMetricsAnalyzer", sample_v)
-    _make_fake_violations_module(
-        "check_metadata_standards", "MetadataStandardsChecker", sample_v
-    )
+    _make_fake_violations_module("check_metadata_standards", "MetadataStandardsChecker", sample_v)
     yield
     # Cleanup
     for name in (
@@ -127,9 +125,7 @@ class TestAnalyzerProtocol:
 
     def test_analyzer_violation_has_source_field(self) -> None:
         """AnalyzerViolation должен иметь поле source."""
-        v = AnalyzerViolation(
-            rule_id="R1", severity="error", line=1, message="test"
-        )
+        v = AnalyzerViolation(rule_id="R1", severity="error", line=1, message="test")
         assert v.source == ""  # default
         v.source = "security_auditor"
         assert v.source == "security_auditor"
@@ -264,15 +260,11 @@ class TestRegistry:
 class TestRunAnalyzers:
     """run_analyzers — оркестрация запуска analyzer'ов."""
 
-    def test_quick_level_runs_only_quick_analyzers(
-        self, fake_analyzer_modules
-    ) -> None:
+    def test_quick_level_runs_only_quick_analyzers(self, fake_analyzer_modules) -> None:
         """level='quick' запускает только 4 quick analyzer'а (не full)."""
         pm = PathManager()
         analyzers = get_default_analyzers(pm)
-        violations, analyzers_run = run_analyzers(
-            analyzers, Path("/fake.bsl"), level="quick"
-        )
+        violations, analyzers_run = run_analyzers(analyzers, Path("/fake.bsl"), level="quick")
         assert set(analyzers_run) == {
             "check_1c_standards",
             "security_auditor",
@@ -284,27 +276,19 @@ class TestRunAnalyzers:
         # 4 analyzer'а × 1 violation = 4 violations
         assert len(violations) == 4
 
-    def test_full_level_runs_all_6_analyzers(
-        self, fake_analyzer_modules
-    ) -> None:
+    def test_full_level_runs_all_6_analyzers(self, fake_analyzer_modules) -> None:
         """level='full' запускает все 6 analyzer'ов."""
         pm = PathManager()
         analyzers = get_default_analyzers(pm)
-        violations, analyzers_run = run_analyzers(
-            analyzers, Path("/fake.bsl"), level="full"
-        )
+        violations, analyzers_run = run_analyzers(analyzers, Path("/fake.bsl"), level="full")
         assert len(analyzers_run) == 6
         assert len(violations) == 6
 
-    def test_violations_have_source_set(
-        self, fake_analyzer_modules
-    ) -> None:
+    def test_violations_have_source_set(self, fake_analyzer_modules) -> None:
         """Каждое нарушение должно иметь заполненное поле source."""
         pm = PathManager()
         analyzers = get_default_analyzers(pm)
-        violations, _ = run_analyzers(
-            analyzers, Path("/fake.bsl"), level="quick"
-        )
+        violations, _ = run_analyzers(analyzers, Path("/fake.bsl"), level="quick")
         for v in violations:
             assert v.source, f"Violation {v.rule_id} has empty source"
             assert v.source in {
@@ -316,6 +300,7 @@ class TestRunAnalyzers:
 
     def test_analyzer_exception_doesnt_crash_run(self) -> None:
         """Если analyzer падает, run_analyzers продолжает с другими."""
+
         # Создаём analyzer, который падает
         class CrashingAnalyzer:
             source = "crashing"

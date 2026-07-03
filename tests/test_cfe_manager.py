@@ -213,12 +213,8 @@ class TestBorrowObject:
         Regression-тест для P0.2: до фикса ключ был с опечаткой 'WebServce',
         из-за чего borrow_object('WebService.X') падал с KeyError.
         """
-        assert "WebService" in TYPE_MAP, (
-            "TYPE_MAP must contain 'WebService' key (was 'WebServce' typo before P0.2 fix)"
-        )
-        assert "WebServce" not in TYPE_MAP, (
-            "TYPE_MAP must NOT contain 'WebServce' (typo fixed in P0.2)"
-        )
+        assert "WebService" in TYPE_MAP, "TYPE_MAP must contain 'WebService' key (was 'WebServce' typo before P0.2 fix)"
+        assert "WebServce" not in TYPE_MAP, "TYPE_MAP must NOT contain 'WebServce' (typo fixed in P0.2)"
         # Проверка структуры записи
         entry = TYPE_MAP["WebService"]
         assert entry["xml_tag"] == "WebService"
