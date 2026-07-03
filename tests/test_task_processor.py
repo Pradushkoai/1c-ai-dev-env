@@ -450,5 +450,282 @@ def test_check_violation_source_tracking(setup):
     assert "security_auditor" in sources
 
 
+# ─────────────────────────────────────────────
+# CHECK: standard / full levels (BSL LS, code_metrics, metadata_standards)
+# ─────────────────────────────────────────────
+
+
+def test_check_standard_level_bsl_ls_not_available(setup):
+    """check(level='standard') без BSL LS → bsl_ls_available=False, 4 анализатора."""
+    pm, tmp = setup
+    bsl_file = tmp / "test.bsl"
+    bsl_file.write_text("Процедура Тест() Экспорт\nКонецПроцедуры", encoding="utf-8")
+
+    sample_v = [type("V", (), {"rule_id": "R1", "severity": "warning", "line": 1, "message": "test", "file": ""})()]
+    _make_fake_violations_module("check_1c_standards", "StandardsChecker", sample_v)
+    _make_fake_violations_module("security_auditor", "SecurityAuditor", [])
+    _make_fake_violations_module("transaction_checker", "TransactionChecker", [])
+    _make_fake_violations_module("query_analyzer", "QueryAnalyzer", [])
+
+    processor = TaskProcessor(pm)
+    # BSL LS binary не существует → bsl_ls_available=False
+    result = processor.check(bsl_file, level="standard")
+
+    assert result.level == "standard"
+    assert result.bsl_ls_available is False
+    assert "bsl_ls" not in result.analyzers_run
+    # 4 базовых анализатора запущены
+    assert "check_1c_standards" in result.analyzers_run
+
+
+def test_check_standard_level_bsl_ls_available(setup):
+    """check(level='standard') с BSL LS → bsl_ls_available=True, violations от BSL LS."""
+    pm, tmp = setup
+    bsl_file = tmp / "test.bsl"
+    bsl_file.write_text("Процедура Тест() Экспорт\nКонецПроцедуры", encoding="utf-8")
+
+    # Создаём фейковый BSL LS binary
+    bsl_ls_bin = tmp / "bsl-ls"
+    bsl_ls_bin.write_text("#!/bin/bash\necho ok", encoding="utf-8")
+    bsl_ls_bin.chmod(0o755)
+    # Патчим property bsl_ls_binary
+    with patch.object(
+        type(pm), "bsl_ls_binary", new_callable=lambda: property(lambda self: bsl_ls_bin)
+    ):
+        _make_fake_violations_module("check_1c_standards", "StandardsChecker", [])
+        _make_fake_violations_module("security_auditor", "SecurityAuditor", [])
+        _make_fake_violations_module("transaction_checker", "TransactionChecker", [])
+        _make_fake_violations_module("query_analyzer", "QueryAnalyzer", [])
+
+        processor = TaskProcessor(pm)
+
+        # Мокаем BSLAnalyzer.analyze чтобы вернуть диагностики
+        fake_diag = {"code": "BSL001", "severity": "warning", "line": 5, "message": "diag"}
+        fake_result = type("R", (), {"diagnostics": [fake_diag]})()
+
+        with patch("src.services.bsl_analyzer.BSLAnalyzer") as MockBSL:
+            MockBSL.return_value.analyze.return_value = fake_result
+            result = processor.check(bsl_file, level="standard")
+
+    assert result.bsl_ls_available is True
+    assert "bsl_ls" in result.analyzers_run
+    # Должна быть violation от BSL LS
+    bsl_violations = [v for v in result.violations if v.source == "bsl_ls"]
+    assert len(bsl_violations) == 1
+    assert bsl_violations[0].rule_id == "BSL001"
+
+
+def test_check_standard_level_bsl_ls_exception(setup):
+    """check(level='standard') с BSL LS exception → graceful, 4 анализатора."""
+    pm, tmp = setup
+    bsl_file = tmp / "test.bsl"
+    bsl_file.write_text("Процедура Тест() Экспорт\nКонецПроцедуры", encoding="utf-8")
+
+    bsl_ls_bin = tmp / "bsl-ls"
+    bsl_ls_bin.write_text("#!/bin/bash\necho ok", encoding="utf-8")
+    bsl_ls_bin.chmod(0o755)
+
+    with patch.object(
+        type(pm), "bsl_ls_binary", new_callable=lambda: property(lambda self: bsl_ls_bin)
+    ):
+        _make_fake_violations_module("check_1c_standards", "StandardsChecker", [])
+        _make_fake_violations_module("security_auditor", "SecurityAuditor", [])
+        _make_fake_violations_module("transaction_checker", "TransactionChecker", [])
+        _make_fake_violations_module("query_analyzer", "QueryAnalyzer", [])
+
+        processor = TaskProcessor(pm)
+
+        # BSLAnalyzer выбрасывает исключение
+        with patch("src.services.bsl_analyzer.BSLAnalyzer") as MockBSL:
+            MockBSL.return_value.analyze.side_effect = RuntimeError("Java failed")
+            result = processor.check(bsl_file, level="standard")
+
+    assert result.bsl_ls_available is True
+    # bsl_ls не в analyzers_run (упал), но не завалил весь check
+    assert "bsl_ls" not in result.analyzers_run
+    # Базовые 4 анализатора запущены
+    assert "check_1c_standards" in result.analyzers_run
+
+
+def _make_fake_metrics_module():
+    """Создать фейковый code_metrics модуль."""
+    mod = types.ModuleType("code_metrics")
+
+    class FakeMethod:
+        def __init__(self, name, lloc, line_start):
+            self.name = name
+            self.lloc = lloc
+            self.line_start = line_start
+
+    class FakeMetrics:
+        def __init__(self):
+            self.loc = 200
+            self.lloc = 150
+            self.cyclomatic_complexity = 25.0
+            self.cognitive_complexity = 30.0
+            self.max_nesting = 5
+            self.methods = [FakeMethod("m1", 10, 1), FakeMethod("m2", 80, 50)]
+            self.is_god_object = True
+            self.long_methods = [FakeMethod("LongMethod", 80, 50)]
+            self.health_score = 40.0
+
+    class CodeMetricsAnalyzer:
+        def analyze_file(self, path):
+            return FakeMetrics()
+
+    mod.CodeMetricsAnalyzer = CodeMetricsAnalyzer
+    sys.modules["code_metrics"] = mod
+    return mod
+
+
+def _make_fake_metadata_standards_module():
+    """Создать фейковый check_metadata_standards модуль."""
+    mod = types.ModuleType("check_metadata_standards")
+
+    class FakeViolation:
+        def __init__(self, rule_id, severity, line, message, file=""):
+            self.rule_id = rule_id
+            self.severity = severity
+            self.line = line
+            self.message = message
+            self.file = file
+
+    class MetadataStandardsChecker:
+        def check_path(self, path):
+            return [FakeViolation("META001", "warning", 10, "metadata issue", str(path))]
+
+    mod.FakeViolation = FakeViolation
+    mod.MetadataStandardsChecker = MetadataStandardsChecker
+    sys.modules["check_metadata_standards"] = mod
+    return mod
+
+
+def test_check_full_level_runs_code_metrics(setup):
+    """check(level='full') запускает code_metrics с God Object и Long Method."""
+    pm, tmp = setup
+    bsl_file = tmp / "test.bsl"
+    bsl_file.write_text("Процедура Тест() Экспорт\nКонецПроцедуры", encoding="utf-8")
+
+    _make_fake_violations_module("check_1c_standards", "StandardsChecker", [])
+    _make_fake_violations_module("security_auditor", "SecurityAuditor", [])
+    _make_fake_violations_module("transaction_checker", "TransactionChecker", [])
+    _make_fake_violations_module("query_analyzer", "QueryAnalyzer", [])
+    _make_fake_metrics_module()
+
+    processor = TaskProcessor(pm)
+    result = processor.check(bsl_file, level="full")
+
+    assert result.level == "full"
+    assert "code_metrics" in result.analyzers_run
+    assert result.metrics is not None
+    assert result.metrics.loc == 200
+    assert result.metrics.is_god_object is True
+    assert len(result.metrics.long_methods) == 1
+
+    # God Object violation
+    god_violations = [v for v in result.violations if v.rule_id == "GOD_OBJECT"]
+    assert len(god_violations) == 1
+    assert god_violations[0].severity == "error"
+
+    # Long Method violation
+    long_violations = [v for v in result.violations if v.rule_id == "LONG_METHOD"]
+    assert len(long_violations) == 1
+    assert long_violations[0].severity == "warning"
+
+
+def test_check_full_level_runs_metadata_standards(setup):
+    """check(level='full') запускает check_metadata_standards."""
+    pm, tmp = setup
+    bsl_file = tmp / "test.bsl"
+    bsl_file.write_text("Процедура Тест() Экспорт\nКонецПроцедуры", encoding="utf-8")
+
+    _make_fake_violations_module("check_1c_standards", "StandardsChecker", [])
+    _make_fake_violations_module("security_auditor", "SecurityAuditor", [])
+    _make_fake_violations_module("transaction_checker", "TransactionChecker", [])
+    _make_fake_violations_module("query_analyzer", "QueryAnalyzer", [])
+    _make_fake_metrics_module()
+    _make_fake_metadata_standards_module()
+
+    processor = TaskProcessor(pm)
+    result = processor.check(bsl_file, level="full")
+
+    assert "check_metadata_standards" in result.analyzers_run
+    meta_violations = [v for v in result.violations if v.source == "check_metadata_standards"]
+    assert len(meta_violations) == 1
+    assert meta_violations[0].rule_id == "META001"
+
+
+def test_check_full_level_code_metrics_exception(setup):
+    """check(level='full') с code_metrics exception → graceful."""
+    pm, tmp = setup
+    bsl_file = tmp / "test.bsl"
+    bsl_file.write_text("Процедура Тест() Экспорт\nКонецПроцедуры", encoding="utf-8")
+
+    _make_fake_violations_module("check_1c_standards", "StandardsChecker", [])
+    _make_fake_violations_module("security_auditor", "SecurityAuditor", [])
+    _make_fake_violations_module("transaction_checker", "TransactionChecker", [])
+    _make_fake_violations_module("query_analyzer", "QueryAnalyzer", [])
+
+    # Фейковый code_metrics с исключением
+    mod = types.ModuleType("code_metrics")
+
+    class CodeMetricsAnalyzer:
+        def analyze_file(self, path):
+            raise RuntimeError("metrics failed")
+
+    mod.CodeMetricsAnalyzer = CodeMetricsAnalyzer
+    sys.modules["code_metrics"] = mod
+
+    processor = TaskProcessor(pm)
+    result = processor.check(bsl_file, level="full")
+
+    # code_metrics не в analyzers_run (упал)
+    assert "code_metrics" not in result.analyzers_run
+    # Но check не завалился
+    assert "check_1c_standards" in result.analyzers_run
+
+
+# ─────────────────────────────────────────────
+# CHECK via analyzers (новый OCP API)
+# ─────────────────────────────────────────────
+
+
+def test_check_via_analyzers_file_not_found(setup):
+    """check_via_analyzers() на несуществующий файл → FileNotFoundError."""
+    pm, tmp = setup
+    processor = TaskProcessor(pm)
+    with pytest.raises(FileNotFoundError):
+        processor.check_via_analyzers(tmp / "missing.bsl", level="quick")
+
+
+def test_check_via_analyzers_returns_check_result(setup):
+    """check_via_analyzers() возвращает CheckResult."""
+    pm, tmp = setup
+    bsl_file = tmp / "test.bsl"
+    bsl_file.write_text("Процедура Тест() Экспорт\nКонецПроцедуры", encoding="utf-8")
+
+    processor = TaskProcessor(pm)
+    result = processor.check_via_analyzers(bsl_file, level="quick")
+
+    assert isinstance(result, CheckResult)
+    assert result.level == "quick"
+    assert result.file == str(bsl_file)
+
+
+def test_check_via_analyzers_populates_violations(setup):
+    """check_via_analyzers() заполняет violations и analyzers_run."""
+    pm, tmp = setup
+    bsl_file = tmp / "test.bsl"
+    bsl_file.write_text("Процедура Тест() Экспорт\nКонецПроцедуры", encoding="utf-8")
+
+    processor = TaskProcessor(pm)
+    result = processor.check_via_analyzers(bsl_file, level="quick")
+
+    # analyzers_run должен быть заполнен (хотя бы один analyzer)
+    assert len(result.analyzers_run) > 0
+    # violations — список (может быть пустым если код чистый)
+    assert isinstance(result.violations, list)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -117,7 +117,7 @@ jobs:
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
             --cov-report=html:coverage_html \
-            --cov-fail-under=60 \
+            --cov-fail-under=65 \
             -k "not IntegrationRealData and not test_benchmarks and not test_e2e" \
             --benchmark-min-rounds=1 --benchmark-warmup=off
 
