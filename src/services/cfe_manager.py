@@ -29,7 +29,7 @@ NS_XR = "http://v8.1c.ru/8.3/xcf/extprops"
 # Маппинг типов объектов 1С → XML-теги и папки.
 # P3.17: вынесен в src/services/object_types.py — единый источник для DSL и CFE.
 # Здесь оставлен re-export для обратной совместимости.
-from .object_types import TYPE_MAP
+from .object_types import TYPE_MAP  # noqa: E402
 
 # ============================================================================
 # МОДЕЛИ

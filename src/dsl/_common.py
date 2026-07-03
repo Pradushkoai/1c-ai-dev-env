@@ -37,8 +37,8 @@ NS_RIGHTS = "http://v8.1c.ru/8.1/data/rights"
 # Здесь оставлен re-export для обратной совместимости с существующими импортами.
 # DSL поддерживает подмножество типов из полного TYPE_MAP.
 # Импортируем только поддерживаемые, чтобы не вводить в заблуждение.
-from src.services.object_types import DSL_SUPPORTED_TYPES
-from src.services.object_types import TYPE_MAP as _UNIFIED_TYPE_MAP
+from src.services.object_types import DSL_SUPPORTED_TYPES  # noqa: E402
+from src.services.object_types import TYPE_MAP as _UNIFIED_TYPE_MAP  # noqa: E402
 
 TYPE_MAP: dict[str, dict] = {
     k: v for k, v in _UNIFIED_TYPE_MAP.items() if k in DSL_SUPPORTED_TYPES
