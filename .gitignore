@@ -4,9 +4,9 @@ data/
 derived/
 # Инструменты (клонируются в корень проекта — top-level only)
 /tools/
-# Runtime (кроме paths и registry)
-runtime/*.md
-runtime/.bsl-language-server.json
+# Runtime (состояние пользователя — config-registry, task-log, и т.д.)
+# Не коммитить: это user-specific состояние, генерируется при работе.
+runtime/
 # Learning loop
 learned-skills/
 # Временные
@@ -23,9 +23,13 @@ dist/
 # Системные
 .env
 upload/
+# Бинарные артефакты 1С — публикуются через GitHub Releases, не в VCS
 download/
 skills/
 runtime/bsl-baseline.json
+
+# Sphinx build artifacts (генерируются через sphinx-build, не в VCS)
+docs/sphinx/_build/
 
 # Coverage
 .coverage
