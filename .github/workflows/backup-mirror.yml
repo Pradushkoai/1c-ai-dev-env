@@ -1,0 +1,165 @@
+name: Mirror to GitLab + Backup
+
+# P2.7: Backup strategy — mirror репозитория на GitLab + daily git bundle backups.
+# Снижает риск единой точки отказа (solo-dev с репозиторием только на GitHub).
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Ежедневно в 02:00 UTC — git bundle backup
+    - cron: '0 2 * * *'
+  workflow_dispatch: # ручной запуск
+
+jobs:
+  mirror-to-gitlab:
+    name: Mirror to GitLab
+    runs-on: ubuntu-latest
+    # Только при push в main (не для daily backup)
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # полная история для mirror
+
+      - name: Mirror to GitLab
+        # P2.7: mirror push в GitLab для резервной копии
+        # Использует GITLAB_TOKEN secret
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITLAB_REPO: ${{ secrets.GITLAB_REPO }}
+        run: |
+          if [ -z "$GITLAB_TOKEN" ] || [ -z "$GITLAB_REPO" ]; then
+            echo "⚠️  GITLAB_TOKEN или GITLAB_REPO не настроены — mirror пропущен"
+            echo "Настройте secrets в GitHub repo settings:"
+            echo "  GITLAB_TOKEN: Personal access token для GitLab"
+            echo "  GITLAB_REPO: gitlab.com/username/1c-ai-dev-env.git"
+            exit 0
+          fi
+
+          echo "=== Mirror to GitLab ==="
+          git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@${GITLAB_REPO}" 2>/dev/null || \
+            git remote set-url gitlab "https://oauth2:${GITLAB_TOKEN}@${GITLAB_REPO}"
+
+          # Mirror push (все ветки и теги)
+          git push --mirror gitlab || {
+            echo "⚠️  Mirror push failed (возможно GitLab repo не существует)"
+            echo "Создайте empty repo на GitLab: $GITLAB_REPO"
+            exit 0
+          }
+
+          echo "✅ Mirror to GitLab completed"
+
+  git-bundle-backup:
+    name: Git Bundle Backup
+    runs-on: ubuntu-latest
+    # Только для daily schedule или ручного запуска
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # полная история для bundle
+
+      - name: Create git bundle
+        # P2.7: git bundle — резервная копия всей истории репозитория
+        run: |
+          DATE=$(date +%Y%m%d)
+          BUNDLE_FILE="1c-ai-dev-env-backup-${DATE}.bundle"
+
+          echo "=== Creating git bundle: $BUNDLE_FILE ==="
+          git bundle create "$BUNDLE_FILE" --all
+
+          # Проверка bundle
+          echo "=== Verifying bundle ==="
+          git bundle verify "$BUNDLE_FILE"
+
+          # Размер bundle
+          SIZE=$(du -h "$BUNDLE_FILE" | cut -f1)
+          echo "Bundle size: $SIZE"
+
+          # Сохраняем как artifact (30 дней retention)
+          echo "BUNDLE_FILE=$BUNDLE_FILE" >> $GITHUB_ENV
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-bundle-backup-${{ github.run_number }}
+          path: 1c-ai-dev-env-backup-*.bundle
+          retention-days: 30
+
+      - name: Upload to S3-compatible storage (optional)
+        # P2.7: опционально загрузить bundle в S3 (Backblaze B2, MinIO, etc.)
+        # Требует S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET secrets
+        env:
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+        run: |
+          if [ -z "$S3_ENDPOINT" ] || [ -z "$S3_ACCESS_KEY" ]; then
+            echo "⚠️  S3 storage не настроено — bundle сохранён только как artifact (30 дней)"
+            echo "Для долгосрочного хранения настройте S3 secrets:"
+            echo "  S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET"
+            exit 0
+          fi
+
+          # Установить AWS CLI (если не установлен)
+          pip install awscli --quiet
+
+          # Загрузить bundle в S3
+          DATE=$(date +%Y%m%d)
+          BUNDLE_FILE="1c-ai-dev-env-backup-${DATE}.bundle"
+
+          aws s3 cp "$BUNDLE_FILE" "s3://${S3_BUCKET}/backups/" \
+            --endpoint-url "$S3_ENDPOINT" \
+            --no-progress
+
+          echo "✅ Bundle uploaded to S3: s3://${S3_BUCKET}/backups/${BUNDLE_FILE}"
+
+          # Retention policy: удалить backups старше 30 дней
+          aws s3 ls "s3://${S3_BUCKET}/backups/" --endpoint-url "$S3_ENDPOINT" | \
+            while read -r line; do
+              FILE=$(echo "$line" | awk '{print $4}')
+              FILE_DATE=$(echo "$FILE" | grep -oP '\d{8}' || echo "")
+              if [ -n "$FILE_DATE" ]; then
+                CUTOFF=$(date -d "30 days ago" +%Y%m%d)
+                if [ "$FILE_DATE" -lt "$CUTOFF" ]; then
+                  echo "Deleting old backup: $FILE"
+                  aws s3 rm "s3://${S3_BUCKET}/backups/${FILE}" \
+                    --endpoint-url "$S3_ENDPOINT"
+                fi
+              fi
+            done
+
+  restore-drill:
+    name: Quarterly Restore Drill
+    runs-on: ubuntu-latest
+    # Ежеквартально (1-го числа января, апреля, июля, октября)
+    if: github.event_name == 'schedule' && (github.run_at_month == 1 || github.run_at_month == 4 || github.run_at_month == 7 || github.run_at_month == 10)
+    steps:
+      - name: Download latest bundle artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: git-bundle-backup-latest
+          path: ./backup
+
+      - name: Restore from bundle
+        run: |
+          echo "=== Restore Drill ==="
+          BUNDLE=$(find ./backup -name "*.bundle" | head -1)
+          if [ -z "$BUNDLE" ]; then
+            echo "❌ No bundle found — restore drill failed"
+            exit 1
+          fi
+
+          # Восстановить репозиторий из bundle
+          git clone "$BUNDLE" /tmp/restored-repo
+
+          # Проверить целостность
+          cd /tmp/restored-repo
+          git log --oneline -5
+          git fsck --full
+
+          echo "✅ Restore drill completed — bundle валиден"
