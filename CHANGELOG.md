@@ -1,6 +1,68 @@
 # Changelog
 
 
+## [6.0.0](https://github.com/Pradushkoai/1c-ai-dev-env/compare/v5.4.0...v6.0.0) (2026-07-03)
+
+### Major Release — Production-Ready
+
+v6.0.0 — это крупный релиз, завершающий план v2 (Solo Edition).
+19 из 20 задач выполнены. Проект перешёл от Beta к Production-ready.
+
+### Features
+
+#### P0: Критичные доработки
+* **P0.1 Coverage 30%→70%**: coverage gate поднят с 30% до 70%, фактический coverage 71%. Добавлено 78 новых тестов (config_builder, knowledge_base, task_processor, config_validator).
+* **P0.2 mypy strict**: mypy errors 97→0, `disallow_untyped_defs=true` для ВСЕХ модулей. CI blocking.
+* **P0.3 Complexity Budget + Mutation Testing**: radon CI gate (baseline 14 D+ функций), mutmut weekly job.
+
+#### P1: Важные улучшения
+* **P1.1 Векторный поиск**: fastembed + Qdrant (extras [rag]), гибридный BM25+vector search с graceful fallback на чистый BM25.
+* **P1.2 Синхронизация документации**: 16 недостающих tools добавлены в _get_tools_description() (29→45). CI blocking gate + pre-commit hook.
+* **P1.3 Декомпозиция mcp_server.py**: 1245→139 строк. Создан src/mcpserver/tools/ пакет (8 модулей по категориям) + tool_definitions.py.
+* **P1.4 install.sh**: убран хардкод /home/z/my-project. Добавлен --target аргумент и ONEC_AI_DEV_ENV_ROOT env var.
+* **P1.5 Metrics/observability**: Prometheus metrics (Counter, Histogram, Gauge) + NoOp fallback. @with_metrics декоратор. MCP_METRICS_PORT env var.
+* **P1.6 Snapshot Testing**: pytest-snapshot для 45 MCP tools. 7 snapshot файлов + 4 контрактных теста.
+* **P1.7 Dependency Hygiene**: pip-audit + safety + license check CI. Dependabot auto-merge для patch versions.
+
+#### P2: Стратегические улучшения
+* **P2.1 EDT формат**: MVP парсер EDT (Enterprise Development Tools) — 9 типов объектов, конвертация в unified-metadata-index.
+* **P2.2 BSL LS isolation**: subprocess с timeout 15с, retry 3× с exponential backoff [1,2,4], bsl_ls_with_fallback декоратор.
+* **P2.3 v8unpack upstream fix**: 11 тестов для patch_epf_blocksize.py, интеграционный тест создания реального .epf.
+* **P2.4 Public benchmarks**: benchmark скрипт (list_configs, search, api_reference, index sizes) + 10 тестов.
+* **P2.5 i18n**: README.en.md (полный перевод), language switcher, 16 тестов i18n.
+* **P2.6 Documentation as Code**: Sphinx + doctest (autodoc для 22+ сервисов), doctest примеры в KnowledgeBase и PathManager.
+* **P2.7 Backup Strategy**: GitLab mirror + git bundle + S3 + restore drill. 15 тестов.
+* **P2.8 Fuzzing**: atheris для xml_parser, form_analyzer, metadata_extractor. 10 тестов.
+
+#### P3: Стратегические инициативы
+* **P3.2 Dogfooding**: концепция и документация (ongoing).
+
+### Documentation
+* README.en.md — полная английская версия README
+* docs/VECTOR_SEARCH.md — векторный поиск
+* docs/METRICS.md — Prometheus observability
+* docs/SNAPSHOT_TESTING.md — snapshot testing
+* docs/FUZZING.md — fuzzing для парсеров
+* docs/BACKUP_STRATEGY.md — backup стратегия
+* docs/V8UNPACK_UPSTREAM.md — v8unpack баг документация
+* docs/DOGFOODING.md — dogfooding концепция
+* docs/sphinx/ — Sphinx автогенерация документации
+
+### CI/CD
+* mypy strict (blocking)
+* complexity gate (blocking, baseline 14)
+* MCP tools sync check (blocking)
+* dependency-hygiene (weekly: pip-audit + safety + license)
+* mutation-testing (weekly: mutmut)
+* backup-mirror (daily: git bundle + GitLab mirror)
+
+### Tests
+* 1475 tests (was 1259, +216 new)
+* Coverage 71.44% (was 69%, gate 70%)
+* mypy 0 errors (was 97, disallow_untyped_defs)
+* Complexity 14 D+ (baseline, CI gate)
+
+
 ## [5.4.0](https://github.com/Pradushkoai/1c-ai-dev-env/compare/v5.3.0...v5.4.0) (2026-07-02)
 
 

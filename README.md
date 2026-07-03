@@ -4,7 +4,7 @@
 
 **Языки:** **Русский** | [English](README.en.md)
 
-[![Version](https://img.shields.io/badge/version-5.4.0-brightgreen.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-6.0.0-brightgreen.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Java 17+](https://img.shields.io/badge/Java-17+-orange.svg)](https://openjdk.org/)
