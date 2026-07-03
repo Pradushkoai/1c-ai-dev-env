@@ -19,6 +19,8 @@ from src.dsl._common import TYPE_MAP as DSL_TYPE_MAP
 from src.services.cfe_manager import TYPE_MAP as CFE_TYPE_MAP
 from src.services.object_types import (
     DSL_SUPPORTED_TYPES,
+    MIN_REQUIRED_DIRS,
+    REQUIRED_TYPE_DIRS,
     TYPE_MAP as UNIFIED_TYPE_MAP,
     get_type_info,
     is_dsl_supported,
@@ -224,3 +226,107 @@ class TestBackwardCompatibility:
         # И НЕ должны быть в DSL_TYPE_MAP
         for t in cfe_only_types:
             assert t not in DSL_TYPE_MAP, f"CFE-only type {t} should NOT be in DSL TYPE_MAP"
+
+
+# ============================================================================
+# Тесты — P0.9: REQUIRED_TYPE_DIRS и MIN_REQUIRED_DIRS (derived from TYPE_MAP)
+# ============================================================================
+
+
+class TestRequiredTypeDirs:
+    """P0.9: REQUIRED_TYPE_DIRS должен быть derived из TYPE_MAP.
+
+    Regression: раньше 36 типов были захардкожены в config_manager.py,
+    что расходилось с TYPE_MAP (41 тип). Теперь derived — всегда консистентно.
+    """
+
+    def test_required_type_dirs_is_tuple(self) -> None:
+        """REQUIRED_TYPE_DIRS должен быть tuple (immutable)."""
+        assert isinstance(REQUIRED_TYPE_DIRS, tuple)
+        assert len(REQUIRED_TYPE_DIRS) > 0
+
+    def test_required_type_dirs_contains_all_type_map_dirs(self) -> None:
+        """Каждый dir из TYPE_MAP должен быть в REQUIRED_TYPE_DIRS."""
+        type_map_dirs = {v["dir"] for v in UNIFIED_TYPE_MAP.values()}
+        required_set = set(REQUIRED_TYPE_DIRS)
+        assert type_map_dirs == required_set, (
+            f"Mismatch: in TYPE_MAP but not REQUIRED: {type_map_dirs - required_set}; "
+            f"in REQUIRED but not TYPE_MAP: {required_set - type_map_dirs}"
+        )
+
+    def test_required_type_dirs_no_duplicates(self) -> None:
+        """REQUIRED_TYPE_DIRS не должен содержать дубликатов."""
+        assert len(REQUIRED_TYPE_DIRS) == len(set(REQUIRED_TYPE_DIRS)), f"Duplicate dirs found: {REQUIRED_TYPE_DIRS}"
+
+    def test_required_type_dirs_sorted(self) -> None:
+        """REQUIRED_TYPE_DIRS должен быть отсортирован (стабильность)."""
+        assert list(REQUIRED_TYPE_DIRS) == sorted(REQUIRED_TYPE_DIRS)
+
+    def test_required_type_dirs_has_41_entries(self) -> None:
+        """REQUIRED_TYPE_DIRS должен содержать 41 директорию (как TYPE_MAP).
+
+        Regression для P0.9: раньше было 36 (не хватало AccountingRegisters,
+        CalculationRegisters, ChartsOfAccounts, ChartsOfCalculationTypes, Styles).
+        """
+        assert len(REQUIRED_TYPE_DIRS) == 41, f"Expected 41 dirs (matching TYPE_MAP), got {len(REQUIRED_TYPE_DIRS)}"
+
+    def test_previously_missing_types_now_included(self) -> None:
+        """Типы, которые были упущены в хардкоде, теперь включены.
+
+        Regression для P0.9: 5 типов, отсутствовавших в старом REQUIRED_TYPE_DIRS.
+        """
+        previously_missing = {
+            "AccountingRegisters",
+            "CalculationRegisters",
+            "ChartsOfAccounts",
+            "ChartsOfCalculationTypes",
+            "Styles",
+        }
+        for d in previously_missing:
+            assert d in REQUIRED_TYPE_DIRS, (
+                f"{d} should be in REQUIRED_TYPE_DIRS (was missing in pre-P0.9 hardcoded version)"
+            )
+
+    def test_config_manager_re_exports_required_type_dirs(self) -> None:
+        """config_manager.py должен re-export REQUIRED_TYPE_DIRS для backward compat."""
+        from src.services.config_manager import REQUIRED_TYPE_DIRS as CM_REQUIRED
+        from src.services.config_manager import MIN_REQUIRED_DIRS as CM_MIN
+
+        # Должны быть тем же объектом (identity-equal) — single source of truth
+        assert CM_REQUIRED is REQUIRED_TYPE_DIRS, (
+            "config_manager.REQUIRED_TYPE_DIRS must be the SAME object as object_types.REQUIRED_TYPE_DIRS"
+        )
+        assert CM_MIN is MIN_REQUIRED_DIRS, (
+            "config_manager.MIN_REQUIRED_DIRS must be the SAME object as object_types.MIN_REQUIRED_DIRS"
+        )
+
+
+class TestMinRequiredDirs:
+    """MIN_REQUIRED_DIRS — минимальный набор для валидации 1С-выгрузки."""
+
+    def test_min_required_dirs_is_tuple(self) -> None:
+        """MIN_REQUIRED_DIRS должен быть tuple (immutable)."""
+        assert isinstance(MIN_REQUIRED_DIRS, tuple)
+        assert len(MIN_REQUIRED_DIRS) > 0
+
+    def test_min_required_dirs_subset_of_required(self) -> None:
+        """MIN_REQUIRED_DIRS должен быть подмножеством REQUIRED_TYPE_DIRS."""
+        min_set = set(MIN_REQUIRED_DIRS)
+        required_set = set(REQUIRED_TYPE_DIRS)
+        assert min_set.issubset(required_set), (
+            f"MIN_REQUIRED_DIRS not subset of REQUIRED_TYPE_DIRS: extra = {min_set - required_set}"
+        )
+
+    def test_min_required_dirs_has_4_entries(self) -> None:
+        """MIN_REQUIRED_DIRS должен содержать 4 ключевых типа."""
+        assert len(MIN_REQUIRED_DIRS) == 4
+        assert set(MIN_REQUIRED_DIRS) == {
+            "CommonModules",
+            "Catalogs",
+            "Documents",
+            "Subsystems",
+        }
+
+    def test_min_required_dirs_no_duplicates(self) -> None:
+        """MIN_REQUIRED_DIRS не должен содержать дубликатов."""
+        assert len(MIN_REQUIRED_DIRS) == len(set(MIN_REQUIRED_DIRS))
