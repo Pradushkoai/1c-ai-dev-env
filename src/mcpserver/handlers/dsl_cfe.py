@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import mcp.types as types
 
@@ -390,6 +390,7 @@ async def handle_dependency_query(project: Project, arguments: dict) -> list[typ
         dg = DependencyGraph()
         dg.build_from_metadata_index(config_name, project.paths)
 
+        result: Any = None
         if query_type == "what_depends_on":
             result = dg.what_depends_on(object_ref)
         elif query_type == "dependencies_of":

@@ -9,7 +9,7 @@ Handlers: list_configs, search_1c_methods, search_code, call_graph,
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import mcp.types as types
 
@@ -69,6 +69,7 @@ async def handle_call_graph(project: Project, arguments: dict) -> list[types.Tex
     from src.services.call_graph import build_call_graph
 
     graph = await run_sync(build_call_graph, config_name, project.paths)
+    result: Any = None
     if action == "stats":
         result = graph.get_stats()
     elif action == "callers":
@@ -77,7 +78,7 @@ async def handle_call_graph(project: Project, arguments: dict) -> list[types.Tex
         result = graph.get_callees(module, method)
     elif action == "dead-code":
         api_json = project.paths.config_api_reference_json(config_name)
-        export_methods = []
+        export_methods: list[tuple[str, str]] = []
         if api_json.exists():
             with open(api_json, encoding="utf-8") as f:
                 modules = json.load(f)

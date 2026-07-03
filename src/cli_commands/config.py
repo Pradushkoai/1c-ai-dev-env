@@ -98,8 +98,8 @@ def cmd_config_build(project: Project, args: argparse.Namespace) -> None:
                 print(f"    ⚠️ {w}")
         return
     force = getattr(args, "force", False)
-    report = project.config_manager.build(args.name, force=force)
-    _print_build_report(report)
+    build_report: dict = project.config_manager.build(args.name, force=force)
+    _print_build_report(build_report)
 
 
 def cmd_config_build_all(project: Project, args: argparse.Namespace) -> None:

@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import xml.etree.ElementTree as _ET
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import mcp.types as types
 
@@ -52,7 +52,7 @@ async def handle_inspect(project: Project, arguments: dict) -> list[types.TextCo
                     config = elem
                     break
 
-            result = {"target": "cf", "path": str(path)}
+            result: dict[str, Any] = {"target": "cf", "path": str(path)}
             if config is not None:
                 props = None
                 for elem in config:
@@ -68,7 +68,7 @@ async def handle_inspect(project: Project, arguments: dict) -> list[types.TextCo
                         child_objects = elem
                         break
                 if child_objects is not None:
-                    type_counts = {}
+                    type_counts: dict[str, int] = {}
                     for child in child_objects:
                         tag = _strip_ns(child.tag)
                         type_counts[tag] = type_counts.get(tag, 0) + 1
