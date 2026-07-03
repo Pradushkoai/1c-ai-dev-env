@@ -76,6 +76,8 @@ dev = [
     "pip-audit>=2.0,<3.0",
     "safety>=3.0,<4.0",
     "pip-licenses>=5.0,<6.0",
+    # P1.6: snapshot testing для MCP tools
+    "pytest-snapshot>=0.9,<1.0",
 ]
 
 # P0.3: Mutation testing configuration

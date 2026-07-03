@@ -1,0 +1,151 @@
+{
+  "analyze_architecture": [
+    "config_dir"
+  ],
+  "analyze_bsl": [
+    "file_path"
+  ],
+  "analyze_queries": [
+    "file_path"
+  ],
+  "audit_security": [
+    "file_path"
+  ],
+  "build_dependency_graph": [
+    "config_name"
+  ],
+  "build_epf": [
+    "source_dir",
+    "output_path"
+  ],
+  "call_graph": [
+    "config_name",
+    "action"
+  ],
+  "cfe_borrow": [
+    "extension_path",
+    "config_path",
+    "object_ref"
+  ],
+  "cfe_diff": [
+    "extension_path",
+    "config_path"
+  ],
+  "cfe_patch_method": [
+    "extension_path",
+    "module_path",
+    "method_name",
+    "interceptor_type"
+  ],
+  "check_form_quality": [
+    "config_name"
+  ],
+  "check_skd_quality": [
+    "config_name"
+  ],
+  "check_standards": [
+    "file_path"
+  ],
+  "check_transactions": [
+    "file_path"
+  ],
+  "data_status": [],
+  "dependency_query": [
+    "config_name",
+    "query_type",
+    "object_ref"
+  ],
+  "diff_configs": [
+    "old_path",
+    "new_path"
+  ],
+  "dsl_compile_form": [
+    "definition",
+    "output_path"
+  ],
+  "dsl_compile_meta": [
+    "definition",
+    "output_dir"
+  ],
+  "dsl_compile_mxl": [
+    "definition",
+    "output_path"
+  ],
+  "dsl_compile_role": [
+    "definition",
+    "output_dir"
+  ],
+  "dsl_compile_skd": [
+    "definition",
+    "output_path"
+  ],
+  "epf_factory_create": [
+    "name",
+    "output_path"
+  ],
+  "epf_factory_templates": [],
+  "generate_processing": [
+    "name",
+    "synonym"
+  ],
+  "generate_report": [
+    "name",
+    "synonym"
+  ],
+  "get_api_reference": [
+    "config_name"
+  ],
+  "get_code_metrics": [
+    "file_path"
+  ],
+  "get_form_elements": [
+    "config_name"
+  ],
+  "get_form_structure": [
+    "config_name"
+  ],
+  "get_knowledge": [],
+  "get_object_structure": [
+    "config_name"
+  ],
+  "get_skd_schema": [
+    "config_name"
+  ],
+  "inspect": [
+    "target",
+    "path"
+  ],
+  "list_configs": [],
+  "openspec_archive": [
+    "change_id"
+  ],
+  "openspec_list": [],
+  "openspec_proposal": [
+    "change_id",
+    "title"
+  ],
+  "openspec_update_task": [
+    "change_id",
+    "task_index"
+  ],
+  "search_1c_methods": [
+    "query"
+  ],
+  "search_code": [
+    "query",
+    "config_name"
+  ],
+  "skd_trace": [
+    "template_path",
+    "field_name"
+  ],
+  "solve_check": [
+    "file_path"
+  ],
+  "solve_context": [
+    "query"
+  ],
+  "validate_generated": [
+    "source_dir"
+  ]
+}

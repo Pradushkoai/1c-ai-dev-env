@@ -1,0 +1,780 @@
+{
+  "analyze_architecture": {
+    "properties": {
+      "config_dir": {
+        "description": "Путь к директории конфигурации",
+        "type": "string"
+      }
+    },
+    "required": [
+      "config_dir"
+    ],
+    "type": "object"
+  },
+  "analyze_bsl": {
+    "properties": {
+      "file_path": {
+        "description": "Путь к .bsl файлу",
+        "type": "string"
+      }
+    },
+    "required": [
+      "file_path"
+    ],
+    "type": "object"
+  },
+  "analyze_queries": {
+    "properties": {
+      "file_path": {
+        "description": "Путь к .bsl файлу",
+        "type": "string"
+      }
+    },
+    "required": [
+      "file_path"
+    ],
+    "type": "object"
+  },
+  "audit_security": {
+    "properties": {
+      "file_path": {
+        "description": "Путь к .bsl файлу для аудита",
+        "type": "string"
+      }
+    },
+    "required": [
+      "file_path"
+    ],
+    "type": "object"
+  },
+  "build_dependency_graph": {
+    "properties": {
+      "config_name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "config_name"
+    ],
+    "type": "object"
+  },
+  "build_epf": {
+    "properties": {
+      "object_name": {
+        "description": "Имя объекта (если не указано — берётся из имени каталога)",
+        "type": "string"
+      },
+      "object_type": {
+        "description": "Тип объекта: DataProcessor (по умолчанию) или Report",
+        "type": "string"
+      },
+      "output_path": {
+        "description": "Куда сохранить .epf файл",
+        "type": "string"
+      },
+      "source_dir": {
+        "description": "Путь к каталогу со структурой обработки/отчёта",
+        "type": "string"
+      }
+    },
+    "required": [
+      "source_dir",
+      "output_path"
+    ],
+    "type": "object"
+  },
+  "call_graph": {
+    "properties": {
+      "action": {
+        "default": "stats",
+        "description": "Действие: stats, callers, callees, dead-code, cycles",
+        "type": "string"
+      },
+      "config_name": {
+        "description": "Имя конфигурации",
+        "type": "string"
+      },
+      "method": {
+        "description": "Имя метода (для callers/callees)",
+        "type": "string"
+      },
+      "module": {
+        "description": "Имя модуля (для callers/callees)",
+        "type": "string"
+      }
+    },
+    "required": [
+      "config_name",
+      "action"
+    ],
+    "type": "object"
+  },
+  "cfe_borrow": {
+    "properties": {
+      "config_path": {
+        "type": "string"
+      },
+      "extension_path": {
+        "type": "string"
+      },
+      "object_ref": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "extension_path",
+      "config_path",
+      "object_ref"
+    ],
+    "type": "object"
+  },
+  "cfe_diff": {
+    "properties": {
+      "config_path": {
+        "type": "string"
+      },
+      "extension_path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "extension_path",
+      "config_path"
+    ],
+    "type": "object"
+  },
+  "cfe_patch_method": {
+    "properties": {
+      "extension_path": {
+        "type": "string"
+      },
+      "interceptor_type": {
+        "enum": [
+          "Before",
+          "After",
+          "ModificationAndControl"
+        ],
+        "type": "string"
+      },
+      "method_name": {
+        "type": "string"
+      },
+      "module_path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "extension_path",
+      "module_path",
+      "method_name",
+      "interceptor_type"
+    ],
+    "type": "object"
+  },
+  "check_form_quality": {
+    "properties": {
+      "config_name": {
+        "description": "Имя конфигурации",
+        "type": "string"
+      }
+    },
+    "required": [
+      "config_name"
+    ],
+    "type": "object"
+  },
+  "check_skd_quality": {
+    "properties": {
+      "config_name": {
+        "description": "Имя конфигурации",
+        "type": "string"
+      }
+    },
+    "required": [
+      "config_name"
+    ],
+    "type": "object"
+  },
+  "check_standards": {
+    "properties": {
+      "file_path": {
+        "description": "Путь к .bsl файлу",
+        "type": "string"
+      }
+    },
+    "required": [
+      "file_path"
+    ],
+    "type": "object"
+  },
+  "check_transactions": {
+    "properties": {
+      "file_path": {
+        "description": "Путь к .bsl файлу",
+        "type": "string"
+      }
+    },
+    "required": [
+      "file_path"
+    ],
+    "type": "object"
+  },
+  "data_status": {
+    "properties": {},
+    "type": "object"
+  },
+  "dependency_query": {
+    "properties": {
+      "config_name": {
+        "type": "string"
+      },
+      "object_ref": {
+        "type": "string"
+      },
+      "query_type": {
+        "type": "string"
+      },
+      "target": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "config_name",
+      "query_type",
+      "object_ref"
+    ],
+    "type": "object"
+  },
+  "diff_configs": {
+    "properties": {
+      "new_path": {
+        "description": "Путь к новому unified-metadata-index.json",
+        "type": "string"
+      },
+      "old_path": {
+        "description": "Путь к старому unified-metadata-index.json",
+        "type": "string"
+      }
+    },
+    "required": [
+      "old_path",
+      "new_path"
+    ],
+    "type": "object"
+  },
+  "dsl_compile_form": {
+    "properties": {
+      "definition": {
+        "type": "object"
+      },
+      "output_path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "definition",
+      "output_path"
+    ],
+    "type": "object"
+  },
+  "dsl_compile_meta": {
+    "properties": {
+      "definition": {
+        "type": "object"
+      },
+      "output_dir": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "definition",
+      "output_dir"
+    ],
+    "type": "object"
+  },
+  "dsl_compile_mxl": {
+    "properties": {
+      "definition": {
+        "type": "object"
+      },
+      "output_path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "definition",
+      "output_path"
+    ],
+    "type": "object"
+  },
+  "dsl_compile_role": {
+    "properties": {
+      "definition": {
+        "type": "object"
+      },
+      "output_dir": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "definition",
+      "output_dir"
+    ],
+    "type": "object"
+  },
+  "dsl_compile_skd": {
+    "properties": {
+      "definition": {
+        "type": "object"
+      },
+      "output_path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "definition",
+      "output_path"
+    ],
+    "type": "object"
+  },
+  "epf_factory_create": {
+    "properties": {
+      "bsl_code": {
+        "description": "BSL-код модуля формы",
+        "type": "string"
+      },
+      "bsl_path": {
+        "description": "Путь к .bsl файлу (альтернатива bsl_code)",
+        "type": "string"
+      },
+      "form_name": {
+        "description": "Имя формы (по умолчанию 'Форма')",
+        "type": "string"
+      },
+      "form_spec": {
+        "description": "DSL-описание формы для генерации Form.elem.json. Если не задано — используется пустой шаблон (только реквизит Объект). Пример: {\"props\": [{\"name\":\"ТаблицаСписка\",\"type\":\"ValueTable\",\"columns\":[{\"name\":\"Дата\",\"type\":\"Date\"}]}]}",
+        "type": "object"
+      },
+      "form_spec_path": {
+        "description": "Путь к JSON-файлу с DSL-описанием формы (альтернатива form_spec)",
+        "type": "string"
+      },
+      "name": {
+        "description": "Имя обработки (латиница/кириллица, без пробелов)",
+        "type": "string"
+      },
+      "output_path": {
+        "description": "Путь к выходному .epf файлу",
+        "type": "string"
+      },
+      "save_sources": {
+        "description": "Сохранить v8unpack-исходники (не удалять)",
+        "type": "boolean"
+      },
+      "skip_bsl_validation": {
+        "description": "Пропустить проверку BSL LS",
+        "type": "boolean"
+      },
+      "synonym": {
+        "description": "Синоним (по умолчанию = name)",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "output_path"
+    ],
+    "type": "object"
+  },
+  "epf_factory_templates": {
+    "properties": {},
+    "type": "object"
+  },
+  "generate_processing": {
+    "properties": {
+      "author": {
+        "description": "Автор (опционально)",
+        "type": "string"
+      },
+      "description": {
+        "description": "Описание обработки (опционально)",
+        "type": "string"
+      },
+      "name": {
+        "description": "Имя обработки (латиница, без пробелов)",
+        "type": "string"
+      },
+      "output_dir": {
+        "description": "Куда сохранить (по умолчанию generated/<name>)",
+        "type": "string"
+      },
+      "synonym": {
+        "description": "Синоним (русское название)",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "synonym"
+    ],
+    "type": "object"
+  },
+  "generate_report": {
+    "properties": {
+      "author": {
+        "description": "Автор (опционально)",
+        "type": "string"
+      },
+      "data_source": {
+        "description": "Источник данных (например 'Документ.РеализацияТоваровУслуг')",
+        "type": "string"
+      },
+      "description": {
+        "description": "Описание отчёта (опционально)",
+        "type": "string"
+      },
+      "main_query": {
+        "description": "Готовый запрос 1С (если пусто — будет шаблонный)",
+        "type": "string"
+      },
+      "name": {
+        "description": "Имя отчёта (латиница, без пробелов)",
+        "type": "string"
+      },
+      "output_dir": {
+        "description": "Куда сохранить (по умолчанию generated/<name>)",
+        "type": "string"
+      },
+      "synonym": {
+        "description": "Синоним (русское название)",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "synonym"
+    ],
+    "type": "object"
+  },
+  "get_api_reference": {
+    "properties": {
+      "config_name": {
+        "description": "Имя конфигурации (ut11, priemka, и т.д.)",
+        "type": "string"
+      },
+      "module": {
+        "default": "",
+        "description": "Имя модуля (необязательно). Если пусто — все модули.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "config_name"
+    ],
+    "type": "object"
+  },
+  "get_code_metrics": {
+    "properties": {
+      "file_path": {
+        "description": "Путь к .bsl файлу",
+        "type": "string"
+      }
+    },
+    "required": [
+      "file_path"
+    ],
+    "type": "object"
+  },
+  "get_form_elements": {
+    "properties": {
+      "config_name": {
+        "description": "Имя конфигурации",
+        "type": "string"
+      },
+      "form_name": {
+        "description": "Имя формы (необязательно). Если пусто — список всех форм.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "config_name"
+    ],
+    "type": "object"
+  },
+  "get_form_structure": {
+    "properties": {
+      "config_name": {
+        "description": "Имя конфигурации (ut11, edo2, edo3, unp, obhod)",
+        "type": "string"
+      },
+      "form_name": {
+        "description": "Имя формы. Если не указан — список всех форм.",
+        "type": "string"
+      },
+      "parent_name": {
+        "description": "Имя родительского объекта (справочника, документа). Опционально для уточнения.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "config_name"
+    ],
+    "type": "object"
+  },
+  "get_knowledge": {
+    "properties": {
+      "category": {
+        "description": "Категория: patterns, antipatterns, best_practices",
+        "type": "string"
+      },
+      "item_id": {
+        "description": "ID статьи для получения полного текста (например 'create_catalog')",
+        "type": "string"
+      },
+      "query": {
+        "description": "Поисковый запрос (например 'справочник', 'СКД', 'обработка')",
+        "type": "string"
+      }
+    },
+    "required": [],
+    "type": "object"
+  },
+  "get_object_structure": {
+    "properties": {
+      "config_name": {
+        "description": "Имя конфигурации (ut11, edo2, edo3, unp, obhod)",
+        "type": "string"
+      },
+      "object_name": {
+        "description": "Имя объекта (справочника, документа, и т.д.). Если не указан — список всех.",
+        "type": "string"
+      },
+      "object_type": {
+        "description": "Тип объекта (Catalog, Document, InformationRegister, и т.д.) — опциональный фильтр",
+        "type": "string"
+      }
+    },
+    "required": [
+      "config_name"
+    ],
+    "type": "object"
+  },
+  "get_skd_schema": {
+    "properties": {
+      "config_name": {
+        "description": "Имя конфигурации (ut11, edo2, edo3, unp, obhod)",
+        "type": "string"
+      },
+      "report_name": {
+        "description": "Имя отчёта или обработки. Если не указан — список всех СКД-схем.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "config_name"
+    ],
+    "type": "object"
+  },
+  "inspect": {
+    "properties": {
+      "config_name": {
+        "type": "string"
+      },
+      "mode": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "target": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "target",
+      "path"
+    ],
+    "type": "object"
+  },
+  "list_configs": {
+    "properties": {},
+    "type": "object"
+  },
+  "openspec_archive": {
+    "properties": {
+      "change_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "change_id"
+    ],
+    "type": "object"
+  },
+  "openspec_list": {
+    "properties": {
+      "include_archived": {
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
+  "openspec_proposal": {
+    "properties": {
+      "approach": {
+        "type": "string"
+      },
+      "change_id": {
+        "type": "string"
+      },
+      "context": {
+        "type": "string"
+      },
+      "tasks": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "title": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "change_id",
+      "title"
+    ],
+    "type": "object"
+  },
+  "openspec_update_task": {
+    "properties": {
+      "change_id": {
+        "type": "string"
+      },
+      "completed": {
+        "type": "boolean"
+      },
+      "task_index": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "change_id",
+      "task_index"
+    ],
+    "type": "object"
+  },
+  "search_1c_methods": {
+    "properties": {
+      "limit": {
+        "default": 10,
+        "description": "Кол-во результатов (по умолчанию 10)",
+        "type": "integer"
+      },
+      "query": {
+        "description": "Поисковый запрос на русском или английском",
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "type": "object"
+  },
+  "search_code": {
+    "properties": {
+      "config_name": {
+        "description": "Имя конфигурации (ut11, edo2, edo3, unp)",
+        "type": "string"
+      },
+      "limit": {
+        "default": 10,
+        "description": "Кол-во результатов (по умолчанию 10)",
+        "type": "integer"
+      },
+      "query": {
+        "description": "Поисковый запрос",
+        "type": "string"
+      }
+    },
+    "required": [
+      "query",
+      "config_name"
+    ],
+    "type": "object"
+  },
+  "skd_trace": {
+    "properties": {
+      "field_name": {
+        "type": "string"
+      },
+      "template_path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "template_path",
+      "field_name"
+    ],
+    "type": "object"
+  },
+  "solve_check": {
+    "properties": {
+      "file_path": {
+        "description": "Путь к .bsl файлу",
+        "type": "string"
+      },
+      "level": {
+        "default": "standard",
+        "description": "Уровень проверки",
+        "enum": [
+          "quick",
+          "standard",
+          "full"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "file_path"
+    ],
+    "type": "object"
+  },
+  "solve_context": {
+    "properties": {
+      "config": {
+        "default": "",
+        "description": "Имя конфигурации (необязательно)",
+        "type": "string"
+      },
+      "limit": {
+        "default": 5,
+        "description": "Лимит результатов на источник",
+        "type": "integer"
+      },
+      "query": {
+        "description": "Описание задачи",
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "type": "object"
+  },
+  "validate_generated": {
+    "properties": {
+      "source_dir": {
+        "description": "Путь к каталогу со структурой обработки/отчёта",
+        "type": "string"
+      }
+    },
+    "required": [
+      "source_dir"
+    ],
+    "type": "object"
+  }
+}
