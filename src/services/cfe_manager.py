@@ -31,7 +31,6 @@ NS_XR = "http://v8.1c.ru/8.3/xcf/extprops"
 # Здесь оставлен re-export для обратной совместимости.
 from .object_types import TYPE_MAP
 
-
 # ============================================================================
 # МОДЕЛИ
 # ============================================================================
@@ -588,7 +587,7 @@ class CfeManager:
         extension_path: Path,
     ) -> list[dict]:
         """Найти декораторы перехвата (&Перед, &После, &ИзменениеИКонтроль) в BSL."""
-        patches = []
+        patches: list[dict] = []
         try:
             content = bsl_file.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):

@@ -137,8 +137,8 @@ def cmd_call_graph(project: Project, args: argparse.Namespace) -> None:
         cycles = graph.find_cycles()
         if cycles:
             print(f"Циклические зависимости ({len(cycles)}):")
-            for c in cycles:
-                print(f"  {' → '.join(c)}")
+            for cycle in cycles:
+                print(f"  {' → '.join(cycle)}")
         else:
             print("Циклов не найдено")
 

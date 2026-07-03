@@ -260,7 +260,7 @@ class RoleCompiler:
         tree = ET.ElementTree(root)
         tree.write(rights_path, encoding="utf-8", xml_declaration=True)
 
-    def _write_object_rights(self, parent: ET.Element, obj_def, ns: str) -> None:
+    def _write_object_rights(self, parent: ET.Element, obj_def: dict | str, ns: str) -> None:
         """Записать права на один объект в реальном формате 1C."""
         if isinstance(obj_def, str):
             parsed = self._parse_object_shorthand(obj_def)

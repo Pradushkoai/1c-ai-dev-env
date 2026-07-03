@@ -68,12 +68,14 @@ class MxlCompiler:
         # Columns
         columns = def_dict.get("columns", 10)
         # Page width (auto-calc defaultWidth)
+        total_width: int | None = None
         if "page" in def_dict:
             page_map = {"A4-landscape": 780, "A4-portrait": 540}
             page = def_dict["page"]
-            total_width = page_map.get(page, page) if isinstance(page, str) else page
-        else:
-            total_width = None
+            if isinstance(page, str):
+                total_width = page_map.get(page)
+            elif isinstance(page, int):
+                total_width = page
 
         # Default column width
         default_width = def_dict.get("defaultWidth", 10)
@@ -140,7 +142,7 @@ class MxlCompiler:
 
         return result
 
-    def _parse_column_widths(self, column_widths: dict, columns: int, default_width: int, total_width) -> list[int]:
+    def _parse_column_widths(self, column_widths: dict, columns: int, default_width: int, total_width: int | None = None) -> list[int]:
         """Парсит columnWidths dict в список ширин по колонкам."""
         widths = [default_width] * columns
         for key, val in column_widths.items():
@@ -160,7 +162,7 @@ class MxlCompiler:
     @staticmethod
     def _parse_column_keys(key: str, columns: int) -> list[int]:
         """Парсит '1', '2-8', '5,7,9' в список индексов."""
-        result = []
+        result: list[int] = []
         for part in key.split(","):
             part = part.strip()
             if "-" in part:

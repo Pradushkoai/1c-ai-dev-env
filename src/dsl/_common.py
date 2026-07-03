@@ -35,11 +35,10 @@ NS_RIGHTS = "http://v8.1c.ru/8.1/data/rights"
 # Маппинг типов объектов 1С → XML-теги и папки.
 # P3.17: вынесен в src/services/object_types.py — единый источник для DSL и CFE.
 # Здесь оставлен re-export для обратной совместимости с существующими импортами.
-from src.services.object_types import TYPE_MAP as _UNIFIED_TYPE_MAP
-
 # DSL поддерживает подмножество типов из полного TYPE_MAP.
 # Импортируем только поддерживаемые, чтобы не вводить в заблуждение.
 from src.services.object_types import DSL_SUPPORTED_TYPES
+from src.services.object_types import TYPE_MAP as _UNIFIED_TYPE_MAP
 
 TYPE_MAP: dict[str, dict] = {
     k: v for k, v in _UNIFIED_TYPE_MAP.items() if k in DSL_SUPPORTED_TYPES
@@ -136,7 +135,7 @@ def _camel_to_words(name: str) -> str:
         return name
 
     # Граница на переходе [а-яё][А-ЯЁ] и [a-z][A-Z]
-    def replacer(m):
+    def replacer(m: re.Match[str]) -> str:
         if m.group(1) and m.group(2):
             # Russian boundary
             return m.group(1) + " " + m.group(2)
