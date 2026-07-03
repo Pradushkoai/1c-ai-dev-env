@@ -11,12 +11,16 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 import zipfile
-from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from ..models.config_registry import ConfigurationRegistry
 from ..models.configuration import Configuration
 from .path_manager import PathManager
+
+if TYPE_CHECKING:
+    from .config_builder import ConfigBuilder
+    from .config_validator import ConfigValidator
 
 # Используем structlog если доступен, иначе fallback на logging
 try:
@@ -72,78 +76,9 @@ REQUIRED_TYPE_DIRS: tuple[str, ...] = (
 MIN_REQUIRED_DIRS: tuple[str, ...] = ("CommonModules", "Catalogs", "Documents", "Subsystems")
 
 
-@dataclass
-class SourceValidation:
-    """Результат валидации исходников конфигурации.
-
-    Deprecated: используйте src.services.config_validator.SourceValidation.
-    Сохранён здесь для backward compat с импортами `from config_manager import SourceValidation`.
-    """
-
-    is_valid: bool
-    has_configuration_xml: bool = False
-    has_metadata_dirs: bool = False
-    has_bsl_files: bool = False
-    found_type_dirs: list[str] = field(default_factory=list)
-    missing_critical: list[str] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
-    warnings: list[str] = field(default_factory=list)
-
-
-@dataclass
-class IndexStatus:
-    """Статус одного индекса конфигурации.
-
-    Deprecated: используйте src.services.config_validator.IndexStatus.
-    """
-
-    name: str  # metadata | api | skd | forms
-    path: Path | None
-    exists: bool
-    mtime: float | None  # время модификации индекса (epoch)
-    size_bytes: int = 0
-    is_stale: bool = False  # True если source новее индекса
-    stale_reason: str = ""  # объяснение почему stale
-
-
-@dataclass
-class IndexFreshnessReport:
-    """Полный отчёт об актуальности всех индексов конфигурации.
-
-    Deprecated: используйте src.services.config_validator.IndexFreshnessReport.
-    """
-
-    config_name: str
-    source_mtime: float | None  # самый свежий .xml/.bsl в исходниках
-    indexes: list[IndexStatus] = field(default_factory=list)
-    all_fresh: bool = True
-    missing_indexes: list[str] = field(default_factory=list)
-    stale_indexes: list[str] = field(default_factory=list)
-
-    def to_dict(self) -> dict:
-        return {
-            "config": self.config_name,
-            "source_mtime": self.source_mtime,
-            "all_fresh": self.all_fresh,
-            "missing": self.missing_indexes,
-            "stale": self.stale_indexes,
-            "indexes": [
-                {
-                    "name": i.name,
-                    "exists": i.exists,
-                    "is_stale": i.is_stale,
-                    "stale_reason": i.stale_reason,
-                    "size_bytes": i.size_bytes,
-                }
-                for i in self.indexes
-            ],
-        }
-
-
-# P2.11: переопределяем классы как aliases на canonical версии из config_validator.
-# Это сохраняет backward compat для `isinstance(result, SourceValidation)`:
-# любая реализация (из ConfigManager или ConfigValidator) будет того же типа.
-from .config_validator import (  # noqa: E402,F811 — переопределяем выше
+# P2.11: классы перенесены в config_validator.py для SRP.
+# Re-export для backward compat: `from config_manager import SourceValidation`.
+from .config_validator import (  # noqa: E402,F401
     IndexFreshnessReport,
     IndexStatus,
     SourceValidation,
@@ -167,13 +102,13 @@ class ConfigManager:
         self._registry = registry
         self._paths = paths
         # P2.11: lazy-init builder и validator для SRP-декомпозиции.
-        self._builder: "ConfigBuilder | None" = None
-        self._validator: "ConfigValidator | None" = None
+        self._builder: ConfigBuilder | None = None
+        self._validator: ConfigValidator | None = None
 
     # ─── P2.11: SRP-декомпозиция ───
 
     @property
-    def builder(self) -> "ConfigBuilder":
+    def builder(self) -> ConfigBuilder:
         """ConfigBuilder для построения индексов (SRP)."""
         if self._builder is None:
             from .config_builder import ConfigBuilder
@@ -182,7 +117,7 @@ class ConfigManager:
         return self._builder
 
     @property
-    def validator(self) -> "ConfigValidator":
+    def validator(self) -> ConfigValidator:
         """ConfigValidator для валидации исходников (SRP)."""
         if self._validator is None:
             from .config_validator import ConfigValidator
@@ -528,7 +463,7 @@ class ConfigManager:
                     "reason": "all indexes fresh",
                 }
 
-        report = {
+        report: dict[str, Any] = {
             "name": name,
             "metadata": False,
             "api": False,

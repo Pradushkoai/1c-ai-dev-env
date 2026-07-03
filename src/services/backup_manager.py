@@ -19,6 +19,7 @@ import logging
 import zipfile
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ class BackupManager:
         if not backup_path.exists():
             raise FileNotFoundError(f"Backup файл не найден: {backup_path}")
 
-        stats: dict[str, int | set[str]] = {
+        stats: dict[str, Any] = {
             "files_restored": 0,
             "dirs_restored": set(),
             "size_bytes": 0,

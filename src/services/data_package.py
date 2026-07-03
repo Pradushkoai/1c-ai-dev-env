@@ -194,7 +194,7 @@ class DataPackage:
         if not input_path.exists():
             raise FileNotFoundError(f"Пакет не найден: {input_path}")
 
-        stats: dict[str, int | PackageManifest | None] = {
+        stats: dict[str, Any] = {
             "files_restored": 0,
             "configs_loaded": 0,
             "derived_restored": 0,
@@ -323,7 +323,7 @@ class DataPackage:
             autosave_info: dict | None,
         }
         """
-        status = {
+        status: dict[str, Any] = {
             "has_platform_index": self._paths.fast_search_index.exists(),
             "has_platform_methods": self._paths.syntax_helper_index_json.exists(),
             "configs": [],

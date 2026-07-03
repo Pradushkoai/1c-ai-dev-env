@@ -283,6 +283,8 @@ class GitHubReleases:
             )
             if status != 201:
                 return {"success": False, "error": f"Не удалось создать release: {status} {data}"}
+            if not isinstance(data, dict):
+                return {"success": False, "error": f"Неожиданный ответ GitHub: {data}"}
             release = ReleaseInfo.from_api(data)
         else:
             # Удалить старые assets с тем же именем

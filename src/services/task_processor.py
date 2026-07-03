@@ -187,9 +187,9 @@ class TaskProcessor:
                 ctx.subsystems.append(s)
 
         # Подписки на события
-        for e in meta.get("event_subscriptions", []):
-            if any(w in e.get("name", "").lower() or w in e.get("handler", "").lower() for w in query_words):
-                ctx.event_subscriptions.append(e)
+        for ev in meta.get("event_subscriptions", []):
+            if any(w in ev.get("name", "").lower() or w in ev.get("handler", "").lower() for w in query_words):
+                ctx.event_subscriptions.append(ev)
 
         # Регламентные задания
         for s in meta.get("scheduled_jobs", []):
@@ -432,7 +432,11 @@ class TaskProcessor:
                     # Импортируем bsl_analyzer лениво — он требует Java
                     from .bsl_analyzer import BSLAnalyzer
 
-                    analyzer = BSLAnalyzer(self._paths)
+                    analyzer = BSLAnalyzer(
+                        self._paths.bsl_ls_binary,
+                        self._paths.bsl_ls_config,
+                        self._paths.root,
+                    )
                     bsl_result = analyzer.analyze(file_path)
                     for d in bsl_result.diagnostics:
                         result.violations.append(

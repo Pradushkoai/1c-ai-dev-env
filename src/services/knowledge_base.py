@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 
 class KnowledgeBase:
@@ -165,9 +166,9 @@ class KnowledgeBase:
                 )
         return result
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Возвращает статистику базы знаний."""
-        stats = {
+        stats: dict[str, Any] = {
             "total_items": 0,
             "by_category": {},
             "total_files": 0,
