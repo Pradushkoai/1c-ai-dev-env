@@ -1,7 +1,8 @@
 """
 MCP-сервер для 1C AI Development Environment.
 
-Экспортирует 7 tools для MCP-совместимых клиентов (Cursor, Claude Desktop, VS Code, и т.д.).
+Экспортирует 45 tools для MCP-совместимых клиентов (Cursor, Claude Desktop,
+VS Code, JetBrains). Полный список tools — в src/mcpserver/tools/tool_definitions.py.
 
 Запуск: 1c-ai mcp serve
 """
@@ -95,14 +96,9 @@ def create_mcp_server() -> Server:
         if handler is not None:
             return await handler(project, arguments)
 
-        # P2.2: dict-dispatch для handlers группы 6 (structure)
-        from .mcpserver.handlers import STRUCTURE_HANDLERS
-
-        handler = STRUCTURE_HANDLERS.get(name)
-        if handler is not None:
-            return await handler(project, arguments)
-
         # P2.2: dict-dispatch для оставшихся handlers (группы 6-8)
+        # Структура/Генерация/Качество — проверяются одним проходом,
+        # без дублирования (раньше STRUCTURE_HANDLERS искался дважды).
         from .mcpserver.handlers import GENERATE_HANDLERS, QUALITY_HANDLERS, STRUCTURE_HANDLERS
 
         for handlers_dict in (STRUCTURE_HANDLERS, GENERATE_HANDLERS, QUALITY_HANDLERS):
