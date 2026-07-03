@@ -76,6 +76,38 @@ jobs:
           fi
           echo "✅ Versions are consistent: $MANIFEST_VER"
 
+  complexity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install radon
+        run: pip install "radon>=6.0,<7.0"
+
+      - name: Complexity check (block new D+ functions)
+        # P0.3: CI gate — блокирует новые функции с complexity ≥ D
+        # Существующие D/E/F — технический долг (см. docs/COMPLEXITY_BASELINE.md)
+        run: |
+          echo "=== Функции с complexity ≥ D (16+) ==="
+          radon cc src/ -s -n D || true
+          echo ""
+          echo "=== Проверка baseline ==="
+          # Подсчитаем количество функций с complexity ≥ D
+          VIOLATIONS=$(radon cc src/ -n D 2>/dev/null | grep -c "^    [FM] " || echo "0")
+          echo "Функций с complexity ≥ D: $VIOLATIONS"
+          # Baseline: 14 функций (см. docs/COMPLEXITY_BASELINE.md)
+          BASELINE=14
+          if [ "$VIOLATIONS" -gt "$BASELINE" ]; then
+            echo "❌ Complexity budget violated: $VIOLATIONS > $BASELINE (baseline)"
+            echo "Новые функции с complexity ≥ D добавлены. Отрефактори или обнови baseline в docs/COMPLEXITY_BASELINE.md"
+            exit 1
+          else
+            echo "✅ Complexity budget OK: $VIOLATIONS ≤ $BASELINE (baseline)"
+          fi
+
   test:
     runs-on: ubuntu-latest
     steps:

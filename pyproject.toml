@@ -66,7 +66,16 @@ dev = [
     "mcp>=1.0,<2.0",
     "networkx>=3.0,<4.0",
     "v8unpack>=1.2.6,<2.0",
+    # P0.3: complexity budget + mutation testing
+    "radon>=6.0,<7.0",
+    "mutmut>=3.0,<4.0",
 ]
+
+# P0.3: Mutation testing configuration
+[tool.mutmut]
+paths_to_mutate = ["src/services/"]
+tests_dir = "tests/"
+do_not_mutate = ["__init__.py", "__main__.py"]
 
 [project.scripts]
 1c-ai = "src.cli:main"

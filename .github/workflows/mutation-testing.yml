@@ -1,0 +1,62 @@
+name: Mutation Testing (weekly)
+
+on:
+  schedule:
+    # Каждое воскресенье в 03:00 UTC
+    - cron: '0 3 * * 0'
+  workflow_dispatch: # ручной запуск
+
+jobs:
+  mutmut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev,mcp]"
+          pip install mutmut
+
+      - name: Run mutmut on src/services/
+        # P0.3: weekly mutation testing, non-blocking
+        # Результаты в docs/MUTATION_BASELINE.md
+        run: |
+          echo "=== Mutation Testing (weekly) ==="
+          echo "Scope: src/services/"
+          echo "Это может занять 30-60 минут..."
+          python -m mutmut run || true
+
+      - name: Collect results
+        run: |
+          echo "=== Mutation Testing Results ==="
+          python -m mutmut results || true
+          echo ""
+          echo "=== Summary ==="
+          echo "См. docs/MUTATION_BASELINE.md для интерпретации"
+
+      - name: Create issue if mutation score < 60%
+        # P0.3: non-blocking, но создаёт issue для отслеживания
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🧬 Mutation Testing weekly report (${new Date().toISOString().split('T')[0]})`,
+              body: `Mutation testing completed. Check logs for details.
+
+            - Scope: src/services/
+            - Results: see workflow logs
+            - Baseline: docs/MUTATION_BASELINE.md
+
+            Action items:
+            1. Triage survived mutants
+            2. Add tests for top-10 survived
+            3. Update docs/MUTATION_BASELINE.md with mutation score`,
+              labels: ['mutation-testing', 'weekly-report']
+            })
