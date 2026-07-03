@@ -206,6 +206,103 @@ def _get_tools_description() -> list[dict]:
             "required_params": [],
             "optional_params": [],
         },
+        # P1.2: 16 tools, отсутствовавших в статическом описании (синхронизация с list_tools handler)
+        {
+            "name": "dsl_compile_meta",
+            "description": "JSON DSL → XML метаданных 1С (23 типа объектов: Catalog, Document, Enum, и т.д.).",
+            "required_params": ["definition", "output_dir"],
+            "optional_params": [],
+        },
+        {
+            "name": "dsl_compile_form",
+            "description": "JSON DSL → Form.xml управляемой формы.",
+            "required_params": ["definition", "output_path"],
+            "optional_params": [],
+        },
+        {
+            "name": "dsl_compile_skd",
+            "description": "JSON DSL → СКД Template.xml (схема компоновки данных).",
+            "required_params": ["definition", "output_path"],
+            "optional_params": [],
+        },
+        {
+            "name": "dsl_compile_mxl",
+            "description": "JSON DSL → MXL Template.xml (печатная форма).",
+            "required_params": ["definition", "output_path"],
+            "optional_params": [],
+        },
+        {
+            "name": "dsl_compile_role",
+            "description": "JSON DSL → Rights.xml роли 1С.",
+            "required_params": ["definition", "output_dir"],
+            "optional_params": [],
+        },
+        {
+            "name": "cfe_borrow",
+            "description": "Заимствовать объект из конфигурации в расширение (CFE).",
+            "required_params": ["extension_path", "config_path", "object_ref"],
+            "optional_params": [],
+        },
+        {
+            "name": "cfe_patch_method",
+            "description": "Сгенерировать BSL перехватчик (&Перед/&После/&ИзменениеИКонтроль).",
+            "required_params": ["extension_path", "module_path", "method_name", "interceptor_type"],
+            "optional_params": [],
+        },
+        {
+            "name": "cfe_diff",
+            "description": "Анализ расширения CFE: что заимствовано, что перехвачено.",
+            "required_params": ["extension_path", "config_path"],
+            "optional_params": [],
+        },
+        {
+            "name": "skd_trace",
+            "description": "Трассировка поля СКД через всю цепочку: dataset → calculated → resource.",
+            "required_params": ["template_path", "field_name"],
+            "optional_params": [],
+        },
+        {
+            "name": "build_dependency_graph",
+            "description": "Построить граф зависимостей метаданных 1С (networkx).",
+            "required_params": ["config_name"],
+            "optional_params": [],
+        },
+        {
+            "name": "dependency_query",
+            "description": "Запрос к графу зависимостей: what_depends_on, dependencies_of, find_cycles, find_unused_objects, и т.д.",
+            "required_params": ["config_name", "query_type", "object_ref"],
+            "optional_params": ["target"],
+        },
+        {
+            "name": "inspect",
+            "description": "Единый анализ объектов 1С: cf, meta, form, skd, mxl, role, subsystem, depgraph.",
+            "required_params": ["target", "path"],
+            "optional_params": ["mode", "name", "config_name"],
+        },
+        {
+            "name": "openspec_proposal",
+            "description": "Создать OpenSpec proposal (Specification-Driven Development).",
+            "required_params": ["change_id", "title"],
+            "optional_params": ["context", "approach", "tasks"],
+        },
+        {
+            "name": "openspec_list",
+            "description": "Список OpenSpec changes.",
+            "required_params": [],
+            "optional_params": ["include_archived"],
+        },
+        {
+            "name": "openspec_update_task",
+            "description": "Обновить задачу в OpenSpec change (отметить завершённой/незавершённой).",
+            "required_params": ["change_id", "task_index"],
+            "optional_params": ["completed"],
+        },
+        {
+            "name": "openspec_archive",
+            "description": "Архивировать завершённый OpenSpec change.",
+            "required_params": ["change_id"],
+            "optional_params": [],
+        },
     ]
 
 

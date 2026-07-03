@@ -17,16 +17,17 @@ from src.mcp_server import _get_tools_description, create_mcp_server
 # ============ _get_tools_description ============
 
 
-def test_get_tools_description_returns_29_tools():
-    """Должно быть 29 tools (v5.2 — все анализаторы + epf_factory)."""
+def test_get_tools_description_returns_45_tools():
+    """Должно быть 45 tools (P1.2 — синхронизировано с list_tools handler)."""
     tools = _get_tools_description()
-    assert len(tools) == 29
+    assert len(tools) == 45
 
 
 def test_get_tools_description_names():
-    """Имена tools соответствуют спецификации."""
+    """Имена tools соответствуют спецификации (45 tools, P1.2 sync)."""
     tools = _get_tools_description()
     expected = {
+        # Базовые 29 tools
         "list_configs",
         "search_1c_methods",
         "search_code",
@@ -56,9 +57,26 @@ def test_get_tools_description_names():
         "diff_configs",
         "epf_factory_create",
         "epf_factory_templates",
+        # P1.2: 16 добавленных tools (синхронизация с handler)
+        "dsl_compile_meta",
+        "dsl_compile_form",
+        "dsl_compile_skd",
+        "dsl_compile_mxl",
+        "dsl_compile_role",
+        "cfe_borrow",
+        "cfe_patch_method",
+        "cfe_diff",
+        "skd_trace",
+        "build_dependency_graph",
+        "dependency_query",
+        "inspect",
+        "openspec_proposal",
+        "openspec_list",
+        "openspec_update_task",
+        "openspec_archive",
     }
     actual = {t["name"] for t in tools}
-    assert actual == expected
+    assert actual == expected, f"Missing: {expected - actual}, Extra: {actual - expected}"
 
 
 def test_get_tools_description_has_required_fields():

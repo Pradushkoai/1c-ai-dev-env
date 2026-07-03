@@ -90,6 +90,7 @@ repos:
           - tests/test_task_processor.py
           - tests/test_sarif_reporter.py
           - tests/test_mcp_server.py
+          - tests/test_mcp_tools_sync.py
           - tests/test_configuration.py
           - tests/test_solve.py
           - tests/test_exceptions.py
@@ -100,5 +101,13 @@ repos:
           - --benchmark-disable
         language: system
         types: [python]
+        pass_filenames: false
+        stages: [commit]
+      # P1.2: проверка синхронизации MCP tools (blocking в pre-commit)
+      - id: mcp-tools-sync
+        name: MCP tools sync check
+        entry: python scripts/check_mcp_count.py
+        language: system
+        files: ^(src/mcp_server\.py|scripts/check_mcp_count\.py|manifest\.json|README\.md|docs/MCP_INTEGRATION\.md|AGENTS\.md)$
         pass_filenames: false
         stages: [commit]

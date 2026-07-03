@@ -14,10 +14,17 @@ jobs:
       - name: Install ruff + mypy + pre-commit
         run: |
           pip install "ruff>=0.5.0" "mypy>=1.10" pre-commit
+          pip install -e ".[dev,mcp]" --quiet
 
       - name: Check syntax (py_compile)
         run: |
           find scripts src -name "*.py" -exec python3 -m py_compile {} \;
+
+      - name: MCP tools count sync check (blocking)
+        # P1.2: проверка что _get_tools_description() и list_tools handler синхронизированы
+        run: |
+          python3 scripts/check_mcp_count.py
+        continue-on-error: false
 
       - name: Ruff lint (errors break CI)
         run: |
