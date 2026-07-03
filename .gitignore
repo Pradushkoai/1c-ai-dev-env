@@ -2,8 +2,8 @@
 data/
 # Производные (генерируются)
 derived/
-# Инструменты (клонируются)
-tools/
+# Инструменты (клонируются в корень проекта — top-level only)
+/tools/
 # Runtime (кроме paths и registry)
 runtime/*.md
 runtime/.bsl-language-server.json
