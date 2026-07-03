@@ -1,6 +1,61 @@
 # Changelog
 
 
+## [5.5.0](https://github.com/Pradushkoai/1c-ai-dev-env/compare/v5.4.0...v5.5.0) (2026-07-03)
+
+
+### Features
+
+* **P0.3:** Complexity Budget + Mutation Testing setup ([4cf4315](https://github.com/Pradushkoai/1c-ai-dev-env/commit/4cf4315fa571564cedc3750960ab46afe98266aa))
+* **P1.1:** векторный поиск (fastembed + Qdrant) + гибридный BM25+vector ([26c0578](https://github.com/Pradushkoai/1c-ai-dev-env/commit/26c0578fdb02f827019b23fd811ec54cfb99b147))
+* **P1.2:** синхронизация MCP tools (29→45 в статическом описании) ([f78f09b](https://github.com/Pradushkoai/1c-ai-dev-env/commit/f78f09b89b1f6620d9833594c71f8eb927a08143))
+* **P1.4:** install.sh — убран хардкод /home/z/my-project ([531cbfb](https://github.com/Pradushkoai/1c-ai-dev-env/commit/531cbfbbf6e29dc9f63bc71a2c539546b1f5cb98))
+* **P1.5:** Metrics/observability — Prometheus metrics для MCP tools ([1b64d78](https://github.com/Pradushkoai/1c-ai-dev-env/commit/1b64d7854f52af8c0b32b780b0c35e2ba4443c2c))
+* **P1.6:** Snapshot Testing для MCP tools (последняя задача P1) ([c8d4eb8](https://github.com/Pradushkoai/1c-ai-dev-env/commit/c8d4eb8dd7d574b2fcc5447964b7322b559579c8))
+* **P1.7:** Dependency Hygiene — pip-audit + safety + license check ([253f4dc](https://github.com/Pradushkoai/1c-ai-dev-env/commit/253f4dcb84a94b629890d3a3e8c4c38d39e8e9cf))
+* **P2.1:** Поддержка EDT формата — MVP парсер + тесты ([db410f7](https://github.com/Pradushkoai/1c-ai-dev-env/commit/db410f76dab86fe8bd2f1de5463230c5dd9fad32))
+* **P2.2:** BSL LS isolation — subprocess + timeout + retry + fallback ([efc1822](https://github.com/Pradushkoai/1c-ai-dev-env/commit/efc1822106269dea9c43205fc7d86c2a6a2d93ab))
+* **P2.3:** v8unpack block_size upstream fix — тесты + документация ([d6de288](https://github.com/Pradushkoai/1c-ai-dev-env/commit/d6de2885baf1bd34cf6e7f602e6427b999a3f4c3))
+* **P2.4:** Public benchmarks — benchmark скрипт + тесты ([887f0b1](https://github.com/Pradushkoai/1c-ai-dev-env/commit/887f0b1cba9bc0834f70a0742c7950f0c1af5609))
+* **P2.5:** i18n — английский README + тесты локализации ([621d181](https://github.com/Pradushkoai/1c-ai-dev-env/commit/621d18192ff8b0543a6616e77252248efee9af54))
+* **P2.6:** Documentation as Code — Sphinx + doctest ([3d9b5c8](https://github.com/Pradushkoai/1c-ai-dev-env/commit/3d9b5c825fcb7f36eb581df84d7b51f8d35305f5))
+* **P2.7:** Backup Strategy — GitLab mirror + git bundle + restore drill ([1bfbf4a](https://github.com/Pradushkoai/1c-ai-dev-env/commit/1bfbf4af8a940b17f3a18644c81454a85db6204b))
+* **P2.8:** Fuzzing для парсеров — atheris + тесты + документация ([13219e6](https://github.com/Pradushkoai/1c-ai-dev-env/commit/13219e6bce746ef8912f23351c3976e2f019e40c))
+* **p3.4:** edt form.xml → v8unpack form.elem.json конвертер ([5acc726](https://github.com/Pradushkoai/1c-ai-dev-env/commit/5acc7269b4a960b0050b50caaaaefb0ec8207d49))
+* **p3.7:** slo/sli метрики для mcp сервера ([b29f912](https://github.com/Pradushkoai/1c-ai-dev-env/commit/b29f9127fbbf0890a0a96191e3cebe6d6e3f115b))
+
+
+### Bug Fixes
+
+* **mypy:** 154→90 ошибок (-42%) — type annotations ([ab79e12](https://github.com/Pradushkoai/1c-ai-dev-env/commit/ab79e124970847139094289eb4124900d0edcf2e))
+* **P0.1:** добавить Project.from_cwd() classmethod ([1fe58dc](https://github.com/Pradushkoai/1c-ai-dev-env/commit/1fe58dc3ef62b4025c1bc065249f74ff803c2937))
+* **P0.2:** mypy 46→0 errors, disallow_untyped_defs для ВСЕХ модулей ([70653c5](https://github.com/Pradushkoai/1c-ai-dev-env/commit/70653c556b8720afb766224b58137fe61f4bf452))
+* **P0.2:** mypy 61→46 errors (15 fixed in mcpserver/ and cli_commands/) ([c53ebb4](https://github.com/Pradushkoai/1c-ai-dev-env/commit/c53ebb499bec21e7641037bd2f579fd7ea764d5b))
+* **P0.2:** mypy 73→61 errors (12 more fixed in dsl/ and cli/) ([0787c0c](https://github.com/Pradushkoai/1c-ai-dev-env/commit/0787c0c7f795562cf4a57da313bd655b3c40de6f))
+* **P0.2:** mypy 97→73 errors (24 fixed in services/) ([37de421](https://github.com/Pradushkoai/1c-ai-dev-env/commit/37de42172b245a762efcc1657706bae6b53cff0c))
+* **P0.2:** исправить опечатку 'WebServce' → 'WebService' в TYPE_MAP ([171997d](https://github.com/Pradushkoai/1c-ai-dev-env/commit/171997da3d254ab2db3cbe41bb2b237192883c71))
+* **P0.3:** заменить register_config.py на 'python3 -m src.cli config' в install.sh ([deaf377](https://github.com/Pradushkoai/1c-ai-dev-env/commit/deaf3775eb763c7feab81495ca458252ffeaa20c))
+* **P0.4:** удалить рекурсивный pytest в test_form_elem_builder.py и test_epf_factory_mcp.py ([7766bb2](https://github.com/Pradushkoai/1c-ai-dev-env/commit/7766bb29c38859590693e25c705bfdefcff97d87))
+* **P0.5:** python_version='5.4.0' → '3.10' в [tool.mypy] ([c68368b](https://github.com/Pradushkoai/1c-ai-dev-env/commit/c68368b1e6dec51822835d0bcc212333968ee67a))
+* **P1.6:** добавить USER non-root (1c-ai, UID 1000) в Dockerfile ([a064ce7](https://github.com/Pradushkoai/1c-ai-dev-env/commit/a064ce77bdd64e764fb5aac3169af0a508645344))
+* **P1.7:** удалить $HOME:/host:ro из docker-compose.yml ([c338dcf](https://github.com/Pradushkoai/1c-ai-dev-env/commit/c338dcfd81c8716e7a34b4a6c99dfb2e0559fbf4))
+* **P1.8:** валидация file_path (path traversal) в MCP handlers ([9c420bd](https://github.com/Pradushkoai/1c-ai-dev-env/commit/9c420bd9642a3e138b1c3fcf200b310320e36975))
+* **P2.13,P2.14:** обновить CVE-зависимости + добавить upper bounds ([ad1e33c](https://github.com/Pradushkoai/1c-ai-dev-env/commit/ad1e33c6c37b5f8a2c9f26ed85b74b71bdf19f52))
+* **P3.18,P3.19,P3.20:** опечатки + .gitignore completeness ([30dc164](https://github.com/Pradushkoai/1c-ai-dev-env/commit/30dc16441f1ba6311d51cdd649f6d9a35a830fdc))
+* test pollution — sys.modules cleanup в conftest.py ([d453b23](https://github.com/Pradushkoai/1c-ai-dev-env/commit/d453b2349b825a8cab9a61f32a6b99a4b4e99903))
+
+
+### Performance Improvements
+
+* **P1.10:** обернуть sync вызовы в asyncio.to_thread() в MCP handlers ([bccc5a9](https://github.com/Pradushkoai/1c-ai-dev-env/commit/bccc5a962725b4953801226d5604459ef91d9c23))
+* **P1.9:** [@lru](https://github.com/lru)_cache(maxsize=8) для загрузки BM25-индекса ([70a5b55](https://github.com/Pradushkoai/1c-ai-dev-env/commit/70a5b555b0731609cefa78b43d142d87c1a9f63d))
+
+
+### Documentation
+
+* **P2.16:** расширить CODE_OF_CONDUCT.md до Contributor Covenant 2.1 ([e57344d](https://github.com/Pradushkoai/1c-ai-dev-env/commit/e57344d776e839d923b51a103eff9bff82284edb))
+* **P3.2:** Dogfooding — концепция и документация ([75d5cbe](https://github.com/Pradushkoai/1c-ai-dev-env/commit/75d5cbe10a03ac75769e4a66a6534b34bb7f91dc))
+
 ## [5.4.0](https://github.com/Pradushkoai/1c-ai-dev-env/compare/v5.3.0...v5.4.0) (2026-07-02)
 
 
