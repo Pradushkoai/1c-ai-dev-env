@@ -40,6 +40,9 @@ rag = [
 mcp = [
     "mcp>=1.0,<2.0",
 ]
+metrics = [
+    "prometheus-client>=0.20,<1.0",
+]
 test = [
     "pytest>=8.0,<9.0",
     "pytest-cov>=4.0,<6.0",

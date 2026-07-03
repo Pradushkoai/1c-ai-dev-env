@@ -123,6 +123,11 @@ def create_mcp_server() -> Server:
 
 async def run_mcp_server() -> None:
     """Точка входа MCP-сервера."""
+    # P1.5: опциональный Prometheus /metrics endpoint
+    from .services.metrics import maybe_start_metrics_server
+
+    maybe_start_metrics_server()
+
     server = create_mcp_server()
     init_options = server.create_initialization_options()
     async with stdio_server() as (read, write):
