@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>src.services.openspec_manager &#8212; 1C AI Development Environment 5.4.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=3ef399bb" />
+    <script src="../../../_static/documentation_options.js?v=d250e987"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for src.services.openspec_manager</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">OpenSpecManager — облегчённая версия OpenSpec (Specification-Driven Development).</span>
+
+<span class="sd">Позаимствовано из 1c-ai-development-kit (skills openspec-proposal, openspec-apply,</span>
+<span class="sd">openspec-archive). Реализовано как Python-модуль без внешних CLI зависимостей.</span>
+
+<span class="sd">Методология управления изменениями:</span>
+<span class="sd">1. proposal — что меняем, зачем, влияние</span>
+<span class="sd">2. design — архитектурные решения</span>
+<span class="sd">3. tasks — упорядоченный чеклист атомарных задач</span>
+<span class="sd">4. spec deltas — изменения в спецификациях (ADDED|MODIFIED|REMOVED Requirements)</span>
+
+<span class="sd">Структура:</span>
+<span class="sd">    openspec/</span>
+<span class="sd">    ├── project.md           — описание проекта</span>
+<span class="sd">    ├── AGENTS.md            — соглашения (опционально)</span>
+<span class="sd">    ├── changes/             — активные изменения</span>
+<span class="sd">    │   └── &lt;change-id&gt;/</span>
+<span class="sd">    │       ├── proposal.md</span>
+<span class="sd">    │       ├── design.md    (опционально)</span>
+<span class="sd">    │       ├── tasks.md</span>
+<span class="sd">    │       └── specs/</span>
+<span class="sd">    │           └── &lt;capability&gt;/</span>
+<span class="sd">    │               └── spec.md</span>
+<span class="sd">    ├── specs/               — утверждённые спецификации</span>
+<span class="sd">    └── archive/             — архивные (завершённые) изменения</span>
+
+<span class="sd">Жизненный цикл:</span>
+<span class="sd">    proposal → approve → apply (по tasks.md) → archive</span>
+
+<span class="sd">Пример:</span>
+<span class="sd">    from src.services.openspec_manager import OpenSpecManager</span>
+
+<span class="sd">    osm = OpenSpecManager(project_root=Path(&#39;.&#39;))</span>
+<span class="sd">    change = osm.create_proposal(</span>
+<span class="sd">        change_id=&quot;add-cfe-support&quot;,</span>
+<span class="sd">        title=&quot;Добавить поддержку CFE расширений&quot;,</span>
+<span class="sd">        context=&quot;У нас нет работы с расширениями. Половина проектов использует CFE.&quot;,</span>
+<span class="sd">        approach=&quot;Реализовать CfeManager с borrow/patch/diff операциями&quot;,</span>
+<span class="sd">        files=[&quot;src/services/cfe_manager.py&quot;, &quot;tests/test_cfe_manager.py&quot;],</span>
+<span class="sd">        tasks=[</span>
+<span class="sd">            &quot;Создать CfeManager класс&quot;,</span>
+<span class="sd">            &quot;Реализовать borrow_object (ObjectBelonging=Adopted)&quot;,</span>
+<span class="sd">            &quot;Реализовать patch_method (&amp;Перед/&amp;После/&amp;ИзменениеИКонтроль)&quot;,</span>
+<span class="sd">            &quot;Реализовать diff (анализ расширения)&quot;,</span>
+<span class="sd">            &quot;Написать тесты (минимум 20)&quot;,</span>
+<span class="sd">        ],</span>
+<span class="sd">    )</span>
+<span class="sd">    # Выполняем задачи, обновляем status</span>
+<span class="sd">    osm.update_task(&quot;add-cfe-support&quot;, 0, completed=True)</span>
+<span class="sd">    osm.archive(&quot;add-cfe-support&quot;)  # после завершения</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+
+<div class="viewcode-block" id="Task">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.Task">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Task</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Атомарная задача в change.&quot;&quot;&quot;</span>
+
+    <span class="n">description</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">completed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">notes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+<div class="viewcode-block" id="Task.to_markdown">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.Task.to_markdown">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_markdown</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">checkbox</span> <span class="o">=</span> <span class="s2">&quot;[x]&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">completed</span> <span class="k">else</span> <span class="s2">&quot;[ ]&quot;</span>
+        <span class="n">notes</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  — </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">notes</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">notes</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">. </span><span class="si">{</span><span class="n">checkbox</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="si">}{</span><span class="n">notes</span><span class="si">}</span><span class="s2">&quot;</span></div>
+
+
+<div class="viewcode-block" id="Task.from_markdown">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.Task.from_markdown">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_markdown</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Task</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Парсит строку &#39;1. [x] Описание&#39; или &#39;1. [ ] Описание&#39;.&quot;&quot;&quot;</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\d+\.\s+\[([x ])\]\s+(.+?)(?:\s+—\s+(.+))?$&quot;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">m</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">description</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span>
+            <span class="n">completed</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span>
+            <span class="n">notes</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SpecDelta">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.SpecDelta">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SpecDelta</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Изменение в спецификации (ADDED|MODIFIED|REMOVED).&quot;&quot;&quot;</span>
+
+    <span class="n">action</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># ADDED | MODIFIED | REMOVED</span>
+    <span class="n">capability</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># например &quot;cfe-management&quot;</span>
+    <span class="n">requirement</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">scenario</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+<div class="viewcode-block" id="SpecDelta.to_markdown">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.SpecDelta.to_markdown">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_markdown</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;## </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">action</span><span class="si">}</span><span class="s2"> Requirements&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">]</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;### Requirement: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">requirement</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scenario</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;#### Scenario: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">scenario</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="Change">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.Change">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Change</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;OpenSpec change — предложение изменения.&quot;&quot;&quot;</span>
+
+    <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">context</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">environment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">compatibility</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">approach</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">tasks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Task</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">spec_deltas</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SpecDelta</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">created_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">status</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;proposed&quot;</span>  <span class="c1"># proposed | approved | in_progress | completed | archived</span>
+
+<div class="viewcode-block" id="Change.to_proposal_markdown">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.Change.to_proposal_markdown">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_proposal_markdown</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Markdown для proposal.md.&quot;&quot;&quot;</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;# SDD: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">]</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;**Change ID:** `</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">change_id</span><span class="si">}</span><span class="s2">`&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;**Status:** </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;**Created:** </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;## Context&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="ow">or</span> <span class="s2">&quot;(не указан)&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">environment</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;## Environment&quot;</span><span class="p">)</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">environment</span><span class="p">)</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compatibility</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;## Compatibility&quot;</span><span class="p">)</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">compatibility</span><span class="p">)</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;## Approach&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">approach</span> <span class="ow">or</span> <span class="s2">&quot;(не указан)&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;## Files&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
+                <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;- `</span><span class="si">{</span><span class="n">f</span><span class="si">}</span><span class="s2">`&quot;</span><span class="p">)</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec_deltas</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;## Spec Deltas&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">delta</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec_deltas</span><span class="p">:</span>
+                <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">delta</span><span class="o">.</span><span class="n">to_markdown</span><span class="p">())</span>
+                <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Change.to_tasks_markdown">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.Change.to_tasks_markdown">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_tasks_markdown</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Markdown для tasks.md.&quot;&quot;&quot;</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;# Tasks: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">change_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">]</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;**Status:** </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="n">completed</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">completed</span><span class="p">)</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;**Progress:** </span><span class="si">{</span><span class="n">completed</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">total</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;## Atomic Tasks&quot;</span><span class="p">)</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">task</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">to_markdown</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Change.to_design_markdown">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.Change.to_design_markdown">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_design_markdown</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Markdown для design.md (шаблон).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;# Design: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="si">}</span>
+
+<span class="s2">## Архитектурные решения</span>
+
+<span class="s2">(Описать ключевые архитектурные решения и их обоснование)</span>
+
+<span class="s2">## Альтернативы рассмотренные</span>
+
+<span class="s2">(Какие альтернативы рассматривались и почему отвергнуты)</span>
+
+<span class="s2">## Влияние на существующий код</span>
+
+<span class="s2">(Что изменится в существующем коде)</span>
+
+<span class="s2">## Тестирование</span>
+
+<span class="s2">(Как будет тестироваться изменение)</span>
+
+<span class="s2">## Change ID: `</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">change_id</span><span class="si">}</span><span class="s2">`</span>
+<span class="s2">&quot;&quot;&quot;</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="OpenSpecManager">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.OpenSpecManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">OpenSpecManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Управление OpenSpec changes — создание, обновление, архивирование.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="OpenSpecManager.__init__">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.OpenSpecManager.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_root</span><span class="p">:</span> <span class="n">Path</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">project_root</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_openspec_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root</span> <span class="o">/</span> <span class="s2">&quot;openspec&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_changes_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_openspec_dir</span> <span class="o">/</span> <span class="s2">&quot;changes&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_specs_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_openspec_dir</span> <span class="o">/</span> <span class="s2">&quot;specs&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_archive_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_openspec_dir</span> <span class="o">/</span> <span class="s2">&quot;archive&quot;</span></div>
+
+
+<div class="viewcode-block" id="OpenSpecManager.init_project">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.OpenSpecManager.init_project">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">init_project</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">project_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Инициализировать openspec/ структуру.</span>
+
+<span class="sd">        Создаёт:</span>
+<span class="sd">        - openspec/project.md</span>
+<span class="sd">        - openspec/changes/</span>
+<span class="sd">        - openspec/specs/</span>
+<span class="sd">        - openspec/archive/</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_changes_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_specs_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_archive_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">project_md</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_openspec_dir</span> <span class="o">/</span> <span class="s2">&quot;project.md&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">project_md</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">project_md</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;# Project: </span><span class="si">{</span><span class="n">project_name</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">&#39;1C AI Dev Environment&#39;</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">description</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">&#39;OpenSpec specifications for the project.&#39;</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;## Capabilities</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(Список capabilities будет добавляться по мере создания specs)</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_openspec_dir</span></div>
+
+
+<div class="viewcode-block" id="OpenSpecManager.create_proposal">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.OpenSpecManager.create_proposal">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_proposal</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">context</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">approach</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">environment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">compatibility</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">tasks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">spec_deltas</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SpecDelta</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">design</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Change</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Создать новый change (proposal).</span>
+
+<span class="sd">        Создаёт структуру openspec/changes/&lt;change-id&gt;/ с:</span>
+<span class="sd">        - proposal.md</span>
+<span class="sd">        - tasks.md</span>
+<span class="sd">        - design.md (если design=True)</span>
+<span class="sd">        - specs/&lt;capability&gt;/spec.md (если есть spec_deltas)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            change_id: уникальный ID (глагол-существительное, например &quot;add-cfe-support&quot;)</span>
+<span class="sd">            title: заголовок изменения</span>
+<span class="sd">            context: зачем нужно изменение</span>
+<span class="sd">            approach: как будем делать</span>
+<span class="sd">            files: список затрагиваемых файлов</span>
+<span class="sd">            tasks: список атомарных задач</span>
+<span class="sd">            spec_deltas: изменения в спецификациях</span>
+<span class="sd">            design: создавать ли design.md</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Валидация change_id — только строчные буквы, цифры, дефисы</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^[a-z][a-z0-9-]*[a-z0-9]$&quot;</span><span class="p">,</span> <span class="n">change_id</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Неверный change_id: &#39;</span><span class="si">{</span><span class="n">change_id</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
+                <span class="s2">&quot;Должен быть в формате глагол-существительное (например: add-cfe-support)&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">change_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_changes_dir</span> <span class="o">/</span> <span class="n">change_id</span>
+        <span class="k">if</span> <span class="n">change_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileExistsError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Change &#39;</span><span class="si">{</span><span class="n">change_id</span><span class="si">}</span><span class="s2">&#39; уже существует: </span><span class="si">{</span><span class="n">change_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">change_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">change</span> <span class="o">=</span> <span class="n">Change</span><span class="p">(</span>
+            <span class="n">change_id</span><span class="o">=</span><span class="n">change_id</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+            <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">,</span>
+            <span class="n">approach</span><span class="o">=</span><span class="n">approach</span><span class="p">,</span>
+            <span class="n">environment</span><span class="o">=</span><span class="n">environment</span><span class="p">,</span>
+            <span class="n">compatibility</span><span class="o">=</span><span class="n">compatibility</span><span class="p">,</span>
+            <span class="n">files</span><span class="o">=</span><span class="n">files</span> <span class="ow">or</span> <span class="p">[],</span>
+            <span class="n">tasks</span><span class="o">=</span><span class="p">[</span><span class="n">Task</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">(</span><span class="n">tasks</span> <span class="ow">or</span> <span class="p">[])],</span>
+            <span class="n">spec_deltas</span><span class="o">=</span><span class="n">spec_deltas</span> <span class="ow">or</span> <span class="p">[],</span>
+            <span class="n">created_at</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M&quot;</span><span class="p">),</span>
+            <span class="n">status</span><span class="o">=</span><span class="s2">&quot;proposed&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># proposal.md</span>
+        <span class="p">(</span><span class="n">change_dir</span> <span class="o">/</span> <span class="s2">&quot;proposal.md&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span>
+            <span class="n">change</span><span class="o">.</span><span class="n">to_proposal_markdown</span><span class="p">(),</span>
+            <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># tasks.md</span>
+        <span class="p">(</span><span class="n">change_dir</span> <span class="o">/</span> <span class="s2">&quot;tasks.md&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span>
+            <span class="n">change</span><span class="o">.</span><span class="n">to_tasks_markdown</span><span class="p">(),</span>
+            <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># design.md (опционально)</span>
+        <span class="k">if</span> <span class="n">design</span><span class="p">:</span>
+            <span class="p">(</span><span class="n">change_dir</span> <span class="o">/</span> <span class="s2">&quot;design.md&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span>
+                <span class="n">change</span><span class="o">.</span><span class="n">to_design_markdown</span><span class="p">(),</span>
+                <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># spec deltas</span>
+        <span class="k">if</span> <span class="n">change</span><span class="o">.</span><span class="n">spec_deltas</span><span class="p">:</span>
+            <span class="n">specs_dir</span> <span class="o">=</span> <span class="n">change_dir</span> <span class="o">/</span> <span class="s2">&quot;specs&quot;</span>
+            <span class="n">specs_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="c1"># Группируем по capability</span>
+            <span class="n">by_capability</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">SpecDelta</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">delta</span> <span class="ow">in</span> <span class="n">change</span><span class="o">.</span><span class="n">spec_deltas</span><span class="p">:</span>
+                <span class="n">by_capability</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">delta</span><span class="o">.</span><span class="n">capability</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">delta</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">cap</span><span class="p">,</span> <span class="n">deltas</span> <span class="ow">in</span> <span class="n">by_capability</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">cap_dir</span> <span class="o">=</span> <span class="n">specs_dir</span> <span class="o">/</span> <span class="n">cap</span>
+                <span class="n">cap_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">content</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;# Spec: </span><span class="si">{</span><span class="n">cap</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+                <span class="k">for</span> <span class="n">delta</span> <span class="ow">in</span> <span class="n">deltas</span><span class="p">:</span>
+                    <span class="n">content</span> <span class="o">+=</span> <span class="n">delta</span><span class="o">.</span><span class="n">to_markdown</span><span class="p">()</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="p">(</span><span class="n">cap_dir</span> <span class="o">/</span> <span class="s2">&quot;spec.md&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">change</span></div>
+
+
+<div class="viewcode-block" id="OpenSpecManager.load_change">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.OpenSpecManager.load_change">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Change</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Загрузить существующий change из файловой системы.&quot;&quot;&quot;</span>
+        <span class="n">change_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_changes_dir</span> <span class="o">/</span> <span class="n">change_id</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">change_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1"># Парсим proposal.md</span>
+        <span class="n">proposal_path</span> <span class="o">=</span> <span class="n">change_dir</span> <span class="o">/</span> <span class="s2">&quot;proposal.md&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">proposal_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">proposal</span> <span class="o">=</span> <span class="n">proposal_path</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Извлекаем метаданные</span>
+        <span class="n">title_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^# SDD:\s+(.+)$&quot;</span><span class="p">,</span> <span class="n">proposal</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">)</span>
+        <span class="n">title</span> <span class="o">=</span> <span class="n">title_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">if</span> <span class="n">title_match</span> <span class="k">else</span> <span class="n">change_id</span>
+
+        <span class="n">status_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\*\*Status:\*\*\s+(\w+)&quot;</span><span class="p">,</span> <span class="n">proposal</span><span class="p">)</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">status_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="n">status_match</span> <span class="k">else</span> <span class="s2">&quot;proposed&quot;</span>
+
+        <span class="n">created_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\*\*Created:\*\*\s+(.+)$&quot;</span><span class="p">,</span> <span class="n">proposal</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">)</span>
+        <span class="n">created_at</span> <span class="o">=</span> <span class="n">created_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">if</span> <span class="n">created_match</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="c1"># Извлекаем секции</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_section</span><span class="p">(</span><span class="n">proposal</span><span class="p">,</span> <span class="s2">&quot;Context&quot;</span><span class="p">)</span>
+        <span class="n">approach</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_section</span><span class="p">(</span><span class="n">proposal</span><span class="p">,</span> <span class="s2">&quot;Approach&quot;</span><span class="p">)</span>
+        <span class="n">environment</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_section</span><span class="p">(</span><span class="n">proposal</span><span class="p">,</span> <span class="s2">&quot;Environment&quot;</span><span class="p">)</span>
+        <span class="n">compatibility</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_section</span><span class="p">(</span><span class="n">proposal</span><span class="p">,</span> <span class="s2">&quot;Compatibility&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Files</span>
+        <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">files_section</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_section</span><span class="p">(</span><span class="n">proposal</span><span class="p">,</span> <span class="s2">&quot;Files&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">files_section</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">files_section</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
+                <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;-\s+`(.+)`&quot;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+                    <span class="n">files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+
+        <span class="c1"># Парсим tasks.md</span>
+        <span class="n">tasks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Task</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">tasks_path</span> <span class="o">=</span> <span class="n">change_dir</span> <span class="o">/</span> <span class="s2">&quot;tasks.md&quot;</span>
+        <span class="k">if</span> <span class="n">tasks_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">tasks_content</span> <span class="o">=</span> <span class="n">tasks_path</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">tasks_content</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
+                <span class="n">task</span> <span class="o">=</span> <span class="n">Task</span><span class="o">.</span><span class="n">from_markdown</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">task</span><span class="p">:</span>
+                    <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">Change</span><span class="p">(</span>
+            <span class="n">change_id</span><span class="o">=</span><span class="n">change_id</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+            <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">,</span>
+            <span class="n">approach</span><span class="o">=</span><span class="n">approach</span><span class="p">,</span>
+            <span class="n">environment</span><span class="o">=</span><span class="n">environment</span><span class="p">,</span>
+            <span class="n">compatibility</span><span class="o">=</span><span class="n">compatibility</span><span class="p">,</span>
+            <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">,</span>
+            <span class="n">tasks</span><span class="o">=</span><span class="n">tasks</span><span class="p">,</span>
+            <span class="n">created_at</span><span class="o">=</span><span class="n">created_at</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_extract_section</span><span class="p">(</span><span class="n">markdown</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">section_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Извлечь содержимое секции ## SectionName.&quot;&quot;&quot;</span>
+        <span class="n">pattern</span> <span class="o">=</span> <span class="sa">rf</span><span class="s2">&quot;## </span><span class="si">{</span><span class="n">section_name</span><span class="si">}</span><span class="s2">\s*\n(.+?)(?=\n## |\Z)&quot;</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">markdown</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">DOTALL</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+<div class="viewcode-block" id="OpenSpecManager.update_task">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.OpenSpecManager.update_task">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_task</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">task_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">completed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">notes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Обновить статус задачи.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            change_id: ID изменения</span>
+<span class="sd">            task_index: индекс задачи (0-based)</span>
+<span class="sd">            completed: True/None (None = переключить)</span>
+<span class="sd">            notes: заметки к задаче</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            True если задача обновлена</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">change</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_change</span><span class="p">(</span><span class="n">change_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">change</span> <span class="ow">or</span> <span class="n">task_index</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">change</span><span class="o">.</span><span class="n">tasks</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">task</span> <span class="o">=</span> <span class="n">change</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_index</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">completed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">completed</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">task</span><span class="o">.</span><span class="n">completed</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">completed</span> <span class="o">=</span> <span class="n">completed</span>
+        <span class="k">if</span> <span class="n">notes</span><span class="p">:</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">notes</span> <span class="o">=</span> <span class="n">notes</span>
+
+        <span class="c1"># Пересохраняем tasks.md</span>
+        <span class="n">change_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_changes_dir</span> <span class="o">/</span> <span class="n">change_id</span>
+        <span class="p">(</span><span class="n">change_dir</span> <span class="o">/</span> <span class="s2">&quot;tasks.md&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span>
+            <span class="n">change</span><span class="o">.</span><span class="n">to_tasks_markdown</span><span class="p">(),</span>
+            <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Если все задачи выполнены — меняем статус</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">completed</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">change</span><span class="o">.</span><span class="n">tasks</span><span class="p">):</span>
+            <span class="n">change</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;completed&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_status</span><span class="p">(</span><span class="n">change_id</span><span class="p">,</span> <span class="s2">&quot;completed&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="OpenSpecManager.update_status">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.OpenSpecManager.update_status">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Обновить статус change (public API).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_status</span><span class="p">(</span><span class="n">change_id</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_update_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Внутренний метод обновления статуса.&quot;&quot;&quot;</span>
+        <span class="n">change</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_change</span><span class="p">(</span><span class="n">change_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">change</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">change</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">status</span>
+        <span class="n">change_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_changes_dir</span> <span class="o">/</span> <span class="n">change_id</span>
+
+        <span class="c1"># Переписываем proposal.md с новым статусом</span>
+        <span class="p">(</span><span class="n">change_dir</span> <span class="o">/</span> <span class="s2">&quot;proposal.md&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span>
+            <span class="n">change</span><span class="o">.</span><span class="n">to_proposal_markdown</span><span class="p">(),</span>
+            <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Обновляем tasks.md</span>
+        <span class="p">(</span><span class="n">change_dir</span> <span class="o">/</span> <span class="s2">&quot;tasks.md&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span>
+            <span class="n">change</span><span class="o">.</span><span class="n">to_tasks_markdown</span><span class="p">(),</span>
+            <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="OpenSpecManager.archive">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.OpenSpecManager.archive">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">archive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Архивировать завершённый change.</span>
+
+<span class="sd">        Перемещает openspec/changes/&lt;id&gt;/ → openspec/archive/&lt;id&gt;/</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">change_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_changes_dir</span> <span class="o">/</span> <span class="n">change_id</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">change_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_archive_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">archive_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_archive_dir</span> <span class="o">/</span> <span class="n">change_id</span>
+
+        <span class="k">if</span> <span class="n">archive_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">False</span>  <span class="c1"># уже заархивирован</span>
+
+        <span class="n">change_dir</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">archive_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="OpenSpecManager.list_changes">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.OpenSpecManager.list_changes">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">include_archived</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Список всех changes.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            include_archived: включать архивные</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            [{&quot;change_id&quot;: &quot;...&quot;, &quot;title&quot;: &quot;...&quot;, &quot;status&quot;: &quot;...&quot;, &quot;progress&quot;: &quot;3/5&quot;}, ...]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Активные changes</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_changes_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_changes_dir</span><span class="o">.</span><span class="n">iterdir</span><span class="p">()):</span>
+                <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+                    <span class="n">change</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_change</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">change</span><span class="p">:</span>
+                        <span class="n">completed</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">change</span><span class="o">.</span><span class="n">tasks</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">completed</span><span class="p">)</span>
+                        <span class="n">total</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">change</span><span class="o">.</span><span class="n">tasks</span><span class="p">)</span>
+                        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                            <span class="p">{</span>
+                                <span class="s2">&quot;change_id&quot;</span><span class="p">:</span> <span class="n">change</span><span class="o">.</span><span class="n">change_id</span><span class="p">,</span>
+                                <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">change</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+                                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">change</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+                                <span class="s2">&quot;progress&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">completed</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">total</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;archived&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                            <span class="p">}</span>
+                        <span class="p">)</span>
+
+        <span class="c1"># Архивные</span>
+        <span class="k">if</span> <span class="n">include_archived</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_archive_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_archive_dir</span><span class="o">.</span><span class="n">iterdir</span><span class="p">()):</span>
+                <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="p">{</span>
+                            <span class="s2">&quot;change_id&quot;</span><span class="p">:</span> <span class="n">d</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                            <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;(архив)&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;archived&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;progress&quot;</span><span class="p">:</span> <span class="s2">&quot;-&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;archived&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="p">}</span>
+                    <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+<div class="viewcode-block" id="OpenSpecManager.validate">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.OpenSpecManager.validate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Валидация структуры change.</span>
+
+<span class="sd">        Возвращает список ошибок (пустой если всё ок).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">errors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">change_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_changes_dir</span> <span class="o">/</span> <span class="n">change_id</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">change_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;Change &#39;</span><span class="si">{</span><span class="n">change_id</span><span class="si">}</span><span class="s2">&#39; не найден&quot;</span><span class="p">]</span>
+
+        <span class="c1"># proposal.md обязателен</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">change_dir</span> <span class="o">/</span> <span class="s2">&quot;proposal.md&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;proposal.md отсутствует&quot;</span><span class="p">)</span>
+
+        <span class="c1"># tasks.md обязателен</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">change_dir</span> <span class="o">/</span> <span class="s2">&quot;tasks.md&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;tasks.md отсутствует&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Парсим change</span>
+        <span class="n">change</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_change</span><span class="p">(</span><span class="n">change_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">change</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">change</span><span class="o">.</span><span class="n">title</span> <span class="ow">or</span> <span class="n">change</span><span class="o">.</span><span class="n">title</span> <span class="o">==</span> <span class="s2">&quot;(не указан)&quot;</span><span class="p">:</span>
+                <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;title не указан в proposal.md&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">change</span><span class="o">.</span><span class="n">context</span> <span class="ow">or</span> <span class="n">change</span><span class="o">.</span><span class="n">context</span> <span class="o">==</span> <span class="s2">&quot;(не указан)&quot;</span><span class="p">:</span>
+                <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;context не указан в proposal.md&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">change</span><span class="o">.</span><span class="n">approach</span> <span class="ow">or</span> <span class="n">change</span><span class="o">.</span><span class="n">approach</span> <span class="o">==</span> <span class="s2">&quot;(не указан)&quot;</span><span class="p">:</span>
+                <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;approach не указан в proposal.md&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">change</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+                <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;tasks пуст — должно быть хотя бы одна задача&quot;</span><span class="p">)</span>
+            <span class="c1"># Каждый spec delta должен иметь scenario</span>
+            <span class="k">for</span> <span class="n">delta</span> <span class="ow">in</span> <span class="n">change</span><span class="o">.</span><span class="n">spec_deltas</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">delta</span><span class="o">.</span><span class="n">scenario</span><span class="p">:</span>
+                    <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;spec delta &#39;</span><span class="si">{</span><span class="n">delta</span><span class="o">.</span><span class="n">requirement</span><span class="si">}</span><span class="s2">&#39; не имеет scenario&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">errors</span></div>
+
+
+<div class="viewcode-block" id="OpenSpecManager.exists">
+<a class="viewcode-back" href="../../../api/services.html#src.services.openspec_manager.OpenSpecManager.exists">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Проверить инициализирован ли openspec.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_openspec_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">1C AI Development Environment</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Pradushkoai&repo=1c-ai-dev-env&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/services.html">Services API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/models.html">Models API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/mcpserver.html">MCP Server API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/mcp_integration.html">MCP Integration</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../references/changelog.html">Changelog</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Pradushkoai.
+      
+    </div>
+
+    
+    <a href="https://github.com/Pradushkoai/1c-ai-dev-env" class="github">
+        <img src="../../../_static/github-banner.svg" alt="Fork me on GitHub" class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

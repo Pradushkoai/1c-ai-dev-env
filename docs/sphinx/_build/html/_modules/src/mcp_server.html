@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>src.mcp_server &#8212; 1C AI Development Environment 5.4.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=3ef399bb" />
+    <script src="../../_static/documentation_options.js?v=d250e987"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for src.mcp_server</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">MCP-сервер для 1C AI Development Environment.</span>
+
+<span class="sd">Экспортирует 7 tools для MCP-совместимых клиентов (Cursor, Claude Desktop, VS Code, и т.д.).</span>
+
+<span class="sd">Запуск: 1c-ai mcp serve</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">contextlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">mcp.types</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">types</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mcp.server</span><span class="w"> </span><span class="kn">import</span> <span class="n">Server</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mcp.server.stdio</span><span class="w"> </span><span class="kn">import</span> <span class="n">stdio_server</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.project</span><span class="w"> </span><span class="kn">import</span> <span class="n">Project</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.services.logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">configure_logging</span><span class="p">,</span> <span class="n">get_logger</span>
+
+<span class="c1"># MCP-сервер пишет логи в stderr (stdout занят под MCP-протокол)</span>
+<span class="c1"># JSON-формат включается через LOG_FORMAT=json</span>
+<span class="n">configure_logging</span><span class="p">()</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">(</span><span class="s2">&quot;src.mcp_server&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_tools_description</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Статическое описание tools (для CLI без запуска сервера).</span>
+
+<span class="sd">    P1.3: вынесено в src/mcpserver/tools/ для декомпозиции.</span>
+<span class="sd">    Возвращает: [{name, description, required_params, optional_params}]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.mcpserver.tools</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_all_descriptions</span>
+
+    <span class="k">return</span> <span class="n">get_all_descriptions</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="create_mcp_server">
+<a class="viewcode-back" href="../../api/mcpserver.html#src.mcp_server.create_mcp_server">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_mcp_server</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Server</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Создать MCP-сервер с tools для 1C AI Development Environment.&quot;&quot;&quot;</span>
+    <span class="n">server</span> <span class="o">=</span> <span class="n">Server</span><span class="p">(</span><span class="s2">&quot;1c-ai-dev-env&quot;</span><span class="p">)</span>
+    <span class="n">project</span> <span class="o">=</span> <span class="n">Project</span><span class="p">()</span>
+
+    <span class="nd">@server</span><span class="o">.</span><span class="n">list_tools</span><span class="p">()</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">list_tools</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">types</span><span class="o">.</span><span class="n">Tool</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Возвращает список всех доступных tools.</span>
+
+<span class="sd">        P1.3 этап 2: определения вынесены в src/mcpserver/tools/tool_definitions.py</span>
+<span class="sd">        для декомпозиции (SRP). mcp_server.py стал тонкой обёрткой.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.mcpserver.tools.tool_definitions</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_all_tool_definitions</span>
+
+        <span class="k">return</span> <span class="n">get_all_tool_definitions</span><span class="p">()</span>
+
+    <span class="nd">@server</span><span class="o">.</span><span class="n">call_tool</span><span class="p">()</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">call_tool</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">types</span><span class="o">.</span><span class="n">TextContent</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Выполняет tool и возвращает результат.&quot;&quot;&quot;</span>
+        <span class="c1"># Структурированный лог каждого вызова — для отладки и аудита</span>
+        <span class="k">with</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">suppress</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mcp_tool_called: </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> args=</span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">arguments</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">arguments</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">[]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># P2.2: dict-dispatch для handlers группы 1 (config/search/metadata)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.mcpserver.handlers</span><span class="w"> </span><span class="kn">import</span> <span class="n">CONFIG_SEARCH_HANDLERS</span>
+
+        <span class="n">handler</span> <span class="o">=</span> <span class="n">CONFIG_SEARCH_HANDLERS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">handler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="n">handler</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+
+        <span class="c1"># P2.2: dict-dispatch для handlers группы 3a (BSL анализаторы)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.mcpserver.handlers</span><span class="w"> </span><span class="kn">import</span> <span class="n">ANALYZER_HANDLERS</span>
+
+        <span class="n">handler</span> <span class="o">=</span> <span class="n">ANALYZER_HANDLERS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">handler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="n">handler</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+
+        <span class="c1"># P2.2: dict-dispatch для handlers группы 2 (dsl/cfe/skd/depgraph)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.mcpserver.handlers</span><span class="w"> </span><span class="kn">import</span> <span class="n">DSL_CFE_HANDLERS</span>
+
+        <span class="n">handler</span> <span class="o">=</span> <span class="n">DSL_CFE_HANDLERS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">handler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="n">handler</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+
+        <span class="c1"># P2.2: dict-dispatch для handlers группы 4 (openspec)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.mcpserver.handlers</span><span class="w"> </span><span class="kn">import</span> <span class="n">MISC_HANDLERS</span>
+
+        <span class="n">handler</span> <span class="o">=</span> <span class="n">MISC_HANDLERS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">handler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="n">handler</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+
+        <span class="c1"># P2.2: dict-dispatch для handlers группы 5 (inspect/data)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.mcpserver.handlers</span><span class="w"> </span><span class="kn">import</span> <span class="n">INSPECT_DATA_HANDLERS</span>
+
+        <span class="n">handler</span> <span class="o">=</span> <span class="n">INSPECT_DATA_HANDLERS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">handler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="n">handler</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+
+        <span class="c1"># P2.2: dict-dispatch для handlers группы 6 (structure)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.mcpserver.handlers</span><span class="w"> </span><span class="kn">import</span> <span class="n">STRUCTURE_HANDLERS</span>
+
+        <span class="n">handler</span> <span class="o">=</span> <span class="n">STRUCTURE_HANDLERS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">handler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="n">handler</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+
+        <span class="c1"># P2.2: dict-dispatch для оставшихся handlers (группы 6-8)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.mcpserver.handlers</span><span class="w"> </span><span class="kn">import</span> <span class="n">GENERATE_HANDLERS</span><span class="p">,</span> <span class="n">QUALITY_HANDLERS</span><span class="p">,</span> <span class="n">STRUCTURE_HANDLERS</span>
+
+        <span class="k">for</span> <span class="n">handlers_dict</span> <span class="ow">in</span> <span class="p">(</span><span class="n">STRUCTURE_HANDLERS</span><span class="p">,</span> <span class="n">GENERATE_HANDLERS</span><span class="p">,</span> <span class="n">QUALITY_HANDLERS</span><span class="p">):</span>
+            <span class="n">handler</span> <span class="o">=</span> <span class="n">handlers_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">handler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="k">await</span> <span class="n">handler</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+
+        <span class="c1"># Неизвестный tool</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">types</span><span class="o">.</span><span class="n">TextContent</span><span class="p">(</span>
+                <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;text&quot;</span><span class="p">,</span>
+                <span class="n">text</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Unknown tool: </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">server</span></div>
+
+
+
+<div class="viewcode-block" id="run_mcp_server">
+<a class="viewcode-back" href="../../api/mcpserver.html#src.mcp_server.run_mcp_server">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_mcp_server</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Точка входа MCP-сервера.&quot;&quot;&quot;</span>
+    <span class="c1"># P1.5: опциональный Prometheus /metrics endpoint</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.services.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">maybe_start_metrics_server</span>
+
+    <span class="n">maybe_start_metrics_server</span><span class="p">()</span>
+
+    <span class="n">server</span> <span class="o">=</span> <span class="n">create_mcp_server</span><span class="p">()</span>
+    <span class="n">init_options</span> <span class="o">=</span> <span class="n">server</span><span class="o">.</span><span class="n">create_initialization_options</span><span class="p">()</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">stdio_server</span><span class="p">()</span> <span class="k">as</span> <span class="p">(</span><span class="n">read</span><span class="p">,</span> <span class="n">write</span><span class="p">):</span>
+        <span class="k">await</span> <span class="n">server</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">read</span><span class="p">,</span> <span class="n">write</span><span class="p">,</span> <span class="n">init_options</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="run_mcp_server_sync">
+<a class="viewcode-back" href="../../api/mcpserver.html#src.mcp_server.run_mcp_server_sync">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">run_mcp_server_sync</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Синхронная точка входа (для console_scripts в pyproject.toml).&quot;&quot;&quot;</span>
+    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">run_mcp_server</span><span class="p">())</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">run_mcp_server_sync</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">1C AI Development Environment</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Pradushkoai&repo=1c-ai-dev-env&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/services.html">Services API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/models.html">Models API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mcpserver.html">MCP Server API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/mcp_integration.html">MCP Integration</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/changelog.html">Changelog</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Pradushkoai.
+      
+    </div>
+
+    
+    <a href="https://github.com/Pradushkoai/1c-ai-dev-env" class="github">
+        <img src="../../_static/github-banner.svg" alt="Fork me on GitHub" class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

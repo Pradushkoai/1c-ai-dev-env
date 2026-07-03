@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>src.services.search_bm25 &#8212; 1C AI Development Environment 5.4.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=3ef399bb" />
+    <script src="../../../_static/documentation_options.js?v=d250e987"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for src.services.search_bm25</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Улучшенный поиск по методам 1С: BM25 + триграммы + стеммер.</span>
+
+<span class="sd">BM25 — золотой стандарт полнотекстового поиска. В отличие от TF-IDF:</span>
+<span class="sd">- Учитывает насыщение частоты термина (TF saturation через k1)</span>
+<span class="sd">- Нормализует длину документа (через b)</span>
+<span class="sd">- Даёт более релевантные результаты для длинных описаний</span>
+
+<span class="sd">Дополнительно:</span>
+<span class="sd">- Простой стеммер для русского и английского (без внешних зависимостей)</span>
+<span class="sd">- Триграммы для устойчивости к опечаткам</span>
+<span class="sd">- Гибридный режим: 0.7 * BM25 + 0.3 * триграммы</span>
+
+<span class="sd">Формат индекса v2 (BM25):</span>
+<span class="sd">{</span>
+<span class="sd">  &quot;version&quot;: 2,</span>
+<span class="sd">  &quot;algorithm&quot;: &quot;bm25&quot;,</span>
+<span class="sd">  &quot;methods&quot;: [...],</span>
+<span class="sd">  &quot;idf&quot;: {...},</span>
+<span class="sd">  &quot;inverted_index&quot;: {...},</span>
+<span class="sd">  &quot;doc_lengths&quot;: {doc_id: length},</span>
+<span class="sd">  &quot;avg_doc_length&quot;: float,</span>
+<span class="sd">  &quot;total_methods&quot;: int,</span>
+<span class="sd">  &quot;trigrams_index&quot;: {trigram: [doc_ids]},</span>
+<span class="sd">  &quot;method_trigrams&quot;: {doc_id: [trigrams]},</span>
+<span class="sd">  &quot;stem_map&quot;: {stem: [original_tokens]},  # для подсветки</span>
+<span class="sd">}</span>
+
+<span class="sd">Backward compat: v1 (TF-IDF) индексы продолжают работать через search().</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">Counter</span><span class="p">,</span> <span class="n">defaultdict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">lru_cache</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># СТЕММЕР (минимальный, без внешних зависимостей)</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Русские окончания (длинные сначала)</span>
+<span class="n">_RU_ENDINGS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;ыми&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ях&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ах&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ого&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ому&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ему&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ом&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ой&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ое&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ую&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;юю&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ая&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;яя&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ые&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ие&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ых&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;их&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ыми&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ими&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ыми&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;их&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ых&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ам&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ям&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ами&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ями&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ом&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ем&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ами&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ями&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ть&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;тся&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ться&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;лся&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;лась&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ться&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ешь&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ишь&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ете&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ите&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ут&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ют&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ат&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ят&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ал&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ял&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ала&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;яла&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;али&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;яли&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;анный&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;енный&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ный&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ный&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ная&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ное&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ные&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ного&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ной&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ным&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ном&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;нами&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ность&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ние&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ния&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ний&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;нем&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;нами&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;а&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;я&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;о&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;е&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;у&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ю&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;и&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ы&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ь&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="c1"># Английские окончания (Porter-подобный минимальный)</span>
+<span class="n">_EN_ENDINGS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;ization&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ational&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;fulness&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ousness&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;iveness&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;tional&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ation&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ement&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ness&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ions&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ing&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ied&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ies&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ied&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ier&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;iest&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ed&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;es&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ly&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ment&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;tion&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sion&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ence&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ance&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;able&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ible&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;al&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;er&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;est&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;s&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<div class="viewcode-block" id="stem_russian">
+<a class="viewcode-back" href="../../../api/services.html#src.services.search_bm25.stem_russian">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">stem_russian</span><span class="p">(</span><span class="n">word</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Простой русский стеммер — обрезает окончания.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">word</span>
+    <span class="k">for</span> <span class="n">ending</span> <span class="ow">in</span> <span class="n">_RU_ENDINGS</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">ending</span><span class="p">)</span> <span class="o">+</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">word</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">ending</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">word</span><span class="p">[:</span> <span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">ending</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="n">word</span></div>
+
+
+
+<div class="viewcode-block" id="stem_english">
+<a class="viewcode-back" href="../../../api/services.html#src.services.search_bm25.stem_english">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">stem_english</span><span class="p">(</span><span class="n">word</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Простой английский стеммер — обрезает окончания.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">word</span>
+    <span class="k">for</span> <span class="n">ending</span> <span class="ow">in</span> <span class="n">_EN_ENDINGS</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">ending</span><span class="p">)</span> <span class="o">+</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">word</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">ending</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">word</span><span class="p">[:</span> <span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">ending</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="n">word</span></div>
+
+
+
+<div class="viewcode-block" id="stem">
+<a class="viewcode-back" href="../../../api/services.html#src.services.search_bm25.stem">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">stem</span><span class="p">(</span><span class="n">word</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Стемминг слова (русский или английский).&quot;&quot;&quot;</span>
+    <span class="c1"># Определяем язык по первому символу</span>
+    <span class="k">if</span> <span class="n">word</span> <span class="ow">and</span> <span class="n">word</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="s2">&quot;абвгдеёжзийклмнопрстуфхцчшщъыьэюя&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">stem_russian</span><span class="p">(</span><span class="n">word</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">stem_english</span><span class="p">(</span><span class="n">word</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># ТОКЕНИЗАЦИЯ + СТЕММИНГ</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># BSL-синонимы ru↔en — для поиска независимо от языка написания.</span>
+<span class="c1"># Запрос &quot;стрнайти&quot; находит &quot;StrFind&quot;, &quot;найтипокоду&quot; находит &quot;FindByCode&quot;, и наоборот.</span>
+<span class="c1"># Словарь построен на основе стандартных методов платформы 1С (8141 методов).</span>
+<span class="n">BSL_SYNONYMS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="c1"># Строковые функции</span>
+    <span class="s2">&quot;стрнайти&quot;</span><span class="p">:</span> <span class="s2">&quot;strfind&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;стрдлина&quot;</span><span class="p">:</span> <span class="s2">&quot;strlen&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;стрзаменить&quot;</span><span class="p">:</span> <span class="s2">&quot;strreplace&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;стрвставить&quot;</span><span class="p">:</span> <span class="s2">&quot;strinsert&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;струдалить&quot;</span><span class="p">:</span> <span class="s2">&quot;strdelete&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;стррег&quot;</span><span class="p">:</span> <span class="s2">&quot;strregex&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;стрначинаетсяс&quot;</span><span class="p">:</span> <span class="s2">&quot;strstartswith&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;стрзаканчиваетсяна&quot;</span><span class="p">:</span> <span class="s2">&quot;strendswith&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;стрсодержит&quot;</span><span class="p">:</span> <span class="s2">&quot;strcontains&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;стрразделить&quot;</span><span class="p">:</span> <span class="s2">&quot;strsplit&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;стрсоединить&quot;</span><span class="p">:</span> <span class="s2">&quot;strconcat&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;стрсравнить&quot;</span><span class="p">:</span> <span class="s2">&quot;strcompare&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;стрповторить&quot;</span><span class="p">:</span> <span class="s2">&quot;strrepeat&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;врег&quot;</span><span class="p">:</span> <span class="s2">&quot;upper&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;нрег&quot;</span><span class="p">:</span> <span class="s2">&quot;lower&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;трег&quot;</span><span class="p">:</span> <span class="s2">&quot;title&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;сокрл&quot;</span><span class="p">:</span> <span class="s2">&quot;triml&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;сокрп&quot;</span><span class="p">:</span> <span class="s2">&quot;trimr&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;сокрлп&quot;</span><span class="p">:</span> <span class="s2">&quot;trimall&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;лев&quot;</span><span class="p">:</span> <span class="s2">&quot;left&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;прав&quot;</span><span class="p">:</span> <span class="s2">&quot;right&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;сред&quot;</span><span class="p">:</span> <span class="s2">&quot;mid&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;символ&quot;</span><span class="p">:</span> <span class="s2">&quot;char&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;кодсимвола&quot;</span><span class="p">:</span> <span class="s2">&quot;charcode&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;символы&quot;</span><span class="p">:</span> <span class="s2">&quot;chars&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;стрстр&quot;</span><span class="p">:</span> <span class="s2">&quot;strstr&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;пустаястрока&quot;</span><span class="p">:</span> <span class="s2">&quot;emptystr&quot;</span><span class="p">,</span>
+    <span class="c1"># Массивы и коллекции</span>
+    <span class="s2">&quot;найти&quot;</span><span class="p">:</span> <span class="s2">&quot;find&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;добавить&quot;</span><span class="p">:</span> <span class="s2">&quot;add&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;удалить&quot;</span><span class="p">:</span> <span class="s2">&quot;remove&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;очистить&quot;</span><span class="p">:</span> <span class="s2">&quot;clear&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;количество&quot;</span><span class="p">:</span> <span class="s2">&quot;count&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;вставить&quot;</span><span class="p">:</span> <span class="s2">&quot;insert&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;получить&quot;</span><span class="p">:</span> <span class="s2">&quot;get&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;установить&quot;</span><span class="p">:</span> <span class="s2">&quot;set&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;выгрузить&quot;</span><span class="p">:</span> <span class="s2">&quot;unload&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;загрузить&quot;</span><span class="p">:</span> <span class="s2">&quot;load&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;выгрузитьколонку&quot;</span><span class="p">:</span> <span class="s2">&quot;unloadcolumn&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;загрузитьколонку&quot;</span><span class="p">:</span> <span class="s2">&quot;loadcolumn&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;свернуть&quot;</span><span class="p">:</span> <span class="s2">&quot;collapse&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;копировать&quot;</span><span class="p">:</span> <span class="s2">&quot;copy&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;индекс&quot;</span><span class="p">:</span> <span class="s2">&quot;index&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;найтистроку&quot;</span><span class="p">:</span> <span class="s2">&quot;findrow&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;найтистроки&quot;</span><span class="p">:</span> <span class="s2">&quot;findrows&quot;</span><span class="p">,</span>
+    <span class="c1"># Справочники</span>
+    <span class="s2">&quot;найтипокоду&quot;</span><span class="p">:</span> <span class="s2">&quot;findbycode&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;найтипонаименованию&quot;</span><span class="p">:</span> <span class="s2">&quot;findbydescription&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;найтипореквизиту&quot;</span><span class="p">:</span> <span class="s2">&quot;findbyattribute&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;создатьэлемент&quot;</span><span class="p">:</span> <span class="s2">&quot;createitem&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;создатьгруппу&quot;</span><span class="p">:</span> <span class="s2">&quot;createfolder&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;получитьформу&quot;</span><span class="p">:</span> <span class="s2">&quot;getform&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;получитьформусписка&quot;</span><span class="p">:</span> <span class="s2">&quot;getlistform&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;получитьформувыбора&quot;</span><span class="p">:</span> <span class="s2">&quot;getchoiceform&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;получитьформуэлемента&quot;</span><span class="p">:</span> <span class="s2">&quot;getitemform&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;пустаяссылка&quot;</span><span class="p">:</span> <span class="s2">&quot;emptyref&quot;</span><span class="p">,</span>
+    <span class="c1"># Документы</span>
+    <span class="s2">&quot;провести&quot;</span><span class="p">:</span> <span class="s2">&quot;post&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;отменапроведения&quot;</span><span class="p">:</span> <span class="s2">&quot;unpost&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;распровести&quot;</span><span class="p">:</span> <span class="s2">&quot;unpost&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;записать&quot;</span><span class="p">:</span> <span class="s2">&quot;write&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;прочитать&quot;</span><span class="p">:</span> <span class="s2">&quot;read&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;удалитьобъект&quot;</span><span class="p">:</span> <span class="s2">&quot;deleteobject&quot;</span><span class="p">,</span>
+    <span class="c1"># Запросы</span>
+    <span class="s2">&quot;выполнить&quot;</span><span class="p">:</span> <span class="s2">&quot;execute&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;выполнитьпакет&quot;</span><span class="p">:</span> <span class="s2">&quot;executebatch&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;установитьпараметр&quot;</span><span class="p">:</span> <span class="s2">&quot;setparameter&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;результат&quot;</span><span class="p">:</span> <span class="s2">&quot;result&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;выбрать&quot;</span><span class="p">:</span> <span class="s2">&quot;select&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;следующий&quot;</span><span class="p">:</span> <span class="s2">&quot;next&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;пустой&quot;</span><span class="p">:</span> <span class="s2">&quot;empty&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;выгрузитьрезультат&quot;</span><span class="p">:</span> <span class="s2">&quot;unloadresult&quot;</span><span class="p">,</span>
+    <span class="c1"># Метаданные</span>
+    <span class="s2">&quot;метаданные&quot;</span><span class="p">:</span> <span class="s2">&quot;metadata&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;предопределенный&quot;</span><span class="p">:</span> <span class="s2">&quot;predefined&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;получитьпредопределенноезначение&quot;</span><span class="p">:</span> <span class="s2">&quot;getpredefinedvalue&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;установитьобязательныйпризнакпредопределенных&quot;</span><span class="p">:</span> <span class="s2">&quot;setpredefinedmandatory&quot;</span><span class="p">,</span>
+    <span class="c1"># Дата/время</span>
+    <span class="s2">&quot;текущаядата&quot;</span><span class="p">:</span> <span class="s2">&quot;currentdate&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;текущаядатасеанса&quot;</span><span class="p">:</span> <span class="s2">&quot;currentsessiondate&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;началогода&quot;</span><span class="p">:</span> <span class="s2">&quot;beginofyear&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;конецгода&quot;</span><span class="p">:</span> <span class="s2">&quot;endofyear&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;началомесяца&quot;</span><span class="p">:</span> <span class="s2">&quot;beginofmonth&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;конецмесяца&quot;</span><span class="p">:</span> <span class="s2">&quot;endofmonth&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;началодня&quot;</span><span class="p">:</span> <span class="s2">&quot;beginofday&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;конецдня&quot;</span><span class="p">:</span> <span class="s2">&quot;endofday&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;добавитькдате&quot;</span><span class="p">:</span> <span class="s2">&quot;datadd&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;разностьдат&quot;</span><span class="p">:</span> <span class="s2">&quot;datediff&quot;</span><span class="p">,</span>
+    <span class="c1"># Числа</span>
+    <span class="s2">&quot;цел&quot;</span><span class="p">:</span> <span class="s2">&quot;int&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;окр&quot;</span><span class="p">:</span> <span class="s2">&quot;round&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;макс&quot;</span><span class="p">:</span> <span class="s2">&quot;max&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;мин&quot;</span><span class="p">:</span> <span class="s2">&quot;min&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sqrt&quot;</span><span class="p">:</span> <span class="s2">&quot;sqrt&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;pow&quot;</span><span class="p">:</span> <span class="s2">&quot;pow&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;exp&quot;</span><span class="p">:</span> <span class="s2">&quot;exp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;log&quot;</span><span class="p">:</span> <span class="s2">&quot;log&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;abs&quot;</span><span class="p">:</span> <span class="s2">&quot;abs&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sign&quot;</span><span class="p">:</span> <span class="s2">&quot;sign&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;acos&quot;</span><span class="p">:</span> <span class="s2">&quot;acos&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;asin&quot;</span><span class="p">:</span> <span class="s2">&quot;asin&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;atan&quot;</span><span class="p">:</span> <span class="s2">&quot;atan&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;cos&quot;</span><span class="p">:</span> <span class="s2">&quot;cos&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sin&quot;</span><span class="p">:</span> <span class="s2">&quot;sin&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;tan&quot;</span><span class="p">:</span> <span class="s2">&quot;tan&quot;</span><span class="p">,</span>
+    <span class="c1"># Преобразования типов</span>
+    <span class="s2">&quot;строка&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;число&quot;</span><span class="p">:</span> <span class="s2">&quot;number&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;дата&quot;</span><span class="p">:</span> <span class="s2">&quot;date&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;булево&quot;</span><span class="p">:</span> <span class="s2">&quot;boolean&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;значениевстроку&quot;</span><span class="p">:</span> <span class="s2">&quot;valuetostring&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;значениеизстроки&quot;</span><span class="p">:</span> <span class="s2">&quot;valuefromstring&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;значениевфайл&quot;</span><span class="p">:</span> <span class="s2">&quot;valuetofile&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;значениеизфайла&quot;</span><span class="p">:</span> <span class="s2">&quot;valuefromfile&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;тип&quot;</span><span class="p">:</span> <span class="s2">&quot;type&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;типзнч&quot;</span><span class="p">:</span> <span class="s2">&quot;typeof&quot;</span><span class="p">,</span>
+    <span class="c1"># Универсальные</span>
+    <span class="s2">&quot;значениезаполнено&quot;</span><span class="p">:</span> <span class="s2">&quot;valueisfilled&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;заполнитьзначениясвойств&quot;</span><span class="p">:</span> <span class="s2">&quot;fillpropertyvalues&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;выполнитьобработку&quot;</span><span class="p">:</span> <span class="s2">&quot;executeprocessing&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;выполнитькод&quot;</span><span class="p">:</span> <span class="s2">&quot;executecode&quot;</span><span class="p">,</span>
+    <span class="c1"># Регистры</span>
+    <span class="s2">&quot;записатьнаборзаписей&quot;</span><span class="p">:</span> <span class="s2">&quot;writerecordset&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;прочитатьнаборзаписей&quot;</span><span class="p">:</span> <span class="s2">&quot;readrecordset&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;отбор&quot;</span><span class="p">:</span> <span class="s2">&quot;filter&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;установитьотбор&quot;</span><span class="p">:</span> <span class="s2">&quot;setfilter&quot;</span><span class="p">,</span>
+    <span class="c1"># Формы</span>
+    <span class="s2">&quot;открытьформу&quot;</span><span class="p">:</span> <span class="s2">&quot;openform&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;открытьформумодально&quot;</span><span class="p">:</span> <span class="s2">&quot;openformmodal&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;закрытьформу&quot;</span><span class="p">:</span> <span class="s2">&quot;closeform&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;получитьэлементформы&quot;</span><span class="p">:</span> <span class="s2">&quot;getformitem&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;установитьвидимость&quot;</span><span class="p">:</span> <span class="s2">&quot;setvisibility&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;установитьдоступность&quot;</span><span class="p">:</span> <span class="s2">&quot;setaccessibility&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;обновитьотображениеданных&quot;</span><span class="p">:</span> <span class="s2">&quot;refreshdatadisplay&quot;</span><span class="p">,</span>
+    <span class="c1"># Общие</span>
+    <span class="s2">&quot;сообщить&quot;</span><span class="p">:</span> <span class="s2">&quot;message&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;сообщитьпользователю&quot;</span><span class="p">:</span> <span class="s2">&quot;messageuser&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;получитьобщиймодуль&quot;</span><span class="p">:</span> <span class="s2">&quot;getcommonmodule&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;вызватьисключение&quot;</span><span class="p">:</span> <span class="s2">&quot;raiseexception&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;вызватьисключениесоп&quot;</span><span class="p">:</span> <span class="s2">&quot;raiseexception&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_apply_synonyms</span><span class="p">(</span><span class="n">tokens</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Применяет BSL-синонимы: для каждого токена добавляет его синоним.</span>
+
+<span class="sd">    &quot;стрнайти&quot; → [&quot;стрнайти&quot;, &quot;strfind&quot;]</span>
+<span class="sd">    &quot;findbycode&quot; → [&quot;findbycode&quot;, &quot;найтипокоду&quot;]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">tokens</span><span class="p">:</span>
+        <span class="c1"># Прямой поиск: ru → en</span>
+        <span class="k">if</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">BSL_SYNONYMS</span><span class="p">:</span>
+            <span class="n">synonym</span> <span class="o">=</span> <span class="n">BSL_SYNONYMS</span><span class="p">[</span><span class="n">token</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">synonym</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">synonym</span><span class="p">)</span>
+        <span class="c1"># Обратный поиск: en → ru</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">ru</span><span class="p">,</span> <span class="n">en</span> <span class="ow">in</span> <span class="n">BSL_SYNONYMS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">token</span> <span class="o">==</span> <span class="n">en</span> <span class="ow">and</span> <span class="n">ru</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ru</span><span class="p">)</span>
+                    <span class="k">break</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<div class="viewcode-block" id="tokenize_stemmed">
+<a class="viewcode-back" href="../../../api/services.html#src.services.search_bm25.tokenize_stemmed">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">tokenize_stemmed</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Токенизация + стемминг + BSL-синонимы.</span>
+
+<span class="sd">    Для CamelCase (mixed-case) — разбиваем на слова.</span>
+<span class="sd">    Для lowercase токенов — оставляем целиком (стеммер нормализует).</span>
+<span class="sd">    BSL-синонимы: &quot;стрнайти&quot; → добавляет &quot;strfind&quot;, и наоборот.</span>
+
+<span class="sd">    Возвращает список стеммированных токенов с синонимами.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Сначала разбиваем mixed-case CamelCase на слова</span>
+    <span class="c1"># &quot;НайтиПоКоду&quot; → &quot;Найти&quot;, &quot;По&quot;, &quot;Коду&quot;</span>
+    <span class="n">camelcase_parts</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[А-ЯA-Z][а-яёa-z]+|[А-ЯA-Z]+(?=[А-ЯA-Z][а-яёa-z])|\d+|[а-яёa-zA-Z]+&quot;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">camelcase_parts</span><span class="p">:</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">part</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">stemmed</span> <span class="o">=</span> <span class="n">stem</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">stemmed</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stemmed</span><span class="p">)</span>
+
+    <span class="c1"># Применяем BSL-синонимы (ru↔en)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">_apply_synonyms</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># ТРИГРАММЫ (для устойчивости к опечаткам)</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="make_trigrams">
+<a class="viewcode-back" href="../../../api/services.html#src.services.search_bm25.make_trigrams">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_trigrams</span><span class="p">(</span><span class="n">word</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Построить триграммы слова: &#39;найти&#39; → {&#39;$$н&#39;, &#39;$на&#39;, &#39;най&#39;, &#39;айт&#39;, &#39;йти&#39;, &#39;ти$&#39;}.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">word</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">padded</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;$$</span><span class="si">{</span><span class="n">word</span><span class="si">}</span><span class="s2">$$&quot;</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">padded</span><span class="p">[</span><span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">3</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">padded</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)}</span></div>
+
+
+
+<div class="viewcode-block" id="trigram_similarity">
+<a class="viewcode-back" href="../../../api/services.html#src.services.search_bm25.trigram_similarity">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">trigram_similarity</span><span class="p">(</span><span class="n">s1</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">s2</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Коэффициент Жаккара для двух множеств триграмм.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">s1</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">s2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+    <span class="n">intersection</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">s1</span> <span class="o">&amp;</span> <span class="n">s2</span><span class="p">)</span>
+    <span class="n">union</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">s1</span> <span class="o">|</span> <span class="n">s2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">intersection</span> <span class="o">/</span> <span class="n">union</span> <span class="k">if</span> <span class="n">union</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">0.0</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># BM25 ИНДЕКС</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Параметры BM25 (стандартные значения из литературы)</span>
+<span class="n">BM25_K1</span> <span class="o">=</span> <span class="mf">1.5</span>  <span class="c1"># насыщение TF</span>
+<span class="n">BM25_B</span> <span class="o">=</span> <span class="mf">0.75</span>  <span class="c1"># нормализация длины документа</span>
+
+
+<div class="viewcode-block" id="build_index_bm25">
+<a class="viewcode-back" href="../../../api/services.html#src.services.search_bm25.build_index_bm25">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_index_bm25</span><span class="p">(</span><span class="n">methods_json_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">output_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Построить BM25 + триграммы индекс.</span>
+
+<span class="sd">    Returns: кол-во проиндексированных методов</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">methods_json_path</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">methods</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+    <span class="n">documents</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">doc_lengths</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">method_trigrams</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># doc_id → set of trigrams (от всех слов)</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">methods</span><span class="p">):</span>
+        <span class="n">name_ru</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name_ru&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">name_en</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name_en&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">syntax</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syntax&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">description</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;description&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">returns</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;returns&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Имя метода — больший вес (повторяем 3 раза)</span>
+        <span class="n">doc_text</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name_ru</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">name_ru</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">name_ru</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">name_en</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">name_en</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">context</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">syntax</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">description</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">returns</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="n">tokenize_stemmed</span><span class="p">(</span><span class="n">doc_text</span><span class="p">)</span>
+
+        <span class="c1"># Триграммы из имени метода (только имя — для fuzzy match)</span>
+        <span class="n">trigrams</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="p">(</span><span class="n">name_ru</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="n">name_en</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">():</span>
+            <span class="n">trigrams</span> <span class="o">|=</span> <span class="n">make_trigrams</span><span class="p">(</span><span class="n">word</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+        <span class="n">method_trigrams</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">trigrams</span>
+
+        <span class="n">documents</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">i</span><span class="p">,</span>
+                <span class="s2">&quot;tokens&quot;</span><span class="p">:</span> <span class="n">tokens</span><span class="p">,</span>
+                <span class="s2">&quot;name_ru&quot;</span><span class="p">:</span> <span class="n">name_ru</span><span class="p">,</span>
+                <span class="s2">&quot;name_en&quot;</span><span class="p">:</span> <span class="n">name_en</span><span class="p">,</span>
+                <span class="s2">&quot;context&quot;</span><span class="p">:</span> <span class="n">context</span><span class="p">,</span>
+                <span class="s2">&quot;syntax&quot;</span><span class="p">:</span> <span class="n">syntax</span><span class="p">,</span>
+                <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="n">description</span><span class="p">[:</span><span class="mi">300</span><span class="p">],</span>
+                <span class="s2">&quot;returns&quot;</span><span class="p">:</span> <span class="n">returns</span><span class="p">[:</span><span class="mi">200</span><span class="p">],</span>
+                <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">m</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;file&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        <span class="n">doc_lengths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">tokens</span><span class="p">))</span>
+
+    <span class="c1"># DF — document frequency</span>
+    <span class="n">df</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">doc</span> <span class="ow">in</span> <span class="n">documents</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">doc</span><span class="p">[</span><span class="s2">&quot;tokens&quot;</span><span class="p">]):</span>
+            <span class="n">df</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="c1"># IDF для BM25: ln(1 + (N - df + 0.5) / (df + 0.5))</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">documents</span><span class="p">)</span>
+    <span class="n">idf_bm25</span> <span class="o">=</span> <span class="p">{</span><span class="n">t</span><span class="p">:</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">N</span> <span class="o">-</span> <span class="n">df_t</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">df_t</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">))</span> <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">df_t</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+    <span class="c1"># Частоты термина в каждом документе</span>
+    <span class="n">tf_per_doc</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Counter</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">doc</span> <span class="ow">in</span> <span class="n">documents</span><span class="p">:</span>
+        <span class="n">tf_per_doc</span><span class="p">[</span><span class="n">doc</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">doc</span><span class="p">[</span><span class="s2">&quot;tokens&quot;</span><span class="p">])</span>
+
+    <span class="c1"># Инвертированный индекс: токен → [(doc_id, tf)]</span>
+    <span class="n">inverted_index</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">doc</span> <span class="ow">in</span> <span class="n">documents</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">tf</span> <span class="ow">in</span> <span class="n">tf_per_doc</span><span class="p">[</span><span class="n">doc</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">inverted_index</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">doc</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span> <span class="n">tf</span><span class="p">))</span>
+
+    <span class="c1"># Средняя длина документа</span>
+    <span class="n">avg_doc_length</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">doc_lengths</span><span class="p">)</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Триграммный индекс: trigram → [doc_ids]</span>
+    <span class="n">trigrams_index</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">doc_id</span><span class="p">,</span> <span class="n">trigrams</span> <span class="ow">in</span> <span class="n">method_trigrams</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">trigram</span> <span class="ow">in</span> <span class="n">trigrams</span><span class="p">:</span>
+            <span class="n">trigrams_index</span><span class="p">[</span><span class="n">trigram</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">doc_id</span><span class="p">)</span>
+
+    <span class="c1"># Удаляем tokens из документов (для экономии места)</span>
+    <span class="k">for</span> <span class="n">doc</span> <span class="ow">in</span> <span class="n">documents</span><span class="p">:</span>
+        <span class="k">del</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;tokens&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Длины документов в dict</span>
+    <span class="n">doc_lengths_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="n">doc_lengths</span><span class="p">))</span>
+
+    <span class="n">index_data</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="s2">&quot;algorithm&quot;</span><span class="p">:</span> <span class="s2">&quot;bm25&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;methods&quot;</span><span class="p">:</span> <span class="n">documents</span><span class="p">,</span>
+        <span class="s2">&quot;idf&quot;</span><span class="p">:</span> <span class="n">idf_bm25</span><span class="p">,</span>
+        <span class="s2">&quot;inverted_index&quot;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(</span><span class="n">inverted_index</span><span class="p">),</span>
+        <span class="s2">&quot;doc_lengths&quot;</span><span class="p">:</span> <span class="n">doc_lengths_dict</span><span class="p">,</span>
+        <span class="s2">&quot;avg_doc_length&quot;</span><span class="p">:</span> <span class="n">avg_doc_length</span><span class="p">,</span>
+        <span class="s2">&quot;total_methods&quot;</span><span class="p">:</span> <span class="n">N</span><span class="p">,</span>
+        <span class="s2">&quot;trigrams_index&quot;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(</span><span class="n">trigrams_index</span><span class="p">),</span>
+        <span class="s2">&quot;method_trigrams&quot;</span><span class="p">:</span> <span class="p">{</span><span class="nb">str</span><span class="p">(</span><span class="n">k</span><span class="p">):</span> <span class="nb">list</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">method_trigrams</span><span class="o">.</span><span class="n">items</span><span class="p">()},</span>
+        <span class="s2">&quot;bm25_params&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;k1&quot;</span><span class="p">:</span> <span class="n">BM25_K1</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">:</span> <span class="n">BM25_B</span><span class="p">},</span>
+    <span class="p">}</span>
+
+    <span class="n">output_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">index_data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">N</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_bm25_score</span><span class="p">(</span><span class="n">tf</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">idf</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">doc_length</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">avg_length</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;BM25 score для одного термина в документе.&quot;&quot;&quot;</span>
+    <span class="n">k1</span> <span class="o">=</span> <span class="n">BM25_K1</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">BM25_B</span>
+    <span class="n">norm</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">+</span> <span class="n">b</span> <span class="o">*</span> <span class="p">(</span><span class="n">doc_length</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">avg_length</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">idf</span> <span class="o">*</span> <span class="p">(</span><span class="n">tf</span> <span class="o">*</span> <span class="p">(</span><span class="n">k1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="n">tf</span> <span class="o">+</span> <span class="n">k1</span> <span class="o">*</span> <span class="n">norm</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_index</span><span class="p">(</span><span class="n">index_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Загрузить BM25 индекс из JSON-файла (с кэшированием).</span>
+
+<span class="sd">    P1.9: добавлен @lru_cache(maxsize=8) — до фикса каждый вызов search_bm25()</span>
+<span class="sd">    перечитывал JSON-индекс с диска (~50-200мс на 100K методов). После фикса</span>
+<span class="sd">    первый вызов для данного index_path медленный, последующие — &lt;1мс.</span>
+
+<span class="sd">    Кэш хранит до 8 различных index_path (для multi-project сценариев).</span>
+<span class="sd">    Инвалидация:</span>
+<span class="sd">      - Автоматически при изменении index_path (другой путь → другой ключ кэша).</span>
+<span class="sd">      - Вручную через _load_index.cache_clear() — например, после rebuild index.</span>
+<span class="sd">      - Вручную через _load_index.cache_invalidate(index_path) для конкретного пути.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        index_path: Путь к JSON-индексу.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        dict с полями: methods, idf, inverted_index, doc_lengths, etc.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        FileNotFoundError: Если index_path не существует.</span>
+<span class="sd">        json.JSONDecodeError: Если файл не валидный JSON.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">index_path</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+
+<span class="c1"># Применяем lru_cache к обёртке, чтобы была возможность cache_clear().</span>
+<span class="c1"># maxsize=8: достаточно для типичных multi-config сценариев (5-6 конфигов).</span>
+<span class="n">_load_index_cached</span> <span class="o">=</span> <span class="n">lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)(</span><span class="n">_load_index</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="search_bm25">
+<a class="viewcode-back" href="../../../api/services.html#src.services.search_bm25.search_bm25">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">search_bm25</span><span class="p">(</span><span class="n">index_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">hybrid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    BM25 поиск по индексу v2.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        index_path: Путь к индексу</span>
+<span class="sd">        query: Поисковый запрос</span>
+<span class="sd">        limit: Кол-во результатов</span>
+<span class="sd">        hybrid: Если True — гибридный режим (BM25 + триграммы)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Список результатов с score, name_ru, name_en, context, syntax, description</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># P1.9: используем кэшированную загрузку. lru_cache по Path автоматически</span>
+    <span class="c1"># различает разные index_path. Для инвалидации: _load_index_cached.cache_clear().</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">_load_index_cached</span><span class="p">(</span><span class="n">index_path</span><span class="p">)</span>
+
+    <span class="n">methods</span> <span class="o">=</span> <span class="n">index</span><span class="p">[</span><span class="s2">&quot;methods&quot;</span><span class="p">]</span>
+    <span class="n">idf</span> <span class="o">=</span> <span class="n">index</span><span class="p">[</span><span class="s2">&quot;idf&quot;</span><span class="p">]</span>
+    <span class="n">inverted_index</span> <span class="o">=</span> <span class="n">index</span><span class="p">[</span><span class="s2">&quot;inverted_index&quot;</span><span class="p">]</span>
+    <span class="n">doc_lengths</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;doc_lengths&quot;</span><span class="p">,</span> <span class="p">{})</span>
+    <span class="n">avg_doc_length</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;avg_doc_length&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+    <span class="c1"># Токенизуем запрос (со стеммингом)</span>
+    <span class="n">query_tokens</span> <span class="o">=</span> <span class="n">tokenize_stemmed</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">query_tokens</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+
+    <span class="c1"># BM25 scoring</span>
+    <span class="n">bm25_scores</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">query_tf</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">query_tokens</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">_q_tf</span> <span class="ow">in</span> <span class="n">query_tf</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">t</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">inverted_index</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">idf_t</span> <span class="o">=</span> <span class="n">idf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">doc_id</span><span class="p">,</span> <span class="n">doc_tf</span> <span class="ow">in</span> <span class="n">inverted_index</span><span class="p">[</span><span class="n">t</span><span class="p">]:</span>
+            <span class="n">doc_len</span> <span class="o">=</span> <span class="n">doc_lengths</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">doc_id</span><span class="p">),</span> <span class="n">doc_lengths</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">doc_id</span><span class="p">,</span> <span class="n">avg_doc_length</span><span class="p">))</span>
+            <span class="n">score</span> <span class="o">=</span> <span class="n">_bm25_score</span><span class="p">(</span><span class="n">doc_tf</span><span class="p">,</span> <span class="n">idf_t</span><span class="p">,</span> <span class="n">doc_len</span><span class="p">,</span> <span class="n">avg_doc_length</span><span class="p">)</span>
+            <span class="n">bm25_scores</span><span class="p">[</span><span class="n">doc_id</span><span class="p">]</span> <span class="o">+=</span> <span class="n">score</span>
+
+    <span class="c1"># Гибридный режим: добавляем триграммы</span>
+    <span class="k">if</span> <span class="n">hybrid</span> <span class="ow">and</span> <span class="s2">&quot;trigrams_index&quot;</span> <span class="ow">in</span> <span class="n">index</span><span class="p">:</span>
+        <span class="c1"># Если BM25 что-то нашёл — ограничиваем триграммы кандидатами (оптимизация).</span>
+        <span class="c1"># Если ничего не нашёл — триграммы ищут по всему индексу (важно для опечаток).</span>
+        <span class="n">candidates</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">bm25_scores</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">if</span> <span class="n">bm25_scores</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">trigram_scores</span> <span class="o">=</span> <span class="n">_trigram_search</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">candidates</span><span class="p">)</span>
+
+        <span class="c1"># Нормализуем обе скоринговые системы к [0, 1]</span>
+        <span class="n">max_bm25</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">bm25_scores</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="k">if</span> <span class="n">bm25_scores</span> <span class="k">else</span> <span class="mf">1.0</span>
+        <span class="n">max_trigram</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">trigram_scores</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="k">if</span> <span class="n">trigram_scores</span> <span class="k">else</span> <span class="mf">1.0</span>
+
+        <span class="n">all_doc_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">bm25_scores</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">trigram_scores</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">combined</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">doc_id</span> <span class="ow">in</span> <span class="n">all_doc_ids</span><span class="p">:</span>
+            <span class="n">bm25_norm</span> <span class="o">=</span> <span class="n">bm25_scores</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">doc_id</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="n">max_bm25</span> <span class="k">if</span> <span class="n">max_bm25</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="n">trig_norm</span> <span class="o">=</span> <span class="n">trigram_scores</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">doc_id</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="n">max_trigram</span> <span class="k">if</span> <span class="n">max_trigram</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="c1"># Веса: BM25 — основной, триграммы — корректировка</span>
+            <span class="n">combined</span><span class="p">[</span><span class="n">doc_id</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.75</span> <span class="o">*</span> <span class="n">bm25_norm</span> <span class="o">+</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="n">trig_norm</span>
+
+        <span class="n">ranked</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">combined</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])[:</span><span class="n">limit</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ranked</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">bm25_scores</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])[:</span><span class="n">limit</span><span class="p">]</span>
+
+    <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">doc_id</span><span class="p">,</span> <span class="n">score</span> <span class="ow">in</span> <span class="n">ranked</span><span class="p">:</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">methods</span><span class="p">[</span><span class="n">doc_id</span><span class="p">]</span>
+        <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="nb">round</span><span class="p">(</span><span class="n">score</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+                <span class="s2">&quot;name_ru&quot;</span><span class="p">:</span> <span class="n">m</span><span class="p">[</span><span class="s2">&quot;name_ru&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;name_en&quot;</span><span class="p">:</span> <span class="n">m</span><span class="p">[</span><span class="s2">&quot;name_en&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;context&quot;</span><span class="p">:</span> <span class="n">m</span><span class="p">[</span><span class="s2">&quot;context&quot;</span><span class="p">][:</span><span class="mi">80</span><span class="p">],</span>
+                <span class="s2">&quot;syntax&quot;</span><span class="p">:</span> <span class="n">m</span><span class="p">[</span><span class="s2">&quot;syntax&quot;</span><span class="p">][:</span><span class="mi">120</span><span class="p">],</span>
+                <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="n">m</span><span class="p">[</span><span class="s2">&quot;description&quot;</span><span class="p">][:</span><span class="mi">150</span><span class="p">],</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">results</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_trigram_search</span><span class="p">(</span><span class="n">index</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">candidate_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Триграммный поиск — для устойчивости к опечаткам.</span>
+
+<span class="sd">    Ищет методы, чьи имена похожи на слова из запроса.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        index: Загруженный индекс</span>
+<span class="sd">        query: Поисковый запрос</span>
+<span class="sd">        candidate_ids: Если указано — ограничиваем поиск этими doc_ids (для оптимизации)</span>
+
+<span class="sd">    Returns: {doc_id: score}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">trigrams_index</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;trigrams_index&quot;</span><span class="p">,</span> <span class="p">{})</span>
+    <span class="n">method_trigrams</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;method_trigrams&quot;</span><span class="p">,</span> <span class="p">{})</span>
+
+    <span class="c1"># Строим триграммы запроса (только существенные слова)</span>
+    <span class="n">query_words</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[а-яёА-ЯЁa-zA-Z]{3,}&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">query_words</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{}</span>
+
+    <span class="n">query_trigrams</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">query_words</span><span class="p">:</span>
+        <span class="n">query_trigrams</span> <span class="o">|=</span> <span class="n">make_trigrams</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">query_trigrams</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{}</span>
+
+    <span class="c1"># Находим candidate doc_ids (через инвертированный триграммный индекс)</span>
+    <span class="n">candidate_docs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">trigram</span> <span class="ow">in</span> <span class="n">query_trigrams</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">trigram</span> <span class="ow">in</span> <span class="n">trigrams_index</span><span class="p">:</span>
+            <span class="n">candidate_docs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">trigrams_index</span><span class="p">[</span><span class="n">trigram</span><span class="p">])</span>
+
+    <span class="c1"># Если уже есть candidate_ids от BM25 — пересекаем (оптимизация)</span>
+    <span class="k">if</span> <span class="n">candidate_ids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">candidate_docs</span> <span class="o">=</span> <span class="n">candidate_docs</span> <span class="o">&amp;</span> <span class="nb">set</span><span class="p">(</span><span class="n">candidate_ids</span><span class="p">)</span>
+
+    <span class="c1"># Считаем Жаккар для каждого кандидата</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">doc_id</span> <span class="ow">in</span> <span class="n">candidate_docs</span><span class="p">:</span>
+        <span class="n">doc_trigrams</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">method_trigrams</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">doc_id</span><span class="p">),</span> <span class="p">[]))</span>
+        <span class="k">if</span> <span class="n">doc_trigrams</span><span class="p">:</span>
+            <span class="n">scores</span><span class="p">[</span><span class="n">doc_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">trigram_similarity</span><span class="p">(</span><span class="n">query_trigrams</span><span class="p">,</span> <span class="n">doc_trigrams</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">scores</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># AUTO-DETECT (v1 / v2)</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="detect_index_version">
+<a class="viewcode-back" href="../../../api/services.html#src.services.search_bm25.detect_index_version">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">detect_index_version</span><span class="p">(</span><span class="n">index_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Определить версию индекса (1 = TF-IDF, 2 = BM25).&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">index_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">return</span> <span class="mi">0</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">index_path</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">head</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;&quot;version&quot;: 2&#39;</span> <span class="ow">in</span> <span class="n">head</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">2</span>
+        <span class="k">return</span> <span class="mi">1</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">0</span></div>
+
+
+
+<div class="viewcode-block" id="search_auto">
+<a class="viewcode-back" href="../../../api/services.html#src.services.search_bm25.search_auto">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">search_auto</span><span class="p">(</span><span class="n">index_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Авто-выбор алгоритма поиска по версии индекса.</span>
+
+<span class="sd">    v1 (TF-IDF) → services.search.search()</span>
+<span class="sd">    v2 (BM25) → search_bm25()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">version</span> <span class="o">=</span> <span class="n">detect_index_version</span><span class="p">(</span><span class="n">index_path</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">version</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">search_bm25</span><span class="p">(</span><span class="n">index_path</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">limit</span><span class="p">,</span> <span class="n">hybrid</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">version</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="c1"># Fallback на старый TF-IDF</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.search</span><span class="w"> </span><span class="kn">import</span> <span class="n">search</span> <span class="k">as</span> <span class="n">tfidf_search</span>
+
+        <span class="k">return</span> <span class="n">tfidf_search</span><span class="p">(</span><span class="n">index_path</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">1C AI Development Environment</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Pradushkoai&repo=1c-ai-dev-env&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/services.html">Services API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/models.html">Models API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/mcpserver.html">MCP Server API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/mcp_integration.html">MCP Integration</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../references/changelog.html">Changelog</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Pradushkoai.
+      
+    </div>
+
+    
+    <a href="https://github.com/Pradushkoai/1c-ai-dev-env" class="github">
+        <img src="../../../_static/github-banner.svg" alt="Fork me on GitHub" class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

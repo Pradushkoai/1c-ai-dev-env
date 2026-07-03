@@ -11,7 +11,17 @@ from dotenv import load_dotenv
 
 
 class PathManager:
-    """Единый источник путей для всего проекта. 4-слойная архитектура."""
+    """Единый источник путей для всего проекта. 4-слойная архитектура.
+
+    Examples:
+        >>> from pathlib import Path
+        >>> import tempfile
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     _ = (Path(tmp) / "paths.env").write_text("# fake", encoding="utf-8")
+        ...     pm = PathManager(project_root=Path(tmp))
+        ...     pm.root == Path(tmp).resolve()
+        True
+    """
 
     def __init__(self, project_root: Path | None = None):
         self._root = project_root or self._detect_root()

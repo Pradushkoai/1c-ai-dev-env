@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>src.services.metrics &#8212; 1C AI Development Environment 5.4.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=3ef399bb" />
+    <script src="../../../_static/documentation_options.js?v=d250e987"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for src.services.metrics</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">metrics.py — Prometheus metrics для MCP tools и наблюдения за производительностью.</span>
+
+<span class="sd">P1.5: добавлены метрики для observability production.</span>
+<span class="sd">Отслеживает: latency, error rate, usage count для каждого MCP tool.</span>
+
+<span class="sd">Метрики:</span>
+<span class="sd">- mcp_tool_calls_total: Counter (tool_name, status) — всего вызовов</span>
+<span class="sd">- mcp_tool_errors_total: Counter (tool_name, error_type) — всего ошибок</span>
+<span class="sd">- mcp_tool_latency_seconds: Histogram (tool_name) — латентность</span>
+<span class="sd">- mcp_active_configs: Gauge — количество активных конфигураций</span>
+<span class="sd">- mcp_index_size_bytes: Gauge (index_type) — размер индексов</span>
+
+<span class="sd">Использование:</span>
+<span class="sd">    from src.services.metrics import with_metrics, get_metrics</span>
+
+<span class="sd">    # Декоратор для MCP handler</span>
+<span class="sd">    @with_metrics(&quot;search_1c_methods&quot;)</span>
+<span class="sd">    async def handle_search(query, limit):</span>
+<span class="sd">        ...</span>
+
+<span class="sd">    # HTTP endpoint для Prometheus scrape</span>
+<span class="sd">    get_metrics().start_http_server(8001)</span>
+
+<span class="sd">    # Или получить текстовый вывод метрик</span>
+<span class="sd">    metrics_text = get_metrics().get_metrics_text()</span>
+
+<span class="sd">Зависимости: prometheus_client (extras [metrics])</span>
+<span class="sd">Fallback: если prometheus_client не установлен — метрики становятся no-op.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="c1"># Lazy import prometheus_client</span>
+<span class="n">_PROMETHEUS_AVAILABLE</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="n">_REGISTRY</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># MetricsRegistry singleton</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_check_prometheus</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Проверить доступность prometheus_client (с кэшированием).&quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">_PROMETHEUS_AVAILABLE</span>
+    <span class="k">if</span> <span class="n">_PROMETHEUS_AVAILABLE</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">prometheus_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">Counter</span><span class="p">,</span> <span class="n">Gauge</span><span class="p">,</span> <span class="n">Histogram</span>  <span class="c1"># noqa: F401</span>
+
+            <span class="n">_PROMETHEUS_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+            <span class="n">_PROMETHEUS_AVAILABLE</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;prometheus_client не установлен. pip install -e &#39;.[metrics]&#39; для observability.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_PROMETHEUS_AVAILABLE</span>
+
+
+<div class="viewcode-block" id="NoOpMetric">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpMetric">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NoOpMetric</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;No-op метрика для fallback когда prometheus_client недоступен.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="NoOpMetric.labels">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpMetric.labels">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">labels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NoOpMetric</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="NoOpMetric.inc">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpMetric.inc">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">inc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">amount</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="NoOpMetric.observe">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpMetric.observe">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">observe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">amount</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="NoOpMetric.set">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpMetric.set">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="NoOpMetric.dec">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpMetric.dec">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">amount</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">pass</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="NoOpRegistry">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpRegistry">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NoOpRegistry</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;No-op registry когда prometheus_client недоступен.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="NoOpRegistry.__init__">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpRegistry.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tool_calls</span> <span class="o">=</span> <span class="n">NoOpMetric</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tool_errors</span> <span class="o">=</span> <span class="n">NoOpMetric</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tool_latency</span> <span class="o">=</span> <span class="n">NoOpMetric</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_configs</span> <span class="o">=</span> <span class="n">NoOpMetric</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index_size</span> <span class="o">=</span> <span class="n">NoOpMetric</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="NoOpRegistry.start_http_server">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpRegistry.start_http_server">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">start_http_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8001</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;prometheus_client не установлен — /metrics endpoint недоступен&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="NoOpRegistry.get_metrics_text">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpRegistry.get_metrics_text">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_metrics_text</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;# prometheus_client not installed</span><span class="se">\n</span><span class="s2">&quot;</span></div>
+
+
+<div class="viewcode-block" id="NoOpRegistry.record_tool_call">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpRegistry.record_tool_call">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">record_tool_call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tool_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;success&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="NoOpRegistry.record_tool_error">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpRegistry.record_tool_error">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">record_tool_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tool_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">error_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="NoOpRegistry.observe_latency">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpRegistry.observe_latency">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">observe_latency</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tool_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">latency_seconds</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="NoOpRegistry.set_active_configs">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpRegistry.set_active_configs">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_active_configs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">count</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="NoOpRegistry.set_index_size">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.NoOpRegistry.set_index_size">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_index_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">size_bytes</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">pass</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="PrometheusRegistry">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.PrometheusRegistry">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PrometheusRegistry</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Реестр Prometheus метрик (singleton).</span>
+
+<span class="sd">    Содержит все метрики проекта:</span>
+<span class="sd">    - mcp_tool_calls_total: Counter (tool_name, status)</span>
+<span class="sd">    - mcp_tool_errors_total: Counter (tool_name, error_type)</span>
+<span class="sd">    - mcp_tool_latency_seconds: Histogram (tool_name)</span>
+<span class="sd">    - mcp_active_configs: Gauge</span>
+<span class="sd">    - mcp_index_size_bytes: Gauge (index_type)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="PrometheusRegistry.__init__">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.PrometheusRegistry.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_check_prometheus</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;prometheus_client не установлен&quot;</span><span class="p">)</span>
+
+        <span class="kn">from</span><span class="w"> </span><span class="nn">prometheus_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">Counter</span><span class="p">,</span> <span class="n">Gauge</span><span class="p">,</span> <span class="n">Histogram</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">tool_calls</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span>
+            <span class="s2">&quot;mcp_tool_calls_total&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Total MCP tool calls&quot;</span><span class="p">,</span>
+            <span class="p">[</span><span class="s2">&quot;tool_name&quot;</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">],</span>  <span class="c1"># status: success, error</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">tool_errors</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span>
+            <span class="s2">&quot;mcp_tool_errors_total&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Total MCP tool errors&quot;</span><span class="p">,</span>
+            <span class="p">[</span><span class="s2">&quot;tool_name&quot;</span><span class="p">,</span> <span class="s2">&quot;error_type&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">tool_latency</span> <span class="o">=</span> <span class="n">Histogram</span><span class="p">(</span>
+            <span class="s2">&quot;mcp_tool_latency_seconds&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;MCP tool latency in seconds&quot;</span><span class="p">,</span>
+            <span class="p">[</span><span class="s2">&quot;tool_name&quot;</span><span class="p">],</span>
+            <span class="n">buckets</span><span class="o">=</span><span class="p">(</span><span class="mf">0.005</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.025</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.5</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_configs</span> <span class="o">=</span> <span class="n">Gauge</span><span class="p">(</span>
+            <span class="s2">&quot;mcp_active_configs&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Number of active 1C configurations&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">index_size</span> <span class="o">=</span> <span class="n">Gauge</span><span class="p">(</span>
+            <span class="s2">&quot;mcp_index_size_bytes&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Size of index files in bytes&quot;</span><span class="p">,</span>
+            <span class="p">[</span><span class="s2">&quot;index_type&quot;</span><span class="p">],</span>  <span class="c1"># metadata, api, skd, forms, platform</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PrometheusRegistry.start_http_server">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.PrometheusRegistry.start_http_server">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">start_http_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8001</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Запустить HTTP endpoint /metrics для Prometheus scrape.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            port: Порт для HTTP сервера (default 8001).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">prometheus_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">start_http_server</span>
+
+        <span class="n">start_http_server</span><span class="p">(</span><span class="n">port</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Prometheus /metrics endpoint started on port </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PrometheusRegistry.get_metrics_text">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.PrometheusRegistry.get_metrics_text">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_metrics_text</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Получить метрики в текстовом формате Prometheus.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Строка с метриками для /metrics endpoint.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">prometheus_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_latest</span>
+
+        <span class="k">return</span> <span class="n">generate_latest</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PrometheusRegistry.record_tool_call">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.PrometheusRegistry.record_tool_call">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">record_tool_call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tool_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;success&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Записать вызов tool.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tool_name: Имя MCP tool.</span>
+<span class="sd">            status: &#39;success&#39; или &#39;error&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tool_calls</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="n">tool_name</span><span class="o">=</span><span class="n">tool_name</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">)</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="PrometheusRegistry.record_tool_error">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.PrometheusRegistry.record_tool_error">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">record_tool_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tool_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">error_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Записать ошибку tool.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tool_name: Имя MCP tool.</span>
+<span class="sd">            error_type: Тип ошибки (exception class name).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tool_errors</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="n">tool_name</span><span class="o">=</span><span class="n">tool_name</span><span class="p">,</span> <span class="n">error_type</span><span class="o">=</span><span class="n">error_type</span><span class="p">)</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="PrometheusRegistry.observe_latency">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.PrometheusRegistry.observe_latency">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">observe_latency</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tool_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">latency_seconds</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Записать латентность tool.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tool_name: Имя MCP tool.</span>
+<span class="sd">            latency_seconds: Время выполнения в секундах.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tool_latency</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="n">tool_name</span><span class="o">=</span><span class="n">tool_name</span><span class="p">)</span><span class="o">.</span><span class="n">observe</span><span class="p">(</span><span class="n">latency_seconds</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PrometheusRegistry.set_active_configs">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.PrometheusRegistry.set_active_configs">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_active_configs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">count</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Установить количество активных конфигураций.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            count: Количество активных конфигураций.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_configs</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">count</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PrometheusRegistry.set_index_size">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.PrometheusRegistry.set_index_size">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_index_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">size_bytes</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Установить размер индекса.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index_type: Тип индекса (metadata, api, skd, forms, platform).</span>
+<span class="sd">            size_bytes: Размер в байтах.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index_size</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="n">index_type</span><span class="o">=</span><span class="n">index_type</span><span class="p">)</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">size_bytes</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="get_metrics">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.get_metrics">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_metrics</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">PrometheusRegistry</span> <span class="o">|</span> <span class="n">NoOpRegistry</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Получить singleton metrics registry.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        PrometheusRegistry если prometheus_client установлен,</span>
+<span class="sd">        иначе NoOpRegistry (все операции no-op).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">_REGISTRY</span>
+    <span class="k">if</span> <span class="n">_REGISTRY</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">_check_prometheus</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">_REGISTRY</span> <span class="o">=</span> <span class="n">PrometheusRegistry</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to init PrometheusRegistry: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                <span class="n">_REGISTRY</span> <span class="o">=</span> <span class="n">NoOpRegistry</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_REGISTRY</span> <span class="o">=</span> <span class="n">NoOpRegistry</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">_REGISTRY</span>  <span class="c1"># type: ignore[return-value]</span></div>
+
+
+
+<div class="viewcode-block" id="with_metrics">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.with_metrics">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">with_metrics</span><span class="p">(</span><span class="n">tool_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Декоратор для инструментирования MCP handler метриками.</span>
+
+<span class="sd">    Автоматически:</span>
+<span class="sd">    - Записывает вызов (Counter)</span>
+<span class="sd">    - Измеряет латентность (Histogram)</span>
+<span class="sd">    - При ошибке — записывает error (Counter)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tool_name: Имя MCP tool для метрик.</span>
+
+<span class="sd">    Usage:</span>
+<span class="sd">        @with_metrics(&quot;search_1c_methods&quot;)</span>
+<span class="sd">        async def handle_search(query, limit):</span>
+<span class="sd">            ...</span>
+
+<span class="sd">        @with_metrics(&quot;analyze_bsl&quot;)</span>
+<span class="sd">        def handle_analyze(file_path):</span>
+<span class="sd">            ...</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="c1"># Проверяем async или sync функция</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+
+        <span class="n">is_async</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">iscoroutinefunction</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">is_async</span><span class="p">:</span>
+
+            <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+            <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">async_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+                <span class="n">registry</span> <span class="o">=</span> <span class="n">get_metrics</span><span class="p">()</span>
+                <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                    <span class="n">registry</span><span class="o">.</span><span class="n">record_tool_call</span><span class="p">(</span><span class="n">tool_name</span><span class="p">,</span> <span class="s2">&quot;success&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">result</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">registry</span><span class="o">.</span><span class="n">record_tool_call</span><span class="p">(</span><span class="n">tool_name</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">)</span>
+                    <span class="n">registry</span><span class="o">.</span><span class="n">record_tool_error</span><span class="p">(</span><span class="n">tool_name</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+                    <span class="k">raise</span>
+                <span class="k">finally</span><span class="p">:</span>
+                    <span class="n">latency</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
+                    <span class="n">registry</span><span class="o">.</span><span class="n">observe_latency</span><span class="p">(</span><span class="n">tool_name</span><span class="p">,</span> <span class="n">latency</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">async_wrapper</span>
+        <span class="k">else</span><span class="p">:</span>
+
+            <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">sync_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+                <span class="n">registry</span> <span class="o">=</span> <span class="n">get_metrics</span><span class="p">()</span>
+                <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">result</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                    <span class="n">registry</span><span class="o">.</span><span class="n">record_tool_call</span><span class="p">(</span><span class="n">tool_name</span><span class="p">,</span> <span class="s2">&quot;success&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">result</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">registry</span><span class="o">.</span><span class="n">record_tool_call</span><span class="p">(</span><span class="n">tool_name</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">)</span>
+                    <span class="n">registry</span><span class="o">.</span><span class="n">record_tool_error</span><span class="p">(</span><span class="n">tool_name</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+                    <span class="k">raise</span>
+                <span class="k">finally</span><span class="p">:</span>
+                    <span class="n">latency</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
+                    <span class="n">registry</span><span class="o">.</span><span class="n">observe_latency</span><span class="p">(</span><span class="n">tool_name</span><span class="p">,</span> <span class="n">latency</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">sync_wrapper</span>
+
+    <span class="k">return</span> <span class="n">decorator</span></div>
+
+
+
+<div class="viewcode-block" id="maybe_start_metrics_server">
+<a class="viewcode-back" href="../../../api/services.html#src.services.metrics.maybe_start_metrics_server">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">maybe_start_metrics_server</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Запустить /metrics HTTP сервер если задан MCP_METRICS_PORT env var.</span>
+
+<span class="sd">    Env vars:</span>
+<span class="sd">        MCP_METRICS_PORT: Порт для Prometheus scrape (default: не запускается).</span>
+
+<span class="sd">    Usage:</span>
+<span class="sd">        # В mcp_server.py при старте:</span>
+<span class="sd">        from src.services.metrics import maybe_start_metrics_server</span>
+<span class="sd">        maybe_start_metrics_server()</span>
+
+<span class="sd">        # Запуск MCP сервера с метриками:</span>
+<span class="sd">        MCP_METRICS_PORT=8001 python -m src.cli mcp serve</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">port_str</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;MCP_METRICS_PORT&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">port_str</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">port</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">port_str</span><span class="p">)</span>
+            <span class="n">registry</span> <span class="o">=</span> <span class="n">get_metrics</span><span class="p">()</span>
+            <span class="n">registry</span><span class="o">.</span><span class="n">start_http_server</span><span class="p">(</span><span class="n">port</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Invalid MCP_METRICS_PORT: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">port_str</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to start metrics server: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">1C AI Development Environment</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Pradushkoai&repo=1c-ai-dev-env&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/services.html">Services API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/models.html">Models API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/mcpserver.html">MCP Server API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/mcp_integration.html">MCP Integration</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../references/changelog.html">Changelog</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Pradushkoai.
+      
+    </div>
+
+    
+    <a href="https://github.com/Pradushkoai/1c-ai-dev-env" class="github">
+        <img src="../../../_static/github-banner.svg" alt="Fork me on GitHub" class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

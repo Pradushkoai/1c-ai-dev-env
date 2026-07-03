@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>src.services.task_processor &#8212; 1C AI Development Environment 5.4.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=3ef399bb" />
+    <script src="../../../_static/documentation_options.js?v=d250e987"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for src.services.task_processor</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">TaskProcessor — единый пайплайн для решения задач 1С.</span>
+
+<span class="sd">solve(query, config_name) → TaskContext:</span>
+<span class="sd">    1. Поиск методов платформы 1С (BM25, если есть индекс)</span>
+<span class="sd">    2. API-справочник конфигурации (api-reference.json)</span>
+<span class="sd">    3. Структура объектов (unified-metadata-index.json)</span>
+<span class="sd">    4. СКД-схемы (skd-index.json)</span>
+<span class="sd">    5. Формы (form-index.json)</span>
+<span class="sd">    6. База знаний (knowledge_base/)</span>
+<span class="sd">    7. Стандарты 1С (check_1c_standards.py — 56 правил)</span>
+
+<span class="sd">check(file_path, level) → CheckResult:</span>
+<span class="sd">    quick:    check_1c_standards + security + transactions + queries (без Java)</span>
+<span class="sd">    standard: quick + BSL LS</span>
+<span class="sd">    full:     standard + code_metrics + metadata_standards</span>
+
+<span class="sd">Это единая бизнес-логика, которую используют И CLI И MCP-сервер.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">importlib.util</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..models.task</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">CheckResult</span><span class="p">,</span>
+    <span class="n">CodeMetric</span><span class="p">,</span>
+    <span class="n">FormHit</span><span class="p">,</span>
+    <span class="n">KnowledgeArticleHit</span><span class="p">,</span>
+    <span class="n">MetadataObjectHit</span><span class="p">,</span>
+    <span class="n">ModuleApiHit</span><span class="p">,</span>
+    <span class="n">PlatformMethodHit</span><span class="p">,</span>
+    <span class="n">SkdSchemaHit</span><span class="p">,</span>
+    <span class="n">TaskContext</span><span class="p">,</span>
+    <span class="n">Violation</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.path_manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">PathManager</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="TaskProcessor">
+<a class="viewcode-back" href="../../../api/services.html#src.services.task_processor.TaskProcessor">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TaskProcessor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Оркестратор: собирает контекст задачи / запускает анализаторы.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="TaskProcessor.__init__">
+<a class="viewcode-back" href="../../../api/services.html#src.services.task_processor.TaskProcessor.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="n">PathManager</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span> <span class="o">=</span> <span class="n">paths</span></div>
+
+
+    <span class="c1"># ─────────────────────────────────────────────</span>
+    <span class="c1"># SOLVE: собрать контекст для LLM</span>
+    <span class="c1"># ─────────────────────────────────────────────</span>
+
+<div class="viewcode-block" id="TaskProcessor.solve">
+<a class="viewcode-back" href="../../../api/services.html#src.services.task_processor.TaskProcessor.solve">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">solve</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">config_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TaskContext</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Собрать полный контекст для LLM по задаче.&quot;&quot;&quot;</span>
+        <span class="n">ctx</span> <span class="o">=</span> <span class="n">TaskContext</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span> <span class="n">config_name</span><span class="o">=</span><span class="n">config_name</span><span class="p">)</span>
+
+        <span class="n">query_lower</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="n">query_words</span> <span class="o">=</span> <span class="p">[</span><span class="n">w</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">query_lower</span><span class="o">.</span><span class="n">split</span><span class="p">()</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">w</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># 1. Методы платформы 1С</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_search_platform_methods</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+
+        <span class="c1"># 2-5. Источники по конфигурации</span>
+        <span class="k">if</span> <span class="n">config_name</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_search_api_reference</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">config_name</span><span class="p">,</span> <span class="n">query_words</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_search_metadata</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">config_name</span><span class="p">,</span> <span class="n">query_words</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_search_skd</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">config_name</span><span class="p">,</span> <span class="n">query_words</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_search_forms</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">config_name</span><span class="p">,</span> <span class="n">query_words</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Конфигурация не указана — поиск по метаданным пропущен&quot;</span><span class="p">)</span>
+
+        <span class="c1"># 6. База знаний</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_search_knowledge_base</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+
+        <span class="c1"># 7. Стандарты (summary — что доступно для проверки)</span>
+        <span class="n">ctx</span><span class="o">.</span><span class="n">standards_summary</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standards_summary</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">ctx</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_search_platform_methods</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;BM25 поиск по методам платформы 1С (если есть индекс).&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">.search_bm25</span><span class="w"> </span><span class="kn">import</span> <span class="n">search_auto</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">missing_sources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;platform_methods (search_bm25 module)&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">index_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">fast_search_index</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">index_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">missing_sources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;platform_methods (index not built)&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">search_auto</span><span class="p">(</span><span class="n">index_path</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">platform_methods</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">PlatformMethodHit</span><span class="p">(</span>
+                        <span class="n">name_ru</span><span class="o">=</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name_ru&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                        <span class="n">name_en</span><span class="o">=</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name_en&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                        <span class="n">score</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;score&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span>
+                        <span class="n">syntax</span><span class="o">=</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syntax&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                        <span class="n">description</span><span class="o">=</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;description&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                        <span class="n">context</span><span class="o">=</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;platform_methods search failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_search_api_reference</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">,</span>
+        <span class="n">config_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">query_words</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Поиск модулей и методов в api-reference.json.&quot;&quot;&quot;</span>
+        <span class="n">api_json</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">config_api_reference_json</span><span class="p">(</span><span class="n">config_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">api_json</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">missing_sources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;api_reference (no api-reference.json for </span><span class="si">{</span><span class="n">config_name</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">api_json</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">modules</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;api_reference load failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">relevant</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">modules</span> <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">w</span> <span class="ow">in</span> <span class="n">m</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">query_words</span><span class="p">)]</span>
+        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">relevant</span><span class="p">[:</span><span class="n">limit</span><span class="p">]:</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">api_modules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">ModuleApiHit</span><span class="p">(</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                    <span class="n">methods_count</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;methods_count&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                    <span class="n">methods</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;methods&quot;</span><span class="p">,</span> <span class="p">[])[:</span><span class="mi">3</span><span class="p">],</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_search_metadata</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">,</span>
+        <span class="n">config_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">query_words</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Поиск объектов / подсистем / подписок / регламентных в unified-metadata-index.&quot;&quot;&quot;</span>
+        <span class="n">unified_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">root</span> <span class="o">/</span> <span class="s2">&quot;derived&quot;</span> <span class="o">/</span> <span class="s2">&quot;configs&quot;</span> <span class="o">/</span> <span class="n">config_name</span> <span class="o">/</span> <span class="s2">&quot;unified-metadata-index.json&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">unified_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">missing_sources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;metadata (no unified-metadata-index.json for </span><span class="si">{</span><span class="n">config_name</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">unified_path</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">meta</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;metadata load failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Объекты</span>
+        <span class="k">for</span> <span class="n">type_name</span><span class="p">,</span> <span class="n">objs</span> <span class="ow">in</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;objects&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">objs</span><span class="p">:</span>
+                <span class="n">obj_name</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">w</span> <span class="ow">in</span> <span class="n">obj_name</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">query_words</span><span class="p">):</span>
+                    <span class="n">children</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;child_objects&quot;</span><span class="p">,</span> <span class="p">{})</span>
+                    <span class="n">ctx</span><span class="o">.</span><span class="n">metadata_objects</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">MetadataObjectHit</span><span class="p">(</span>
+                            <span class="nb">type</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="n">type_name</span><span class="p">),</span>
+                            <span class="n">name</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                            <span class="n">synonym</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;synonym&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                            <span class="n">attributes_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">children</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;attributes&quot;</span><span class="p">,</span> <span class="p">[])),</span>
+                            <span class="n">tabular_sections_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">children</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tabular_sections&quot;</span><span class="p">,</span> <span class="p">[])),</span>
+                            <span class="n">forms_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">children</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;forms&quot;</span><span class="p">,</span> <span class="p">[])),</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+
+        <span class="c1"># Подсистемы</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;subsystems&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">w</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">query_words</span><span class="p">):</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">subsystems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+
+        <span class="c1"># Подписки на события</span>
+        <span class="k">for</span> <span class="n">ev</span> <span class="ow">in</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;event_subscriptions&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">w</span> <span class="ow">in</span> <span class="n">ev</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">or</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">ev</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;handler&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">query_words</span><span class="p">):</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">event_subscriptions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ev</span><span class="p">)</span>
+
+        <span class="c1"># Регламентные задания</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;scheduled_jobs&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">w</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">or</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;method_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">query_words</span><span class="p">):</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">scheduled_jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_search_skd</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">,</span>
+        <span class="n">config_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">query_words</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Поиск СКД-схем.&quot;&quot;&quot;</span>
+        <span class="n">skd_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">root</span> <span class="o">/</span> <span class="s2">&quot;derived&quot;</span> <span class="o">/</span> <span class="s2">&quot;configs&quot;</span> <span class="o">/</span> <span class="n">config_name</span> <span class="o">/</span> <span class="s2">&quot;skd-index.json&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">skd_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">missing_sources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;skd (no skd-index.json for </span><span class="si">{</span><span class="n">config_name</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">skd_path</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">skd</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;skd load failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">skd</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;schemas&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="n">haystack</span> <span class="o">=</span> <span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;parent_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">w</span> <span class="ow">in</span> <span class="n">haystack</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">query_words</span><span class="p">):</span>
+                <span class="n">schema</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;schema&quot;</span><span class="p">,</span> <span class="p">{})</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">skd_schemas</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">SkdSchemaHit</span><span class="p">(</span>
+                        <span class="n">parent_type</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;parent_type&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                        <span class="n">parent_name</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;parent_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                        <span class="n">name</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                        <span class="n">data_sets_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">schema</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;data_sets&quot;</span><span class="p">,</span> <span class="p">[])),</span>
+                        <span class="n">parameters_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">schema</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;parameters&quot;</span><span class="p">,</span> <span class="p">[])),</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_search_forms</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">,</span>
+        <span class="n">config_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">query_words</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Поиск форм.&quot;&quot;&quot;</span>
+        <span class="n">form_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">root</span> <span class="o">/</span> <span class="s2">&quot;derived&quot;</span> <span class="o">/</span> <span class="s2">&quot;configs&quot;</span> <span class="o">/</span> <span class="n">config_name</span> <span class="o">/</span> <span class="s2">&quot;form-index.json&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">form_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">missing_sources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;forms (no form-index.json for </span><span class="si">{</span><span class="n">config_name</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">form_path</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">form_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;forms load failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">form_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;forms&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="n">haystack</span> <span class="o">=</span> <span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="n">f</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;parent_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">w</span> <span class="ow">in</span> <span class="n">haystack</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">query_words</span><span class="p">):</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">forms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">FormHit</span><span class="p">(</span>
+                        <span class="n">parent_type</span><span class="o">=</span><span class="n">f</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;parent_type&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                        <span class="n">parent_name</span><span class="o">=</span><span class="n">f</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;parent_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                        <span class="n">name</span><span class="o">=</span><span class="n">f</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                        <span class="n">element_count</span><span class="o">=</span><span class="n">f</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;form&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;element_count&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_search_knowledge_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Поиск по базе знаний (паттерны, антипаттерны, best practices).&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">.knowledge_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">KnowledgeBase</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">missing_sources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;knowledge_base (module)&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">kb</span> <span class="o">=</span> <span class="n">KnowledgeBase</span><span class="p">()</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">kb</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">knowledge_articles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">KnowledgeArticleHit</span><span class="p">(</span>
+                        <span class="n">category</span><span class="o">=</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;category&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                        <span class="n">title</span><span class="o">=</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                        <span class="n">score</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;score&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span>
+                        <span class="n">path</span><span class="o">=</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;path&quot;</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;file&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)),</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;knowledge_base search failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_standards_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Summary по доступным стандартам.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;bsl_ls_diagnostics&quot;</span><span class="p">:</span> <span class="mi">187</span><span class="p">,</span>
+            <span class="s2">&quot;check_1c_standards_rules&quot;</span><span class="p">:</span> <span class="mi">56</span><span class="p">,</span>
+            <span class="s2">&quot;check_metadata_rules&quot;</span><span class="p">:</span> <span class="mi">18</span><span class="p">,</span>
+            <span class="s2">&quot;security_rules&quot;</span><span class="p">:</span> <span class="mi">15</span><span class="p">,</span>
+            <span class="s2">&quot;transaction_rules&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+            <span class="s2">&quot;query_rules&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+            <span class="s2">&quot;code_metrics_count&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+            <span class="s2">&quot;total_checks&quot;</span><span class="p">:</span> <span class="mi">302</span><span class="p">,</span>
+            <span class="s2">&quot;check_command&quot;</span><span class="p">:</span> <span class="s2">&quot;1c-ai solve check &lt;file.bsl&gt; --level full&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="c1"># ─────────────────────────────────────────────</span>
+    <span class="c1"># CHECK: запустить все анализаторы на .bsl файл</span>
+    <span class="c1"># ─────────────────────────────────────────────</span>
+
+<div class="viewcode-block" id="TaskProcessor.check">
+<a class="viewcode-back" href="../../../api/services.html#src.services.task_processor.TaskProcessor.check">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">file_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CheckResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Запустить все анализаторы на .bsl файл.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            file_path: путь к .bsl файлу</span>
+<span class="sd">            level: quick | standard | full</span>
+<span class="sd">                quick:    check_1c_standards + security + transactions + queries (без Java)</span>
+<span class="sd">                standard: quick + BSL LS</span>
+<span class="sd">                full:     standard + code_metrics + metadata_standards</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">file_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Файл не найден: </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">CheckResult</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span> <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">)</span>
+
+        <span class="n">scripts_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">scripts_dir</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">_load_script</span><span class="p">(</span><span class="n">script_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+            <span class="c1"># Если модуль уже загружен (например, тестом через sys.modules) — не перезагружаем</span>
+            <span class="k">if</span> <span class="n">script_name</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="n">script_name</span><span class="p">]</span>
+            <span class="n">script_path</span> <span class="o">=</span> <span class="n">scripts_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">script_name</span><span class="si">}</span><span class="s2">.py&quot;</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">script_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="c1"># fallback на setup/scripts</span>
+                <span class="n">script_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">root</span> <span class="o">/</span> <span class="s2">&quot;setup&quot;</span> <span class="o">/</span> <span class="s2">&quot;scripts&quot;</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">script_name</span><span class="si">}</span><span class="s2">.py&quot;</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">script_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="n">spec</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">spec_from_file_location</span><span class="p">(</span><span class="n">script_name</span><span class="p">,</span> <span class="n">script_path</span><span class="p">)</span>
+            <span class="n">mod</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">module_from_spec</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="n">script_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">mod</span>
+            <span class="n">spec</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">exec_module</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">mod</span>
+
+        <span class="c1"># 1. check_1c_standards (56 правил) — все уровни</span>
+        <span class="n">std_mod</span> <span class="o">=</span> <span class="n">_load_script</span><span class="p">(</span><span class="s2">&quot;check_1c_standards&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">std_mod</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">checker</span> <span class="o">=</span> <span class="n">std_mod</span><span class="o">.</span><span class="n">StandardsChecker</span><span class="p">()</span>
+                <span class="n">violations</span> <span class="o">=</span> <span class="n">checker</span><span class="o">.</span><span class="n">check_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">violations</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">Violation</span><span class="p">(</span>
+                            <span class="n">source</span><span class="o">=</span><span class="s2">&quot;check_1c_standards&quot;</span><span class="p">,</span>
+                            <span class="n">rule_id</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">rule_id</span><span class="p">,</span>
+                            <span class="n">severity</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">severity</span><span class="p">,</span>
+                            <span class="n">line</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">line</span><span class="p">,</span>
+                            <span class="n">message</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+                            <span class="n">file</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">file</span><span class="p">,</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">analyzers_run</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;check_1c_standards&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;check_1c_standards failed: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+        <span class="c1"># 2. security_auditor (15 правил) — все уровни</span>
+        <span class="n">sec_mod</span> <span class="o">=</span> <span class="n">_load_script</span><span class="p">(</span><span class="s2">&quot;security_auditor&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sec_mod</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">auditor</span> <span class="o">=</span> <span class="n">sec_mod</span><span class="o">.</span><span class="n">SecurityAuditor</span><span class="p">()</span>
+                <span class="n">sec_violations</span> <span class="o">=</span> <span class="n">auditor</span><span class="o">.</span><span class="n">audit_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">sec_violations</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">Violation</span><span class="p">(</span>
+                            <span class="n">source</span><span class="o">=</span><span class="s2">&quot;security_auditor&quot;</span><span class="p">,</span>
+                            <span class="n">rule_id</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">rule_id</span><span class="p">,</span>
+                            <span class="n">severity</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">severity</span><span class="p">,</span>
+                            <span class="n">line</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">line</span><span class="p">,</span>
+                            <span class="n">message</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+                            <span class="n">file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">analyzers_run</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;security_auditor&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;security_auditor failed: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+        <span class="c1"># 3. transaction_checker (6 правил) — все уровни</span>
+        <span class="n">tx_mod</span> <span class="o">=</span> <span class="n">_load_script</span><span class="p">(</span><span class="s2">&quot;transaction_checker&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">tx_mod</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">tx_checker</span> <span class="o">=</span> <span class="n">tx_mod</span><span class="o">.</span><span class="n">TransactionChecker</span><span class="p">()</span>
+                <span class="n">tx_violations</span> <span class="o">=</span> <span class="n">tx_checker</span><span class="o">.</span><span class="n">check_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">tx_violations</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">Violation</span><span class="p">(</span>
+                            <span class="n">source</span><span class="o">=</span><span class="s2">&quot;transaction_checker&quot;</span><span class="p">,</span>
+                            <span class="n">rule_id</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">rule_id</span><span class="p">,</span>
+                            <span class="n">severity</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">severity</span><span class="p">,</span>
+                            <span class="n">line</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">line</span><span class="p">,</span>
+                            <span class="n">message</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+                            <span class="n">file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">analyzers_run</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;transaction_checker&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;transaction_checker failed: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+        <span class="c1"># 4. query_analyzer (10 правил) — все уровни</span>
+        <span class="n">qa_mod</span> <span class="o">=</span> <span class="n">_load_script</span><span class="p">(</span><span class="s2">&quot;query_analyzer&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">qa_mod</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">qa_analyzer</span> <span class="o">=</span> <span class="n">qa_mod</span><span class="o">.</span><span class="n">QueryAnalyzer</span><span class="p">()</span>
+                <span class="n">qa_issues</span> <span class="o">=</span> <span class="n">qa_analyzer</span><span class="o">.</span><span class="n">analyze_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">qa_issues</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">Violation</span><span class="p">(</span>
+                            <span class="n">source</span><span class="o">=</span><span class="s2">&quot;query_analyzer&quot;</span><span class="p">,</span>
+                            <span class="n">rule_id</span><span class="o">=</span><span class="n">i</span><span class="o">.</span><span class="n">rule_id</span><span class="p">,</span>
+                            <span class="n">severity</span><span class="o">=</span><span class="n">i</span><span class="o">.</span><span class="n">severity</span><span class="p">,</span>
+                            <span class="n">line</span><span class="o">=</span><span class="n">i</span><span class="o">.</span><span class="n">line</span><span class="p">,</span>
+                            <span class="n">message</span><span class="o">=</span><span class="n">i</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+                            <span class="n">file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">analyzers_run</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;query_analyzer&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;query_analyzer failed: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+        <span class="c1"># 5. BSL Language Server (187 диагностик) — standard / full</span>
+        <span class="k">if</span> <span class="n">level</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;standard&quot;</span><span class="p">,</span> <span class="s2">&quot;full&quot;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">bsl_ls_binary</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">bsl_ls_available</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="c1"># Импортируем bsl_analyzer лениво — он требует Java</span>
+                    <span class="kn">from</span><span class="w"> </span><span class="nn">.bsl_analyzer</span><span class="w"> </span><span class="kn">import</span> <span class="n">BSLAnalyzer</span>
+
+                    <span class="n">analyzer</span> <span class="o">=</span> <span class="n">BSLAnalyzer</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">bsl_ls_binary</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">bsl_ls_config</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">root</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">bsl_result</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">analyze</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">bsl_result</span><span class="o">.</span><span class="n">diagnostics</span><span class="p">:</span>
+                        <span class="n">result</span><span class="o">.</span><span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                            <span class="n">Violation</span><span class="p">(</span>
+                                <span class="n">source</span><span class="o">=</span><span class="s2">&quot;bsl_ls&quot;</span><span class="p">,</span>
+                                <span class="n">rule_id</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;code&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                                <span class="n">severity</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;severity&quot;</span><span class="p">,</span> <span class="s2">&quot;warning&quot;</span><span class="p">),</span>
+                                <span class="n">line</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;line&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                                <span class="n">message</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;message&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                                <span class="n">file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">analyzers_run</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;bsl_ls&quot;</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;bsl_ls failed: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">bsl_ls_available</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># 6. code_metrics — только full</span>
+        <span class="k">if</span> <span class="n">level</span> <span class="o">==</span> <span class="s2">&quot;full&quot;</span><span class="p">:</span>
+            <span class="n">cm_mod</span> <span class="o">=</span> <span class="n">_load_script</span><span class="p">(</span><span class="s2">&quot;code_metrics&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">cm_mod</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">analyzer</span> <span class="o">=</span> <span class="n">cm_mod</span><span class="o">.</span><span class="n">CodeMetricsAnalyzer</span><span class="p">()</span>
+                    <span class="n">metrics</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">analyze_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+
+                    <span class="n">cm</span> <span class="o">=</span> <span class="n">CodeMetric</span><span class="p">(</span>
+                        <span class="n">loc</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="s2">&quot;loc&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                        <span class="n">lloc</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="s2">&quot;lloc&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                        <span class="n">cyclomatic_complexity</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="s2">&quot;cyclomatic_complexity&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                        <span class="n">cognitive_complexity</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="s2">&quot;cognitive_complexity&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                        <span class="n">max_nesting</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="s2">&quot;max_nesting&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                        <span class="n">methods_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="s2">&quot;methods&quot;</span><span class="p">,</span> <span class="p">[])),</span>
+                        <span class="n">is_god_object</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="s2">&quot;is_god_object&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                        <span class="n">long_methods</span><span class="o">=</span><span class="p">[</span>
+                            <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">m</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;lloc&quot;</span><span class="p">:</span> <span class="n">m</span><span class="o">.</span><span class="n">lloc</span><span class="p">,</span> <span class="s2">&quot;line_start&quot;</span><span class="p">:</span> <span class="n">m</span><span class="o">.</span><span class="n">line_start</span><span class="p">}</span>
+                            <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="s2">&quot;long_methods&quot;</span><span class="p">,</span> <span class="p">[])</span>
+                        <span class="p">],</span>
+                        <span class="n">health_score</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="s2">&quot;health_score&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                    <span class="p">)</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">metrics</span> <span class="o">=</span> <span class="n">cm</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">analyzers_run</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;code_metrics&quot;</span><span class="p">)</span>
+
+                    <span class="c1"># God Object как violation</span>
+                    <span class="k">if</span> <span class="n">cm</span><span class="o">.</span><span class="n">is_god_object</span><span class="p">:</span>
+                        <span class="n">result</span><span class="o">.</span><span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                            <span class="n">Violation</span><span class="p">(</span>
+                                <span class="n">source</span><span class="o">=</span><span class="s2">&quot;code_metrics&quot;</span><span class="p">,</span>
+                                <span class="n">rule_id</span><span class="o">=</span><span class="s2">&quot;GOD_OBJECT&quot;</span><span class="p">,</span>
+                                <span class="n">severity</span><span class="o">=</span><span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                                <span class="n">line</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;God Object: </span><span class="si">{</span><span class="n">cm</span><span class="o">.</span><span class="n">loc</span><span class="si">}</span><span class="s2"> строк, </span><span class="si">{</span><span class="n">cm</span><span class="o">.</span><span class="n">methods_count</span><span class="si">}</span><span class="s2"> методов&quot;</span><span class="p">,</span>
+                                <span class="n">file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+                    <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">cm</span><span class="o">.</span><span class="n">long_methods</span><span class="p">:</span>
+                        <span class="n">result</span><span class="o">.</span><span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                            <span class="n">Violation</span><span class="p">(</span>
+                                <span class="n">source</span><span class="o">=</span><span class="s2">&quot;code_metrics&quot;</span><span class="p">,</span>
+                                <span class="n">rule_id</span><span class="o">=</span><span class="s2">&quot;LONG_METHOD&quot;</span><span class="p">,</span>
+                                <span class="n">severity</span><span class="o">=</span><span class="s2">&quot;warning&quot;</span><span class="p">,</span>
+                                <span class="n">line</span><span class="o">=</span><span class="n">m</span><span class="p">[</span><span class="s2">&quot;line_start&quot;</span><span class="p">],</span>
+                                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Длинный метод </span><span class="si">{</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;lloc&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> строк&quot;</span><span class="p">,</span>
+                                <span class="n">file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;code_metrics failed: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+        <span class="c1"># 7. Метаданные (18 правил) — только full</span>
+        <span class="k">if</span> <span class="n">level</span> <span class="o">==</span> <span class="s2">&quot;full&quot;</span><span class="p">:</span>
+            <span class="n">meta_mod</span> <span class="o">=</span> <span class="n">_load_script</span><span class="p">(</span><span class="s2">&quot;check_metadata_standards&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">meta_mod</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">checker2</span> <span class="o">=</span> <span class="n">meta_mod</span><span class="o">.</span><span class="n">MetadataStandardsChecker</span><span class="p">()</span>
+                    <span class="n">meta_violations</span> <span class="o">=</span> <span class="n">checker2</span><span class="o">.</span><span class="n">check_path</span><span class="p">(</span><span class="n">file_path</span><span class="o">.</span><span class="n">parent</span> <span class="k">if</span> <span class="n">file_path</span><span class="o">.</span><span class="n">is_file</span><span class="p">()</span> <span class="k">else</span> <span class="n">file_path</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">meta_violations</span><span class="p">:</span>
+                        <span class="n">result</span><span class="o">.</span><span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                            <span class="n">Violation</span><span class="p">(</span>
+                                <span class="n">source</span><span class="o">=</span><span class="s2">&quot;check_metadata_standards&quot;</span><span class="p">,</span>
+                                <span class="n">rule_id</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">rule_id</span><span class="p">,</span>
+                                <span class="n">severity</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">severity</span><span class="p">,</span>
+                                <span class="n">line</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">line</span><span class="p">,</span>
+                                <span class="n">message</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+                                <span class="n">file</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">file</span><span class="p">,</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">analyzers_run</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;check_metadata_standards&quot;</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;check_metadata_standards failed: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+    <span class="c1"># ─────────────────────────────────────────────</span>
+    <span class="c1"># P2.12: новый OCP-compliant API через Analyzer protocol</span>
+    <span class="c1"># ─────────────────────────────────────────────</span>
+
+<div class="viewcode-block" id="TaskProcessor.check_via_analyzers">
+<a class="viewcode-back" href="../../../api/services.html#src.services.task_processor.TaskProcessor.check_via_analyzers">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_via_analyzers</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">file_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CheckResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Новый API проверки через Analyzer protocol (P2.12).</span>
+
+<span class="sd">        В отличие от check(), использует список self._analyzers и итеративно</span>
+<span class="sd">        вызывает analyzer.check_file() для каждого. Добавление нового</span>
+<span class="sd">        analyzer&#39;а не требует модификации этого метода — соответствует OCP.</span>
+
+<span class="sd">        Возвращает тот же формат CheckResult, что и check(), поэтому</span>
+<span class="sd">        результаты полностью совместимы.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            file_path: путь к .bsl файлу</span>
+<span class="sd">            level: quick | standard | full (см. check() для деталей)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            CheckResult с violations и analyzers_run.</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            BSL LS (standard level) в этой версии НЕ запускается через</span>
+<span class="sd">            Analyzer protocol — он требует Java и обрабатывается отдельно</span>
+<span class="sd">            в check(). В будущей миграции будет добавлен BSLAnalyzerAdapter.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">file_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Файл не найден: </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Lazy import чтобы избежать циклических зависимостей.</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.analyzers</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_default_analyzers</span><span class="p">,</span> <span class="n">run_analyzers</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">CheckResult</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span> <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">)</span>
+
+        <span class="n">analyzers</span> <span class="o">=</span> <span class="n">get_default_analyzers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="p">)</span>
+        <span class="n">violations</span><span class="p">,</span> <span class="n">analyzers_run</span> <span class="o">=</span> <span class="n">run_analyzers</span><span class="p">(</span><span class="n">analyzers</span><span class="p">,</span> <span class="n">file_path</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">)</span>
+
+        <span class="c1"># Преобразуем AnalyzerViolation в Violation (доменный объект).</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">violations</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">Violation</span><span class="p">(</span>
+                    <span class="n">source</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
+                    <span class="n">rule_id</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">rule_id</span><span class="p">,</span>
+                    <span class="n">severity</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">severity</span><span class="p">,</span>
+                    <span class="n">line</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">line</span><span class="p">,</span>
+                    <span class="n">message</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+                    <span class="n">file</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">file</span> <span class="ow">or</span> <span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">analyzers_run</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">analyzers_run</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">1C AI Development Environment</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Pradushkoai&repo=1c-ai-dev-env&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/services.html">Services API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/models.html">Models API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/mcpserver.html">MCP Server API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/mcp_integration.html">MCP Integration</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../references/changelog.html">Changelog</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Pradushkoai.
+      
+    </div>
+
+    
+    <a href="https://github.com/Pradushkoai/1c-ai-dev-env" class="github">
+        <img src="../../../_static/github-banner.svg" alt="Fork me on GitHub" class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

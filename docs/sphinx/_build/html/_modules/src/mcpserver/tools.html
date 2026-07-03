@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>src.mcpserver.tools &#8212; 1C AI Development Environment 5.4.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=3ef399bb" />
+    <script src="../../../_static/documentation_options.js?v=d250e987"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for src.mcpserver.tools</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">tools/ — определения MCP tools по категориям.</span>
+
+<span class="sd">P1.3: вынесено из src/mcp_server.py для декомпозиции (SRP).</span>
+
+<span class="sd">Каждый модуль экспортирует:</span>
+<span class="sd">- DESCRIPTIONS: list[dict] — статическое описание tools для _get_tools_description()</span>
+
+<span class="sd">Категории:</span>
+<span class="sd">- search: поиск по методам платформы и коду конфигурации</span>
+<span class="sd">- analyzers: анализ BSL кода (11 анализаторов)</span>
+<span class="sd">- metadata: метаданные конфигурации (объекты, формы, СКД)</span>
+<span class="sd">- generate: генерация кода (обработки, отчёты, EPF)</span>
+<span class="sd">- dsl_cfe: DSL компиляторы и работа с CFE</span>
+<span class="sd">- quality: проверка качества (формы, СКД, diff)</span>
+<span class="sd">- context: сбор контекста (solve, knowledge, data_status)</span>
+<span class="sd">- misc: прочие (inspect, openspec, depgraph, skd_trace)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.analyzers</span><span class="w"> </span><span class="kn">import</span> <span class="n">DESCRIPTIONS</span> <span class="k">as</span> <span class="n">ANALYZERS_DESCRIPTIONS</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">DESCRIPTIONS</span> <span class="k">as</span> <span class="n">CONTEXT_DESCRIPTIONS</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.dsl_cfe</span><span class="w"> </span><span class="kn">import</span> <span class="n">DESCRIPTIONS</span> <span class="k">as</span> <span class="n">DSL_CFE_DESCRIPTIONS</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.generate</span><span class="w"> </span><span class="kn">import</span> <span class="n">DESCRIPTIONS</span> <span class="k">as</span> <span class="n">GENERATE_DESCRIPTIONS</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.metadata</span><span class="w"> </span><span class="kn">import</span> <span class="n">DESCRIPTIONS</span> <span class="k">as</span> <span class="n">METADATA_DESCRIPTIONS</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.misc</span><span class="w"> </span><span class="kn">import</span> <span class="n">DESCRIPTIONS</span> <span class="k">as</span> <span class="n">MISC_DESCRIPTIONS</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.quality</span><span class="w"> </span><span class="kn">import</span> <span class="n">DESCRIPTIONS</span> <span class="k">as</span> <span class="n">QUALITY_DESCRIPTIONS</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.search</span><span class="w"> </span><span class="kn">import</span> <span class="n">DESCRIPTIONS</span> <span class="k">as</span> <span class="n">SEARCH_DESCRIPTIONS</span>
+
+
+<div class="viewcode-block" id="get_all_descriptions">
+<a class="viewcode-back" href="../../../api/mcpserver.html#src.mcpserver.tools.get_all_descriptions">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_all_descriptions</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Получить все описания tools из всех категорий.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Объединённый список описаний 45 tools.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">all_descriptions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">all_descriptions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">SEARCH_DESCRIPTIONS</span><span class="p">)</span>
+    <span class="n">all_descriptions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">ANALYZERS_DESCRIPTIONS</span><span class="p">)</span>
+    <span class="n">all_descriptions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">METADATA_DESCRIPTIONS</span><span class="p">)</span>
+    <span class="n">all_descriptions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">GENERATE_DESCRIPTIONS</span><span class="p">)</span>
+    <span class="n">all_descriptions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">DSL_CFE_DESCRIPTIONS</span><span class="p">)</span>
+    <span class="n">all_descriptions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">QUALITY_DESCRIPTIONS</span><span class="p">)</span>
+    <span class="n">all_descriptions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">CONTEXT_DESCRIPTIONS</span><span class="p">)</span>
+    <span class="n">all_descriptions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">MISC_DESCRIPTIONS</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">all_descriptions</span></div>
+
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;get_all_descriptions&quot;</span><span class="p">]</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">1C AI Development Environment</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Pradushkoai&repo=1c-ai-dev-env&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/services.html">Services API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/models.html">Models API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/mcpserver.html">MCP Server API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/mcp_integration.html">MCP Integration</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../references/changelog.html">Changelog</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Pradushkoai.
+      
+    </div>
+
+    
+    <a href="https://github.com/Pradushkoai/1c-ai-dev-env" class="github">
+        <img src="../../../_static/github-banner.svg" alt="Fork me on GitHub" class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

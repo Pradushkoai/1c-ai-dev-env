@@ -13,7 +13,23 @@ from typing import Any
 
 
 class KnowledgeBase:
-    """База знаний 1С разработки."""
+    """База знаний 1С разработки.
+
+    Examples:
+        >>> from pathlib import Path
+        >>> import tempfile, json
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     kb_dir = Path(tmp) / "kb"
+        ...     kb_dir.mkdir()
+        ...     _ = (kb_dir / "index.json").write_text(
+        ...         json.dumps({"categories": {"patterns": {"items": [
+        ...             {"id": "test", "title": "Test", "file": "test.md",
+        ...              "keywords": ["test"]}
+        ...         ]}}}), encoding="utf-8")
+        ...     kb = KnowledgeBase(kb_dir)
+        ...     len(kb.list_all())
+        1
+    """
 
     def __init__(self, kb_dir: Path | str | None = None):
         """Инициализация базы знаний.

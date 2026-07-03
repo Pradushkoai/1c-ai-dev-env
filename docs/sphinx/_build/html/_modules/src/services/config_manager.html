@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>src.services.config_manager &#8212; 1C AI Development Environment 5.4.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=3ef399bb" />
+    <script src="../../../_static/documentation_options.js?v=d250e987"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for src.services.config_manager</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Менеджер конфигураций: добавление, архивация, индексация.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">xml.etree.ElementTree</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ET</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">zipfile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..models.config_registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConfigurationRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..models.configuration</span><span class="w"> </span><span class="kn">import</span> <span class="n">Configuration</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.path_manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">PathManager</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.config_builder</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConfigBuilder</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.config_validator</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConfigValidator</span>
+
+<span class="c1"># Используем structlog если доступен, иначе fallback на logging</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span>
+
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="c1"># --- Директории 1С, которые считаются валидными метаданными ---</span>
+
+<span class="n">REQUIRED_TYPE_DIRS</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">&quot;Catalogs&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Documents&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Enums&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Constants&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CommonModules&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;InformationRegisters&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;AccumulationRegisters&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Reports&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DataProcessors&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CommonForms&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CommonTemplates&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CommonCommands&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CommonPictures&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Roles&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Subsystems&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;EventSubscriptions&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ScheduledJobs&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DefinedTypes&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;FunctionalOptions&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ExchangePlans&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ChartsOfCharacteristicTypes&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;HTTPServices&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;WebServices&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;XDTOPackages&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;FilterCriteria&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SessionParameters&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CommandGroups&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SettingsStorages&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BusinessProcesses&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Tasks&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DocumentJournals&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DocumentNumerators&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Sequences&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;FunctionalOptionsParameters&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CommonAttributes&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;WSReferences&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Минимум одна из этих директорий должна быть, чтобы считать выгрузку валидной</span>
+<span class="n">MIN_REQUIRED_DIRS</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;CommonModules&quot;</span><span class="p">,</span> <span class="s2">&quot;Catalogs&quot;</span><span class="p">,</span> <span class="s2">&quot;Documents&quot;</span><span class="p">,</span> <span class="s2">&quot;Subsystems&quot;</span><span class="p">)</span>
+
+
+<span class="c1"># P2.11: классы перенесены в config_validator.py для SRP.</span>
+<span class="c1"># Re-export для backward compat: `from config_manager import SourceValidation`.</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.config_validator</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>  <span class="c1"># noqa: E402,F401</span>
+    <span class="n">IndexFreshnessReport</span><span class="p">,</span>
+    <span class="n">IndexStatus</span><span class="p">,</span>
+    <span class="n">SourceValidation</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="ConfigManager">
+<a class="viewcode-back" href="../../../api/services.html#src.services.config_manager.ConfigManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ConfigManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Управление конфигурациями 1С: add, activate, archive, build, list.</span>
+
+<span class="sd">    P2.11: класс разделён на 3 ответственности (SRP):</span>
+<span class="sd">    - ConfigManager (этот класс) — CRUD: add_from_zip, archive, activate, remove</span>
+<span class="sd">    - ConfigBuilder — построение индексов: build, build_all</span>
+<span class="sd">    - ConfigValidator — валидация: validate_sources, check_freshness</span>
+
+<span class="sd">    Для backward compat все существующие методы сохранены на ConfigManager</span>
+<span class="sd">    и делегируют в builder/validator. Новый код должен использовать</span>
+<span class="sd">    соответствующие классы напрямую.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ConfigManager.__init__">
+<a class="viewcode-back" href="../../../api/services.html#src.services.config_manager.ConfigManager.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">registry</span><span class="p">:</span> <span class="n">ConfigurationRegistry</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="n">PathManager</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span> <span class="o">=</span> <span class="n">registry</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span> <span class="o">=</span> <span class="n">paths</span>
+        <span class="c1"># P2.11: lazy-init builder и validator для SRP-декомпозиции.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="p">:</span> <span class="n">ConfigBuilder</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="p">:</span> <span class="n">ConfigValidator</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+    <span class="c1"># ─── P2.11: SRP-декомпозиция ───</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">builder</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConfigBuilder</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;ConfigBuilder для построения индексов (SRP).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">.config_builder</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConfigBuilder</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span> <span class="o">=</span> <span class="n">ConfigBuilder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validator</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConfigValidator</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;ConfigValidator для валидации исходников (SRP).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">.config_validator</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConfigValidator</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span> <span class="o">=</span> <span class="n">ConfigValidator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span>
+
+    <span class="c1"># --- Валидация ---</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_config_name</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;SEC-2: Валидация имени конфигурации — защита от path traversal.</span>
+
+<span class="sd">        Разрешает: латиница, кириллица, цифры, дефис, подчёркивание.</span>
+<span class="sd">        Запрещает: ../, /, \\, :, *, ?, &quot;, &lt;, &gt;, |, пробелы.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Имя конфигурации не может быть пустым&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^[A-Za-zА-Яа-яЁё0-9_-]+$&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Недопустимое имя конфигурации &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39;: разрешены только буквы, цифры, дефис и подчёркивание&quot;</span>
+            <span class="p">)</span>
+
+    <span class="c1"># --- Добавление ---</span>
+
+<div class="viewcode-block" id="ConfigManager.add_from_zip">
+<a class="viewcode-back" href="../../../api/services.html#src.services.config_manager.ConfigManager.add_from_zip">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_from_zip</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">zip_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Configuration</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Распаковать ZIP и зарегистрировать конфигурацию.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_config_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Конфигурация &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; уже существует&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">zip_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ZIP не найден: </span><span class="si">{</span><span class="n">zip_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">config_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">config_path</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">config_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">zip_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">zf</span><span class="p">:</span>
+                <span class="c1"># Проверим целостность перед распаковкой</span>
+                <span class="n">bad</span> <span class="o">=</span> <span class="n">zf</span><span class="o">.</span><span class="n">testzip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">bad</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">BadZipFile</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Повреждён файл внутри архива: </span><span class="si">{</span><span class="n">bad</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">zf</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">config_dir</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">BadZipFile</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ZIP повреждён или не является архивом: </span><span class="si">{</span><span class="n">zip_path</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_config</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">title</span> <span class="ow">or</span> <span class="n">name</span><span class="p">,</span> <span class="n">config_dir</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">config</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.register_existing">
+<a class="viewcode-back" href="../../../api/services.html#src.services.config_manager.ConfigManager.register_existing">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">register_existing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Configuration</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Зарегистрировать существующую папку.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_config_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Конфигурация &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; уже существует&quot;</span><span class="p">)</span>
+
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_config</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">title</span> <span class="ow">or</span> <span class="n">name</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">config</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.add_from_cf">
+<a class="viewcode-back" href="../../../api/services.html#src.services.config_manager.ConfigManager.add_from_cf">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_from_cf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">cf_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Configuration</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Распаковать .cf/.cfe/.epf файл и зарегистрировать конфигурацию.</span>
+
+<span class="sd">        Использует scripts/cf_extractor.py — наш собственный парсер</span>
+<span class="sd">        формата контейнера 1С (без зависимости от внешнего v8unpack).</span>
+<span class="sd">        После распаковки конвертирует структуру v8unpack в формат,</span>
+<span class="sd">        совместимый с build_api_reference (через cf_to_xml_adapter).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_config_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Конфигурация &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; уже существует&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">cf_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;.cf файл не найден: </span><span class="si">{</span><span class="n">cf_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Импортируем cf_extractor из scripts/</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">importlib.util</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+
+        <span class="n">scripts_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">scripts_dir</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">scripts_dir</span> <span class="o">/</span> <span class="s2">&quot;cf_extractor.py&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">scripts_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">root</span> <span class="o">/</span> <span class="s2">&quot;setup&quot;</span> <span class="o">/</span> <span class="s2">&quot;scripts&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">scripts_dir</span> <span class="o">/</span> <span class="s2">&quot;cf_extractor.py&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s2">&quot;scripts/cf_extractor.py не найден&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Загружаем cf_extractor</span>
+        <span class="n">spec</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">spec_from_file_location</span><span class="p">(</span><span class="s2">&quot;cf_extractor&quot;</span><span class="p">,</span> <span class="n">scripts_dir</span> <span class="o">/</span> <span class="s2">&quot;cf_extractor.py&quot;</span><span class="p">)</span>
+        <span class="n">cf_mod</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">module_from_spec</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="s2">&quot;cf_extractor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cf_mod</span>
+        <span class="n">spec</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">exec_module</span><span class="p">(</span><span class="n">cf_mod</span><span class="p">)</span>
+
+        <span class="c1"># Загружаем improved_cf_adapter (предпочтительно) или cf_to_xml_adapter (fallback)</span>
+        <span class="n">adapter_path</span> <span class="o">=</span> <span class="n">scripts_dir</span> <span class="o">/</span> <span class="s2">&quot;improved_cf_adapter.py&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">adapter_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">adapter_path</span> <span class="o">=</span> <span class="n">scripts_dir</span> <span class="o">/</span> <span class="s2">&quot;cf_to_xml_adapter.py&quot;</span>
+        <span class="k">if</span> <span class="n">adapter_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">adapter_modname</span> <span class="o">=</span> <span class="n">adapter_path</span><span class="o">.</span><span class="n">stem</span>
+            <span class="n">spec2</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">spec_from_file_location</span><span class="p">(</span><span class="n">adapter_modname</span><span class="p">,</span> <span class="n">adapter_path</span><span class="p">)</span>
+            <span class="n">adapter_mod</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">module_from_spec</span><span class="p">(</span><span class="n">spec2</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="n">adapter_modname</span><span class="p">]</span> <span class="o">=</span> <span class="n">adapter_mod</span>
+            <span class="n">spec2</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">exec_module</span><span class="p">(</span><span class="n">adapter_mod</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">adapter_mod</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">config_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">config_path</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">config_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Создаём временную папку для распаковки</span>
+        <span class="n">raw_dir</span> <span class="o">=</span> <span class="n">config_dir</span> <span class="o">/</span> <span class="s2">&quot;_cf_raw&quot;</span>
+        <span class="n">raw_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Шаг 1: Распаковка .cf</span>
+            <span class="n">cf_mod</span><span class="o">.</span><span class="n">extract_cf</span><span class="p">(</span><span class="n">cf_path</span><span class="p">,</span> <span class="n">raw_dir</span><span class="p">)</span>
+
+            <span class="c1"># Шаг 2: Конвертация в формат build_api_reference</span>
+            <span class="k">if</span> <span class="n">adapter_mod</span><span class="p">:</span>
+                <span class="c1"># Конвертируем CommonModules в CommonModules/ папку</span>
+                <span class="n">adapter_mod</span><span class="o">.</span><span class="n">convert_cf_to_xml_format</span><span class="p">(</span><span class="n">raw_dir</span><span class="p">,</span> <span class="n">config_dir</span><span class="p">)</span>
+
+            <span class="c1"># Удаляем временную папку (экономим место)</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">raw_dir</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ошибка распаковки .cf: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_config</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">title</span> <span class="ow">or</span> <span class="n">name</span><span class="p">,</span> <span class="n">config_dir</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">config</span></div>
+
+
+    <span class="c1"># --- Архивация ---</span>
+
+<div class="viewcode-block" id="ConfigManager.archive">
+<a class="viewcode-back" href="../../../api/services.html#src.services.config_manager.ConfigManager.archive">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">archive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Запаковать в ZIP и удалить распакованную папку.&quot;&quot;&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">path</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Конфигурация &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; не активна&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">archives_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">archive_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">archives_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_full.zip&quot;</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">make_archive</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">archive_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)),</span> <span class="s2">&quot;zip&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">path</span><span class="p">))</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="n">config</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">archive</span> <span class="o">=</span> <span class="n">archive_path</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;archived&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">config</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.activate">
+<a class="viewcode-back" href="../../../api/services.html#src.services.config_manager.ConfigManager.activate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">activate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Configuration</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Распаковать из архива.&quot;&quot;&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">archive</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">archive</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Архив для &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; не найден&quot;</span><span class="p">)</span>
+
+        <span class="n">config_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">config_path</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">config_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">archive</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">zf</span><span class="p">:</span>
+                <span class="n">bad</span> <span class="o">=</span> <span class="n">zf</span><span class="o">.</span><span class="n">testzip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">bad</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">BadZipFile</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Повреждён файл: </span><span class="si">{</span><span class="n">bad</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">zf</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">config_dir</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">BadZipFile</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Архив повреждён: </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">archive</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+
+        <span class="n">config</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">config_dir</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;active&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">config</span></div>
+
+
+    <span class="c1"># --- Индексация ---</span>
+
+<div class="viewcode-block" id="ConfigManager.validate_sources">
+<a class="viewcode-back" href="../../../api/services.html#src.services.config_manager.ConfigManager.validate_sources">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_sources</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SourceValidation</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Проверить что исходники конфигурации валидны для индексации.</span>
+
+<span class="sd">        Проверяет:</span>
+<span class="sd">        - Configuration.xml (обязателен для полной XML выгрузки)</span>
+<span class="sd">        - Хотя бы одну из MIN_REQUIRED_DIRS директорий</span>
+<span class="sd">        - Наличие .bsl файлов (предупреждение если нет)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">is_active</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">SourceValidation</span><span class="p">(</span>
+                <span class="n">is_valid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">errors</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;Конфигурация &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; не активна&quot;</span><span class="p">],</span>
+            <span class="p">)</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">SourceValidation</span><span class="p">(</span><span class="n">is_valid</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">config_dir</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">path</span>
+
+        <span class="c1"># 1. Configuration.xml</span>
+        <span class="n">cfg_xml</span> <span class="o">=</span> <span class="n">config_dir</span> <span class="o">/</span> <span class="s2">&quot;Configuration.xml&quot;</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">has_configuration_xml</span> <span class="o">=</span> <span class="n">cfg_xml</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">has_configuration_xml</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Configuration.xml не найден — это не полная XML выгрузка&quot;</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">is_valid</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># 2. Метаданные-директории</span>
+        <span class="k">for</span> <span class="n">type_dir</span> <span class="ow">in</span> <span class="n">REQUIRED_TYPE_DIRS</span><span class="p">:</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">config_dir</span> <span class="o">/</span> <span class="n">type_dir</span>
+            <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">iterdir</span><span class="p">()):</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">found_type_dirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">type_dir</span><span class="p">)</span>
+
+        <span class="c1"># Хотя бы одна критическая директория</span>
+        <span class="n">has_critical</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">d</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">found_type_dirs</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">MIN_REQUIRED_DIRS</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">has_metadata_dirs</span> <span class="o">=</span> <span class="n">has_critical</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">has_critical</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">missing_critical</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">MIN_REQUIRED_DIRS</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Ни одна из критических директорий не найдена: &quot;</span> <span class="o">+</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MIN_REQUIRED_DIRS</span><span class="p">))</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">is_valid</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># 3. .bsl файлы (предупреждение)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">bsl_count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">config_dir</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*.bsl&quot;</span><span class="p">))</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">has_bsl_files</span> <span class="o">=</span> <span class="n">bsl_count</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">has_bsl_files</span><span class="p">:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="s2">&quot;.bsl файлы не найдены — api-reference будет пустым. Возможно это .cf распаковка без адаптации.&quot;</span>
+                <span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">PermissionError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Не удалось проверить .bsl файлы: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.check_freshness">
+<a class="viewcode-back" href="../../../api/services.html#src.services.config_manager.ConfigManager.check_freshness">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_freshness</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">IndexFreshnessReport</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Проверить актуальность индексов конфигурации.</span>
+
+<span class="sd">        Для каждого из 4 индексов (metadata/api/skd/forms):</span>
+<span class="sd">        - существует ли файл?</span>
+<span class="sd">        - новее ли source чем index? (по mtime)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">is_active</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">IndexFreshnessReport</span><span class="p">(</span>
+                <span class="n">config_name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">source_mtime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">all_fresh</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">missing_indexes</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">,</span> <span class="s2">&quot;api&quot;</span><span class="p">,</span> <span class="s2">&quot;skd&quot;</span><span class="p">,</span> <span class="s2">&quot;forms&quot;</span><span class="p">],</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Самый свежий файл исходников</span>
+        <span class="n">source_mtime</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_latest_source_mtime</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="n">derived_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">config_derived_dir</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">index_files</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">derived_dir</span> <span class="o">/</span> <span class="s2">&quot;unified-metadata-index.json&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;api&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">config_api_reference_json</span><span class="p">(</span><span class="n">name</span><span class="p">),</span>
+            <span class="s2">&quot;skd&quot;</span><span class="p">:</span> <span class="n">derived_dir</span> <span class="o">/</span> <span class="s2">&quot;skd-index.json&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;forms&quot;</span><span class="p">:</span> <span class="n">derived_dir</span> <span class="o">/</span> <span class="s2">&quot;form-index.json&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="n">report</span> <span class="o">=</span> <span class="n">IndexFreshnessReport</span><span class="p">(</span>
+            <span class="n">config_name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">source_mtime</span><span class="o">=</span><span class="n">source_mtime</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">idx_name</span><span class="p">,</span> <span class="n">idx_path</span> <span class="ow">in</span> <span class="n">index_files</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">IndexStatus</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">idx_name</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">idx_path</span><span class="p">,</span> <span class="n">exists</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mtime</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">idx_path</span> <span class="ow">and</span> <span class="n">idx_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">status</span><span class="o">.</span><span class="n">exists</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">status</span><span class="o">.</span><span class="n">mtime</span> <span class="o">=</span> <span class="n">idx_path</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_mtime</span>
+                <span class="n">status</span><span class="o">.</span><span class="n">size_bytes</span> <span class="o">=</span> <span class="n">idx_path</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span>
+
+                <span class="c1"># Сравнение: если source новее индекса — устарел</span>
+                <span class="k">if</span> <span class="n">source_mtime</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">source_mtime</span> <span class="o">&gt;</span> <span class="n">status</span><span class="o">.</span><span class="n">mtime</span><span class="p">:</span>
+                    <span class="n">status</span><span class="o">.</span><span class="n">is_stale</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">delta</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">source_mtime</span> <span class="o">-</span> <span class="n">status</span><span class="o">.</span><span class="n">mtime</span><span class="p">)</span>
+                    <span class="n">status</span><span class="o">.</span><span class="n">stale_reason</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;исходники новее на </span><span class="si">{</span><span class="n">delta</span><span class="si">}</span><span class="s2"> сек &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;(source=</span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">ctime</span><span class="p">(</span><span class="n">source_mtime</span><span class="p">)</span><span class="si">}</span><span class="s2">, index=</span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">ctime</span><span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">mtime</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
+                    <span class="p">)</span>
+                    <span class="n">report</span><span class="o">.</span><span class="n">stale_indexes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx_name</span><span class="p">)</span>
+                    <span class="n">report</span><span class="o">.</span><span class="n">all_fresh</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">status</span><span class="o">.</span><span class="n">is_stale</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">status</span><span class="o">.</span><span class="n">stale_reason</span> <span class="o">=</span> <span class="s2">&quot;индекс отсутствует&quot;</span>
+                <span class="n">report</span><span class="o">.</span><span class="n">missing_indexes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx_name</span><span class="p">)</span>
+                <span class="n">report</span><span class="o">.</span><span class="n">all_fresh</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="n">report</span><span class="o">.</span><span class="n">indexes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">report</span></div>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_latest_source_mtime</span><span class="p">(</span><span class="n">config_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Найти самый свежий mtime среди .xml и .bsl файлов исходников.&quot;&quot;&quot;</span>
+        <span class="n">latest</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;*.xml&quot;</span><span class="p">,</span> <span class="s2">&quot;*.bsl&quot;</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">config_dir</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="n">pattern</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">m</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_mtime</span>
+                            <span class="k">if</span> <span class="n">latest</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">m</span> <span class="o">&gt;</span> <span class="n">latest</span><span class="p">:</span>
+                                <span class="n">latest</span> <span class="o">=</span> <span class="n">m</span>
+                        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">PermissionError</span><span class="p">):</span>
+                            <span class="k">continue</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">PermissionError</span><span class="p">):</span>
+            <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">latest</span>
+
+<div class="viewcode-block" id="ConfigManager.build">
+<a class="viewcode-back" href="../../../api/services.html#src.services.config_manager.ConfigManager.build">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">skip_if_fresh</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Построить ВСЕ индексы для конфигурации. Возвращает отчёт.</span>
+
+<span class="sd">        Запускает 4 парсера:</span>
+<span class="sd">        1. metadata_extractor.py → unified-metadata-index.json</span>
+<span class="sd">        2. build_api_reference.py → api-reference.json + api-reference.md</span>
+<span class="sd">        3. skd_parser.py → skd-index.json</span>
+<span class="sd">        4. form_analyzer.py → form-index.json</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: имя конфигурации</span>
+<span class="sd">            force: если True — пересобрать даже если индексы свежие</span>
+<span class="sd">            skip_if_fresh: если True (default) — пропустить индексы которые свежие</span>
+<span class="sd">                          (только когда force=False)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">is_active</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Конфигурация &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; не активна&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Валидация исходников перед индексацией</span>
+        <span class="n">validation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">validate_sources</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">validation</span><span class="o">.</span><span class="n">is_valid</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Исходники конфигурации &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; невалидны: &quot;</span> <span class="o">+</span> <span class="s2">&quot;; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">validation</span><span class="o">.</span><span class="n">errors</span><span class="p">))</span>
+
+        <span class="c1"># Проверка актуальности (если не force)</span>
+        <span class="n">skipped</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span> <span class="ow">and</span> <span class="n">skip_if_fresh</span><span class="p">:</span>
+            <span class="n">freshness</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_freshness</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">freshness</span><span class="o">.</span><span class="n">all_fresh</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                    <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                    <span class="s2">&quot;api&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                    <span class="s2">&quot;skd&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                    <span class="s2">&quot;forms&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                    <span class="s2">&quot;skipped&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;all&quot;</span><span class="p">],</span>
+                    <span class="s2">&quot;reason&quot;</span><span class="p">:</span> <span class="s2">&quot;all indexes fresh&quot;</span><span class="p">,</span>
+                <span class="p">}</span>
+
+        <span class="n">report</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+            <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s2">&quot;api&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s2">&quot;skd&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s2">&quot;forms&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s2">&quot;skipped&quot;</span><span class="p">:</span> <span class="n">skipped</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="n">derived_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">config_derived_dir</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">derived_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">config_dir</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">path</span>
+        <span class="n">scripts_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">scripts_dir</span>
+
+        <span class="c1"># Список парсеров: (ключ отчёта, путь к скрипту, индекс-файл, аргументы)</span>
+        <span class="p">[</span>
+            <span class="p">(</span>
+                <span class="s2">&quot;metadata&quot;</span><span class="p">,</span>
+                <span class="n">scripts_dir</span> <span class="o">/</span> <span class="s2">&quot;metadata_extractor.py&quot;</span><span class="p">,</span>
+                <span class="n">derived_dir</span> <span class="o">/</span> <span class="s2">&quot;unified-metadata-index.json&quot;</span><span class="p">,</span>
+                <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">config_dir</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">derived_dir</span> <span class="o">/</span> <span class="s2">&quot;unified-metadata-index.json&quot;</span><span class="p">)],</span>
+            <span class="p">),</span>
+            <span class="p">(</span>
+                <span class="s2">&quot;skd&quot;</span><span class="p">,</span>
+                <span class="n">scripts_dir</span> <span class="o">/</span> <span class="s2">&quot;skd_parser.py&quot;</span><span class="p">,</span>
+                <span class="n">derived_dir</span> <span class="o">/</span> <span class="s2">&quot;skd-index.json&quot;</span><span class="p">,</span>
+                <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">config_dir</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">derived_dir</span> <span class="o">/</span> <span class="s2">&quot;skd-index.json&quot;</span><span class="p">)],</span>
+            <span class="p">),</span>
+            <span class="p">(</span>
+                <span class="s2">&quot;forms&quot;</span><span class="p">,</span>
+                <span class="n">scripts_dir</span> <span class="o">/</span> <span class="s2">&quot;form_analyzer.py&quot;</span><span class="p">,</span>
+                <span class="n">derived_dir</span> <span class="o">/</span> <span class="s2">&quot;form-index.json&quot;</span><span class="p">,</span>
+                <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">config_dir</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">derived_dir</span> <span class="o">/</span> <span class="s2">&quot;form-index.json&quot;</span><span class="p">)],</span>
+            <span class="p">),</span>
+        <span class="p">]</span>
+
+        <span class="c1"># Определяем какие индексы нужно перестроить</span>
+        <span class="n">freshness_map</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># name → нужно перестроить</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span> <span class="ow">and</span> <span class="n">skip_if_fresh</span><span class="p">:</span>
+            <span class="n">freshness</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_freshness</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">freshness</span><span class="o">.</span><span class="n">indexes</span><span class="p">:</span>
+                <span class="n">freshness_map</span><span class="p">[</span><span class="n">idx</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">idx</span><span class="o">.</span><span class="n">is_stale</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">idx</span><span class="o">.</span><span class="n">exists</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">freshness_map</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;api&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;skd&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;forms&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+
+        <span class="c1"># 1. metadata_extractor</span>
+        <span class="k">if</span> <span class="n">freshness_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;metadata&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_run_script</span><span class="p">(</span>
+                    <span class="n">scripts_dir</span> <span class="o">/</span> <span class="s2">&quot;metadata_extractor.py&quot;</span><span class="p">,</span>
+                    <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">config_dir</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">derived_dir</span> <span class="o">/</span> <span class="s2">&quot;unified-metadata-index.json&quot;</span><span class="p">)],</span>
+                <span class="p">)</span>
+                <span class="n">report</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;parser_failed&quot;</span><span class="p">,</span> <span class="n">parser</span><span class="o">=</span><span class="s2">&quot;metadata_extractor&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">report</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">skipped</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;metadata&quot;</span><span class="p">)</span>
+
+        <span class="c1"># 2. API reference (build_api_reference.py)</span>
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">common_modules_dir</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">freshness_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;api&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
+                <span class="n">api_md</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">config_api_reference_md</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                <span class="n">api_json</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">config_api_reference_json</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_build_api_reference</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">api_md</span><span class="p">,</span> <span class="n">api_json</span><span class="p">)</span>
+                    <span class="n">report</span><span class="p">[</span><span class="s2">&quot;api&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;parser_failed&quot;</span><span class="p">,</span> <span class="n">parser</span><span class="o">=</span><span class="s2">&quot;build_api_reference&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">report</span><span class="p">[</span><span class="s2">&quot;api&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">skipped</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;api&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">report</span><span class="p">[</span><span class="s2">&quot;api&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">report</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;skipped_reasons&quot;</span><span class="p">,</span> <span class="p">{})[</span><span class="s2">&quot;api&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;no CommonModules dir&quot;</span>
+
+        <span class="c1"># 3. SKD index (skd_parser.py)</span>
+        <span class="k">if</span> <span class="n">freshness_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;skd&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_run_script</span><span class="p">(</span>
+                    <span class="n">scripts_dir</span> <span class="o">/</span> <span class="s2">&quot;skd_parser.py&quot;</span><span class="p">,</span>
+                    <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">config_dir</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">derived_dir</span> <span class="o">/</span> <span class="s2">&quot;skd-index.json&quot;</span><span class="p">)],</span>
+                <span class="p">)</span>
+                <span class="n">report</span><span class="p">[</span><span class="s2">&quot;skd&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;parser_failed&quot;</span><span class="p">,</span> <span class="n">parser</span><span class="o">=</span><span class="s2">&quot;skd_parser&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">report</span><span class="p">[</span><span class="s2">&quot;skd&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">skipped</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;skd&quot;</span><span class="p">)</span>
+
+        <span class="c1"># 4. Form index (form_analyzer.py)</span>
+        <span class="k">if</span> <span class="n">freshness_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;forms&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_run_script</span><span class="p">(</span>
+                    <span class="n">scripts_dir</span> <span class="o">/</span> <span class="s2">&quot;form_analyzer.py&quot;</span><span class="p">,</span>
+                    <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">config_dir</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">derived_dir</span> <span class="o">/</span> <span class="s2">&quot;form-index.json&quot;</span><span class="p">)],</span>
+                <span class="p">)</span>
+                <span class="n">report</span><span class="p">[</span><span class="s2">&quot;forms&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;parser_failed&quot;</span><span class="p">,</span> <span class="n">parser</span><span class="o">=</span><span class="s2">&quot;form_analyzer&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">report</span><span class="p">[</span><span class="s2">&quot;forms&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">skipped</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;forms&quot;</span><span class="p">)</span>
+
+        <span class="n">report</span><span class="p">[</span><span class="s2">&quot;skipped&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">skipped</span>
+
+        <span class="c1"># Обновить реестр</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">objects_count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count_objects</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">report</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_run_script</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">script_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Запускает Python скрипт с аргументами.&quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">script_path</span><span class="p">)]</span> <span class="o">+</span> <span class="n">args</span><span class="p">,</span>
+            <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">script_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> failed: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">stderr</span><span class="p">[</span><span class="o">-</span><span class="mi">500</span><span class="p">:]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ConfigManager.build_all">
+<a class="viewcode-back" href="../../../api/services.html#src.services.config_manager.ConfigManager.build_all">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_all</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Индексы для всех активных конфигураций.&quot;&quot;&quot;</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">config</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">list_active</span><span class="p">():</span>
+            <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">results</span></div>
+
+
+    <span class="c1"># --- Удаление ---</span>
+
+<div class="viewcode-block" id="ConfigManager.remove">
+<a class="viewcode-back" href="../../../api/services.html#src.services.config_manager.ConfigManager.remove">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
+
+
+    <span class="c1"># --- Внутренние методы ---</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Configuration</span><span class="p">:</span>
+        <span class="n">version</span><span class="p">,</span> <span class="n">vendor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_config_props</span><span class="p">(</span><span class="n">path</span> <span class="o">/</span> <span class="s2">&quot;Configuration.xml&quot;</span><span class="p">)</span>
+        <span class="n">objects_count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count_objects</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Configuration</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+            <span class="n">version</span><span class="o">=</span><span class="n">version</span><span class="p">,</span>
+            <span class="n">vendor</span><span class="o">=</span><span class="n">vendor</span><span class="p">,</span>
+            <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="s2">&quot;active&quot;</span><span class="p">,</span>
+            <span class="n">objects_count</span><span class="o">=</span><span class="n">objects_count</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_read_config_props</span><span class="p">(</span><span class="n">xml_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">xml_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="p">(</span><span class="s2">&quot;unknown&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">_strip_ns</span><span class="p">(</span><span class="n">tag</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">tag</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;}&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;}&quot;</span> <span class="ow">in</span> <span class="n">tag</span> <span class="k">else</span> <span class="n">tag</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">xml_path</span><span class="p">)</span>
+            <span class="n">root</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">getroot</span><span class="p">()</span>
+            <span class="n">cfg</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">root</span> <span class="k">if</span> <span class="n">_strip_ns</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">tag</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;Configuration&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">cfg</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s2">&quot;unknown&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">props</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cfg</span> <span class="k">if</span> <span class="n">_strip_ns</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">tag</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;Properties&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">props</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s2">&quot;unknown&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">version</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="n">vendor</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">props</span><span class="p">:</span>
+                <span class="n">tag</span> <span class="o">=</span> <span class="n">_strip_ns</span><span class="p">(</span><span class="n">child</span><span class="o">.</span><span class="n">tag</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Version&quot;</span><span class="p">:</span>
+                    <span class="n">version</span> <span class="o">=</span> <span class="n">child</span><span class="o">.</span><span class="n">text</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
+                <span class="k">elif</span> <span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Vendor&quot;</span><span class="p">:</span>
+                    <span class="n">vendor</span> <span class="o">=</span> <span class="n">child</span><span class="o">.</span><span class="n">text</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">version</span><span class="p">,</span> <span class="n">vendor</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">ET</span><span class="o">.</span><span class="n">ParseError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Не удалось распарсить </span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">xml_path</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span><span class="s2">&quot;unknown&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">PermissionError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Нет доступа к </span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">xml_path</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span><span class="s2">&quot;unknown&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_count_objects</span><span class="p">(</span><span class="n">config_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="n">type_dirs</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s2">&quot;Catalogs&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Documents&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Enums&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Constants&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;CommonModules&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;InformationRegisters&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;AccumulationRegisters&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Reports&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;DataProcessors&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;CommonForms&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;CommonTemplates&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;CommonCommands&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;CommonPictures&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Roles&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Subsystems&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;EventSubscriptions&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;ScheduledJobs&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;DefinedTypes&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;FunctionalOptions&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;ExchangePlans&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;ChartsOfCharacteristicTypes&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;HTTPServices&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;WebServices&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;XDTOPackages&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;FilterCriteria&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;SessionParameters&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;CommandGroups&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;SettingsStorages&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;BusinessProcesses&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Tasks&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;DocumentJournals&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;DocumentNumerators&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Sequences&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;FunctionalOptionsParameters&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;CommonAttributes&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;WSReferences&quot;</span><span class="p">,</span>
+        <span class="p">]</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">type_dir</span> <span class="ow">in</span> <span class="n">type_dirs</span><span class="p">:</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">config_dir</span> <span class="o">/</span> <span class="n">type_dir</span>
+            <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+                <span class="n">count</span> <span class="o">+=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">iterdir</span><span class="p">()</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">is_dir</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">count</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_metadata_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Configuration</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Запустить build_config_index_generic.py.&quot;&quot;&quot;</span>
+        <span class="n">script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">scripts_dir</span> <span class="o">/</span> <span class="s2">&quot;build_config_index_generic.py&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">script</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">root</span> <span class="o">/</span> <span class="s2">&quot;setup&quot;</span> <span class="o">/</span> <span class="s2">&quot;scripts&quot;</span> <span class="o">/</span> <span class="s2">&quot;build_config_index_generic.py&quot;</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="p">[</span><span class="s2">&quot;python3&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">script</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">path</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">output</span><span class="p">),</span> <span class="n">config</span><span class="o">.</span><span class="n">title</span><span class="p">],</span>
+            <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_api_reference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Configuration</span><span class="p">,</span> <span class="n">output_md</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">output_json</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Запустить build_api_reference.py.&quot;&quot;&quot;</span>
+        <span class="n">script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">scripts_dir</span> <span class="o">/</span> <span class="s2">&quot;build_api_reference.py&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">script</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paths</span><span class="o">.</span><span class="n">root</span> <span class="o">/</span> <span class="s2">&quot;setup&quot;</span> <span class="o">/</span> <span class="s2">&quot;scripts&quot;</span> <span class="o">/</span> <span class="s2">&quot;build_api_reference.py&quot;</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="s2">&quot;python3&quot;</span><span class="p">,</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">script</span><span class="p">),</span>
+                <span class="s2">&quot;--config&quot;</span><span class="p">,</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="s2">&quot;--config-dir&quot;</span><span class="p">,</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">path</span><span class="p">),</span>
+                <span class="s2">&quot;--output-md&quot;</span><span class="p">,</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">output_md</span><span class="p">),</span>
+                <span class="s2">&quot;--output-json&quot;</span><span class="p">,</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">output_json</span><span class="p">),</span>
+                <span class="s2">&quot;--title&quot;</span><span class="p">,</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">1C AI Development Environment</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Pradushkoai&repo=1c-ai-dev-env&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/services.html">Services API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/models.html">Models API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/mcpserver.html">MCP Server API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/mcp_integration.html">MCP Integration</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../references/changelog.html">Changelog</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Pradushkoai.
+      
+    </div>
+
+    
+    <a href="https://github.com/Pradushkoai/1c-ai-dev-env" class="github">
+        <img src="../../../_static/github-banner.svg" alt="Fork me on GitHub" class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>
