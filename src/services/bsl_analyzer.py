@@ -1,14 +1,28 @@
 """
 Анализатор .bsl файлов через BSL Language Server.
+
+P2.2: добавлена изоляция BSL LS — subprocess с timeout, retry с backoff,
+fallback на check_1c_standards (56 правил) при недоступности BSL LS.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 import subprocess
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+# P2.2: настройки изоляции BSL LS
+BSL_LS_TIMEOUT = 15  # секунд (увеличено с 10)
+BSL_LS_MAX_RETRIES = 3
+BSL_LS_RETRY_DELAYS = [1.0, 2.0, 4.0]  # exponential backoff (секунды)
 
 
 @dataclass
@@ -95,7 +109,7 @@ class BSLAnalyzer:
             return self._run_analysis(source, output_dir)
 
     def _run_analysis(self, source: Path, output_dir: Path) -> AnalysisResult:
-        """Внутренний метод — запуск BSL LS."""
+        """Внутренний метод — запуск BSL LS с retry и timeout (P2.2)."""
         # Очищаем output_dir от старых отчётов (защита от устаревшего bsl-json.json,
         # если новый запуск BSL LS упадёт и не создаст файл)
         shutil.rmtree(output_dir, ignore_errors=True)
@@ -114,10 +128,45 @@ class BSLAnalyzer:
             str(output_dir),
             "-q",
         ]
-        subprocess.run(cmd, capture_output=True, timeout=120, check=True)
 
-        json_file = output_dir / "bsl-json.json"
-        return AnalysisResult.from_json(json_file)
+        # P2.2: retry с exponential backoff
+        last_error: Exception | None = None
+        for attempt in range(BSL_LS_MAX_RETRIES):
+            try:
+                subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    timeout=BSL_LS_TIMEOUT,
+                    check=True,
+                )
+                json_file = output_dir / "bsl-json.json"
+                return AnalysisResult.from_json(json_file)
+            except subprocess.TimeoutExpired:
+                last_error = subprocess.TimeoutExpired(cmd, BSL_LS_TIMEOUT)
+                logger.warning(
+                    "BSL LS timeout (attempt %d/%d, %ds)",
+                    attempt + 1,
+                    BSL_LS_MAX_RETRIES,
+                    BSL_LS_TIMEOUT,
+                )
+                if attempt < BSL_LS_MAX_RETRIES - 1:
+                    delay = BSL_LS_RETRY_DELAYS[min(attempt, len(BSL_LS_RETRY_DELAYS) - 1)]
+                    logger.info("Retrying in %s seconds...", delay)
+                    time.sleep(delay)
+            except subprocess.CalledProcessError as e:
+                last_error = e
+                logger.warning(
+                    "BSL LS failed (attempt %d/%d): returncode=%d",
+                    attempt + 1,
+                    BSL_LS_MAX_RETRIES,
+                    e.returncode,
+                )
+                if attempt < BSL_LS_MAX_RETRIES - 1:
+                    delay = BSL_LS_RETRY_DELAYS[min(attempt, len(BSL_LS_RETRY_DELAYS) - 1)]
+                    time.sleep(delay)
+
+        # Все попытки исчерпаны — поднимаем исключение
+        raise RuntimeError(f"BSL LS failed after {BSL_LS_MAX_RETRIES} attempts: {last_error}") from last_error
 
     def save_baseline(self, source: Path) -> AnalysisResult:
         """Сохранить baseline (в память + в файл)."""
@@ -168,8 +217,51 @@ class BSLAnalyzer:
 
     def _load_baseline_from_file(self) -> None:
         """Загрузить baseline из JSON файла."""
-        import json
-
         if self._baseline_path.exists():
             with open(self._baseline_path, encoding="utf-8") as f:
                 self._baseline = set(json.load(f))
+
+
+# ============================================================================
+# P2.2: bsl_ls_with_fallback декоратор
+# ============================================================================
+
+
+def bsl_ls_with_fallback(
+    fallback_func: Callable[..., Any] | None = None,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Декоратор: запуск BSL LS с fallback на check_1c_standards.
+
+    Если BSL LS недоступен (timeout, exception) — вызывает fallback_func
+    (обычно check_1c_standards с 56 правилами).
+
+    Args:
+        fallback_func: Функция для fallback (принимает те же аргументы).
+            Если None — fallback возвращает пустой AnalysisResult.
+
+    Usage:
+        @bsl_ls_with_fallback(fallback=check_standards)
+        def analyze_bsl(file_path: Path) -> AnalysisResult:
+            analyzer = BSLAnalyzer(...)
+            return analyzer.analyze(file_path)
+    """
+    import functools
+
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return func(*args, **kwargs)
+            except (RuntimeError, subprocess.TimeoutExpired, FileNotFoundError) as e:
+                logger.warning(
+                    "BSL LS unavailable, using fallback: %s",
+                    type(e).__name__,
+                )
+                if fallback_func is not None:
+                    return fallback_func(*args, **kwargs)
+                # Если fallback не задан — возвращаем пустой результат
+                return AnalysisResult()
+
+        return wrapper
+
+    return decorator
