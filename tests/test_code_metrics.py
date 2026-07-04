@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
-"""Тесты для code_metrics.py."""
+"""Тесты для src.services.analyzers.code_metrics."""
 
-import os
-import sys
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
-
-from code_metrics import CodeMetrics, CodeMetricsAnalyzer, MethodMetrics
+from src.services.analyzers.code_metrics import CodeMetrics, CodeMetricsAnalyzer, MethodMetrics
 
 
 @pytest.fixture

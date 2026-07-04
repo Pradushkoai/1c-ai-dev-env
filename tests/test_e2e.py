@@ -116,7 +116,7 @@ class TestE2ECodeMetrics:
 
     def test_generated_code_has_good_health(self):
         """Сгенерированный код должен иметь health score >= 80."""
-        from code_metrics import CodeMetricsAnalyzer
+        from src.services.analyzers.code_metrics import CodeMetricsAnalyzer
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)

@@ -1,16 +1,14 @@
 """
-Тесты для check_metadata_standards.py.
+Тесты для src.services.analyzers.check_metadata_standards.
 Проверяем анализ XML метаданных конфигурации 1С.
 """
 
-import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-from check_metadata_standards import (
+from src.services.analyzers.check_metadata_standards import (
     MetadataViolation,
     _get_synonym,
     _parse_object_xml,
@@ -240,7 +238,7 @@ def test_check_object_name_starts_with_digit(tmp_path):
 
 def test_format_violations_empty():
     """Пустой список → сообщение об отсутствии нарушений."""
-    from check_metadata_standards import format_violations
+    from src.services.analyzers.check_metadata_standards import format_violations
 
     result = format_violations([])
     assert "не найдено" in result.lower()
@@ -248,7 +246,7 @@ def test_format_violations_empty():
 
 def test_format_violations_text():
     """Текстовый формат вывода."""
-    from check_metadata_standards import format_violations
+    from src.services.analyzers.check_metadata_standards import format_violations
 
     violations = [
         MetadataViolation(
@@ -270,7 +268,7 @@ def test_format_violations_json():
     """JSON формат вывода."""
     import json
 
-    from check_metadata_standards import format_violations
+    from src.services.analyzers.check_metadata_standards import format_violations
 
     violations = [
         MetadataViolation(

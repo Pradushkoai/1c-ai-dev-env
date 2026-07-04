@@ -16,9 +16,9 @@ def pytest_runtest_teardown(item, nextitem):
     # Модули, которые могут быть загружены динамически и загрязнять sys.modules
     _dynamic_modules = [
         "check_1c_standards",
-        "check_metadata_standards",
+        "check_metadata_standards",  # Этап 1.2: оставлен временно, удалю после всех переносов
         "security_auditor",
-        "code_metrics",
+        "code_metrics",  # Этап 1.2: оставлен временно, удалю после всех переносов
         "transaction_checker",  # Этап 1.2: оставлен временно, удалю после всех переносов
         "query_analyzer",  # Этап 1.2: оставлен временно, удалю после всех переносов
         "architecture_analyzer",
