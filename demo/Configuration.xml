@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:xr="http://v8.1c.ru/8.3/xcf/extprops" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="a1b2c3d4-0000-0000-0000-000000000000">
+  <Configuration uuid="a1b2c3d4-0000-0000-0000-000000000000">
+    <Name>ДемоКонфигурация</Name>
+    <Synonym>
+      <Key>ru</Key>
+      <Value>Демо конфигурация</Value>
+    </Synonym>
+    <Comment>Минимальная конфигурация для тестирования 1c-ai-dev-env</Comment>
+    <DefaultLanguage>Русский</DefaultLanguage>
+    <Vendor>Z.ai</Vendor>
+    <Version>1.0.0</Version>
+    <ScriptVariant>Russian</ScriptVariant>
+    <DefaultRunMode>ManagedApplication</DefaultRunMode>
+    <UsePurposes>
+      <Value>ApplicationPlatform</Value>
+    </UsePurposes>
+    <ConfigurationExtensionCompatibilityMode>Version8_3_17</ConfigurationExtensionCompatibilityMode>
+  </Configuration>
+</MetaDataObject>

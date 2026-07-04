@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:xr="http://v8.1c.ru/8.3/xcf/extprops" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="a1b2c3d4-0002-0001-0000-000000000001">
+  <Document uuid="a1b2c3d4-0002-0001-0000-000000000002">
+    <Name>ПриходТовара</Name>
+    <Synonym>
+      <Key>ru</Key>
+      <Value>Приход товара</Value>
+    </Synonym>
+    <Comment>Документ прихода товара</Comment>
+    <NumberType>String</NumberType>
+    <NumberLength>9</NumberLength>
+    <NumberPeriodicity>Nonperiodical</NumberPeriodicity>
+    <RegisterRecordsDeletion>AutoDeleteOnUnpost</RegisterRecordsDeletion>
+    <RegisterRecordsWritingOnPost>WriteSelected</RegisterRecordsWritingOnPost>
+    <Attributes>
+      <Attribute uuid="a1b2c3d4-0002-0001-0000-000000000003">
+        <Name>Склад</Name>
+        <Synonym>
+          <Key>ru</Key>
+          <Value>Склад</Value>
+        </Synonym>
+        <Type>
+          <Type>CatalogRef.Склады</Type>
+        </Type>
+        <ObjectBelonging>Own</ObjectBelonging>
+      </Attribute>
+    </Attributes>
+    <TabularSections>
+      <TabularSection uuid="a1b2c3d4-0002-0001-0000-000000000004">
+        <Name>Товары</Name>
+        <Synonym>
+          <Key>ru</Key>
+          <Value>Товары</Value>
+        </Synonym>
+        <Attributes>
+          <Attribute uuid="a1b2c3d4-0002-0001-0000-000000000005">
+            <Name>Товар</Name>
+            <Synonym>
+              <Key>ru</Key>
+              <Value>Товар</Value>
+            </Synonym>
+            <Type>
+              <Type>CatalogRef.Товары</Type>
+            </Type>
+            <ObjectBelonging>Own</ObjectBelonging>
+          </Attribute>
+          <Attribute uuid="a1b2c3d4-0002-0001-0000-000000000006">
+            <Name>Количество</Name>
+            <Synonym>
+              <Key>ru</Key>
+              <Value>Количество</Value>
+            </Synonym>
+            <Type>
+              <Type>xs:decimal</Type>
+              <NumberQualifiers>
+                <Digits>15</Digits>
+                <FractionDigits>3</FractionDigits>
+              </NumberQualifiers>
+            </Type>
+            <ObjectBelonging>Own</ObjectBelonging>
+          </Attribute>
+        </Attributes>
+        <ObjectBelonging>Own</ObjectBelonging>
+      </TabularSection>
+    </TabularSections>
+    <ObjectBelonging>Own</ObjectBelonging>
+  </Document>
+</MetaDataObject>

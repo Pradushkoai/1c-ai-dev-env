@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:xr="http://v8.1c.ru/8.3/xcf/extprops" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="a1b2c3d4-0001-0001-0000-000000000001">
+  <Catalog uuid="a1b2c3d4-0001-0001-0000-000000000002">
+    <Name>Товары</Name>
+    <Synonym>
+      <Key>ru</Key>
+      <Value>Товары</Value>
+    </Synonym>
+    <Comment>Справочник товаров</Comment>
+    <CodeLength>9</CodeLength>
+    <DescriptionLength>100</DescriptionLength>
+    <Hierarchical>false</Hierarchical>
+    <Attributes>
+      <Attribute uuid="a1b2c3d4-0001-0001-0000-000000000003">
+        <Name>Артикул</Name>
+        <Synonym>
+          <Key>ru</Key>
+          <Value>Артикул</Value>
+        </Synonym>
+        <Type>
+          <Type>xs:string</Type>
+          <StringQualifiers>
+            <Length>50</Length>
+          </StringQualifiers>
+        </Type>
+        <Indexing>Index</Indexing>
+        <ObjectBelonging>Own</ObjectBelonging>
+      </Attribute>
+      <Attribute uuid="a1b2c3d4-0001-0001-0000-000000000004">
+        <Name>Цена</Name>
+        <Synonym>
+          <Key>ru</Key>
+          <Value>Цена</Value>
+        </Synonym>
+        <Type>
+          <Type>xs:decimal</Type>
+          <NumberQualifiers>
+            <Digits>15</Digits>
+            <FractionDigits>2</FractionDigits>
+          </NumberQualifiers>
+        </Type>
+        <ObjectBelonging>Own</ObjectBelonging>
+      </Attribute>
+    </Attributes>
+    <ObjectBelonging>Own</ObjectBelonging>
+  </Catalog>
+</MetaDataObject>
