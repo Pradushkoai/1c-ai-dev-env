@@ -226,3 +226,268 @@ PR не может быть смёрджен, если CI красный.
 # 4. Commit + push кода
 git add -A && git commit -m "feat: ..." && git push
 ```
+
+---
+
+## How-to гайды (Этап 4.3)
+
+### How-to: Добавить новый BSL-анализатор
+
+BSL-анализатор — это функция, проверяющая .bsl файл на соответствие
+стандартам 1С. Все анализаторы живут в `src/services/analyzers/`.
+
+**Шаг 1: Выбери категорию**
+
+| Категория | Файл | Примеры правил |
+|-----------|------|----------------|
+| Стиль кода | `standards/style.py` | no_yo, no_dashes, no_commented_code |
+| Архитектура | `standards/architecture.py` | no_vypolnit, no_hardcoded_credentials |
+| Запросы | `standards/queries.py` | no_pereyti, no_full_outer_join |
+| Клиент-сервер | `standards/client_server.py` | no_transaction_in_nacliente |
+| Разное | `standards/misc.py` | no_otkaz_lozh, no_deep_nesting |
+
+Если правило не подходит ни к одной категории — добавь в `misc.py`.
+
+**Шаг 2: Напиши правило**
+
+```python
+# src/services/analyzers/standards/style.py
+
+def rule_no_my_antipattern(lines: list[str], file_path: Path) -> Iterator[Violation]:
+    """Правило STD XXX: описание антипаттерна.
+
+    Проверяет, что в коде нет 'МойАнтипаттерн'.
+    """
+    for i, line in enumerate(lines, start=1):
+        if "МойАнтипаттерн" in line:
+            col = line.index("МойАнтипаттерн") + 1
+            yield Violation(
+                file=str(file_path),
+                line=i,
+                col=col,
+                rule_id="no-my-antipattern",
+                severity="warning",
+                message="МойАнтипаттерн запрещён — используйте ДругойПодход (STD XXX)",
+            )
+```
+
+**Шаг 3: Зарегистрируй правило**
+
+Добавь функцию в `RULES` list в конце файла:
+
+```python
+# src/services/analyzers/standards/style.py (конец файла)
+RULES = [
+    rule_no_non_breaking_spaces,
+    # ... существующие правила ...
+    rule_no_my_antipattern,  # ← добавь сюда
+]
+```
+
+**Шаг 4: Напиши тест**
+
+```python
+# tests/test_check_standards.py
+
+class TestNoMyAntipattern:
+    def test_detects_antipattern(self, std):
+        bsl = "Процедура Тест()\n    МойАнтипаттерн()\nКонецПроцедуры\n"
+        violations = _check_rule(std, std.rule_no_my_antipattern, bsl)
+        assert len(violations) == 1
+        assert violations[0].rule_id == "no-my-antipattern"
+
+    def test_no_antipattern_ok(self, std):
+        bsl = "Процедура Тест()\n    ДругойПодход()\nКонецПроцедуры\n"
+        violations = _check_rule(std, std.rule_no_my_antipattern, bsl)
+        assert len(violations) == 0
+```
+
+**Шаг 5: Проверь**
+
+```bash
+python3 -m pytest tests/test_check_standards.py::TestNoMyAntipattern -v
+python3 -m pytest tests/test_check_standards.py -q  # все тесты правил
+```
+
+### How-to: Добавить новый MCP tool
+
+MCP tool — это функция, вызываемая IDE (Cursor, Claude Desktop) через
+MCP-протокол. Все tools регистрируются в `src/mcpserver/tools/tool_definitions.py`.
+
+**Шаг 1: Определи категорию**
+
+| Категория | Handler файл | Примеры tools |
+|-----------|--------------|---------------|
+| Конфигурации | `handlers/config_search.py` | list_configs, data_status |
+| Поиск | `handlers/config_search.py` | search_1c_methods, search_code |
+| BSL анализ | `handlers/analyzers.py` | analyze_bsl, check_standards |
+| Метаданные | `handlers/structure.py` | get_object_structure, get_skd_schema |
+| Качество | `handlers/quality.py` | check_form_quality, diff_configs |
+| Генерация | `handlers/generate.py` | generate_processing, build_epf |
+| DSL/CFE | `handlers/dsl_cfe.py` | dsl_compile_meta, cfe_borrow |
+| Inspect | `handlers/inspect_data.py` | inspect |
+| Прочее | `handlers/misc.py` | get_knowledge, openspec_* |
+
+**Шаг 2: Напиши handler**
+
+```python
+# src/mcpserver/handlers/quality.py
+
+async def handle_my_new_check(project: Project, arguments: dict) -> list[types.TextContent]:
+    """Handler для MCP tool: my_new_check."""
+    file_path = arguments.get("file_path", "")
+    if not file_path:
+        return [
+            types.TextContent(
+                type="text", text=json.dumps({"error": "file_path required"}, ensure_ascii=False)
+            )
+        ]
+
+    # Бизнес-логика — вызывай services
+    from src.services.analyzers.my_checker import MyChecker
+    checker = MyChecker()
+    result = checker.check(Path(file_path))
+
+    response = {"file_path": file_path, "issues": result.issues}
+    return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
+```
+
+**Шаг 3: Зарегистрируй tool definition**
+
+```python
+# src/mcpserver/tools/tool_definitions.py
+
+def _make_my_new_check_tool() -> types.Tool:
+    return types.Tool(
+        name="my_new_check",
+        description="Проверка моего антипаттерна в .bsl файле",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string", "description": "Путь к .bsl файлу"},
+            },
+            "required": ["file_path"],
+        },
+    )
+```
+
+**Шаг 4: Зарегистрируй handler**
+
+```python
+# src/mcpserver/handlers/quality.py (конец файла)
+QUALITY_HANDLERS: dict[str, Callable[..., Any]] = {
+    "get_knowledge": handle_get_knowledge,
+    # ... существующие handlers ...
+    "my_new_check": handle_my_new_check,  # ← добавь сюда
+}
+```
+
+**Шаг 5: Обнови snapshot**
+
+```bash
+# После добавления tool — обнови snapshot
+python3 -m pytest tests/test_mcp_tools_snapshot.py --snapshot-update
+```
+
+**Шаг 6: Проверь**
+
+```bash
+python3 -m pytest tests/test_mcp_handlers_quality.py -v
+python3 -m pytest tests/test_mcp_tools_snapshot.py -v
+python3 -m pytest tests/test_check_mcp_count.py -v  # проверка count
+```
+
+### How-to: Добавить новый DSL-компилятор
+
+DSL-компилятор преобразует JSON-описание в XML-метаданные 1С.
+Существующие компиляторы: meta, form, skd, mxl, role.
+
+**Шаг 1: Создай модуль компилятора**
+
+```python
+# src/dsl/my_type.py
+
+class MyTypeCompiler:
+    """Компилятор JSON → XML для типа MyType."""
+
+    def compile(self, json_spec: dict, output_path: Path) -> str:
+        """Скомпилировать JSON в XML.
+
+        Args:
+            json_spec: JSON спецификация MyType
+            output_path: Куда сохранить XML
+
+        Returns:
+            Сгенерированный XML
+        """
+        # Логика компиляции
+        xml = self._generate_xml(json_spec)
+        output_path.write_text(xml, encoding="utf-8")
+        return xml
+
+    def _generate_xml(self, spec: dict) -> str:
+        # Генерация XML
+        ...
+```
+
+**Шаг 2: Зарегистрируй в facade**
+
+```python
+# src/dsl/facade.py
+
+from .my_type import MyTypeCompiler
+
+class DslCompiler:
+    def __init__(self):
+        self._meta = MetaCompiler()
+        self._form = FormCompiler()
+        # ... существующие ...
+        self._my_type = MyTypeCompiler()  # ← добавь
+
+    def compile_my_type(self, json_spec: dict, output_path: Path) -> str:
+        return self._my_type.compile(json_spec, output_path)
+```
+
+**Шаг 3: Добавь CLI команду**
+
+```python
+# src/cli_commands/tools.py
+
+def cmd_dsl(project: Project, args: argparse.Namespace) -> None:
+    if args.dsl_command == "my-type":
+        from src.dsl import DslCompiler
+        compiler = DslCompiler()
+        spec = json.loads(Path(args.json_file).read_text(encoding="utf-8"))
+        compiler.compile_my_type(spec, Path(args.output_path))
+```
+
+**Шаг 4: Добавь MCP tool** (опционально)
+
+См. How-to: Добавить новый MCP tool выше.
+
+**Шаг 5: Напиши тесты**
+
+```python
+# tests/test_dsl_my_type.py
+
+class TestMyTypeCompiler:
+    def test_basic_compile(self, tmp_path):
+        compiler = MyTypeCompiler()
+        spec = {"name": "МойОбъект", "synonym": "Мой объект"}
+        output = tmp_path / "MyType.xml"
+        xml = compiler.compile(spec, output)
+        assert "<MyType>" in xml
+        assert "МойОбъект" in xml
+        assert output.exists()
+```
+
+**Шаг 6: Документация**
+
+Добавь спецификацию в `docs/1c-xml-specs/my-type-dsl-spec.md`.
+
+**Шаг 7: Проверь**
+
+```bash
+python3 -m pytest tests/test_dsl_my_type.py -v
+python3 -m pytest tests/test_dsl_compiler.py -v
+```
