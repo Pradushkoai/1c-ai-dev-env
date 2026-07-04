@@ -152,10 +152,10 @@ class ConfigManager:
         """
         Распаковать .cf/.cfe/.epf файл и зарегистрировать конфигурацию.
 
-        Использует scripts/cf_extractor.py — наш собственный парсер
+        Использует src.services.cf.extractor — наш собственный парсер
         формата контейнера 1С (без зависимости от внешнего v8unpack).
         После распаковки конвертирует структуру v8unpack в формат,
-        совместимый с build_api_reference (через cf_to_xml_adapter).
+        совместимый с build_api_reference (через improved_cf_adapter).
         """
         self._validate_config_name(name)
         if name in self._registry:
@@ -163,22 +163,16 @@ class ConfigManager:
         if not cf_path.exists():
             raise FileNotFoundError(f".cf файл не найден: {cf_path}")
 
-        # Импортируем cf_extractor из scripts/
+        # Этап 1.2, Группа 7: cf_extractor перенесён в src.services.cf.extractor
+        # improved_cf_adapter остаётся в scripts/ (перенос отложен до этапа 2.x — сложные зависимости)
         import importlib.util
         import sys
 
+        from src.services.cf.extractor import extract_cf
+
         scripts_dir = self._paths.scripts_dir
-        if not (scripts_dir / "cf_extractor.py").exists():
+        if not (scripts_dir / "improved_cf_adapter.py").exists():
             scripts_dir = self._paths.root / "setup" / "scripts"
-        if not (scripts_dir / "cf_extractor.py").exists():
-            raise FileNotFoundError("scripts/cf_extractor.py не найден")
-
-        # Загружаем cf_extractor
-        spec = importlib.util.spec_from_file_location("cf_extractor", scripts_dir / "cf_extractor.py")
-        cf_mod = importlib.util.module_from_spec(spec)
-        sys.modules["cf_extractor"] = cf_mod
-        spec.loader.exec_module(cf_mod)
-
         # Загружаем improved_cf_adapter (предпочтительно) или cf_to_xml_adapter (fallback)
         adapter_path = scripts_dir / "improved_cf_adapter.py"
         if not adapter_path.exists():
@@ -201,7 +195,7 @@ class ConfigManager:
 
         try:
             # Шаг 1: Распаковка .cf
-            cf_mod.extract_cf(cf_path, raw_dir)
+            extract_cf(cf_path, raw_dir)
 
             # Шаг 2: Конвертация в формат build_api_reference
             if adapter_mod:

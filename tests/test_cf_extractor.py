@@ -20,8 +20,7 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-from cf_extractor import (
+from src.services.cf.extractor import (
     BLOCK_HEADER_SIZE,
     BLOCK_HEADER_SIZE_64,
     DEFAULT_BLOCK_SIZE,
