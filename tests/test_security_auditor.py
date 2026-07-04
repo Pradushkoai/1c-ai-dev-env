@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
-"""Тесты для security_auditor.py."""
+"""Тесты для src.services.analyzers.security_auditor."""
 
 import os
-import sys
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
-
-from security_auditor import SECURITY_RULES, SecurityAuditor, SecurityViolation
+from src.services.analyzers.security_auditor import SECURITY_RULES, SecurityAuditor, SecurityViolation
 
 # ============================================================================
 # ФИКССТУРЫ

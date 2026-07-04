@@ -103,24 +103,11 @@ async def handle_audit_security(project: Project, arguments: dict) -> list[types
             )
         ]
 
-    # Загружаем security_auditor
-
-    scripts_dir = project.paths.root / "scripts"
-    sa_path = scripts_dir / "security_auditor.py"
-    if not sa_path.exists():
-        return [
-            types.TextContent(
-                type="text", text=json.dumps({"error": "security_auditor.py not found"}, ensure_ascii=False)
-            )
-        ]
-
-    spec = importlib.util.spec_from_file_location("security_auditor", sa_path)
-    sa_mod = importlib.util.module_from_spec(spec)
-    sys.modules["security_auditor"] = sa_mod
-    spec.loader.exec_module(sa_mod)
+    # Этап 1.2, Группа 1e: dynamic import заменён на прямой импорт из src.services.analyzers
+    from src.services.analyzers.security_auditor import SecurityAuditor
 
     try:
-        auditor = sa_mod.SecurityAuditor()
+        auditor = SecurityAuditor()
         violations = auditor.audit_file(Path(file_path))
         stats = auditor.get_stats(violations)
 

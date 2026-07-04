@@ -90,7 +90,7 @@ class TestE2ESecurityAudit:
 
     def test_generated_code_is_safe(self):
         """Сгенерированный код не должен содержать критических уязвимостей."""
-        from security_auditor import SecurityAuditor
+        from src.services.analyzers.security_auditor import SecurityAuditor
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -198,7 +198,7 @@ class TestE2EFullSolveCheck:
         """solve_check --level quick на сгенерированном коде — verdict perfect или warnings."""
         from check_1c_standards import StandardsChecker
         from src.services.analyzers.query_analyzer import QueryAnalyzer
-        from security_auditor import SecurityAuditor
+        from src.services.analyzers.security_auditor import SecurityAuditor
         from src.services.analyzers.transaction_checker import TransactionChecker
 
         with tempfile.TemporaryDirectory() as tmpdir:
