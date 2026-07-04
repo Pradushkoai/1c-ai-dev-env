@@ -148,10 +148,11 @@ class TestValidateBSL:
         (out_dir / "bsl-json.json").write_text(json.dumps({"fileinfos": [{"diagnostics": []}]}), encoding="utf-8")
 
         # Мокаем Path.exists() и Path.mkdir() для out_dir
+        # Этап 2.2: validate_bsl перенесён в src.services.epf.bsl_validator
         with (
-            patch("src.services.epf_factory.BSL_LS_BINARY", str(fake_binary)),
-            patch("src.services.epf_factory.subprocess.run", return_value=mock_result),
-            patch("src.services.epf_factory.shutil.rmtree"),
+            patch("src.services.epf.bsl_validator.BSL_LS_BINARY", str(fake_binary)),
+            patch("src.services.epf.bsl_validator.subprocess.run", return_value=mock_result),
+            patch("src.services.epf.bsl_validator.shutil.rmtree"),
         ):
             result = validate_bsl(bsl_file)
             assert result["ok"] is True

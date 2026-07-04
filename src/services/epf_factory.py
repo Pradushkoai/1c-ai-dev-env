@@ -58,9 +58,13 @@ import subprocess
 import sys
 import tempfile
 import uuid
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+
+# Этап 2.2: утилиты вынесены в пакет epf/
+from .epf import EpfFactoryResult, patch_ext_proc_json, patch_form_id_json, validate_bsl, verify_round_trip
+from .epf.json_patcher import (
+    replace_in_tree as _replace_in_tree,  # noqa: F401 — re-export для обратной совместимости с tests
+)
 
 # Python-интерпретатор с установленным v8unpack
 _PYTHON = sys.executable
@@ -96,143 +100,10 @@ BSL_LS_BINARY = os.environ.get(
 
 
 # ────────────────────────────────────────────────────────────────
-# Результат
+# Результат, утилиты и BSL-валидатор вынесены в пакет epf/ (Этап 2.2):
+#   from .epf import EpfFactoryResult, validate_bsl, patch_ext_proc_json,
+#                    patch_form_id_json, verify_round_trip
 # ────────────────────────────────────────────────────────────────
-@dataclass
-class EpfFactoryResult:
-    """Результат работы EpfFactory.create_epf."""
-
-    ok: bool = False
-    error: str = ""
-    epf_path: Path | None = None
-    size_bytes: int = 0
-    name: str = ""
-    synonym: str = ""
-    proc_uuid: str = ""
-    form_uuid: str = ""
-    bsl_lines: int = 0
-    bsl_warnings: int = 0
-    bsl_errors: int = 0
-    round_trip_ok: bool = False
-    work_dir: Path | None = None  # если save_sources=True
-
-
-# ────────────────────────────────────────────────────────────────
-# Утилиты для замены в JSON-дереве v8unpack
-# ────────────────────────────────────────────────────────────────
-def _replace_in_tree(obj: Any, replacements: dict) -> Any:
-    """Рекурсивно заменить значения в JSON-дереве v8unpack.
-
-    replacements: {old_value: new_value} — применяется ко всем строковым узлам.
-    Также обрабатывает обёрнутые кавычки 1С: '"OldValue"' → '"NewValue"'.
-    """
-    if isinstance(obj, str):
-        if obj in replacements:
-            return replacements[obj]
-        # Обёрнутые кавычки 1С: "\"OldName\""
-        if obj.startswith('"') and obj.endswith('"'):
-            inner = obj[1:-1]
-            if inner in replacements:
-                return f'"{replacements[inner]}"'
-        return obj
-    if isinstance(obj, list):
-        return [_replace_in_tree(x, replacements) for x in obj]
-    if isinstance(obj, dict):
-        return {k: _replace_in_tree(v, replacements) for k, v in obj.items()}
-    return obj
-
-
-# ────────────────────────────────────────────────────────────────
-# BSL Language Server — статический анализ
-# ────────────────────────────────────────────────────────────────
-def validate_bsl(bsl_path: Path) -> dict:
-    """Проверить BSL-файл через BSL Language Server.
-
-    Returns:
-        dict с ключами: ok, errors, warnings, infos, diagnostics
-    """
-    if not Path(BSL_LS_BINARY).exists():
-        return {
-            "ok": False,
-            "error": f"BSL LS не найден: {BSL_LS_BINARY}",
-            "errors": 0,
-            "warnings": 0,
-            "infos": 0,
-        }
-
-    # BSL LS требует каталог, не файл
-    src_dir = bsl_path.parent
-    out_dir = src_dir.parent / "bsl_ls_out"
-
-    # Конфиг
-    config_path = src_dir.parent / ".bsl-language-server.json"
-    if not config_path.exists():
-        config_path.write_text(
-            '{"language": "ru", "diagnostics": {"computeDiagnostics": true}}',
-            encoding="utf-8",
-        )
-
-    if out_dir.exists():
-        shutil.rmtree(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    cmd = [
-        BSL_LS_BINARY,
-        "-c",
-        str(config_path),
-        "analyze",
-        "-s",
-        str(src_dir),
-        "-r",
-        "json",
-        "-o",
-        str(out_dir),
-        "-q",
-    ]
-    try:
-        subprocess.run(cmd, capture_output=True, text=True, timeout=60, check=False)
-    except subprocess.TimeoutExpired:
-        return {"ok": False, "error": "BSL LS timeout", "errors": 0, "warnings": 0, "infos": 0}
-
-    report_path = out_dir / "bsl-json.json"
-    if not report_path.exists():
-        return {"ok": False, "error": "BSL LS отчёт не создан", "errors": 0, "warnings": 0, "infos": 0}
-
-    with open(report_path, encoding="utf-8") as f:
-        report = json.load(f)
-
-    errors = warnings = infos = 0
-    all_diags = []
-    for fi in report.get("fileinfos", []):
-        for d in fi.get("diagnostics", []):
-            sev = d.get("severity", "")
-            if sev == "Error":
-                errors += 1
-            elif sev == "Warning":
-                warnings += 1
-            elif sev == "Information":
-                infos += 1
-            all_diags.append(
-                {
-                    "file": fi.get("path", ""),
-                    "line": d.get("range", {}).get("start", {}).get("line", 0) + 1,
-                    "code": d.get("code", ""),
-                    "severity": sev,
-                    "message": d.get("message", ""),
-                }
-            )
-
-    # Чистим
-    with contextlib.suppress(Exception):
-        shutil.rmtree(out_dir)
-
-    return {
-        "ok": True,
-        "errors": errors,
-        "warnings": warnings,
-        "infos": infos,
-        "diagnostics": all_diags,
-    }
 
 
 # ────────────────────────────────────────────────────────────────
@@ -523,7 +394,7 @@ class EpfFactory:
                 shutil.rmtree(work_dir)
         return True
 
-    # ─── Патчеры JSON ───────────────────────────────────────────
+    # ─── Патчеры JSON — делегируют в epf.json_patcher (Этап 2.2) ───
     def _patch_ext_proc_json(
         self,
         json_path: Path,
@@ -538,110 +409,34 @@ class EpfFactory:
         old_file_uuid: str = "",
         new_file_uuid: str = "",
     ) -> None:
-        """Заменить name, synonym, uuid в ExternalDataProcessor.json.
-
-        Берёт шаблон (с именем и UUID из исходной обработки) и заменяет все
-        вхождения старых значений на новые во всём дереве (header, copyinfo, version).
-
-        v8unpack хранит в ExternalDataProcessor.json ссылки на:
-          - proc_uuid (UUID обработки) — встречается в 5 местах
-          - form_uuid (UUID формы) — встречается в 4 местах
-          - file_uuid (UUID файла-контейнера) — встречается в 2 местах
-        Все три нужно заменять, иначе v8unpack при распаковке не найдёт форму.
-        """
-        with open(json_path, encoding="utf-8") as f:
-            data = json.load(f)
-
-        # Если old_proc_uuid не задан — берём из шаблона
-        if not old_proc_uuid:
-            old_proc_uuid = data.get("uuid", "")
-        # Если old_file_uuid не задан — берём из шаблона
-        if not old_file_uuid:
-            old_file_uuid = data.get("file_uuid", "")
-        # Если new_file_uuid не задан — генерируем
-        if not new_file_uuid:
-            new_file_uuid = str(uuid.uuid4())
-
-        replacements = {}
-        if old_name and old_name != new_name:
-            replacements[old_name] = new_name
-        if old_proc_uuid and old_proc_uuid != new_proc_uuid:
-            replacements[old_proc_uuid] = new_proc_uuid
-        if old_form_uuid and old_form_uuid != new_form_uuid:
-            replacements[old_form_uuid] = new_form_uuid
-        if old_file_uuid and old_file_uuid != new_file_uuid:
-            replacements[old_file_uuid] = new_file_uuid
-        if old_synonym and old_synonym != new_synonym:
-            replacements[old_synonym] = new_synonym
-
-        # Подставляем на верхнем уровне
-        data["name"] = new_name
-        data["uuid"] = new_proc_uuid
-        data["file_uuid"] = new_file_uuid
-        data.setdefault("name2", {})["ru"] = new_synonym
-
-        # Рекурсивно заменяем в header, copyinfo, version
-        if replacements:
-            for key in ("header", "copyinfo", "version"):
-                if key in data:
-                    data[key] = _replace_in_tree(data[key], replacements)
-
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        """Делегирует в epf.patch_ext_proc_json (Этап 2.2)."""
+        patch_ext_proc_json(
+            json_path,
+            old_name,
+            new_name,
+            old_synonym,
+            new_synonym,
+            old_proc_uuid,
+            new_proc_uuid,
+            old_form_uuid,
+            new_form_uuid,
+            old_file_uuid,
+            new_file_uuid,
+        )
 
     def _patch_form_id_json(self, json_path: Path, new_uuid: str) -> None:
-        """Записать UUID формы в Form.id.json."""
-        with open(json_path, encoding="utf-8") as f:
-            data = json.load(f)
-        data["uuid"] = new_uuid
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        """Делегирует в epf.patch_form_id_json (Этап 2.2)."""
+        patch_form_id_json(json_path, new_uuid)
 
-    # ─── Проверки ───────────────────────────────────────────────
+    # ─── Проверки — делегируют в epf.round_trip (Этап 2.2) ─────────
     def _verify_round_trip(
         self,
         epf_path: Path,
         original_src: Path,
         work_dir: Path,
     ) -> bool:
-        """Проверить round-trip: распаковать .epf и сравнить с исходниками.
-
-        Сравниваем только ключевые файлы: ExternalDataProcessor.json,
-        Form.obj.bsl, Form.id.json. Form.elem.json и Form.json могут
-        отличаться (v8unpack добавляет служебные поля).
-        """
-        check_dir = work_dir / "round_trip_check"
-        if check_dir.exists():
-            shutil.rmtree(check_dir)
-        temp_dir = work_dir / "round_trip_temp"
-        if temp_dir.exists():
-            shutil.rmtree(temp_dir)
-
-        cmd = [_PYTHON, "-m", "v8unpack", "-E", str(epf_path), str(check_dir), "--temp", str(temp_dir)]
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60, check=False)
-        except subprocess.TimeoutExpired:
-            return False
-
-        if proc.returncode != 0:
-            return False
-
-        # Сравниваем BSL-модуль (должен совпадать байт-в-байт)
-        original_bsl = original_src / "Form" / "Форма" / "Form.obj.bsl"
-        check_bsl = check_dir / "Form" / "Форма" / "Form.obj.bsl"
-        if not original_bsl.exists() or not check_bsl.exists():
-            return False
-        if original_bsl.read_bytes() != check_bsl.read_bytes():
-            return False
-
-        # Чистим
-        try:
-            shutil.rmtree(check_dir)
-            shutil.rmtree(temp_dir)
-        except Exception:
-            pass
-
-        return True
+        """Делегирует в epf.verify_round_trip (Этап 2.2)."""
+        return verify_round_trip(epf_path, original_src, work_dir)
 
     # ─── Утилиты ────────────────────────────────────────────────
     @staticmethod
