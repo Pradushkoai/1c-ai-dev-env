@@ -16,9 +16,9 @@ from unittest.mock import patch
 
 import pytest
 
-from src.services.billing_stub import BillingStub, UsageRecord
+from experimental.services.billing_stub import BillingStub, UsageRecord
 
-REPO_ROOT = Path(__file__).parent.parent
+REPO_ROOT = Path(__file__).parent.parent.parent  # experimental/tests/ -> experimental/ -> repo root
 
 
 # ============================================================================

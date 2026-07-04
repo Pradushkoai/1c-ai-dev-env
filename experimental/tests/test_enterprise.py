@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.services.enterprise import (
+from experimental.services.enterprise import (
     AuditLogger,
     ROLE_ADMIN,
     ROLE_DEVELOPER,

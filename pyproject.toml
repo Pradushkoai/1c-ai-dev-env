@@ -119,6 +119,8 @@ extend-exclude = [
     ".eggs/",
     "build/",
     "dist/",
+    # Этап 0.1: experimental/ не линтуется (заморожено, ADR-0006)
+    "experimental/",
 ]
 
 [tool.ruff.lint]
@@ -186,6 +188,8 @@ exclude = [
     "runtime/",
     "setup/",
     "build/",
+    # Этап 0.1: experimental/ не проверяется mypy (заморожено, ADR-0006)
+    "experimental/",
 ]
 
 # P2.8: gradual strict typing
@@ -216,6 +220,8 @@ omit = [
     "src/__init__.py",
     "*/tests/*",
     "*/setup/*",
+    # Этап 0.1: experimental/ не входит в coverage (заморожено, ADR-0006)
+    "experimental/*",
 ]
 
 [tool.coverage.report]

@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.services.plugin_manager import (
+from experimental.services.plugin_manager import (
     AnalyserProtocol,
     PluginInfo,
     PluginManager,
