@@ -20,7 +20,6 @@ check(file_path, level) → CheckResult:
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import logging
 import sys
@@ -341,6 +340,8 @@ class TaskProcessor:
             except ImportError:
                 pass
             # Fallback: dynamic import из scripts/
+            import importlib.util
+
             script_path = scripts_dir / f"{script_name}.py"
             if not script_path.exists():
                 # fallback на setup/scripts

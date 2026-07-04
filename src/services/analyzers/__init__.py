@@ -17,7 +17,6 @@ TaskProcessor может использовать список self._analyzers, 
 
 from __future__ import annotations
 
-import importlib.util
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -142,6 +141,8 @@ def _load_script(script_name: str, paths: PathManager) -> object | None:
         pass
 
     # Fallback: dynamic import из scripts/ (для анализаторов, ещё не перенесённых)
+    import importlib.util
+
     script_path = paths.scripts_dir / f"{script_name}.py"
     if not script_path.exists():
         # fallback на setup/scripts

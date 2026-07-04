@@ -25,10 +25,8 @@ Exit codes:
 
 from __future__ import annotations
 
-import argparse
 import json
 import re
-import sys
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path

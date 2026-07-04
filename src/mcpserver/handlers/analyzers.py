@@ -11,9 +11,7 @@ Handlers: analyze_bsl, check_standards, solve_context, solve_check,
 
 from __future__ import annotations
 
-import importlib.util
 import json
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 

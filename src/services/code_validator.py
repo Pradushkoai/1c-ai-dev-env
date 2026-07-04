@@ -30,7 +30,6 @@ code_validator.py — Валидация сгенерированного BSL-к
 from __future__ import annotations
 
 import re
-import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 

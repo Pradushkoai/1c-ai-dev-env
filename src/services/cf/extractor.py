@@ -30,7 +30,6 @@ Container64 (64-битный):
 from __future__ import annotations
 
 import struct
-import sys
 import zlib
 from collections import OrderedDict
 from pathlib import Path

@@ -9,10 +9,8 @@ Handlers: get_knowledge, audit_security, get_code_metrics, check_transactions,
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
