@@ -182,6 +182,9 @@ warn_return_any = true  # Этап 3.1: включено глобально
 warn_unused_configs = true
 ignore_missing_imports = true
 no_strict_optional = true
+# Этап 3.2: disallow_any_generics пока false — 243 type-arg ошибок (216 dict + 26 list).
+# Включение требует параметризации всех dict/list в 63 файлах — gradual typing.
+# См. план: включать по модулям через overrides.
 exclude = [
     "data/",
     "derived/",
@@ -212,7 +215,23 @@ module = [
 ]
 disallow_untyped_defs = true
 warn_return_any = true  # Этап 3.1: включено
-disallow_any_generics = false  # Этап 3.2: постепенно включить
+disallow_any_generics = false  # Этап 3.2: 243 type-arg ошибок, gradual typing
+
+# Этап 3.2: gradual typing — disallow_any_generics для чистых модулей
+# (перенесённых в Этапах 1-2, без type-arg ошибок)
+[[tool.mypy.overrides]]
+module = [
+    "src.services.diff",
+    "src.services.epf",
+    "src.services.epf.*",
+    "src.services.cfe",
+    "src.services.cfe.*",
+    "src.services.cf",
+    "src.services.cf.*",
+    "src.services.analyzers.standards",
+    "src.services.analyzers.standards.*",
+]
+disallow_any_generics = true
 
 # ─── Coverage ───
 [tool.coverage.run]

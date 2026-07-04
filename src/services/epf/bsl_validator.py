@@ -15,6 +15,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any
 
 # BSL LS — статический анализатор (дублирует определение из epf_factory.py,
 # чтобы избежать circular import)
@@ -24,7 +25,7 @@ BSL_LS_BINARY = os.environ.get(
 )
 
 
-def validate_bsl(bsl_path: Path) -> dict:
+def validate_bsl(bsl_path: Path) -> dict[str, Any]:
     """Проверить BSL-файл через BSL Language Server.
 
     Returns:

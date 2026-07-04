@@ -1,13 +1,8 @@
-"""
-Dataclasses для CFE операций.
-
-Этап 2.5: вынесено из src/services/cfe_manager.py.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -40,7 +35,7 @@ class CfeDiffResult:
 
     extension_path: Path
     config_path: Path
-    borrowed_objects: list[dict] = field(default_factory=list)
-    patch_methods: list[dict] = field(default_factory=list)
+    borrowed_objects: list[dict[str, Any]] = field(default_factory=list)
+    patch_methods: list[dict[str, Any]] = field(default_factory=list)
     not_in_config: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)

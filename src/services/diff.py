@@ -27,6 +27,7 @@ import json
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -54,7 +55,7 @@ class ConfigDiff:
     removed_event_subscriptions: int = 0
     added_scheduled_jobs: int = 0
     removed_scheduled_jobs: int = 0
-    summary: dict = field(default_factory=dict)
+    summary: dict[str, Any] = field(default_factory=dict)
 
 
 class DiffAnalyzer:
@@ -77,7 +78,7 @@ class DiffAnalyzer:
 
         return self.compare_data(old, new)
 
-    def compare_data(self, old: dict, new: dict) -> ConfigDiff:
+    def compare_data(self, old: dict[str, Any], new: dict[str, Any]) -> ConfigDiff:
         """Сравнение двух индексов (из dict)."""
         diff = ConfigDiff()
 
@@ -163,7 +164,7 @@ class DiffAnalyzer:
 
         return diff
 
-    def _compare_object(self, old_obj: dict, new_obj: dict) -> list[str]:
+    def _compare_object(self, old_obj: dict[str, Any], new_obj: dict[str, Any]) -> list[str]:
         """Сравнение двух объектов — возвращает список изменений."""
         changes = []
 
@@ -226,7 +227,7 @@ class DiffAnalyzer:
 
         return changes
 
-    def _count_by_type(self, changes: list[ObjectChange]) -> dict:
+    def _count_by_type(self, changes: list[ObjectChange]) -> dict[str, Any]:
         return dict(Counter(c.object_type for c in changes))
 
     def format_report(self, diff: ConfigDiff) -> str:

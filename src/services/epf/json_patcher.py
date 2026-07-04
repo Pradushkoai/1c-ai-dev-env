@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 
-def replace_in_tree(obj: Any, replacements: dict) -> Any:
+def replace_in_tree(obj: Any, replacements: dict[str, Any]) -> Any:
     """Рекурсивно заменить значения в JSON-дереве v8unpack.
 
     replacements: {old_value: new_value} — применяется ко всем строковым узлам.
