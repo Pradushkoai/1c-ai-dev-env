@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from .path_manager import PathManager
+from ..path_manager import PathManager
 
 # ============================================================================
 # Protocol
@@ -114,21 +114,34 @@ def _level_allows(level: str, min_level: str) -> bool:
 
 def _load_script(script_name: str, paths: PathManager) -> object | None:
     """
-    Загрузить Python-модуль из scripts/<script_name>.py.
+    Загрузить analyzer-модуль.
 
-    Использует sys.modules кэш — если модуль уже загружен (например, тестом),
-    не перезагружает его.
+    Этап 1.2, Группа 1: приоритет — прямой импорт из src.services.analyzers.<name>.
+    Fallback (для анализаторов, ещё не перенесённых) — dynamic import из scripts/.
+
+    Использует sys.modules кэш — если модуль уже загружен, не перезагружает.
 
     Args:
-        script_name: Имя скрипта без расширения (например, 'security_auditor').
-        paths: PathManager для определения scripts_dir.
+        script_name: Имя анализатора (например, 'security_auditor').
+        paths: PathManager для fallback на scripts/.
 
     Returns:
-        Загруженный модуль или None если файл не найден.
+        Загруженный модуль или None если не найден.
     """
     if script_name in sys.modules:
         return sys.modules[script_name]
 
+    # Этап 1.2: сначала пробуем прямой импорт из пакета analyzers
+    try:
+        import importlib
+
+        mod = importlib.import_module(f"src.services.analyzers.{script_name}")
+        sys.modules[script_name] = mod
+        return mod
+    except ImportError:
+        pass
+
+    # Fallback: dynamic import из scripts/ (для анализаторов, ещё не перенесённых)
     script_path = paths.scripts_dir / f"{script_name}.py"
     if not script_path.exists():
         # fallback на setup/scripts

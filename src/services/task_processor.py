@@ -326,9 +326,21 @@ class TaskProcessor:
         scripts_dir = self._paths.scripts_dir
 
         def _load_script(script_name: str) -> Any:
+            """Этап 1.2, Группа 1: приоритет — прямой импорт из src.services.analyzers.<name>.
+            Fallback — dynamic import из scripts/ (для ещё не перенесённых анализаторов)."""
             # Если модуль уже загружен (например, тестом через sys.modules) — не перезагружаем
             if script_name in sys.modules:
                 return sys.modules[script_name]
+            # Этап 1.2: сначала пробуем прямой импорт из пакета analyzers
+            try:
+                import importlib
+
+                mod = importlib.import_module(f"src.services.analyzers.{script_name}")
+                sys.modules[script_name] = mod
+                return mod
+            except ImportError:
+                pass
+            # Fallback: dynamic import из scripts/
             script_path = scripts_dir / f"{script_name}.py"
             if not script_path.exists():
                 # fallback на setup/scripts

@@ -402,16 +402,17 @@ async def handle_check_form_quality(project: Project, arguments: dict) -> list[t
     if not config_name:
         return [types.TextContent(type="text", text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
 
-    scripts_dir = project.paths.root / "scripts"
+    # Этап 1.2, Группа 1a: dynamic import заменён на прямой импорт из src.services.analyzers
+    from src.services.analyzers.form_quality_checker import FormQualityChecker
 
     if True:  # check_form_quality
         index_path = project.paths.root / "derived" / "configs" / config_name / "form-index.json"
-        script_name = "form_quality_checker"
-        checker_class = "FormQualityChecker"
-    else:  # check_skd_quality
+        checker_class = FormQualityChecker
+    else:  # check_skd_quality — заглушка (P3 split), не вызывается
+        from src.services.analyzers.skd_quality_checker import SKDQualityChecker
+
         index_path = project.paths.root / "derived" / "configs" / config_name / "skd-index.json"
-        script_name = "skd_quality_checker"
-        checker_class = "SKDQualityChecker"
+        checker_class = SKDQualityChecker
 
     if not index_path.exists():
         return [
@@ -420,21 +421,8 @@ async def handle_check_form_quality(project: Project, arguments: dict) -> list[t
             )
         ]
 
-    script_path = scripts_dir / f"{script_name}.py"
-    if not script_path.exists():
-        return [
-            types.TextContent(
-                type="text", text=json.dumps({"error": f"{script_name}.py not found"}, ensure_ascii=False)
-            )
-        ]
-
-    spec = importlib.util.spec_from_file_location(script_name, script_path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[script_name] = mod
-    spec.loader.exec_module(mod)
-
     try:
-        checker = getattr(mod, checker_class)()
+        checker = checker_class()
         issues = (
             checker.check_form_index(index_path)
             if True  # check_form_quality

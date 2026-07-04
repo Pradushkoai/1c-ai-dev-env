@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
-"""Тесты для form_quality_checker.py."""
+"""Тесты для src.services.analyzers.form_quality_checker."""
 
 import json
-import os
-import sys
 import tempfile
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
-from form_quality_checker import FormQualityChecker, FormQualityIssue
+from src.services.analyzers.form_quality_checker import FormQualityChecker, FormQualityIssue
 
 
 @pytest.fixture

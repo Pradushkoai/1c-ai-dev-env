@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-"""Тесты для skd_quality_checker.py."""
+"""Тесты для src.services.analyzers.skd_quality_checker."""
 
-import os
-import sys
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
-from skd_quality_checker import SKDIssue, SKDQualityChecker
+from src.services.analyzers.skd_quality_checker import SKDIssue, SKDQualityChecker
 
 
 @pytest.fixture
