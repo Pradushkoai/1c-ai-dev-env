@@ -5,8 +5,16 @@
 
 ## Обзор
 
-v6.0.0 — major release. Проект перешёл от Beta к Production-ready.
+v6.0.0 — major release. Проект остаётся в статусе **Beta**.
 19 из 20 задач плана v2 (Solo Edition) выполнены.
+
+> ⚠️ **Корректировка от 2026-07-04**: изначально v6.0.0 заявлялся как
+> "Production-Ready". После аудита статус понижен до Beta — см.
+> [ADR-0006](../adr/0006-scope-reduction-v6.md). Production-Ready
+> откладывается до выполнения критериев в
+> [ROADMAP.md](../ROADMAP.md#критерии-перехода-beta--production-ready).
+> Это не breaking change для пользователей — только корректировка
+> заявленного статуса.
 
 ## Breaking Changes
 

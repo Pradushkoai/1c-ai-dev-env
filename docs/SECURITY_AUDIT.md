@@ -5,7 +5,9 @@
 
 ## Обзор
 
-S5 добавляет security infrastructure для production-ready использования:
+S5 добавляет security infrastructure для будущего production-ready
+использования (до перехода из Beta в Production-Ready — см.
+[ROADMAP.md](../ROADMAP.md#критерии-перехода-beta--production-ready)):
 - Input validation для всех 45 MCP tools
 - Rate limiting через env var
 - Security audit документация

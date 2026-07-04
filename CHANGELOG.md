@@ -1,12 +1,43 @@
 # Changelog
 
 
+## [Unreleased]
+
+### Changed — Этап 0. Стабилизация
+
+> Полный поэтапный план: [`docs/IMPROVEMENT_PLAN.md`](docs/IMPROVEMENT_PLAN.md).
+> Цель этапа 0 — заморозить scope creep, выровнять ожидания, подготовить почву для рефакторинга.
+
+* **0.3 — Статус понижен до Beta**: ранее v6.0.0 заявлялся как
+  "Production-Ready". После аудита статус понижен до Beta — это более
+  честная оценка для solo-dev проекта без реальных пользователей
+  SaaS/Enterprise фич. Classifier в `pyproject.toml` оставлен
+  `Development Status :: 4 - Beta` (ранее противоречил README). См.
+  [ADR-0006](adr/0006-scope-reduction-v6.md) и критерии перехода в
+  [ROADMAP.md](ROADMAP.md#критерии-перехода-beta--production-ready).
+* **0.2 — ROADMAP актуализирован**: убраны нереалистичные даты Q2 2027 —
+  Q2 2028 (всё уже было "✅ DONE" с будущими датами — противоречие).
+  SaaS/Enterprise/Plugin задачи перенесены в BACKLOG до появления
+  команды и реальных пользователей.
+* **0.1 — Quarantine future-proofing**: модули `billing_stub.py`,
+  `enterprise.py`, `plugin_manager.py` перенесены в `experimental/` с
+  явной маркировкой "не для production". Main не импортирует их.
+* **0.4 — ADR-0006**: зафиксировано архитектурное решение о заморозке
+  SaaS/Enterprise/Plugin до выполнения критериев Beta → Production-Ready.
+
+
 ## [6.0.0](https://github.com/Pradushkoai/1c-ai-dev-env/compare/v5.4.0...v6.0.0) (2026-07-03)
 
-### Major Release — Production-Ready
+### Major Release — Beta
 
 v6.0.0 — это крупный релиз, завершающий план v2 (Solo Edition).
-19 из 20 задач выполнены. Проект перешёл от Beta к Production-ready.
+19 из 20 задач выполнены.
+
+> ⚠️ **Корректировка от 2026-07-04**: изначально релиз заявлялся как
+> "Production-Ready". После аудита статус понижен до Beta — см.
+> [ADR-0006](adr/0006-scope-reduction-v6.md). Production-Ready
+> откладывается до выполнения критериев в
+> [ROADMAP.md](ROADMAP.md#критерии-перехода-beta--production-ready).
 
 ### Features
 
