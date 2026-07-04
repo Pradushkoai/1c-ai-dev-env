@@ -42,6 +42,7 @@ ADR (Architecture Decision Record) — короткий документ, опи
 | [ADR-0003](0003-hybrid-search-bm25-vector.md) | Гибридный поиск BM25+vector | 2026-07-03 | Accepted |
 | [ADR-0004](0004-graceful-fallback-pattern.md) | Graceful fallback pattern | 2026-07-03 | Accepted |
 | [ADR-0005](0005-snapshot-testing-for-contracts.md) | Snapshot testing для MCP contracts | 2026-07-03 | Accepted |
+| [ADR-0006](0006-scope-reduction-v6.md) | Scope Reduction v6.x — заморозка SaaS/Enterprise/Plugin | 2026-07-04 | Accepted |
 
 ## Как добавить ADR
 
