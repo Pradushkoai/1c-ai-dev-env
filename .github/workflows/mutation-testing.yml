@@ -38,8 +38,8 @@ jobs:
           echo "=== Summary ==="
           echo "См. docs/MUTATION_BASELINE.md для интерпретации"
 
-      - name: Create issue if mutation score < 60%
-        # P0.3: non-blocking, но создаёт issue для отслеживания
+      - name: Create issue if mutation score < 70%
+        # Этап 5.4: порог повышен с 60% до 70%
         if: always()
         uses: actions/github-script@v7
         with:
@@ -53,10 +53,12 @@ jobs:
             - Scope: src/services/
             - Results: see workflow logs
             - Baseline: docs/MUTATION_BASELINE.md
+            - Threshold: 70% (Этап 5.4)
 
             Action items:
             1. Triage survived mutants
             2. Add tests for top-10 survived
-            3. Update docs/MUTATION_BASELINE.md with mutation score`,
+            3. Update docs/MUTATION_BASELINE.md with mutation score
+            4. If score < 70% — priority issue for next sprint`,
               labels: ['mutation-testing', 'weekly-report']
             })
