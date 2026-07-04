@@ -253,6 +253,6 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@abstractmethod",
 ]
-fail_under = 70  # P0.1: поднят с 65 → 70 (sprint 3); цель достигнута досрочно
+fail_under = 72  # Этап 5.2: поднят с 70 → 72 (добавлены тесты для metrics.py и cfe/cli.py)
 show_missing = true
 skip_covered = false
