@@ -63,7 +63,7 @@
 | `skd_parser` | 682 | config_builder, structure | → `services/metadata/skd.py` |
 | `build_api_reference` | 720 | config_builder, config_manager | → `services/builders/api_index.py` (этап 2.4) |
 | `build_config_index_generic` | 1018 | config_manager | → `services/builders/` (этап 2.4, разбить по 5 индексам) |
-| `fast_search_1c` | 200 | search.py (CLI) | → `services/search_platform.py` |
+| `fast_search_1c` | 200 | search.py (CLI) | **Уже thin CLI wrapper** над `src.services.search_bm25` (Этап 1.2-G4: убран sys.path.insert) |
 
 **Итого candidates для переноса:** 19 скриптов, ~10 550 LOC.
 
@@ -80,7 +80,7 @@
 | `cf_extractor` | 365 | config_manager | Перенести в `services/cf/extractor.py` |
 | `v8_metadata_parser` | 394 | cf_to_xml_adapter, improved_cf_adapter, tests/test_integration | Перенести в `services/cf/v8_parser.py` |
 | `form_indexer` | 461 | build_api_reference, tests | Перенести в `services/builders/form_indexer.py` (этап 2.4) |
-| `build_syntax_helper_index` | 426 | fast_search_1c | Перенести вместе с fast_search_1c в `services/search_platform.py` |
+| `build_syntax_helper_index` | 426 | fast_search_1c | **Build utility** (как build_api_reference), остаётся в scripts/ (Этап 1.2-G4: убран sys.path.insert) |
 | `patch_epf_blocksize` | 180 | epf_factory (через importlib) | Перенести в `services/epf/patch_blocksize.py` (этап 2.2) |
 | `xml_parser` | 87 | tests/test_fuzzing, упоминается в docs | Перенести в `services/xml_parser.py` (общая утилита) |
 

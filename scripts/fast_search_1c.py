@@ -25,11 +25,7 @@ import sys
 import time
 from pathlib import Path
 
-# Подключаем src/ — там лежат сервисы поиска
-SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
+# Этап 1.2, Группа 4: sys.path.insert удалён — после pip install -e . не нужен.
 # Fallback на paths.py для совместимости со старыми скриптами
 try:
     from src.services.search import build_index as _build_tfidf

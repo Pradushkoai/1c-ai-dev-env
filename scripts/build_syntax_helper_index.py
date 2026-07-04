@@ -21,7 +21,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Этап 1.2, Группа 4: sys.path.insert удалён — после pip install -e . не нужен.
 from src.services.path_manager import PathManager
 
 _PATHS = PathManager()
