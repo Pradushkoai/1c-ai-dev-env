@@ -25,9 +25,9 @@ def pytest_runtest_teardown(item, nextitem):
         "form_quality_checker",
         "skd_quality_checker",
         "diff_analyzer",  # Этап 1.2: оставлен временно, удалю после всех переносов
-        "code_generator",
-        "code_validator",
-        "epf_builder",
+        "code_generator",  # Этап 1.2: оставлен временно, удалю после всех переносов
+        "code_validator",  # Этап 1.2: оставлен временно, удалю после всех переносов
+        "epf_builder",  # Этап 1.2: оставлен временно, удалю после всех переносов
         "cf_extractor",
         "metadata_extractor",
         "skd_parser",

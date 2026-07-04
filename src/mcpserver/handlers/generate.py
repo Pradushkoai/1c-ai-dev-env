@@ -8,13 +8,16 @@ Handlers: generate_processing, generate_report, build_epf, validate_generated,
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
-import sys
 from typing import TYPE_CHECKING
 
 import mcp.types as types
+
+# Этап 1.2, Группа 2: импортируем напрямую из services (dynamic import удалён)
+from src.services.code_generator import generate_processing, generate_report
+from src.services.code_validator import validate_generated
+from src.services.epf_builder import build_epf
 
 if TYPE_CHECKING:
     from src.project import Project
@@ -39,23 +42,7 @@ async def handle_generate_processing(project: Project, arguments: dict) -> list[
     if not output_dir:
         output_dir = str(project.paths.root / "generated" / obj_name)
 
-    # Загружаем code_generator
-
-    scripts_dir = project.paths.root / "scripts"
-    cg_path = scripts_dir / "code_generator.py"
-    if not cg_path.exists():
-        return [
-            types.TextContent(
-                type="text", text=json.dumps({"error": "code_generator.py not found"}, ensure_ascii=False)
-            )
-        ]
-
-    spec = importlib.util.spec_from_file_location("code_generator", cg_path)
-    cg_mod = importlib.util.module_from_spec(spec)
-    sys.modules["code_generator"] = cg_mod
-    spec.loader.exec_module(cg_mod)
-
-    result = cg_mod.generate_processing(obj_name, synonym, output_dir, description, author)
+    result = generate_processing(obj_name, synonym, output_dir, description, author)
 
     response = {
         "status": "success",
@@ -104,22 +91,8 @@ async def handle_build_epf(project: Project, arguments: dict) -> list[types.Text
             )
         ]
 
-    # Загружаем epf_builder
-
-    scripts_dir = project.paths.root / "scripts"
-    eb_path = scripts_dir / "epf_builder.py"
-    if not eb_path.exists():
-        return [
-            types.TextContent(type="text", text=json.dumps({"error": "epf_builder.py not found"}, ensure_ascii=False))
-        ]
-
-    spec = importlib.util.spec_from_file_location("epf_builder", eb_path)
-    eb_mod = importlib.util.module_from_spec(spec)
-    sys.modules["epf_builder"] = eb_mod
-    spec.loader.exec_module(eb_mod)
-
     try:
-        result = eb_mod.build_epf(source_dir, output_path, object_name, object_type)
+        result = build_epf(source_dir, output_path, object_name, object_type)
         response = {
             "status": "success",
             "file_path": result["file_path"],
@@ -157,24 +130,8 @@ async def handle_validate_generated(project: Project, arguments: dict) -> list[t
             )
         ]
 
-    # Загружаем code_validator
-
-    scripts_dir = project.paths.root / "scripts"
-    cv_path = scripts_dir / "code_validator.py"
-    if not cv_path.exists():
-        return [
-            types.TextContent(
-                type="text", text=json.dumps({"error": "code_validator.py not found"}, ensure_ascii=False)
-            )
-        ]
-
-    spec = importlib.util.spec_from_file_location("code_validator", cv_path)
-    cv_mod = importlib.util.module_from_spec(spec)
-    sys.modules["code_validator"] = cv_mod
-    spec.loader.exec_module(cv_mod)
-
     try:
-        result = cv_mod.validate_generated(source_dir)
+        result = validate_generated(source_dir)
         response = {
             "source_dir": result["source_dir"],
             "verdict": result["verdict"],
@@ -318,21 +275,7 @@ async def handle_generate_report(project: Project, arguments: dict) -> list[type
     if not output_dir:
         output_dir = str(project.paths.root / "generated" / obj_name)
 
-    scripts_dir = project.paths.root / "scripts"
-    cg_path = scripts_dir / "code_generator.py"
-    if not cg_path.exists():
-        return [
-            types.TextContent(
-                type="text", text=json.dumps({"error": "code_generator.py not found"}, ensure_ascii=False)
-            )
-        ]
-
-    spec = importlib.util.spec_from_file_location("code_generator", cg_path)
-    cg_mod = importlib.util.module_from_spec(spec)
-    sys.modules["code_generator"] = cg_mod
-    spec.loader.exec_module(cg_mod)
-
-    result = cg_mod.generate_report(obj_name, synonym, output_dir, description, author, data_source, main_query)
+    result = generate_report(obj_name, synonym, output_dir, description, author, data_source, main_query)
 
     response = {
         "status": "success",
