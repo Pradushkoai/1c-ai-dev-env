@@ -100,6 +100,10 @@ include = ["src*"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 asyncio_mode = "auto"
+# Этап 5.3: smoke-тесты для критических путей
+markers = [
+    "smoke: critical path tests (run with: pytest -m smoke)",
+]
 # pytest-benchmark настройки (только поддерживаемые INI опции)
 benchmark_min_rounds = 5
 benchmark_min_time = "0.000005"
