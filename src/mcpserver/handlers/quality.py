@@ -501,20 +501,11 @@ async def handle_diff_configs(project: Project, arguments: dict) -> list[types.T
             )
         ]
 
-    scripts_dir = project.paths.root / "scripts"
-    script_path = scripts_dir / "diff_analyzer.py"
-    if not script_path.exists():
-        return [
-            types.TextContent(type="text", text=json.dumps({"error": "diff_analyzer.py not found"}, ensure_ascii=False))
-        ]
-
-    spec = importlib.util.spec_from_file_location("diff_analyzer", script_path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules["diff_analyzer"] = mod
-    spec.loader.exec_module(mod)
+    # Этап 1.2, Группа 3: dynamic import заменён на прямой импорт из src.services.diff
+    from src.services.diff import DiffAnalyzer
 
     try:
-        analyzer = mod.DiffAnalyzer()
+        analyzer = DiffAnalyzer()
         diff = analyzer.compare(Path(old_path), Path(new_path))
         response = {
             "summary": diff.summary,
