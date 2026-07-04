@@ -25,6 +25,20 @@
   явной маркировкой "не для production". Main не импортирует их.
 * **0.4 — ADR-0006**: зафиксировано архитектурное решение о заморозке
   SaaS/Enterprise/Plugin до выполнения критериев Beta → Production-Ready.
+* **1.1-1.4 — Унификация scripts/services**: 14 скриптов перенесено в
+  `src/services/`, 12 dynamic imports устранено, pre-commit hook добавлен,
+  граница scripts/services документирована.
+* **2.1-2.5 — Декомпозиция god-файлов**: 5 god-файлов декомпозированы:
+  check_1c_standards (1685→122+5 модулей), epf_factory (713→508+4 модуля),
+  metadata_extractor (перенесён в services.metadata),
+  build_config_index_generic (перенесён в services.builders),
+  cfe_manager (718→650+2 модуля).
+* **3.1 — mypy warn_return_any = true**: включено глобально, 12 no-any-return
+  ошибок исправлено.
+* **3.2 — mypy disallow_any_generics (gradual)**: включено для 5 чистых пакетов
+  (diff, epf, cfe, cf, analyzers/standards), 8 type-arg ошибок исправлено.
+* **3.3 — ADR-0007**: v8unpack 1.2.6 block_size баг — сохранён workaround
+  (вариант C), форк и нативный парсер отложены.
 
 
 ## [6.0.0](https://github.com/Pradushkoai/1c-ai-dev-env/compare/v5.4.0...v6.0.0) (2026-07-03)
