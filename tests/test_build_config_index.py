@@ -1,27 +1,25 @@
 """
-Тесты для build_config_index_generic.py.
+Тесты для src.services.builders.config_index.
 Проверяем парсинг Configuration.xml, ConfigDumpInfo.xml, генерацию индекса.
 """
 
-import importlib.util
-import sys
+import importlib
 from pathlib import Path
 
 import pytest
 
 
 def _load_module():
-    """Загрузить build_config_index_generic как модуль."""
-    script = Path(__file__).parent.parent / "scripts" / "build_config_index_generic.py"
-    spec = importlib.util.spec_from_file_location("build_config_index_generic", script)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    """Загрузить config_index как модуль.
+
+    Этап 2.4: build_config_index_generic.py перенесён в src.services.builders.config_index.
+    """
+    return importlib.import_module("src.services.builders.config_index")
 
 
 @pytest.fixture(scope="module")
 def idx():
-    """Фикстура — загруженный модуль build_config_index_generic."""
+    """Фикстура — загруженный модуль config_index."""
     return _load_module()
 
 

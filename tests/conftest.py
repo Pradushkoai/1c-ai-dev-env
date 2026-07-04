@@ -50,7 +50,7 @@ def pytest_runtest_teardown(item, nextitem):
         "skd_parser",
         "form_analyzer",
         "build_api_reference",
-        "build_config_index_generic",
+        "build_config_index_generic",  # Этап 2.4: перенесён в src.services.builders.config_index
         "cf_to_xml_adapter",
         "improved_cf_adapter",
         "v8_metadata_parser",
