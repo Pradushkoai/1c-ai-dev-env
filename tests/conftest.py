@@ -19,8 +19,8 @@ def pytest_runtest_teardown(item, nextitem):
         "check_metadata_standards",
         "security_auditor",
         "code_metrics",
-        "transaction_checker",
-        "query_analyzer",
+        "transaction_checker",  # Этап 1.2: оставлен временно, удалю после всех переносов
+        "query_analyzer",  # Этап 1.2: оставлен временно, удалю после всех переносов
         "architecture_analyzer",
         "form_quality_checker",  # Этап 1.2: оставлен временно, удалю после всех переносов
         "skd_quality_checker",  # Этап 1.2: оставлен временно, удалю после всех переносов

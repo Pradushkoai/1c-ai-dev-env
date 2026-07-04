@@ -143,7 +143,7 @@ class TestE2ETransactionCheck:
 
     def test_generated_code_has_no_tx_violations(self):
         """Сгенерированный код не должен иметь нарушений транзакций."""
-        from transaction_checker import TransactionChecker
+        from src.services.analyzers.transaction_checker import TransactionChecker
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -169,7 +169,7 @@ class TestE2EQueryAnalysis:
 
     def test_generated_report_has_clean_queries(self):
         """Сгенерированный отчёт не должен иметь проблем с запросами СКД."""
-        from query_analyzer import QueryAnalyzer
+        from src.services.analyzers.query_analyzer import QueryAnalyzer
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -197,9 +197,9 @@ class TestE2EFullSolveCheck:
     def test_solve_check_quick_on_generated(self):
         """solve_check --level quick на сгенерированном коде — verdict perfect или warnings."""
         from check_1c_standards import StandardsChecker
-        from query_analyzer import QueryAnalyzer
+        from src.services.analyzers.query_analyzer import QueryAnalyzer
         from security_auditor import SecurityAuditor
-        from transaction_checker import TransactionChecker
+        from src.services.analyzers.transaction_checker import TransactionChecker
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)

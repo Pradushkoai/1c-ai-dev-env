@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
-"""Тесты для transaction_checker.py."""
+"""Тесты для src.services.analyzers.transaction_checker."""
 
-import os
-import sys
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
-
-from transaction_checker import TransactionChecker, TransactionViolation
+from src.services.analyzers.transaction_checker import TransactionChecker, TransactionViolation
 
 
 @pytest.fixture
