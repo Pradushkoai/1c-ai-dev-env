@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
-"""Тесты для metadata_extractor.py — единого парсера метаданных 1С."""
+"""Тесты для src.services.metadata.extractor — единого парсера метаданных 1С."""
 
 import json
 import os
-import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Добавляем scripts/ в path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
-
-from metadata_extractor import (
+from src.services.metadata.extractor import (
     TYPE_MAPPING,
     ConfigParser,
     EventSubscriptionParser,

@@ -181,14 +181,14 @@ class TestFuzzMetadataExtractor:
     def test_metadata_extractor_no_crash_on_empty_dir(self, tmp_path: Path) -> None:
         """metadata_extractor обрабатывает пустую директорию без crash."""
         try:
-            from scripts.metadata_extractor import extract_metadata
+            from src.services.metadata.extractor import extract_and_save
 
             empty_dir = tmp_path / "empty_config"
             empty_dir.mkdir()
 
             output_path = tmp_path / "output.json"
             try:
-                extract_metadata(empty_dir, output_path)
+                extract_and_save(empty_dir, output_path)
             except (ValueError, Exception):
                 pass
         except ImportError:
@@ -197,7 +197,7 @@ class TestFuzzMetadataExtractor:
     def test_metadata_extractor_no_crash_on_malformed_xml(self, tmp_path: Path) -> None:
         """metadata_extractor обрабатывает malformed XML без crash."""
         try:
-            from scripts.metadata_extractor import extract_metadata
+            from src.services.metadata.extractor import extract_and_save
 
             config_dir = tmp_path / "malformed_config"
             config_dir.mkdir()
@@ -210,7 +210,7 @@ class TestFuzzMetadataExtractor:
 
             output_path = tmp_path / "output.json"
             try:
-                extract_metadata(config_dir, output_path)
+                extract_and_save(config_dir, output_path)
             except (ValueError, Exception):
                 pass
         except ImportError:

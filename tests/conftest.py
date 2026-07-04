@@ -44,9 +44,9 @@ def pytest_runtest_teardown(item, nextitem):
         "code_generator",
         "code_validator",
         "epf_builder",
+        # Этап 2.3: metadata_extractor перенесён в src.services.metadata.extractor
         # Ещё не перенесённые — отложено до этапов 2.x
-        "cf_extractor",
-        "metadata_extractor",
+        "cf_extractor",  # Этап 1.2-g7: перенесён в src.services.cf.extractor
         "skd_parser",
         "form_analyzer",
         "build_api_reference",
