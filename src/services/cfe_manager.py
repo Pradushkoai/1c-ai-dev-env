@@ -31,45 +31,13 @@ NS_XR = "http://v8.1c.ru/8.3/xcf/extprops"
 # Здесь оставлен re-export для обратной совместимости.
 from .object_types import TYPE_MAP  # noqa: E402
 
+# Этап 2.5: dataclasses и CLI вынесены в пакет cfe/
+from .cfe import BorrowResult, CfeDiffResult, PatchMethodResult  # noqa: F401 — re-export
+from .cfe.cli import borrow_object_cli, diff_cli, patch_method_cli  # noqa: F401 — re-export
+
 # ============================================================================
-# МОДЕЛИ
+# ГЛАВНЫЙ КЛАСС
 # ============================================================================
-
-
-@dataclass
-class BorrowResult:
-    """Результат операции borrow_object."""
-
-    object_ref: str
-    object_type: str
-    object_name: str
-    xml_created: list[Path] = field(default_factory=list)
-    registered_in_config: bool = False
-    warnings: list[str] = field(default_factory=list)
-
-
-@dataclass
-class PatchMethodResult:
-    """Результат операции patch_method."""
-
-    module_path: str  # Catalog.Контрагенты.ObjectModule
-    method_name: str
-    interceptor_type: str  # Before | After | ModificationAndControl
-    bsl_file: Path | None = None
-    bsl_content: str = ""
-    warnings: list[str] = field(default_factory=list)
-
-
-@dataclass
-class CfeDiffResult:
-    """Результат операции diff — что перенесено в основную конфигурацию."""
-
-    extension_path: Path
-    config_path: Path
-    borrowed_objects: list[dict] = field(default_factory=list)
-    patch_methods: list[dict] = field(default_factory=list)
-    not_in_config: list[str] = field(default_factory=list)
-    warnings: list[str] = field(default_factory=list)
 
 
 # ============================================================================
@@ -677,42 +645,6 @@ class CfeManager:
         return str(rel_path)
 
 
-# ============================================================================
-# CLI helpers (для использования без PathManager)
-# ============================================================================
-
-
-def borrow_object_cli(
-    extension_path: str,
-    config_path: str,
-    object_ref: str,
-) -> BorrowResult:
-    """CLI wrapper для borrow_object."""
-    manager = CfeManager()
-    return manager.borrow_object(Path(extension_path), Path(config_path), object_ref)
-
-
-def patch_method_cli(
-    extension_path: str,
-    module_path: str,
-    method_name: str,
-    interceptor_type: str,
-    context: str = "НаСервере",
-    is_function: bool = False,
-) -> PatchMethodResult:
-    """CLI wrapper для patch_method."""
-    manager = CfeManager()
-    return manager.patch_method(
-        Path(extension_path),
-        module_path,
-        method_name,
-        interceptor_type,
-        context,
-        is_function,
-    )
-
-
-def diff_cli(extension_path: str, config_path: str) -> CfeDiffResult:
-    """CLI wrapper для diff."""
-    manager = CfeManager()
-    return manager.diff(Path(extension_path), Path(config_path))
+# CLI helpers вынесены в src/services/cfe/cli.py (Этап 2.5)
+# Re-export: from .cfe.cli import borrow_object_cli, patch_method_cli, diff_cli
+# (см. импорт в начале файла)
