@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
-"""Тесты для architecture_analyzer.py."""
+"""Тесты для src.services.analyzers.architecture_analyzer."""
 
 import os
-import sys
 import tempfile
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
-
-from architecture_analyzer import ArchitectureAnalyzer, ArchitectureIssue, ModuleInfo
+from src.services.analyzers.architecture_analyzer import ArchitectureAnalyzer, ArchitectureIssue, ModuleInfo
 
 
 @pytest.fixture
@@ -70,7 +67,7 @@ class TestQueriesInForms:
             f.flush()
             # analyze_file не проверяет формы, нужен analyze_config
             # Но проверим через прямой вызов _check_queries_in_forms
-            from architecture_analyzer import ModuleInfo
+            from src.services.analyzers.architecture_analyzer import ModuleInfo
 
             mi = ModuleInfo(name="TestForm", file_path=f.name, module_type="FormModule")
             issues = analyzer._check_queries_in_forms([mi])
@@ -86,7 +83,7 @@ class TestQueriesInForms:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".bsl", delete=False, encoding="utf-8") as f:
             f.write(code)
             f.flush()
-            from architecture_analyzer import ModuleInfo
+            from src.services.analyzers.architecture_analyzer import ModuleInfo
 
             mi = ModuleInfo(name="TestForm", file_path=f.name, module_type="FormModule")
             issues = analyzer._check_queries_in_forms([mi])

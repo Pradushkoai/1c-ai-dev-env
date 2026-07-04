@@ -353,23 +353,11 @@ async def handle_analyze_architecture(project: Project, arguments: dict) -> list
             )
         ]
 
-    scripts_dir = project.paths.root / "scripts"
-    script_path = scripts_dir / "architecture_analyzer.py"
-    if not script_path.exists():
-        return [
-            types.TextContent(
-                type="text",
-                text=json.dumps({"error": "architecture_analyzer.py not found"}, ensure_ascii=False),
-            )
-        ]
-
-    spec = importlib.util.spec_from_file_location("architecture_analyzer", script_path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules["architecture_analyzer"] = mod
-    spec.loader.exec_module(mod)
+    # Этап 1.2, Группа 1d: dynamic import заменён на прямой импорт из src.services.analyzers
+    from src.services.analyzers.architecture_analyzer import ArchitectureAnalyzer
 
     try:
-        analyzer = mod.ArchitectureAnalyzer()
+        analyzer = ArchitectureAnalyzer()
         issues, modules = analyzer.analyze_config(Path(config_dir))
         stats = analyzer.get_stats(issues)
         response = {
