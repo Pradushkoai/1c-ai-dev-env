@@ -118,6 +118,25 @@ python3 -m pytest tests/ --cov=src --cov-report=term-missing
 - Для нового кода — `logging` вместо `print` для диагностических сообщений
 - Кастомные исключения из `src.exceptions` (ConfigNotFoundError, BuildError, etc.)
 
+### Где жить новому коду (Этап 1.3)
+
+Подробное решение-дерево — в [`AGENTS.md`](AGENTS.md#где-жить-новому-коду-этап-13).
+
+Кратко:
+- **`src/services/`** — бизнес-логика, тестируется, импортируется через `from src.services.*`
+- **`scripts/`** — thin CLI wrappers (argparse + `from src.services.* import`) или CI utilities
+- **`src/models/`** — модели данных (dataclass, Protocol)
+- **`src/dsl/`** — DSL-компиляторы (JSON → XML)
+- **`src/mcpserver/handlers/`** — MCP handlers (async)
+- **`src/cli_commands/`** — CLI commands (sync)
+- **`experimental/`** — замороженные SaaS/Enterprise/Plugin (ADR-0006)
+
+**Iron rules:**
+- ❌ НЕ используй `importlib.util.spec_from_file_location` для загрузки скриптов
+- ❌ НЕ используй `sys.path.insert(0, scripts_dir)` для импорта из scripts/
+- ❌ НЕ размещай бизнес-логику в `scripts/` — только thin CLI wrappers
+- ❌ НЕ импортируй из `scripts/` в `src/`
+
 ### Shell скрипты
 - `#!/bin/bash` + `set -e`
 - Используй `source paths.env` для путей в shell

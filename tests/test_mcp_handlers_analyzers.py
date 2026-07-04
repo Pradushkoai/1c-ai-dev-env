@@ -74,9 +74,13 @@ class TestHandleCheckStandards:
     @pytest.mark.asyncio
     async def test_exception(self):
         project = _make_project()
-        # Will fail because scripts_dir doesn't exist
+        # Этап 1.2, Группа 1f: handler использует прямой импорт из src.services.analyzers.
+        # При несуществующем файле StandardsChecker возвращает violation с rule_id='read-error'.
         data = _parse(await handle_check_standards(project, {"file_path": "/tmp/test.bsl"}))
-        assert "error" in data
+        # data — это список violations (не dict с error), поскольку прямой импорт всегда доступен.
+        assert isinstance(data, list)
+        assert len(data) > 0
+        assert any(v.get("rule_id") == "read-error" or v.get("severity") == "error" for v in data)
 
     @pytest.mark.asyncio
     async def test_missing_file_path(self):

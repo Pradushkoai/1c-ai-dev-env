@@ -165,22 +165,11 @@ async def handle_get_code_metrics(project: Project, arguments: dict) -> list[typ
             )
         ]
 
-    # Загружаем code_metrics
-
-    scripts_dir = project.paths.root / "scripts"
-    cm_path = scripts_dir / "code_metrics.py"
-    if not cm_path.exists():
-        return [
-            types.TextContent(type="text", text=json.dumps({"error": "code_metrics.py not found"}, ensure_ascii=False))
-        ]
-
-    spec = importlib.util.spec_from_file_location("code_metrics", cm_path)
-    cm_mod = importlib.util.module_from_spec(spec)
-    sys.modules["code_metrics"] = cm_mod
-    spec.loader.exec_module(cm_mod)
+    # Этап 1.2, Группа 1c: dynamic import заменён на прямой импорт из src.services.analyzers
+    from src.services.analyzers.code_metrics import CodeMetricsAnalyzer
 
     try:
-        analyzer = cm_mod.CodeMetricsAnalyzer()
+        analyzer = CodeMetricsAnalyzer()
         metrics = analyzer.analyze_file(Path(file_path))
 
         response = {
@@ -253,24 +242,13 @@ async def handle_check_transactions(project: Project, arguments: dict) -> list[t
             )
         ]
 
-    scripts_dir = project.paths.root / "scripts"
-    script_name = "transaction_checker"
-    script_path = scripts_dir / f"{script_name}.py"
-    if not script_path.exists():
-        return [
-            types.TextContent(
-                type="text", text=json.dumps({"error": f"{script_name}.py not found"}, ensure_ascii=False)
-            )
-        ]
-
-    spec = importlib.util.spec_from_file_location(script_name, script_path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[script_name] = mod
-    spec.loader.exec_module(mod)
+    # Этап 1.2, Группа 1b: dynamic import заменён на прямые импорты из src.services.analyzers
+    from src.services.analyzers.query_analyzer import QueryAnalyzer
+    from src.services.analyzers.transaction_checker import TransactionChecker
 
     try:
         if True:  # check_transactions
-            checker = mod.TransactionChecker()
+            checker = TransactionChecker()
             violations = checker.check_file(Path(file_path))
             stats = checker.get_stats(violations)
             response = {
@@ -289,7 +267,7 @@ async def handle_check_transactions(project: Project, arguments: dict) -> list[t
                 ],
             }
         else:  # analyze_queries
-            analyzer = mod.QueryAnalyzer()
+            analyzer = QueryAnalyzer()
             issues = analyzer.analyze_file(Path(file_path))
             stats = analyzer.get_stats(issues)
             response = {

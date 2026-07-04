@@ -58,15 +58,10 @@ async def handle_check_standards(project: Project, arguments: dict) -> list[type
     """Проверка .bsl файла на 56 правил стандартов 1С."""
     file_path = arguments.get("file_path", "")
     try:
-        scripts_dir = project.paths.scripts_dir
-        if not (scripts_dir / "check_1c_standards.py").exists():
-            scripts_dir = project.paths.root / "setup" / "scripts"
-        spec = importlib.util.spec_from_file_location("check_1c_standards", scripts_dir / "check_1c_standards.py")
-        mod = importlib.util.module_from_spec(spec)
-        sys.modules["check_1c_standards"] = mod
-        spec.loader.exec_module(mod)
+        # Этап 1.2, Группа 1f: dynamic import заменён на прямой импорт из src.services.analyzers
+        from src.services.analyzers.check_1c_standards import StandardsChecker
 
-        checker = mod.StandardsChecker()
+        checker = StandardsChecker()
         violations = checker.check_file(Path(file_path))
         response = [
             {

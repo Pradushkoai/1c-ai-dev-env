@@ -93,6 +93,53 @@
 - НЕ возвращай модули из `experimental/` без выполнения критериев ADR-0006.
 - Новые SaaS/Enterprise/Plugin фичи — только через ADR и при наличии реальных пользователей.
 
+### Где жить новому коду (Этап 1.3)
+
+Решение-дерево для нового кода:
+
+```
+Новый код?
+│
+├─ CLI-only утилита (запускается пользователем из командной строки)?
+│   └─ scripts/ — thin CLI wrapper, импортирует from src.services.*
+│
+├─ Переиспользуется в MCP handlers или CLI commands?
+│   └─ src/services/ — бизнес-логика, тестируется, импортируется через from src.services.*
+│
+├─ Модель данных (dataclass, Protocol, типы)?
+│   └─ src/models/ — чистые данные, без бизнес-логики
+│
+├─ DSL компилятор (JSON -> XML)?
+│   └─ src/dsl/ — компиляторы meta/form/skd/mxl/role
+│
+├─ MCP handler (новый MCP tool)?
+│   └─ src/mcpserver/handlers/ — асинхронные handlers, вызывают services
+│
+├─ CLI command (новая команда 1c-ai)?
+│   └─ src/cli_commands/ — синхронные команды, вызывают services
+│
+├─ CI check / build utility (запускается только в CI)?
+│   └─ scripts/ — без бизнес-логики, только orchestration
+│
+└─ SaaS/Enterprise/Plugin фича?
+    └─ experimental/ (только после ADR-0006)
+```
+
+Iron rules:
+- ❌ НЕ используй `importlib.util.spec_from_file_location` для загрузки скриптов.
+- ❌ НЕ используй `sys.path.insert(0, scripts_dir)` для импорта из scripts/.
+- ❌ НЕ размещай бизнес-логику в `scripts/` — только thin CLI wrappers.
+- ❌ НЕ импортируй из `scripts/` в `src/` — только наоборот (scripts/ -> src.services).
+- ✅ `scripts/X.py` — тонкая обёртка: argparse + `from src.services.X import ...`.
+- ✅ `src/services/X.py` — основная логика, тестируется, импортируется нормально.
+- ✅ CLI wrappers в `scripts/` делаются через `if __name__ == "__main__": main()`.
+
+Baseline (Этап 1.2 завершён 2026-07-04):
+- 14 скриптов перенесено в src/services/ (анализаторы, генераторы, diff, cf_extractor)
+- 12 dynamic imports устранено
+- 4 sys.path.insert хака удалено
+- Подробности: `docs/AUDIT_SCRIPTS_SERVICES.md`
+
 ### Структура BSL-модуля
 - Области по стандартам 1С: `ПрограммныйИнтерфейс` → `СлужебныйПрограммныйИнтерфейс` → `СлужебныеПроцедурыИФункции` → `ОбработчикиСобытийФормы`.
 - Экспортные процедуры — с комментариями-документацией.
