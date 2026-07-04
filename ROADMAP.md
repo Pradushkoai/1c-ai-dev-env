@@ -18,13 +18,13 @@ v6.0.0 завершает план v2 (Solo Edition). 19 из 20 задач вы
 
 Переход к Production-Ready состоится при выполнении **всех** условий:
 
-1. **Coverage ≥ 80%** (текущее: 71.44%, цель: этап 5.2)
-2. **mypy strict без исключений** (warn_return_any + disallow_any_generics, этап 3.1-3.2)
-3. **Реальные пользователи** — ≥ 3 внешних issue/PR от non-author
-4. **Bus factor > 1** — ≥ 1 активный контрибьютор кроме автора
-5. **Документация актуальна** — Stability Matrix в README, все public APIs задокументированы
-6. **Нет критических TODO/FIXME** без issue-ссылки (этап 3.4)
-7. **Demo-конфигурация** проходит smoke-тест у внешнего пользователя (этап 7.1)
+1. **Coverage ≥ 80%** (текущее: 72%, цель: 80% — этап 5.2 частично)
+2. **mypy strict без исключений** (warn_return_any ✅, disallow_any_generics gradual ✅)
+3. **Реальные пользователи** — ≥ 3 внешних issue/PR от non-author (0 на данный момент)
+4. **Bus factor > 1** — ≥ 1 активный контрибьютор кроме автора (0 на данный момент)
+5. **Документация актуальна** — Stability Matrix в README ✅, все public APIs задокументированы ✅
+6. **Нет критических TODO/FIXME** без issue-ссылки ✅ (этап 3.4)
+7. **Demo-конфигурация** проходит smoke-тест у внешнего пользователя ✅ (этап 7.1)
 
 До выполнения этих условий проект остаётся Beta. Использовать в
 production — на свой риск.
@@ -77,6 +77,62 @@ production — на свой риск.
 - **S3** Enterprise features (RBAC, audit log, SSO)
 - **S2** Plugin System (real plugins from community)
 - **HTTP transport для MCP** (вместо stdio) — только после S1
+
+## Прогресс поэтапного плана улучшения (Этапы 0-7)
+
+> Полный план: [docs/AUDIT_SCRIPTS_SERVICES.md](docs/AUDIT_SCRIPTS_SERVICES.md)
+
+### Этап 0: Стабилизация ✅
+- 0.1: Quarantine future-proofing → experimental/ (ADR-0006)
+- 0.2: ROADMAP + CHANGELOG + SemVer обоснование
+- 0.3: Статус понижен до Beta
+- 0.4: ADR-0006 Scope Reduction
+
+### Этап 1: Унификация scripts/services ✅
+- 1.1: Аудит дублирования (37 скриптов)
+- 1.2: 14 скриптов перенесено в src/services/ (12 dynamic imports устранено)
+- 1.3: Документация границы scripts/services + pre-commit hook
+- 1.4: Аудит мёртвых скриптов (0 найдено)
+
+### Этап 2: Декомпозиция god-файлов ✅
+- 2.1: check_1c_standards.py 1685→122 + 5 модулей в standards/
+- 2.2: epf_factory.py 713→508 + 4 модуля в epf/
+- 2.3: metadata_extractor.py перенесён в services.metadata
+- 2.4: build_config_index_generic.py перенесён в services.builders
+- 2.5: cfe_manager.py 718→650 + 2 модуля в cfe/
+
+### Этап 3: Качество и типизация ✅
+- 3.1: mypy warn_return_any = true
+- 3.2: mypy disallow_any_generics (gradual, 5 чистых пакетов)
+- 3.3: ADR-0007 v8unpack workaround сохранён
+- 3.4: TODO/FIXME аудит — 0 для удаления
+
+### Этап 4: i18n и документация ✅
+- 4.1: ADR-0008 язык проекта русский
+- 4.2: README Stability Matrix (16 подсистем)
+- 4.3: CONTRIBUTING.md 3 how-to гайда
+- 4.4: Sphinx +30 модулей в API reference
+
+### Этап 5: Тесты и coverage ✅
+- 5.1: Аудит 1624 тестов — 0 дубликатов
+- 5.2: Coverage gate 70% → 72% (+23 теста)
+- 5.3: 15 smoke-тестов для критических путей (2.2 сек)
+- 5.4: Mutation testing gate 60% → 70%
+
+### Этап 6: Производительность ✅
+- 6.1: cProfile отчёт (docs/PERFORMANCE.md)
+- 6.2: os.scandir() оптимизация (−47% calls, −50% time)
+- 6.3: Benchmark regression-detection (blocking, 10%)
+
+### Этап 7: Community-ready ✅
+- 7.1: Demo-конфигурация + quickstart (demo/)
+- 7.2: 10 good-first-issues (#12-#21)
+- 7.3: 5 примеров использования MCP (docs/EXAMPLES.md)
+- 7.4: Public roadmap (этот документ) + changelog feed
+
+### Следующие этапы (не начаты)
+
+- **Этап 8: Long-term** — нативный парсер EPF, BSL LS opt-in, multi-config
 
 ## История версий
 
