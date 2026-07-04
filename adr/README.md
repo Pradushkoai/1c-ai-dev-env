@@ -44,6 +44,7 @@ ADR (Architecture Decision Record) — короткий документ, опи
 | [ADR-0005](0005-snapshot-testing-for-contracts.md) | Snapshot testing для MCP contracts | 2026-07-03 | Accepted |
 | [ADR-0006](0006-scope-reduction-v6.md) | Scope Reduction v6.x — заморозка SaaS/Enterprise/Plugin | 2026-07-04 | Accepted |
 | [ADR-0007](0007-v8unpack-workaround-retention.md) | v8unpack 1.2.6 block_size баг — сохранение workaround | 2026-07-04 | Accepted |
+| [ADR-0008](0008-language-policy-russian.md) | Язык проекта — русский | 2026-07-04 | Accepted |
 
 ## Как добавить ADR
 
