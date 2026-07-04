@@ -240,7 +240,7 @@ def get_metrics() -> PrometheusRegistry | NoOpRegistry:
                 _REGISTRY = NoOpRegistry()
         else:
             _REGISTRY = NoOpRegistry()
-    return _REGISTRY  # type: ignore[return-value]
+    return _REGISTRY  # type: ignore[no-any-return]
 
 
 def with_metrics(tool_name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:

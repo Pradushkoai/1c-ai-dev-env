@@ -529,7 +529,8 @@ class DependencyGraph:
             Список узлов пути или None если пути нет.
         """
         try:
-            return nx.shortest_path(self._graph, source, target)
+            path: list[str] | None = nx.shortest_path(self._graph, source, target)
+            return path
         except (nx.NetworkXError, nx.NetworkXNoPath):
             return None
 

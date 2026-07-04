@@ -279,7 +279,8 @@ class OllamaClient:
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as response:
                 body = response.read().decode("utf-8")
-                return json.loads(body)
+                result: dict[str, Any] | None = json.loads(body)
+                return result
         except urllib.error.HTTPError as e:
             logger.warning("Ollama HTTP error %d: %s", e.code, e.reason)
             return None

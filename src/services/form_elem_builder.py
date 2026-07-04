@@ -294,7 +294,7 @@ def build_form_elem(form_spec: dict, base_template_path: str | Path | None = Non
                 base["props"].append(_make_simple_prop(prop, next_id))
             next_id += 1
 
-        return base
+        return dict(base)
 
     # Без template — генерируем с нуля (старое поведение)
     props_spec = form_spec.get("props", [])

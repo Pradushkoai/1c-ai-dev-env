@@ -557,7 +557,7 @@ def _load_index(index_path: Path) -> dict:
         json.JSONDecodeError: Если файл не валидный JSON.
     """
     with open(index_path, encoding="utf-8") as f:
-        return json.load(f)
+        return dict(json.load(f))
 
 
 # Применяем lru_cache к обёртке, чтобы была возможность cache_clear().

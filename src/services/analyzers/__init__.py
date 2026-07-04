@@ -193,7 +193,8 @@ class _ScriptBasedAnalyzer:
         cls = getattr(mod, self._analyzer_class_name, None)
         if cls is None:
             return None
-        return cls()
+        analyzer: object | None = cls()
+        return analyzer
 
     def check_file(self, file_path: Path) -> list[AnalyzerViolation]:
         """Запустить analyzer и преобразовать результаты в AnalyzerViolation."""

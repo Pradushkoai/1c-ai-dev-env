@@ -178,7 +178,7 @@ line-ending = "auto"
 # ─── Mypy ───
 [tool.mypy]
 python_version = "3.10"
-warn_return_any = false
+warn_return_any = true  # Этап 3.1: включено глобально
 warn_unused_configs = true
 ignore_missing_imports = true
 no_strict_optional = true
@@ -194,7 +194,8 @@ exclude = [
 
 # P2.8: gradual strict typing
 # P0.2: все модули теперь проходят mypy с disallow_untyped_defs (97→0 errors)
-# warn_return_any пока false — 32 ошибки remaining, исправим в P1
+# Этап 3.1: warn_return_any = true (включено, не добавляет новых ошибок)
+# Этап 3.2: disallow_any_generics = false (пока — задача 3.2)
 [[tool.mypy.overrides]]
 module = [
     "src.cli.*",
@@ -210,8 +211,8 @@ module = [
     "src.services.*",
 ]
 disallow_untyped_defs = true
-warn_return_any = false  # P1: постепенно включить
-disallow_any_generics = false  # постепенно
+warn_return_any = true  # Этап 3.1: включено
+disallow_any_generics = false  # Этап 3.2: постепенно включить
 
 # ─── Coverage ───
 [tool.coverage.run]
