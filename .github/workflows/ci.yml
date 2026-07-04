@@ -212,10 +212,10 @@ jobs:
             --benchmark-autosave \
             -v
 
-      - name: Compare with baseline (информационный, не блокирующий)
-        # P3.3: benchmark compare — информационный, не блокирующий CI
-        # Benchmarks в CI слишком шумные для блокировки (0.02% разница может trigger)
-        # Регрессии видны в логах и artifact, но не ломают CI
+      - name: Compare with baseline (blocking при regression >10%)
+        # Этап 6.3: benchmark compare — blocking при regression >10%
+        # (было: информационный, не блокирующий, порог 50%)
+        # Порог снижен с 50% до 10% для раннего обнаружения regression
         run: |
           if [ -d .benchmarks ] && ls .benchmarks/Linux-*/0001_*.json 1>/dev/null 2>&1; then
             echo "📊 Baseline найдён, запускаем сравнение..."
@@ -224,9 +224,9 @@ jobs:
               --benchmark-min-rounds=5 \
               --benchmark-warmup=off \
               --benchmark-compare=0001 \
-              --benchmark-compare-fail=mean:50% \
+              --benchmark-compare-fail=mean:10% \
               -v \
-              || echo "⚠️ Есть регрессии >50% (информационно, CI не блокирует)"
+              || (echo "❌ Regression >10% detected — CI blocked (Этап 6.3)" && exit 1)
           else
             echo "ℹ️ Baseline не найден — пропускаем compare."
           fi
