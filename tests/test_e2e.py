@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 """E2E тест: полный цикл от генерации обработки до валидации и упаковки .epf."""
 
-import os
 import shutil
-import sys
 import tempfile
 from pathlib import Path
 
 import pytest
 
-# Этап 1.2, Группа 2: code_generator/code_validator/epf_builder импортируем напрямую
-# из src.services. Остальные анализаторы (security_auditor, code_metrics, etc.)
-# ещё в scripts/ — будут перенесены в Группе 1.
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
-
+# Этап 1.2 завершён: все генераторы и анализаторы перенесены в src.services.
+# sys.path.insert больше не нужен.
+from src.services.analyzers.architecture_analyzer import ArchitectureAnalyzer
+from src.services.analyzers.check_1c_standards import StandardsChecker
+from src.services.analyzers.code_metrics import CodeMetricsAnalyzer
+from src.services.analyzers.query_analyzer import QueryAnalyzer
+from src.services.analyzers.security_auditor import SecurityAuditor
+from src.services.analyzers.transaction_checker import TransactionChecker
 from src.services.code_generator import generate_processing, generate_report
 from src.services.code_validator import validate_generated
 from src.services.epf_builder import build_epf
@@ -90,7 +91,6 @@ class TestE2ESecurityAudit:
 
     def test_generated_code_is_safe(self):
         """Сгенерированный код не должен содержать критических уязвимостей."""
-        from src.services.analyzers.security_auditor import SecurityAuditor
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -116,7 +116,6 @@ class TestE2ECodeMetrics:
 
     def test_generated_code_has_good_health(self):
         """Сгенерированный код должен иметь health score >= 80."""
-        from src.services.analyzers.code_metrics import CodeMetricsAnalyzer
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -143,7 +142,6 @@ class TestE2ETransactionCheck:
 
     def test_generated_code_has_no_tx_violations(self):
         """Сгенерированный код не должен иметь нарушений транзакций."""
-        from src.services.analyzers.transaction_checker import TransactionChecker
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -169,7 +167,6 @@ class TestE2EQueryAnalysis:
 
     def test_generated_report_has_clean_queries(self):
         """Сгенерированный отчёт не должен иметь проблем с запросами СКД."""
-        from src.services.analyzers.query_analyzer import QueryAnalyzer
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -196,10 +193,6 @@ class TestE2EFullSolveCheck:
 
     def test_solve_check_quick_on_generated(self):
         """solve_check --level quick на сгенерированном коде — verdict perfect или warnings."""
-        from check_1c_standards import StandardsChecker
-        from src.services.analyzers.query_analyzer import QueryAnalyzer
-        from src.services.analyzers.security_auditor import SecurityAuditor
-        from src.services.analyzers.transaction_checker import TransactionChecker
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)

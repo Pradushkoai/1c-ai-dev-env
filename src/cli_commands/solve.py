@@ -16,34 +16,21 @@ from src.project import Project
 
 def cmd_standards(project: Project, args: argparse.Namespace) -> None:
     """Проверка .bsl файлов на соответствие стандартам разработки 1С."""
-    import importlib.util
-
-    # Загружаем скрипт как модуль
-    script_path = project.paths.scripts_dir / "check_1c_standards.py"
-    if not script_path.exists():
-        script_path = project.paths.root / "setup" / "scripts" / "check_1c_standards.py"
-    if not script_path.exists():
-        print("❌ Скрипт check_1c_standards.py не найден")
-        sys.exit(1)
-
-    spec = importlib.util.spec_from_file_location("check_1c_standards", script_path)
-    mod = importlib.util.module_from_spec(spec)
-    # Регистрируем в sys.modules — нужно для @dataclass
-    sys.modules["check_1c_standards"] = mod
-    spec.loader.exec_module(mod)
+    # Этап 1.2, Группа 1f: прямой импорт из src.services.analyzers (dynamic import удалён)
+    from src.services.analyzers.check_1c_standards import StandardsChecker, format_violations
 
     target = Path(args.path)
     if not target.is_absolute():
         target = project.paths.root / target
 
-    checker = mod.StandardsChecker()
+    checker = StandardsChecker()
     violations = checker.check_path(target)
 
     # Фильтр по severity
     if args.severity == "error":
         violations = [v for v in violations if v.severity == "error"]
 
-    output = mod.format_violations(violations, args.format)
+    output = format_violations(violations, args.format)
     print(output)
 
     has_errors = any(v.severity == "error" for v in violations)

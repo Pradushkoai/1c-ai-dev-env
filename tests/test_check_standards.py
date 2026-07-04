@@ -1,9 +1,9 @@
 """
-Тесты для check_1c_standards.py.
+Тесты для src.services.analyzers.check_1c_standards.
 Проверяем все 10 правил на синтетических .bsl файлах.
 """
 
-import importlib.util
+import importlib
 import sys
 from pathlib import Path
 
@@ -11,14 +11,13 @@ import pytest
 
 
 def _load_module():
-    """Загрузить check_1c_standards как модуль."""
-    script = Path(__file__).parent.parent / "scripts" / "check_1c_standards.py"
-    spec = importlib.util.spec_from_file_location("check_1c_standards", script)
-    mod = importlib.util.module_from_spec(spec)
-    # Регистрируем в sys.modules — нужно для @dataclass
-    sys.modules["check_1c_standards"] = mod
-    spec.loader.exec_module(mod)
-    return mod
+    """Загрузить check_1c_standards как модуль.
+
+    Этап 1.2, Группа 1f: прямой импорт из src.services.analyzers.
+    conftest.py всё ещё чистит 'check_1c_standards' из sys.modules после каждого теста,
+    поэтому импортируем заново при каждом вызове fixture.
+    """
+    return importlib.import_module("src.services.analyzers.check_1c_standards")
 
 
 @pytest.fixture(scope="module")
