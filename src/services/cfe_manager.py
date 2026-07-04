@@ -17,23 +17,16 @@ from __future__ import annotations
 import re
 import uuid
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, field
 from pathlib import Path
 
+from .cfe import BorrowResult, CfeDiffResult, PatchMethodResult  # noqa: F401 — re-export
+from .cfe.cli import borrow_object_cli, diff_cli, patch_method_cli  # noqa: F401 — re-export
+from .object_types import TYPE_MAP  # noqa: F401 — re-export
 from .path_manager import PathManager
 
 # XML namespace 1C
 NS_MD = "http://v8.1c.ru/8.3/MDClasses"
 NS_XR = "http://v8.1c.ru/8.3/xcf/extprops"
-
-# Маппинг типов объектов 1С → XML-теги и папки.
-# P3.17: вынесен в src/services/object_types.py — единый источник для DSL и CFE.
-# Здесь оставлен re-export для обратной совместимости.
-from .object_types import TYPE_MAP  # noqa: E402
-
-# Этап 2.5: dataclasses и CLI вынесены в пакет cfe/
-from .cfe import BorrowResult, CfeDiffResult, PatchMethodResult  # noqa: F401 — re-export
-from .cfe.cli import borrow_object_cli, diff_cli, patch_method_cli  # noqa: F401 — re-export
 
 # ============================================================================
 # ГЛАВНЫЙ КЛАСС

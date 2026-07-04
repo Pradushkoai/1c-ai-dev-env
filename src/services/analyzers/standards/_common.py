@@ -6,17 +6,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-
-
-# ============================================================================
-# МОДЕЛИ
-# ============================================================================
-
-
-# ============================================================================
-# МОДЕЛИ
-# ============================================================================
+from dataclasses import dataclass
 
 
 @dataclass
@@ -33,5 +23,3 @@ class Violation:
     def format_text(self) -> str:
         """Текстовый формат (как ESLint)."""
         return f"  {self.severity.upper():7} {self.rule_id:20} {self.file}:{self.line}:{self.col}  {self.message}"
-
-

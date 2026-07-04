@@ -20,17 +20,17 @@
 
 from __future__ import annotations
 
-from ._common import Violation
-from .architecture import RULES as ARCHITECTURE_RULES
+from ._common import Violation as Violation  # noqa: F401 — explicit re-export
 from .architecture import *  # noqa: F401, F403 — re-export rule_* functions
-from .client_server import RULES as CLIENT_SERVER_RULES
+from .architecture import RULES as ARCHITECTURE_RULES
 from .client_server import *  # noqa: F401, F403
-from .misc import RULES as MISC_RULES
+from .client_server import RULES as CLIENT_SERVER_RULES
 from .misc import *  # noqa: F401, F403
-from .queries import RULES as QUERY_RULES
+from .misc import RULES as MISC_RULES
 from .queries import *  # noqa: F401, F403
-from .style import RULES as STYLE_RULES
+from .queries import RULES as QUERY_RULES
 from .style import *  # noqa: F401, F403
+from .style import RULES as STYLE_RULES
 
 # Все 56 правил
 ALL_RULES = STYLE_RULES + ARCHITECTURE_RULES + QUERY_RULES + CLIENT_SERVER_RULES + MISC_RULES
