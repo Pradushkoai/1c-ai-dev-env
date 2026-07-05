@@ -33,6 +33,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from .hybrid_reranker import RerankingAlgorithm, RerankingConfig, rerank
 from .search_bm25 import search_bm25
 from .search_vector import VectorSearch
 
@@ -212,3 +213,76 @@ def search_hybrid_auto(
         for r in results:
             r.setdefault("source", "bm25")
         return results
+
+
+def search_hybrid_reranked(
+    index_path: Path,
+    query: str,
+    limit: int = 10,
+    *,
+    algorithm: RerankingAlgorithm = RerankingAlgorithm.RRF,
+    alpha: float = 0.5,
+    mmr_lambda: float = 0.7,
+    rrf_k: int = 60,
+    vector_search: VectorSearch | None = None,
+) -> list[dict]:
+    """A4.8: Гибридный поиск с продвинутым reranking.
+
+    В отличие от search_hybrid (только weighted fusion), эта функция
+    поддерживает 5 алгоритмов reranking: RRF, MMR, CombSUM, CombMNZ, weighted.
+
+    Args:
+        index_path: Путь к BM25 индексу.
+        query: Поисковый запрос.
+        limit: Максимум результатов.
+        algorithm: Алгоритм reranking (RRF по умолчанию).
+        alpha: Вес BM25 для weighted_fusion.
+        mmr_lambda: Параметр MMR (0.7 = more relevance, 0.3 = more diversity).
+        rrf_k: Параметр RRF (60 = стандарт).
+        vector_search: Опциональный VectorSearch instance.
+
+    Returns:
+        Список: [{score, bm25_score, vector_score, source, name_ru, ...}, ...]
+    """
+    # 1. Получаем BM25 + vector результаты
+    bm25_results = search_bm25(index_path, query, limit=limit * 2, hybrid=True)
+
+    vs = vector_search or VectorSearch()
+    vector_results: list[dict] = []
+    if vs.is_available():
+        try:
+            vector_results = vs.search(query, limit=limit * 2, score_threshold=0.0)
+        except Exception as e:
+            logger.warning("Vector search failed: %s", e)
+
+    # 2. Если vector недоступен — fallback на BM25
+    if not vector_results:
+        for r in bm25_results[:limit]:
+            r.setdefault("source", "bm25")
+        return bm25_results[:limit]
+
+    # 3. Reranking
+    config = RerankingConfig(
+        algorithm=algorithm,
+        limit=limit,
+        alpha=alpha,
+        mmr_lambda=mmr_lambda,
+        rrf_k=rrf_k,
+    )
+
+    reranked = rerank(bm25_results, vector_results, config)
+
+    # 4. Конвертируем RerankedResult в dict для совместимости с MCP/CLI
+    from src.services.hybrid_reranker import RerankedResult
+
+    def _to_dict(rr: RerankedResult) -> dict[str, Any]:
+        result: dict[str, Any] = dict(rr.doc)
+        result["score"] = rr.score
+        result["bm25_score"] = rr.bm25_score
+        result["vector_score"] = rr.vector_score
+        result["source"] = rr.source
+        result["bm25_rank"] = rr.bm25_rank
+        result["vector_rank"] = rr.vector_rank
+        return result
+
+    return [_to_dict(rr) for rr in reranked]
