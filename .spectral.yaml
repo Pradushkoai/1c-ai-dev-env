@@ -1,0 +1,99 @@
+# Spectral ruleset для OpenAPI spec (docs/mcp-openapi.json)
+#
+# A-5 (2026-07-05): минимальный ruleset для валидации OpenAPI 3.0 spec.
+# Использует standard OpenAPI rules + кастомные правила для 1c-ai-dev-env.
+#
+# Документация: https://docs.stoplight.io/docs/spectral/
+# Standard rules: spectral:oas3 (OpenAPI 3.0)
+
+extends:
+  - spectral:oas
+
+rules:
+  # ─── Стандартные OpenAPI правила (включены) ───
+
+  # API必须有 info с версией
+  info-contact:
+    severity: error
+    description: "OpenAPI spec должен содержать info.contact"
+    given: $.info
+    then:
+      - field: contact
+        function: truthy
+
+  # API必须有 description
+  info-description:
+    severity: warn
+    description: "OpenAPI spec должен содержать info.description"
+    given: $.info
+    then:
+      - field: description
+        function: truthy
+
+  # API必须有 license
+  info-license:
+    severity: warn
+    description: "OpenAPI spec должен содержать info.license"
+    given: $.info
+    then:
+      - field: license
+        function: truthy
+
+  # Все operations должны иметь operationId
+  operation-operationId:
+    severity: error
+    description: "Все MCP tools (operations) должны иметь operationId"
+    given: $.paths.*.*
+    then:
+      - field: operationId
+        function: truthy
+
+  # Все operations должны иметь summary
+  operation-summary:
+    severity: warn
+    description: "Все MCP tools должны иметь summary"
+    given: $.paths.*.*
+    then:
+      - field: summary
+        function: truthy
+
+  # Все operations должны иметь description
+  operation-description:
+    severity: warn
+    description: "Все MCP tools должны иметь description"
+    given: $.paths.*.*
+    then:
+      - field: description
+        function: truthy
+
+  # Все operations должны иметь responses
+  operation-responses:
+    severity: error
+    description: "Все MCP tools должны иметь responses"
+    given: $.paths.*.*
+    then:
+      - field: responses
+        function: truthy
+
+  # ─── Кастомные правила для 1c-ai-dev-env ───
+
+  # Spec версия должна быть 6.0.0+ (не устаревшая 5.3.1)
+  # Дублирует проверку в CI workflow (openapi-validation.yml)
+  version-not-legacy:
+    severity: error
+    description: "OpenAPI spec версия не должна быть устаревшей 5.3.1"
+    given: $.info.version
+    then:
+      function: pattern
+      functionOptions:
+        match: "^(?!5\\.3\\.1$).*$"
+
+  # Все MCP tools должны использовать POST method
+  # (соответствует реализации в src/mcpserver/)
+  mcp-tools-post-only:
+    severity: error
+    description: "MCP tools должны использовать POST method"
+    given: $.paths.*
+    then:
+      - field: post
+        function: truthy

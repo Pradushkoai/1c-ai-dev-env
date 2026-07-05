@@ -3,6 +3,26 @@
 
 ## [Unreleased]
 
+### A-5 — OpenAPI validation в CI через spectral (2026-07-05)
+
+* **Создан CI workflow** `.github/workflows/openapi-validation.yml`:
+  - Запускается на каждый push и pull_request (как ci.yml)
+  - Использует `stoplightio/spectral-action@v0.8.11` для валидации spec
+  - Дополнительная проверка: синхронизация версии spec с pyproject.toml (A-1)
+  - Дополнительная проверка: spec содержит 45 tools (warning, не blocking)
+  - **Blocking**: invalid spec → CI падает
+* **Создан spectral ruleset** `.spectral.yaml`:
+  - Наследует `spectral:oas` (стандартные OpenAPI 3.0 правила)
+  - 5 error правил: info-contact, operation-operationId, operation-responses,
+    version-not-legacy (не 5.3.1), mcp-tools-post-only
+  - 4 warn правил: info-description, info-license, operation-summary,
+    operation-description
+* **Создан tests/test_openapi_validation.py** (9 тестов):
+  - TestOpenApiValidation: локальная Python-валидация (заменяет spectral без Node.js)
+  - TestSpectralRulesetContent: проверка содержимого .spectral.yaml
+  - Blocking: test_spec_has_no_validation_errors падает, если spec невалиден
+* **Документация**: CI workflow содержит комментарии (A-5, дата, описание)
+
 ### A-1 — Version bump OpenAPI spec до 6.0.0 (2026-07-05)
 
 * **OpenAPI spec версия обновлена с 5.3.1 до 6.0.0** — синхронизация с pyproject.toml.
