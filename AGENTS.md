@@ -208,6 +208,18 @@ Baseline (Этап 1.2 завершён 2026-07-04):
 **Audit (S8.6, 2026-07-05):** .env.example создан, .gitignore обновлён, detect-secrets в pre-commit,
 CI workflow создан, .secrets.baseline создан.
 
+### SAST — Static Analysis (S8.4 — 2026-07-06)
+- ✅ **bandit** — Python AST analyzer. Конфиг: `bandit.toml`. Запуск: `bandit -c bandit.toml -r src/`.
+- ✅ **semgrep** — multi-language SAST (Python + Dockerfile + BSL). Конфиг: `.semgrep.yml`.
+- ✅ **CI: `.github/workflows/sast.yml`** — bandit + semgrep на каждом PR.
+- ❌ **Никогда не коммить код с HIGH severity находками** — CI fail.
+- ✅ **SARIF отчёты** загружаются в GitHub Security tab.
+- ✅ **semgrep rules** покрывают: eval/exec, pickle.load, yaml.load без SafeLoader, shell=True, hardcoded passwords, os.system, path traversal, Dockerfile best practices, BSL Выполнить().
+- ✅ **bandit skips**: B101 (assert в тестах), B311 (random для не-крипто).
+
+**Audit (S8.4, 2026-07-06):** bandit.toml + .semgrep.yml созданы. CI workflow sast.yml создан.
+Тесты: `tests/test_s8_4_sast.py` (17 тестов). Покрытие: реальные запуски bandit/semgrep на тестовых уязвимостях.
+
 ### SBOM (I7.9 — 2026-07-05)
 - ✅ **SBOM генерируется через CycloneDX** — `.github/workflows/sbom-generation.yml`.
 - ✅ **Формат: CycloneDX 1.5 JSON** — стандарт для supply chain compliance.

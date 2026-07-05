@@ -81,6 +81,9 @@ dev = [
     "pip-audit>=2.0,<3.0",
     "safety>=3.0,<4.0",
     "pip-licenses>=5.0,<6.0",
+    # S8.4: SAST tools — bandit (Python AST analyzer) + semgrep (multi-language)
+    "bandit>=1.7,<2.0",
+    "semgrep>=1.50,<2.0",
     # P1.6: snapshot testing для MCP tools
     "pytest-snapshot>=0.9,<1.0",
     # P2.8: fuzzing для парсеров

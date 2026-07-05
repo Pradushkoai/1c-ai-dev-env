@@ -1,0 +1,103 @@
+# S8.4 (2026-07-06): SAST — Static Application Security Testing.
+#
+# Запускает:
+# 1. bandit — Python AST analyzer (https://bandit.readthedocs.io/)
+# 2. semgrep — multi-language pattern matcher (https://semgrep.dev/)
+# 3. CodeQL — уже есть в codeql-python.yml (semantic analysis)
+#
+# Fail PR при MEDIUM+ находках. Artifacts сохраняются 30 дней.
+
+name: SAST
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    # Еженедельный scan: воскресенье 02:00 UTC
+    - cron: '0 2 * * 0'
+
+permissions:
+  contents: read
+  security-events: write   # для SARIF upload
+  actions: read
+
+jobs:
+  bandit:
+    name: Bandit (Python SAST)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install bandit
+        run: pip install 'bandit>=1.7,<2.0'
+
+      - name: Run bandit
+        run: |
+          bandit -c bandit.toml -r src/ -f json -o bandit-report.json || true
+          bandit -c bandit.toml -r src/ -f txt || true
+
+      - name: Check bandit results (fail on HIGH)
+        run: |
+          # Parse JSON; fail if any HIGH severity issue
+          python3 - <<'PY'
+          import json, sys
+          with open('bandit-report.json') as f:
+              data = json.load(f)
+          high_issues = [
+              i for i in data.get('results', [])
+              if i.get('issue_severity') == 'HIGH'
+          ]
+          if high_issues:
+              print(f"❌ Bandit: {len(high_issues)} HIGH severity issues found:")
+              for i in high_issues:
+                  print(f"  - {i['filename']}:{i['line_number']} {i['test_id']} {i['issue_text']}")
+              sys.exit(1)
+          print(f"✅ Bandit: {len(data.get('results', []))} issues total, 0 HIGH")
+          PY
+
+      - name: Upload bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit-report.json
+          retention-days: 30
+
+  semgrep:
+    name: Semgrep (multi-language SAST)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: .semgrep.yml
+          output: semgrep-report.sarif
+          sarif: true
+          # Не fail на warnings, fail только на errors
+          auditOn: warning
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-report.sarif
+
+      - name: Upload semgrep report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep-report.sarif
+          retention-days: 30

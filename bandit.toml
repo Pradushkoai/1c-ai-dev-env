@@ -1,0 +1,46 @@
+# S8.4 (2026-07-06): Bandit configuration — Python AST-based SAST.
+#
+# Запуск:
+#   bandit -c pyproject.toml -r src/ tests/
+#
+# Интеграция с CI: .github/workflows/sast.yml запускает bandit на каждом PR.
+# Локально: bandit -c pyproject.toml -r src/
+
+[tool.bandit]
+# Целевые директории для сканирования
+targets = ["src", "tests"]
+
+# Исключения (тесты с сознательно небезопасным кодом, fixtures)
+exclude_dirs = [
+    "tests/fixtures",
+    "tests/snapshots",
+    "src/services/analyzers/security_auditor.py",  # Правила содержат паттерны паролей
+    "scripts/security_auditor.py",                  # CLI для аудитора
+]
+
+# Уровни severity: LOW, MEDIUM, HIGH
+# По умолчанию: LOW (все правила). CI использует MEDIUM для fail.
+level = "MEDIUM"
+
+# Уровни confidence: LOW, MEDIUM, HIGH
+confidence = "MEDIUM"
+
+# Базовый файл для сравнения (если есть — не fail на существующих находках)
+# baseline = "bandit-baseline.json"
+
+# Игнорируемые правила (B-коды):
+# B101: assert_used — мы используем assert в тестах
+# B311: random — используется для тестов (не криптография)
+# B404: import subprocess — subprocess валидирован в S8.2
+# B602: subprocess shell=True — запрещён в AGENTS.md, но есть legacy
+# B603: subprocess without shell — валидирован в S8.2
+skips = [
+    "B101",  # assert_used (тесты)
+    "B311",  # random (не крипто)
+]
+
+# Количество потоков
+number = 4
+
+# Выходной формат: json, txt, csv, xml, html
+# CI использует json для парсинга, локально txt

@@ -1,0 +1,66 @@
+# S8.5 (2026-07-06): DAST — Dynamic Application Security Testing для MCP.
+#
+# Запускает DAST scanner против MCP tools, отправляя malicious payloads.
+# В отличие от SAST (статический), DAST проверяет в runtime.
+#
+# Schedule: nightly + manual trigger. Не на каждый PR (тяжёлый).
+
+name: DAST
+
+on:
+  schedule:
+    # Nightly в 03:00 UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    # Ручной запуск
+
+permissions:
+  contents: read
+
+jobs:
+  dast-scan:
+    name: DAST scan для MCP tools
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -e '.[test]'
+
+      - name: Run DAST scan
+        run: |
+          python -m src.services.dast_scanner --verbose --output dast-report.json
+        continue-on-error: true   # не fail workflow, report создаётся
+
+      - name: Check DAST findings
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          with open('dast-report.json') as f:
+              data = json.load(f)
+          vuln_count = data.get('vulnerable_count', 0)
+          print(f"DAST findings: {vuln_count} vulnerabilities")
+          if vuln_count > 0:
+              print("❌ Vulnerabilities found — see report:")
+              for f in data.get('findings', []):
+                  if f.get('vulnerable'):
+                      print(f"  - {f['tool']} {f['payload_type']} param={f['param']}: {f['details']}")
+              sys.exit(1)
+          print("✅ No vulnerabilities — all payloads blocked")
+          PY
+
+      - name: Upload DAST report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-report
+          path: dast-report.json
+          retention-days: 30

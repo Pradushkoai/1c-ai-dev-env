@@ -103,3 +103,179 @@ def is_path_within_project(path: Path, project: Project) -> bool:
         return True
     except (ValueError, OSError):
         return False
+
+
+# ============================================================================
+# S8.7 (2026-07-06): Path traversal hardening — дополнительные проверки
+# ============================================================================
+
+# Разрешённые расширения для чтения/записи через MCP.
+# Запрет неизвестных расширений снижает риск чтения sensitive файлов.
+ALLOWED_READ_EXTENSIONS: frozenset[str] = frozenset({
+    ".bsl", ".mdo", ".xml", ".json", ".md", ".txt", ".mxl", ".epf", ".erf",
+    ".cf", ".cfe", ".yml", ".yaml", ".toml", ".ini", ".cfg",
+})
+
+ALLOWED_WRITE_EXTENSIONS: frozenset[str] = frozenset({
+    ".bsl", ".mdo", ".xml", ".json", ".md", ".txt", ".mxl", ".epf", ".erf",
+    ".yml", ".yaml", ".toml",
+})
+
+# Запрещённые паттерны в путях (даже если они внутри project root).
+FORBIDDEN_PATH_PATTERNS: list[str] = [
+    "..",            # parent traversal
+    "~",             # home directory
+    "$",             # env var expansion
+    "\x00",          # null byte
+    "%2e%2e",        # URL-encoded ..
+    "%2f",           # URL-encoded /
+    "%5c",           # URL-encoded \
+]
+
+# Sensitive files, которые нельзя читать даже внутри project.
+SENSITIVE_FILE_NAMES: frozenset[str] = frozenset({
+    ".env", ".env.local", ".env.production",
+    ".git-credentials", ".gitconfig",
+    ".npmrc", ".pypirc",
+    "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+    "credentials.json", "service-account.json",
+    ".secrets.baseline",
+    ".htpasswd", ".netrc",
+    ".ssh",  # directory
+})
+
+
+def check_path_safety(
+    raw_path: str,
+    *,
+    operation: str = "read",
+    allowed_extensions: frozenset[str] | None = None,
+) -> tuple[bool, str]:
+    """S8.7: Дополнительная проверка path safety БЕЗ project context.
+
+    Используется как pre-filter перед resolve_path_within_project.
+    Проверяет:
+    1. Путь не пустой
+    2. Путь не содержит forbidden patterns (.., ~, $, null byte, URL encoding)
+    3. Путь не указывает на sensitive file
+    4. Расширение файла разрешено (если задано allowed_extensions)
+
+    Args:
+        raw_path: Путь от user input.
+        operation: "read" или "write" — определяет allowed extensions.
+        allowed_extensions: Override для разрешённых расширений.
+
+    Returns:
+        (is_safe, error_message). is_safe=True если путь прошёл проверки.
+    """
+    if not raw_path or not raw_path.strip():
+        return False, "Path is empty"
+
+    # Check 1: forbidden patterns
+    for pattern in FORBIDDEN_PATH_PATTERNS:
+        if pattern in raw_path:
+            return False, f"Forbidden pattern '{pattern}' in path"
+
+    # Check 2: URL-encoded characters (potential bypass attempt)
+    if "%" in raw_path and any(
+        code in raw_path.lower() for code in ("%2e", "%2f", "%5c", "%00")
+    ):
+        return False, "URL-encoded path components not allowed"
+
+    # Check 3: sensitive file names
+    path_lower = raw_path.lower()
+    for sensitive in SENSITIVE_FILE_NAMES:
+        if sensitive in path_lower:
+            return False, f"Sensitive file/path '{sensitive}' blocked"
+
+    # Check 4: extension whitelist
+    if allowed_extensions is None:
+        allowed_extensions = (
+            ALLOWED_READ_EXTENSIONS if operation == "read" else ALLOWED_WRITE_EXTENSIONS
+        )
+
+    # Если путь содержит точку (вероятно, файл) — проверяем расширение
+    if "." in os.path.basename(raw_path):
+        ext = os.path.splitext(raw_path)[1].lower()
+        if ext and ext not in allowed_extensions:
+            return False, f"Extension '{ext}' not allowed for {operation}"
+
+    return True, ""
+
+
+def resolve_path_hardened(
+    raw_path: str,
+    project: "Project",
+    *,
+    operation: str = "read",
+    must_exist: bool = False,
+    allowed_extensions: frozenset[str] | None = None,
+) -> Path | None:
+    """S8.7: Hardened path resolution — multi-layer validation.
+
+    Объединяет check_path_safety() и resolve_path_within_project().
+
+    Дополнительно логирует отказы в audit log (если включён).
+
+    Args:
+        raw_path: Путь от MCP-клиента.
+        project: Project для получения корня.
+        operation: "read" или "write".
+        must_exist: Если True, путь должен существовать.
+        allowed_extensions: Override для разрешённых расширений.
+
+    Returns:
+        Path если прошёл все проверки, иначе None.
+    """
+    # Layer 1: pattern safety check
+    is_safe, error = check_path_safety(
+        raw_path, operation=operation, allowed_extensions=allowed_extensions
+    )
+    if not is_safe:
+        _log_path_rejection(raw_path, error, project)
+        return None
+
+    # Layer 2: project containment check (path traversal)
+    resolved = resolve_path_within_project(raw_path, project, must_exist=must_exist)
+    if resolved is None:
+        _log_path_rejection(raw_path, "outside project root", project)
+        return None
+
+    # Layer 3: final safety check on resolved path (defense in depth)
+    # Проверяем что резолвнутый путь не попал в sensitive location
+    resolved_str = str(resolved).lower()
+    for sensitive in SENSITIVE_FILE_NAMES:
+        if sensitive in resolved_str and sensitive not in str(project.paths.root).lower():
+            _log_path_rejection(raw_path, f"resolved to sensitive path '{sensitive}'", project)
+            return None
+
+    return resolved
+
+
+def _log_path_rejection(raw_path: str, reason: str, project: "Project") -> None:
+    """Логирование отказа в path resolution (для audit trail).
+
+    Записывает в audit log структурированную запись о попытке обхода.
+    """
+    import logging
+    logger = logging.getLogger("security.path_traversal")
+    logger.warning(
+        "Path traversal blocked: path=%r reason=%s",
+        raw_path[:200],  # truncate to prevent log injection
+        reason,
+    )
+
+    # S8.9: запись в audit log (если доступен)
+    try:
+        from src.services.audit_logger import AuditLogger
+        audit = AuditLogger()
+        audit.log_call(
+            tool_name="<path_resolver>",
+            args={"path": raw_path[:200]},
+            result_status="blocked",
+            error=reason,
+        )
+    except Exception:
+        # Audit logging не должен блокировать операцию
+        pass
+

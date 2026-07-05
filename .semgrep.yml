@@ -1,0 +1,141 @@
+# S8.4 (2026-07-06): Semgrep configuration — multi-language SAST.
+#
+# Запуск:
+#   semgrep --config=.semgrep.yml src/ tests/
+#
+# Semgrep покрывает:
+# - Python (дополнение к bandit, более сложные паттерны)
+# - BSL (через custom rules — Выполнить, Вычислить, etc.)
+# - YAML/JSON (секреты в конфигах)
+# - Dockerfile (best practices)
+
+rules:
+  # ========================================================================
+  # Python: опасные паттерны, не ловит bandit
+  # ========================================================================
+
+  - id: 1c-ai-no-eval-exec
+    languages: [python]
+    severity: ERROR
+    message: "Использование eval()/exec() — небезопасно (CWE-95). Используйте ast.literal_eval()."
+    patterns:
+      - pattern: eval(...)
+      - pattern-not: eval("...")
+    metadata:
+      cwe: "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code"
+      source: "S8.4"
+
+  - id: 1c-ai-no-pickle-load
+    languages: [python]
+    severity: ERROR
+    message: "pickle.load — небезопасная десериализация (CWE-502)."
+    pattern: pickle.load(...)
+    metadata:
+      cwe: "CWE-502: Deserialization of Untrusted Data"
+      source: "S8.4"
+
+  - id: 1c-ai-no-yaml-load-unsafe
+    languages: [python]
+    severity: ERROR
+    message: "yaml.load без SafeLoader — RCE (CWE-502)."
+    pattern: yaml.load($X)
+    fix: yaml.load($X, Loader=yaml.SafeLoader)
+    metadata:
+      cwe: "CWE-502"
+      source: "S8.4"
+
+  - id: 1c-ai-no-shell-true
+    languages: [python]
+    severity: ERROR
+    message: "subprocess с shell=True — command injection (CWE-78)."
+    pattern-either:
+      - pattern: subprocess.run($X, shell=True, ...)
+      - pattern: subprocess.call($X, shell=True, ...)
+      - pattern: subprocess.Popen($X, shell=True, ...)
+      - pattern: subprocess.check_output($X, shell=True, ...)
+    metadata:
+      cwe: "CWE-78: Improper Neutralization of Special Elements used in an OS Command"
+      source: "S8.4"
+
+  - id: 1c-ai-subprocess-no-timeout
+    languages: [python]
+    severity: WARNING
+    message: "subprocess без timeout — DoS через зависший процесс."
+    pattern-either:
+      - pattern: subprocess.run($CMD)
+      - pattern: subprocess.run($CMD, $KWARGS)
+    pattern-inside: |
+      def $FUNC(...):
+          ...
+    metadata:
+      cwe: "CWE-400: Uncontrolled Resource Consumption"
+      source: "S8.4"
+
+  - id: 1c-ai-no-hardcoded-password-py
+    languages: [python]
+    severity: ERROR
+    message: "Хардкод пароля в Python коде (CWE-798)."
+    pattern-either:
+      - pattern: $PASSWORD = "..."
+      - pattern: $PASSWORD = '...'
+    metavariable-regex:
+      metavariable: $PASSWORD
+      regex: "^(password|passwd|pwd|secret|api_key|token)$"
+    metadata:
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+      source: "S8.4"
+
+  - id: 1c-ai-no-os-system
+    languages: [python]
+    severity: ERROR
+    message: "os.system — command injection (CWE-78). Используйте subprocess.run с list args."
+    pattern: os.system(...)
+    metadata:
+      cwe: "CWE-78"
+      source: "S8.4"
+
+  # ========================================================================
+  # Path traversal
+  # ========================================================================
+
+  - id: 1c-ai-no-open-without-validation
+    languages: [python]
+    severity: WARNING
+    message: "open() с user input без валидации path (CWE-22)."
+    pattern: open($USER_INPUT, ...)
+    metadata:
+      cwe: "CWE-22: Path Traversal"
+      source: "S8.4"
+
+  # ========================================================================
+  # Dockerfile best practices
+  # ========================================================================
+
+  - id: 1c-ai-docker-no-latest-tag
+    languages: [dockerfile]
+    severity: WARNING
+    message: "Не используйте :latest — пинируйте версию для воспроизводимости."
+    pattern: FROM $IMAGE:latest
+    metadata:
+      source: "S8.4"
+
+  - id: 1c-ai-docker-no-root-user
+    languages: [dockerfile]
+    severity: WARNING
+    message: "Не запускайте как root. Добавьте USER nonroot."
+    pattern: USER root
+    metadata:
+      source: "S8.4"
+
+  # ========================================================================
+  # BSL-специфичные правила (новые, недоступные в tree-sitter)
+  # ========================================================================
+
+  - id: bsl-no-vypolnit-dynamic
+    languages: [generic]
+    severity: ERROR
+    message: "BSL: Выполнить() с переменной — code injection."
+    pattern: Выполнить($VAR)
+    metadata:
+      cwe: "CWE-94: Improper Control of Generation of Code"
+      source: "S8.4"

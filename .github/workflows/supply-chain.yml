@@ -1,0 +1,116 @@
+# S8.11 (2026-07-06): Supply chain — pin dependencies with hashes.
+#
+# Еженедельно генерирует requirements.lock.txt с --generate-hashes.
+# На каждый PR проверяет drift между pyproject.toml и lock file.
+
+name: Supply Chain
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'pyproject.toml'
+      - 'requirements.lock.txt'
+      - '.github/workflows/supply-chain.yml'
+  pull_request:
+    paths:
+      - 'pyproject.toml'
+      - 'requirements.lock.txt'
+  schedule:
+    # Еженедельно: понедельник 05:00 UTC
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # для commit lock file
+  pull-requests: write
+
+jobs:
+  drift-check:
+    name: Detect drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -e '.[test]'
+
+      - name: Check drift
+        run: |
+          python -m src.services.supply_chain drift
+
+  license-check:
+    name: License compliance
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -e '.[test]'
+
+      - name: Check licenses
+        run: |
+          python -m src.services.supply_chain licenses
+
+  hash-verify:
+    name: Verify hashes (if lock exists)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Verify hashes
+        run: |
+          if [ ! -f requirements.lock.txt ]; then
+            echo "Lock file not found — skipping hash verification"
+            exit 0
+          fi
+          python -m src.services.supply_chain verify
+
+  regenerate-lock:
+    name: Regenerate lock file (weekly)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pip-tools
+        run: pip install pip-tools
+
+      - name: Generate lock file
+        run: |
+          pip-compile --generate-hashes --output-file=requirements.lock.txt pyproject.toml
+
+      - name: Commit lock file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add requirements.lock.txt
+          git diff --staged --quiet || git commit -m "chore(deps): update requirements.lock.txt"
+          git push
