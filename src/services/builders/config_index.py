@@ -6,6 +6,9 @@
 - ConfigDumpInfo.xml (дамп метаданных)
 - Опционально: поддиректории с .xml объектами (Catalogs/, Documents/, и т.д.)
 
+D2.2 (2026-07-05): XML утилиты (strip_ns, get_child, get_text, get_synonym_text,
+get_type_description) вынесены в builders/_xml_utils.py для переиспользования.
+
 Использование:
   python3 build_config_index_generic.py <config_dir> <output_index> <config_name>
 
