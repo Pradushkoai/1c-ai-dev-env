@@ -1,21 +1,19 @@
 """
 Структурированное логирование через structlog.
 
-Почему structlog а не logging:
-- Контекстные биндинги (log.bind(tool=..., config=...))
-- JSON-вывод для машинной обработки (в MCP/CI)
-- Pretty-вывод для разработки (с цветами)
-- Совместимость со стандартным logging (structlog обёртка)
+F1.5 (2026-07-05): добавлена поддержка trace_id для сквозной трассировки
+CLI→MCP→LLM. trace_id генерируется при старте сессии и передаётся через
+contextvars во все логи.
 
 Использование:
-    from src.services.logger import get_logger
-    log = get_logger(__name__)
-    log.info("config_built", config="ut11", indexes=4)
-    log.warning("parser_failed", parser="metadata", error=str(e))
+    from src.services.logger import get_logger, set_trace_id, new_trace_id
 
-Конфигурация через env:
-- LOG_LEVEL=DEBUG|INFO|WARNING|ERROR (default: INFO)
-- LOG_FORMAT=console|json (default: console; json для CI/MCP)
+    new_trace_id()  # генерирует UUID и привязывает к contextvars
+    log = get_logger(__name__)
+    log.info("config_built", config="ut11")  # → {"trace_id": "abc123...", ...}
+
+    # Или явная установка:
+    set_trace_id("custom-id")
 """
 
 from __future__ import annotations
@@ -23,6 +21,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import uuid
 from typing import Any
 
 # structlog может быть не установлен — fallback на logging
@@ -32,6 +31,60 @@ try:
     HAS_STRUCTLOG = True
 except ImportError:
     HAS_STRUCTLOG = False
+
+
+# F1.5: trace_id для сквозной трассировки
+_TRACE_ID_VAR = "trace_id"
+_current_trace_id: str = ""
+
+
+def new_trace_id() -> str:
+    """F1.5: Сгенерировать новый trace_id и привязать к contextvars.
+
+    trace_id передаётся во все последующие лог-сообщения через
+    structlog.contextvars, обеспечивая сквозную трассировку
+    CLI→MCP→LLM запросов.
+
+    Returns:
+        Сгенерированный trace_id (UUID hex, 32 символа).
+    """
+    global _current_trace_id
+    trace_id = uuid.uuid4().hex
+    _current_trace_id = trace_id
+    if HAS_STRUCTLOG:
+        structlog.contextvars.bind_contextvars(**{_TRACE_ID_VAR: trace_id})
+    return trace_id
+
+
+def set_trace_id(trace_id: str) -> None:
+    """F1.5: Установить существующий trace_id.
+
+    Используется когда trace_id приходит извне (например, из MCP request).
+
+    Args:
+        trace_id: trace_id для привязки к contextvars.
+    """
+    global _current_trace_id
+    _current_trace_id = trace_id
+    if HAS_STRUCTLOG:
+        structlog.contextvars.bind_contextvars(**{_TRACE_ID_VAR: trace_id})
+
+
+def get_trace_id() -> str:
+    """F1.5: Получить текущий trace_id.
+
+    Returns:
+        Текущий trace_id (пустая строка если не установлен).
+    """
+    return _current_trace_id
+
+
+def clear_trace_id() -> None:
+    """F1.5: Очистить trace_id из contextvars."""
+    global _current_trace_id
+    _current_trace_id = ""
+    if HAS_STRUCTLOG:
+        structlog.contextvars.unbind_contextvars(_TRACE_ID_VAR)
 
 
 def _get_log_level() -> int:
@@ -96,6 +149,10 @@ def configure_logging(
         logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
         cache_logger_on_first_use=False,
     )
+
+    # F1.5: авто-генерация trace_id при первой настройке логирования
+    if not _current_trace_id:
+        new_trace_id()
 
 
 def get_logger(name: str | None = None) -> Any:
