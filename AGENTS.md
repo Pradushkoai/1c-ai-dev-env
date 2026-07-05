@@ -191,6 +191,23 @@ Baseline (Этап 1.2 завершён 2026-07-04):
 **Audit (S8.2, 2026-07-05):** 8 файлов проверены, `shell=True` не используется нигде.
 3 отсутствующих `timeout` добавлены (config_builder.py:261, config_manager.py:666, config_manager.py:678).
 
+### Secrets management (S8.6 — 2026-07-05)
+- ❌ **НИКОГДА не коммить `.env`** с реальными секретами — `.env` в `.gitignore`.
+- ✅ **Используй `.env.example`** как шаблон — закомментированные placeholders, без реальных значений.
+- ✅ **`.git-credentials` в `.gitignore`** — никогда не попадает в коммит.
+- ✅ **detect-secrets в pre-commit** — hook автоматически проверяет код на секреты при коммите.
+- ✅ **CI secret scanning** — `.github/workflows/secret-scanning.yml` проверяет на каждом push/PR.
+- ✅ **GitHub Secrets для CI** — токены для CI хранятся в GitHub Settings → Secrets, не в коде.
+- ✅ **Fine-grained PAT** — используйте fine-grained token с минимальными scope (1 репозиторий).
+  - НЕ используйте classic token (доступ ко всем репозиториям).
+  - Срок действия: 30 дней максимум.
+  - Permissions: только необходимые (Contents, Workflows).
+- ✅ **При утечке токена** — немедленно отзовите на github.com/settings/tokens.
+  - Если токен попал в git history — используйте `git filter-branch` или BFG Repo-Cleaner.
+
+**Audit (S8.6, 2026-07-05):** .env.example создан, .gitignore обновлён, detect-secrets в pre-commit,
+CI workflow создан, .secrets.baseline создан.
+
 ### Коммиты
 - Формат: `<type>(<scope>): <description>` (см. CONTRIBUTING.md).
 - Один коммит — одно логическое изменение.

@@ -45,9 +45,18 @@ sarif-reports/
 # pytest-benchmark
 .benchmarks/
 
-# Credentials
+# Credentials / Secrets (S8.6 — 2026-07-05)
 *.credentials
 .git-credentials
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+# .env уже игнорируется выше (строка 24), но дублируем для ясности
+.env
 
 # IDE и редакторы (P3.20)
 .vscode/

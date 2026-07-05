@@ -43,6 +43,17 @@ repos:
         stages: [commit-msg]
         additional_dependencies: ['@commitlint/config-conventional']
 
+  # ─── detect-secrets (S8.6 — 2026-07-05) ───
+  # Предотвращает accidental commits секретов (токены, пароли, ключи).
+  # Baseline: .secrets.baseline (существующие false positives помечены как known)
+  # Обновление baseline: detect-secrets scan --baseline .secrets.baseline
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: '^data/|^derived/|^runtime/|^tools/|^download/|^experimental/'
+
   # ─── Ruff (lint + format) ───
   # Заменяет flake8 + black + isort одним инструментом
   # P1.5: версия ruff в pre-commit должна совпадать с локальной и CI

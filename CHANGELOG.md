@@ -3,6 +3,37 @@
 
 ## [Unreleased]
 
+### S8.6 — Secrets management (2026-07-05)
+
+* **`.env.example` создан** — шаблон переменных окружения (все значения закомментированы,
+  реальные токены заменены на placeholders). Содержит все env vars проекта:
+  ONEC_AI_DEV_ENV_ROOT, GITHUB_TOKEN, BSL_LS_BINARY, MCP_RATE_LIMIT, MCP_METRICS_PORT,
+  OLLAMA_URL, OLLAMA_MODEL, LOG_FORMAT, LOG_LEVEL, GITLAB_TOKEN, S3_*.
+* **`.gitignore` обновлён** — добавлены паттерны для секрет-файлов:
+  `.env.local`, `.env.*.local`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `secrets/`.
+  Существующие `.env`, `.git-credentials`, `*.credentials` уже были в .gitignore.
+* **`.pre-commit-config.yaml` обновлён** — добавлен detect-secrets hook (Yelp/detect-secrets v1.5.0):
+  * Использует `.secrets.baseline` для false positives
+  * Исключает data/, derived/, runtime/, tools/, download/, experimental/
+* **`.secrets.baseline` создан** — baseline для detect-secrets (пустой, 27 детекторов включено).
+* **`.github/workflows/secret-scanning.yml` создан** — CI workflow:
+  * Запускается на push и pull_request
+  * detect-secrets scan с baseline
+  * Blocking: новый секрет → CI падает
+  * Доп. проверки: .git-credentials в .gitignore, .env.example существует
+* **`AGENTS.md` обновлён** — добавлена секция "Secrets management (S8.6)" с политикой:
+  * ❌ НИКОГДА не коммить .env с реальными секретами
+  * ✅ Используй .env.example как шаблон
+  * ✅ Fine-grained PAT с минимальными scope, 30 дней максимум
+  * ✅ При утечке — немедленно отозвать
+* **`tests/test_secrets_management.py` добавлен** (15 тестов):
+  * TestEnvExample: .env.example существует, без реальных секретов, с placeholders
+  * TestGitignoreSecrets: .gitignore покрывает .env, .git-credentials, *.pem, *.key, *.credentials
+  * TestPreCommitDetectSecrets: detect-secrets в pre-commit, использует baseline
+  * TestSecretsBaseline: .secrets.baseline существует и валиден
+  * TestSecretScanningCI: CI workflow существует и использует detect-secrets
+  * TestAgentsMdSecretsPolicy: AGENTS.md содержит политику secrets
+
 ### S8.2 — subprocess.run audit + AGENTS.md политика (2026-07-05)
 
 * **Аудит subprocess.run**: 8 файлов проверены (7 в src/, 1 в scripts/).
