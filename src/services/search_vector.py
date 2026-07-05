@@ -201,6 +201,8 @@ class VectorSearch:
         # Опционально сохраняем индекс на диск
         if index_path:
             self._save_index(methods, index_path)
+            # A4.7: также сохраняем embeddings для быстрого восстановления
+            self._save_embeddings(index_path, embeddings, payloads)
 
         return len(points)
 
@@ -271,6 +273,115 @@ class VectorSearch:
             encoding="utf-8",
         )
         logger.info("Векторный индекс metadata сохранён: %s", index_path)
+
+    # =====================================================================
+    # A4.7: Vector index persistence
+    # =====================================================================
+
+    def _save_embeddings(
+        self,
+        index_path: Path,
+        embeddings: list[Any],
+        payloads: list[dict],
+    ) -> None:
+        """A4.7: Сохранить embeddings через VectorIndexPersistence.
+
+        Args:
+            index_path: Базовый путь (тот же что и для _save_index).
+            embeddings: Список векторов (от fastembed).
+            payloads: Метаданные точек.
+
+        Note:
+            Persistence — это optimization, не должна ломать build_index.
+            Если что-то не так с embeddings (mock, нестандартный тип) — логируем
+            warning и пропускаем save.
+        """
+        try:
+            import numpy as np
+
+            from src.services.vector_index_persistence import VectorIndexPersistence
+
+            persistence = VectorIndexPersistence()
+
+            # Конвертируем list of arrays в единый numpy array
+            emb_array = np.array([np.asarray(emb, dtype=np.float32) for emb in embeddings])
+
+            # Путь для persistence — добавляем суффикс _vectors, чтобы не конфликтовать
+            # с _save_index (который пишет methods.json)
+            vectors_path = index_path.parent / (index_path.name + "_vectors")
+
+            persistence.save_index(
+                vectors_path,
+                emb_array,
+                payloads,
+                model_name=self._model_name,
+                vector_size=self.VECTOR_SIZE,
+                description=f"1C methods vector index, {len(payloads)} points",
+            )
+        except (ValueError, TypeError) as e:
+            # Persistence не должна ломать build_index
+            logger.warning("Failed to save embeddings for persistence: %s", e)
+
+    def load_or_build_index(
+        self,
+        methods: list[dict],
+        index_path: Path,
+    ) -> int:
+        """A4.7: Загрузить индекс с диска или построить заново если невалиден.
+
+        Алгоритм:
+        1. Проверить есть ли сохранённый индекс (vectors.npz + vectors.json)
+        2. Если есть и валиден — загрузить embeddings в Qdrant (БЕЗ генерации)
+        3. Если нет или невалиден — построить заново через build_index()
+
+        Это даёт 10-100× ускорение при повторных запусках.
+
+        Args:
+            methods: Список методов (используется только если нужно rebuild).
+            index_path: Путь к индексу.
+
+        Returns:
+            Количество проиндексированных методов.
+        """
+        from src.services.vector_index_persistence import (
+            VectorIndexPersistence,
+            load_index_into_qdrant,
+        )
+
+        self._ensure_initialized()
+
+        persistence = VectorIndexPersistence()
+        vectors_path = index_path.parent / (index_path.name + "_vectors")
+
+        # Check if cached index exists and is valid
+        if persistence.is_index_valid(vectors_path, self._model_name, self.VECTOR_SIZE):
+            logger.info("Загрузка векторного индекса из кэша: %s", vectors_path)
+            count = load_index_into_qdrant(
+                persistence, vectors_path, self._client, self.COLLECTION_NAME
+            )
+            if count > 0:
+                logger.info("Векторный индекс загружен из кэша: %d методов", count)
+                return count
+            logger.warning("load_index_into_qdrant вернул 0 — rebuild")
+
+        # Fallback: build from scratch
+        logger.info("Кэш невалиден — rebuild векторного индекса с нуля")
+        return self.build_index(methods, index_path)
+
+    def is_index_cached(self, index_path: Path) -> bool:
+        """A4.7: Проверить, есть ли валидный кэш индекса на диске.
+
+        Args:
+            index_path: Путь к индексу.
+
+        Returns:
+            True если кэш существует и совместим с текущей моделью.
+        """
+        from src.services.vector_index_persistence import VectorIndexPersistence
+
+        persistence = VectorIndexPersistence()
+        vectors_path = index_path.parent / (index_path.name + "_vectors")
+        return persistence.is_index_valid(vectors_path, self._model_name, self.VECTOR_SIZE)
 
     def get_stats(self) -> dict[str, Any]:
         """Статистика векторного индекса.
