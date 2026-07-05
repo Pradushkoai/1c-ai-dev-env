@@ -84,9 +84,26 @@ class DiffResult:
 
 
 class BSLAnalyzer:
-    """Анализ .bsl файлов через BSL Language Server."""
+    """Анализ .bsl файлов через BSL Language Server.
+
+    F1.2 (2026-07-05): Реализует ServiceProtocol (name, initialize, is_available).
+    """
 
     BASELINE_FILE = Path("runtime/bsl-baseline.json")
+
+    # F1.2: ServiceProtocol implementation
+    @property
+    def name(self) -> str:
+        return "bsl_analyzer"
+
+    def initialize(self) -> None:
+        """F1.2: Проверка что BSL LS binary существует."""
+        if not self._binary.exists():
+            raise FileNotFoundError(f"BSL LS не найден: {self._binary}")
+
+    def is_available(self) -> bool:
+        """F1.2: BSL LS доступен если binary существует."""
+        return self._binary.exists()
 
     def __init__(self, binary_path: Path, config_path: Path, project_root: Path | None = None):
         self._binary = binary_path

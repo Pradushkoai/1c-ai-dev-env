@@ -31,7 +31,10 @@
 
 from __future__ import annotations
 
+from src.since import since
 
+
+@since("6.0.0")
 class ProjectError(Exception):
     """Базовое исключение проекта.
 
@@ -161,6 +164,7 @@ class IndexBuildError(ProjectError):
 # === Безопасность (F1.4 — 2026-07-05) ===
 
 
+@since("6.0.0")
 class SecurityError(ProjectError):
     """Базовая ошибка безопасности.
 
@@ -200,6 +204,7 @@ class RateLimitExceededError(SecurityError):
 # === Внешние инструменты (F1.4 — 2026-07-05) ===
 
 
+@since("6.0.0")
 class ExternalToolError(ProjectError):
     """Базовая ошибка внешнего инструмента.
 
@@ -229,6 +234,7 @@ class V8UnpackError(ExternalToolError):
 # === Валидация (F1.4 — 2026-07-05) ===
 
 
+@since("6.0.0")
 class ValidationError(ProjectError):
     """Базовая ошибка валидации входных данных.
 
@@ -253,6 +259,7 @@ class InvalidParameterError(ValidationError):
 # === Парсинг (F1.4 — 2026-07-05) ===
 
 
+@since("6.0.0")
 class ParseError(ProjectError):
     """Базовая ошибка парсинга.
 

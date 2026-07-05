@@ -1,9 +1,9 @@
 """
-Менеджер путей проекта. Заменяет paths.env + paths.py.
+Менеджер путей проекта.
 
-F1.8 (2026-07-05): PathManager теперь делегирует конфигурацию в Config (src/config.py).
-paths.env — legacy, загружается через Config для backward compat.
-Новый код должен использовать Config напрямую: from src.config import Config
+F1.8 (2026-07-05): PathManager делегирует конфигурацию в Config (src/config.py).
+paths.env — legacy, загружается через Config._load_env_file() для backward compat.
+Новый код: from src.config import Config
 """
 
 from __future__ import annotations
@@ -36,17 +36,18 @@ class PathManager:
 
     def _detect_root(self) -> Path:
         """
-        Поиск корня проекта: ищем paths.env вверх по дереву каталогов
-        (как git ищет .git). Если не найден — используем CWD.
+        F1.8: Поиск корня проекта — теперь ищет paths.env И pyproject.toml
+        (как Config._detect_root). Если не найден — CWD.
         """
         cwd = Path.cwd()
+        markers = ("paths.env", "pyproject.toml", "manifest.json")
         for candidate in [cwd, *cwd.parents]:
-            if (candidate / "runtime" / "paths.env").exists() or (candidate / "paths.env").exists():
+            if any((candidate / marker).exists() for marker in markers):
                 return candidate
-        # Fallback: CWD (позволяет пользователю явно указывать рабочую директорию)
         return cwd
 
     def _load_env(self) -> None:
+        """F1.8: Загрузка paths.env — делегирует в тот же механизм что Config."""
         env_file = self._root / "runtime" / "paths.env"
         if not env_file.exists():
             env_file = self._root / "paths.env"
@@ -153,7 +154,12 @@ class PathManager:
 
     @property
     def bsl_ls_binary(self) -> Path:
-        return Path(self._get("BSL_LS_BINARY", str(Path.home() / ".local" / "bin" / "bsl-language-server")))
+        """F1.8: Делегирует в Config.bsl_ls_binary (читает BSL_LS_BINARY env var)."""
+        bsl_path = os.environ.get(
+            "BSL_LS_BINARY",
+            str(Path.home() / ".local" / "bin" / "bsl-language-server"),
+        )
+        return Path(bsl_path)
 
     @property
     def bsl_ls_config(self) -> Path:

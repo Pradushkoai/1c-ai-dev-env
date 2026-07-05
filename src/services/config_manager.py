@@ -61,10 +61,26 @@ class ConfigManager:
     - ConfigBuilder — построение индексов: build, build_all
     - ConfigValidator — валидация: validate_sources, check_freshness
 
+    F1.2 (2026-07-05): Реализует ServiceProtocol (name, initialize, is_available).
+
     Для backward compat все существующие методы сохранены на ConfigManager
     и делегируют в builder/validator. Новый код должен использовать
     соответствующие классы напрямую.
     """
+
+    # F1.2: ServiceProtocol implementation
+    @property
+    def name(self) -> str:
+        return "config_manager"
+
+    def initialize(self) -> None:
+        """F1.2: Инициализация — проверка реестра и путей."""
+        if not self._paths.root.exists():
+            raise FileNotFoundError(f"Project root не найден: {self._paths.root}")
+
+    def is_available(self) -> bool:
+        """F1.2: ConfigManager доступен если root существует."""
+        return self._paths.root.exists()
 
     def __init__(self, registry: ConfigurationRegistry, paths: PathManager):
         self._registry = registry

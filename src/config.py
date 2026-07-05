@@ -40,7 +40,10 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from src.since import since
 
+
+@since("6.0.0")
 @dataclass
 class Config:
     """

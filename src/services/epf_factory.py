@@ -116,7 +116,23 @@ class EpfFactory:
     P2.4: create_epf разбит на pipeline из 10 этапов.
     Каждый этап — отдельный метод, который возвращает True/False (успех/провал)
     и записывает ошибку в result.error при провале.
+
+    F1.2 (2026-07-05): Реализует ServiceProtocol (name, initialize, is_available).
     """
+
+    # F1.2: ServiceProtocol implementation
+    @property
+    def name(self) -> str:
+        return "epf_factory"
+
+    def initialize(self) -> None:
+        """F1.2: Проверка что шаблоны существуют."""
+        if not TEMPLATES_DIR.exists():
+            raise FileNotFoundError(f"Шаблоны EPF не найдены: {TEMPLATES_DIR}")
+
+    def is_available(self) -> bool:
+        """F1.2: EpfFactory доступен если шаблоны существуют."""
+        return TEMPLATES_DIR.exists()
 
     def create_epf(
         self,

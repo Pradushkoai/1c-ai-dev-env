@@ -24,7 +24,17 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+# F1.7: Импорт для @since декоратора
+try:
+    from src.since import since as _since
+except ImportError:
+    def _since(v: str):
+        def d(o):
+            return o
+        return d
 
+
+@_since("6.0.0")
 @runtime_checkable
 class ServiceProtocol(Protocol):
     """
