@@ -2,7 +2,7 @@
 config_search.py — handlers для конфигураций, поиска и метаданных.
 
 P2.2: вынесено из mcp_server.py (группа 1).
-Handlers: list_configs, search_1c_methods, search_code, call_graph,
+Handlers: list[Any]_configs, search_1c_methods, search_code, call_graph,
           get_form_elements, get_api_reference
 """
 
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from ..project import Project
 
 
-async def handle_list_configs(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_list_configs(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Список загруженных конфигураций 1С."""
     configs = project.list_configs_info()
     return [
@@ -30,7 +30,7 @@ async def handle_list_configs(project: Project, arguments: dict) -> list[types.T
     ]
 
 
-async def handle_search_1c_methods(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_search_1c_methods(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """BM25 поиск по методам платформы 1С."""
     query = arguments.get("query", "")
     limit = arguments.get("limit", 10)
@@ -44,7 +44,7 @@ async def handle_search_1c_methods(project: Project, arguments: dict) -> list[ty
     ]
 
 
-async def handle_search_code(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_search_code(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """BM25 поиск по коду конфигурации."""
     query = arguments.get("query", "")
     config_name = arguments.get("config_name", "")
@@ -60,7 +60,7 @@ async def handle_search_code(project: Project, arguments: dict) -> list[types.Te
     ]
 
 
-async def handle_call_graph(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_call_graph(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Граф вызовов методов конфигурации."""
     config_name = arguments.get("config_name", "")
     action = arguments.get("action", "stats")
@@ -98,7 +98,7 @@ async def handle_call_graph(project: Project, arguments: dict) -> list[types.Tex
     ]
 
 
-async def handle_get_form_elements(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_get_form_elements(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Элементы формы конфигурации."""
     config_name = arguments.get("config_name", "")
     form_name = arguments.get("form_name", "")
@@ -138,7 +138,7 @@ async def handle_get_form_elements(project: Project, arguments: dict) -> list[ty
     ]
 
 
-async def handle_get_api_reference(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_get_api_reference(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """API-справочник конфигурации."""
     config_name = arguments.get("config_name", "")
     module = arguments.get("module", "")
@@ -169,7 +169,7 @@ async def handle_get_api_reference(project: Project, arguments: dict) -> list[ty
 
 
 # Реестр handlers группы 1
-CONFIG_SEARCH_HANDLERS: dict = {
+CONFIG_SEARCH_HANDLERS: dict[str, Any] = {
     "list_configs": handle_list_configs,
     "search_1c_methods": handle_search_1c_methods,
     "search_code": handle_search_code,

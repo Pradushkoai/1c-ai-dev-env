@@ -224,23 +224,7 @@ module = [
 ]
 disallow_untyped_defs = true
 warn_return_any = true  # Этап 3.1: включено
-disallow_any_generics = false  # Этап 3.2: 243 type-arg ошибок, gradual typing
-
-# Этап 3.2: gradual typing — disallow_any_generics для чистых модулей
-# (перенесённых в Этапах 1-2, без type-arg ошибок)
-[[tool.mypy.overrides]]
-module = [
-    "src.services.diff",
-    "src.services.epf",
-    "src.services.epf.*",
-    "src.services.cfe",
-    "src.services.cfe.*",
-    "src.services.cf",
-    "src.services.cf.*",
-    "src.services.analyzers.standards",
-    "src.services.analyzers.standards.*",
-]
-disallow_any_generics = true
+disallow_any_generics = true  # F1.1 (2026-07-05): включено глобально — 246 bare generics параметризованы
 
 # ─── Coverage ───
 [tool.coverage.run]

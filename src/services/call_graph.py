@@ -12,6 +12,7 @@
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import re
@@ -128,7 +129,7 @@ class CallGraph:
             called.add(key)
         return [(mod, meth) for mod, meth in export_methods if self._key(mod, meth) not in called]
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Статистика графа."""
         nodes = set()
         for edge in self.edges:
@@ -141,7 +142,7 @@ class CallGraph:
             "unique_callees": len({self._key(e.callee_module, e.callee_method) for e in self.edges}),
         }
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Сериализация в dict для JSON."""
         return {
             "config_name": self.config_name,

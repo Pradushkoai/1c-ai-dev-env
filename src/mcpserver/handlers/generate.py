@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import mcp.types as types
 
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from src.project import Project
 
 
-async def handle_generate_processing(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_generate_processing(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Handler для MCP tool: generate_processing, generate_report."""
     obj_name = arguments.get("name", "")
     synonym = arguments.get("synonym", "")
@@ -62,7 +62,7 @@ async def handle_generate_processing(project: Project, arguments: dict) -> list[
     return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
 
 
-async def handle_build_epf(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_build_epf(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Handler для MCP tool: build_epf."""
     source_dir = arguments.get("source_dir", "")
     output_path = arguments.get("output_path", "")
@@ -109,7 +109,7 @@ async def handle_build_epf(project: Project, arguments: dict) -> list[types.Text
         ]
 
 
-async def handle_validate_generated(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_validate_generated(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Handler для MCP tool: validate_generated."""
     source_dir = arguments.get("source_dir", "")
 
@@ -150,7 +150,7 @@ async def handle_validate_generated(project: Project, arguments: dict) -> list[t
         ]
 
 
-async def handle_epf_factory_create(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_epf_factory_create(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Handler для MCP tool: epf_factory_create."""
     # Создание .epf через EpfFactory
     try:
@@ -238,7 +238,7 @@ async def handle_epf_factory_create(project: Project, arguments: dict) -> list[t
         ]
 
 
-async def handle_epf_factory_templates(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_epf_factory_templates(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Handler для MCP tool: epf_factory_templates."""
     # Список шаблонов epf-factory
     try:
@@ -255,7 +255,7 @@ async def handle_epf_factory_templates(project: Project, arguments: dict) -> lis
         ]
 
 
-async def handle_generate_report(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_generate_report(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Генерация отчёта 1С через code_generator."""
     obj_name = arguments.get("name", "")
     synonym = arguments.get("synonym", "")
@@ -296,7 +296,7 @@ async def handle_generate_report(project: Project, arguments: dict) -> list[type
 
 
 # Реестр handlers
-GENERATE_HANDLERS: dict = {
+GENERATE_HANDLERS: dict[str, Any] = {
     "generate_processing": handle_generate_processing,
     "generate_report": handle_generate_report,
     "build_epf": handle_build_epf,

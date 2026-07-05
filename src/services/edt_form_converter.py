@@ -159,7 +159,7 @@ def _convert_checkbox(elem: ET.Element, id_counter: list[int]) -> dict[str, Any]
     }
 
 
-def _build_raw_for_input_field(name: str, prop_id: str) -> list:
+def _build_raw_for_input_field(name: str, prop_id: str) -> list[Any]:
     """Построить raw-структуру v8unpack для InputField (минимальная)."""
     return [
         "9",
@@ -181,7 +181,7 @@ def _build_raw_for_input_field(name: str, prop_id: str) -> list:
     ]
 
 
-def _build_raw_for_button(name: str, prop_id: str) -> list:
+def _build_raw_for_button(name: str, prop_id: str) -> list[Any]:
     """Построить raw-структуру v8unpack для Button (минимальная)."""
     return [
         "9",
@@ -203,7 +203,7 @@ def _build_raw_for_button(name: str, prop_id: str) -> list:
     ]
 
 
-def _build_raw_for_label(name: str, prop_id: str) -> list:
+def _build_raw_for_label(name: str, prop_id: str) -> list[Any]:
     """Построить raw-структуру v8unpack для Label (минимальная)."""
     return [
         "9",
@@ -225,7 +225,7 @@ def _build_raw_for_label(name: str, prop_id: str) -> list:
     ]
 
 
-def _build_raw_for_table(name: str, prop_id: str) -> list:
+def _build_raw_for_table(name: str, prop_id: str) -> list[Any]:
     """Построить raw-структуру v8unpack для Table (минимальная)."""
     return [
         "9",
@@ -247,7 +247,7 @@ def _build_raw_for_table(name: str, prop_id: str) -> list:
     ]
 
 
-def _build_raw_for_checkbox(name: str, prop_id: str) -> list:
+def _build_raw_for_checkbox(name: str, prop_id: str) -> list[Any]:
     """Построить raw-структуру v8unpack для CheckBox (минимальная)."""
     return [
         "9",
@@ -286,7 +286,7 @@ def convert_edt_form_to_v8unpack(form_xml_path: str | Path) -> dict[str, Any]:
         form_xml_path: Путь к EDT Form.xml файлу
 
     Returns:
-        dict в формате Form.elem.json (v8unpack)
+        dict[str, Any] в формате Form.elem.json (v8unpack)
 
     Raises:
         FileNotFoundError: если файл не найден

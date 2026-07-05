@@ -21,6 +21,7 @@ code_metrics.py — Метрики кода BSL 1С.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import re
 from dataclasses import dataclass, field
@@ -170,7 +171,7 @@ class CodeMetricsAnalyzer:
             results.append(self.analyze_file(bsl_file))
         return results
 
-    def get_summary(self, metrics_list: list[CodeMetrics]) -> dict:
+    def get_summary(self, metrics_list: list[CodeMetrics]) -> dict[str, Any]:
         """Сводка по нескольким файлам."""
         total_files = len(metrics_list)
         total_lines = sum(m.code_lines for m in metrics_list)
@@ -543,7 +544,7 @@ def _print_metrics(m: CodeMetrics):
             print(f"  [{issue['severity']}] {issue['message']}")
 
 
-def _print_summary(summary: dict, results: list[CodeMetrics]):
+def _print_summary(summary: dict[str, Any], results: list[CodeMetrics]):
     print(f"\n{'=' * 60}")
     print(f"СВОДКА ПО {summary['total_files']} ФАЙЛАМ")
     print(f"{'=' * 60}")

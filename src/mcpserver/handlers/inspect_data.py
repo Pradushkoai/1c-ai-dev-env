@@ -23,7 +23,7 @@ def _strip_ns(tag: str) -> str:
     return tag.split("}")[-1] if "}" in tag else tag
 
 
-async def handle_inspect(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_inspect(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Единый inspect — анализ объектов 1С с режимами."""
     target = arguments.get("target", "cf")
     mode = arguments.get("mode", "overview")
@@ -148,7 +148,7 @@ async def handle_inspect(project: Project, arguments: dict) -> list[types.TextCo
         return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
-async def handle_data_status(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_data_status(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Статус данных проекта."""
     from src.services.data_package import DataPackage
 
@@ -177,7 +177,7 @@ async def handle_data_status(project: Project, arguments: dict) -> list[types.Te
 
 
 # Реестр handlers группы 5
-INSPECT_DATA_HANDLERS: dict = {
+INSPECT_DATA_HANDLERS: dict[str, Any] = {
     "inspect": handle_inspect,
     "data_status": handle_data_status,
 }

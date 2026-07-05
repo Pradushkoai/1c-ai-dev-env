@@ -21,6 +21,7 @@ transaction_checker.py — Проверка транзакций в BSL коде
 """
 
 from __future__ import annotations
+from typing import Any
 
 import re
 from dataclasses import dataclass
@@ -321,7 +322,7 @@ class TransactionChecker:
 
         return violations
 
-    def get_stats(self, violations: list[TransactionViolation]) -> dict:
+    def get_stats(self, violations: list[TransactionViolation]) -> dict[str, Any]:
         """Статистика по нарушениям."""
         from collections import Counter
 
@@ -329,8 +330,8 @@ class TransactionChecker:
         by_rule = Counter(v.rule_id for v in violations)
         return {
             "total": len(violations),
-            "by_severity": dict(by_severity),
-            "by_rule": dict(by_rule),
+            "by_severity": dict[str, Any](by_severity),
+            "by_rule": dict[str, Any](by_rule),
         }
 
 

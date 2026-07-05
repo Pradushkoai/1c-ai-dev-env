@@ -285,7 +285,7 @@ class TaskProcessor:
         except Exception as e:
             ctx.warnings.append(f"knowledge_base search failed: {e}")
 
-    def _standards_summary(self) -> dict:
+    def _standards_summary(self) -> dict[str, Any]:
         """Summary по доступным стандартам."""
         return {
             "bsl_ls_diagnostics": 187,

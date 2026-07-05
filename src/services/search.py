@@ -4,6 +4,7 @@
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import math
@@ -98,7 +99,7 @@ def build_index(methods_json_path: Path, output_path: Path) -> int:
     index_data = {
         "methods": documents,
         "idf": idf,
-        "inverted_index": dict(inverted_index),
+        "inverted_index": dict[str, Any](inverted_index),
         "total_methods": len(documents),
     }
 

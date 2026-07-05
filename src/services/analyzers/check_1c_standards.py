@@ -27,6 +27,7 @@ Exit codes:
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 from dataclasses import asdict
@@ -46,7 +47,7 @@ from .standards import ALL_RULES, Violation  # noqa: F401
 class StandardsChecker:
     """Проверка .bsl файлов на соответствие стандартам 1С."""
 
-    def __init__(self, rules: list | None = None):
+    def __init__(self, rules: list[Any] | None = None):
         self.rules = rules or ALL_RULES
 
     def check_file(self, file_path: Path) -> list[Violation]:

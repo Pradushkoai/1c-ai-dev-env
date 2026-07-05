@@ -21,7 +21,7 @@ from .path_manager import PathManager
 from .search_bm25 import BM25_B, BM25_K1, tokenize_stemmed
 
 
-def _build_index_for_config(config_name: str, paths: PathManager) -> dict | None:
+def _build_index_for_config(config_name: str, paths: PathManager) -> dict[str, Any] | None:
     """Построить BM25 индекс по методам одной конфигурации."""
     api_json = paths.config_api_reference_json(config_name)
     if not api_json.exists():
@@ -93,8 +93,8 @@ def _build_index_for_config(config_name: str, paths: PathManager) -> dict | None
         "config": config_name,
         "documents": documents,
         "idf": idf_bm25,
-        "inverted_index": dict(inverted_index),
-        "doc_lengths": dict(enumerate(doc_lengths)),
+        "inverted_index": dict[str, Any](inverted_index),
+        "doc_lengths": dict[str, Any](enumerate(doc_lengths)),
         "avg_doc_length": avg_doc_length,
         "total_methods": N,
     }

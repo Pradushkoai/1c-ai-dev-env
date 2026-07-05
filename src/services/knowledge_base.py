@@ -52,7 +52,7 @@ class KnowledgeBase:
                 kb_dir = candidates[0]
 
         self.kb_dir = Path(kb_dir)
-        self.index: dict = {}
+        self.index: dict[str, Any] = {}
         self._loaded: dict[str, str] = {}  # file -> content
 
         self._load_index()
@@ -139,7 +139,7 @@ class KnowledgeBase:
 
         return results[:limit]
 
-    def get_item(self, item_id: str) -> dict | None:
+    def get_item(self, item_id: str) -> dict[str, Any] | None:
         """Возвращает полный контент элемента по ID.
 
         Args:

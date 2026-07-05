@@ -1,6 +1,7 @@
 """mxl — компилятор JSON DSL → XML для MXL-макетов (печатные формы)."""
 
 from __future__ import annotations
+from typing import Any
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -143,7 +144,7 @@ class MxlCompiler:
         return result
 
     def _parse_column_widths(
-        self, column_widths: dict, columns: int, default_width: int, total_width: int | None = None
+        self, column_widths: dict[str, Any], columns: int, default_width: int, total_width: int | None = None
     ) -> list[int]:
         """Парсит columnWidths dict в список ширин по колонкам."""
         widths = [default_width] * columns
@@ -189,7 +190,7 @@ class MxlCompiler:
             b = ET.SubElement(borders_elem, f"{{{NS_SSD}}}{side}")
             b.set("style", "Single")
 
-    def _write_area(self, parent: ET.Element, area_def: dict) -> None:
+    def _write_area(self, parent: ET.Element, area_def: dict[str, Any]) -> None:
         """Записать область MXL-макета."""
         area_elem = ET.SubElement(parent, f"{{{NS_SSD}}}area")
         area_elem.set("name", area_def.get("name", ""))
@@ -199,7 +200,7 @@ class MxlCompiler:
         for row_def in rows:
             self._write_row(rows_elem, row_def)
 
-    def _write_row(self, parent: ET.Element, row_def: dict) -> None:
+    def _write_row(self, parent: ET.Element, row_def: dict[str, Any]) -> None:
         """Записать строку области."""
         row_elem = ET.SubElement(parent, f"{{{NS_SSD}}}row")
         if "height" in row_def:
@@ -213,7 +214,7 @@ class MxlCompiler:
         for cell_def in cells:
             self._write_cell(cells_elem, cell_def)
 
-    def _write_cell(self, parent: ET.Element, cell_def: dict) -> None:
+    def _write_cell(self, parent: ET.Element, cell_def: dict[str, Any]) -> None:
         """Записать ячейку."""
         cell_elem = ET.SubElement(parent, f"{{{NS_SSD}}}cell")
         cell_elem.set("col", str(cell_def.get("col", 1)))

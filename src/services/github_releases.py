@@ -24,6 +24,7 @@ Workflow:
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import os
@@ -52,7 +53,7 @@ class ReleaseInfo:
     size_mb: float = 0.0
 
     @classmethod
-    def from_api(cls, data: dict) -> ReleaseInfo:
+    def from_api(cls, data: dict[str, Any]) -> ReleaseInfo:
         return cls(
             tag=data.get("tag_name", ""),
             name=data.get("name", ""),
@@ -106,7 +107,7 @@ class GitHubReleases:
         return ""
 
     def _api_call(
-        self, method: str, endpoint: str, data: dict | None = None, accept: str = "application/vnd.github+json"
+        self, method: str, endpoint: str, data: dict[str, Any] | None = None, accept: str = "application/vnd.github+json"
     ) -> tuple[int, dict | str]:
         """Вызвать GitHub API через curl. Возвращает (status_code, response)."""
         url = endpoint if endpoint.startswith("http") else f"{GITHUB_API}{endpoint}"
@@ -235,7 +236,7 @@ class GitHubReleases:
         asset_name: str = DEFAULT_ASSET_NAME,
         release_name: str = DEFAULT_RELEASE_NAME,
         body: str = "",
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Загрузить data package в GitHub Release.
 
@@ -314,7 +315,7 @@ class GitHubReleases:
 
     def pull(
         self, output_path: Path | None = None, tag: str = DEFAULT_RELEASE_TAG, asset_name: str = DEFAULT_ASSET_NAME
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Скачать data package из GitHub Release.
 
@@ -366,7 +367,7 @@ class GitHubReleases:
             "tag": tag,
         }
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         """Статус GitHub Releases integration."""
         if not self.is_configured():
             return {

@@ -70,7 +70,7 @@ class MetricsCollector:
         """Получить агрегированные метрики.
 
         Returns:
-            dict с ключами:
+            dict[str, Any] с ключами:
             - total_calls: общее кол-во вызовов
             - success_count / error_count
             - success_rate: 0.0-1.0
@@ -132,14 +132,14 @@ class MetricsCollector:
             "p50_latency_ms": p50,
             "p99_latency_ms": p99,
             "uptime_seconds": time.time() - self._start_time,
-            "by_tool": dict(tool_stats),
+            "by_tool": dict[str, Any](tool_stats),
         }
 
     def check_slo(self) -> dict[str, bool]:
         """Проверить SLO (Service Level Objectives).
 
         Returns:
-            dict с ключами-результатами SLO проверок
+            dict[str, Any] с ключами-результатами SLO проверок
         """
         stats = self.get_stats()
 

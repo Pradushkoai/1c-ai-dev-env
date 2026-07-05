@@ -21,6 +21,7 @@ security_auditor.py — Аудит безопасности BSL кода 1С.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import re
 from dataclasses import dataclass
@@ -276,7 +277,7 @@ class SecurityAuditor:
             violations.extend(self.audit_file(bsl_file))
         return violations
 
-    def get_stats(self, violations: list[SecurityViolation]) -> dict:
+    def get_stats(self, violations: list[SecurityViolation]) -> dict[str, Any]:
         """Возвращает статистику по нарушениям."""
         from collections import Counter
 
@@ -284,8 +285,8 @@ class SecurityAuditor:
         by_rule = Counter(v.rule_id for v in violations)
         return {
             "total_violations": len(violations),
-            "by_severity": dict(by_severity),
-            "by_rule": dict(by_rule),
+            "by_severity": dict[str, Any](by_severity),
+            "by_rule": dict[str, Any](by_rule),
             "critical_count": by_severity.get("CRITICAL", 0),
             "high_count": by_severity.get("HIGH", 0),
             "medium_count": by_severity.get("MEDIUM", 0),

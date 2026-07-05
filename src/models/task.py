@@ -8,6 +8,7 @@ CheckResult — что нашли анализаторы (violations + verdict +
 """
 
 from __future__ import annotations
+from typing import Any
 
 from dataclasses import dataclass, field
 
@@ -101,13 +102,13 @@ class TaskContext:
     knowledge_articles: list[KnowledgeArticleHit] = field(default_factory=list)
 
     # Стандарты (summary — что доступно)
-    standards_summary: dict = field(default_factory=dict)
+    standards_summary: dict[str, Any] = field(default_factory=dict)
 
     # Что НЕ удалось найти (для диагностики)
     missing_sources: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "query": self.query,
             "config": self.config_name,
@@ -196,7 +197,7 @@ class CheckResult:
             return "warnings"
         return "errors"
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "file": self.file,
             "level": self.level,

@@ -44,8 +44,8 @@ class AnalysisResult:
     """Результат анализа файла/директории."""
 
     total: int = 0
-    by_code: dict = field(default_factory=dict)
-    diagnostics: list = field(default_factory=list)
+    by_code: dict[str, Any] = field(default_factory=dict)
+    diagnostics: list[Any] = field(default_factory=list)
 
     @property
     def diagnostic_set(self) -> set[str]:
@@ -78,8 +78,8 @@ class AnalysisResult:
 class DiffResult:
     """Результат diff анализа."""
 
-    new: list = field(default_factory=list)
-    fixed: list = field(default_factory=list)
+    new: list[Any] = field(default_factory=list)
+    fixed: list[Any] = field(default_factory=list)
     current: AnalysisResult = field(default_factory=AnalysisResult)
 
 

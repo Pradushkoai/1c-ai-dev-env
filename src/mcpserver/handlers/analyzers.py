@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import mcp.types as types
 
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 # ─── BSL анализаторы ───
 
 
-async def handle_analyze_bsl(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_analyze_bsl(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Анализ .bsl файла через BSL Language Server."""
     file_path = arguments.get("file_path", "")
     try:
@@ -52,7 +52,7 @@ async def handle_analyze_bsl(project: Project, arguments: dict) -> list[types.Te
         ]
 
 
-async def handle_check_standards(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_check_standards(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Проверка .bsl файла на 56 правил стандартов 1С."""
     file_path = arguments.get("file_path", "")
     try:
@@ -85,7 +85,7 @@ async def handle_check_standards(project: Project, arguments: dict) -> list[type
         ]
 
 
-async def handle_solve_context(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_solve_context(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Сбор контекста для решения задачи 1С."""
     from src.services.task_processor import TaskProcessor
 
@@ -105,7 +105,7 @@ async def handle_solve_context(project: Project, arguments: dict) -> list[types.
     ]
 
 
-async def handle_solve_check(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_solve_check(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Полная проверка .bsl кода: 7 анализаторов."""
     from src.services.task_processor import TaskProcessor
 
@@ -134,7 +134,7 @@ async def handle_solve_check(project: Project, arguments: dict) -> list[types.Te
 
 # Реестр handlers группы 3a (BSL анализаторы)
 # Остальные handlers будут добавлены в следующих коммитах
-ANALYZER_HANDLERS: dict = {
+ANALYZER_HANDLERS: dict[str, Any] = {
     "analyze_bsl": handle_analyze_bsl,
     "check_standards": handle_check_standards,
     "solve_context": handle_solve_context,

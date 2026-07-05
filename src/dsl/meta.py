@@ -1,6 +1,7 @@
 """meta — компилятор JSON DSL → XML для метаданных 1С (23 типа)."""
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import xml.etree.ElementTree as ET
@@ -102,7 +103,7 @@ class MetaCompiler:
         object_type: str,
         object_name: str,
         synonym: str,
-        def_dict: dict,
+        def_dict: dict[str, Any],
     ) -> None:
         """Записать XML объекта метаданных."""
         # Регистрируем namespaces
@@ -195,7 +196,7 @@ class MetaCompiler:
             fill_check = ET.SubElement(std_attr, f"{{{NS_XR}}}FillChecking")
             fill_check.text = "DontCheck"
 
-    def _add_type_specific_props(self, props_elem: ET.Element, object_type: str, def_dict: dict) -> None:
+    def _add_type_specific_props(self, props_elem: ET.Element, object_type: str, def_dict: dict[str, Any]) -> None:
         """Добавить свойства специфичные для типа объекта."""
         if object_type == "Catalog":
             # Hierarchical, CodeLength, DescriptionLength
@@ -235,7 +236,7 @@ class MetaCompiler:
             value_type = _normalize_type(def_dict.get("valueType", "String"))
             _make_type_element(type_container, value_type)
 
-    def _add_child_objects(self, child_objects_elem: ET.Element, object_type: str, def_dict: dict) -> None:
+    def _add_child_objects(self, child_objects_elem: ET.Element, object_type: str, def_dict: dict[str, Any]) -> None:
         """Добавить дочерние объекты (реквизиты, ТЧ, формы, значения enum)."""
         # Реквизиты (attributes)
         attributes = def_dict.get("attributes", [])
@@ -279,7 +280,7 @@ class MetaCompiler:
                 content = ET.SubElement(item, f"{{{NS_V8}}}content")
                 content.text = val_synonym
 
-    def _write_attribute(self, parent: ET.Element, attr: dict, tag_name: str = "Attribute") -> None:
+    def _write_attribute(self, parent: ET.Element, attr: dict[str, Any], tag_name: str = "Attribute") -> None:
         """Записать реквизит как <Attribute>."""
         attr_elem = ET.SubElement(parent, f"{{{NS_MD}}}{tag_name}")
         attr_props = ET.SubElement(attr_elem, f"{{{NS_MD}}}Properties")
@@ -307,7 +308,7 @@ class MetaCompiler:
             idx = ET.SubElement(attr_props, f"{{{NS_XR}}}Indexing")
             idx.text = attr["indexing"]
 
-    def _create_modules(self, obj_dir: Path, object_type: str, def_dict: dict) -> list[Path]:
+    def _create_modules(self, obj_dir: Path, object_type: str, def_dict: dict[str, Any]) -> list[Path]:
         """Создать BSL-модули объекта (ObjectModule, ManagerModule)."""
         modules: list[Path] = []
 
@@ -332,7 +333,7 @@ class MetaCompiler:
 
         return modules
 
-    def _default_object_module(self, object_type: str, def_dict: dict) -> str:
+    def _default_object_module(self, object_type: str, def_dict: dict[str, Any]) -> str:
         """Шаблон ObjectModule.bsl с регионами."""
         return (
             f"// Объект: {object_type} {def_dict.get('name', '')}\n"

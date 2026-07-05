@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import mcp.types as types
 
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from src.project import Project
 
 
-async def handle_get_knowledge(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_get_knowledge(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Handler для MCP tool: get_knowledge."""
     query = arguments.get("query", "")
     item_id = arguments.get("item_id", "")
@@ -73,7 +73,7 @@ async def handle_get_knowledge(project: Project, arguments: dict) -> list[types.
         ]
 
 
-async def handle_audit_security(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_audit_security(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Handler для MCP tool: audit_security."""
     file_path = arguments.get("file_path", "")
 
@@ -135,7 +135,7 @@ async def handle_audit_security(project: Project, arguments: dict) -> list[types
         ]
 
 
-async def handle_get_code_metrics(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_get_code_metrics(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Handler для MCP tool: get_code_metrics."""
     file_path = arguments.get("file_path", "")
 
@@ -215,7 +215,7 @@ async def handle_get_code_metrics(project: Project, arguments: dict) -> list[typ
         ]
 
 
-async def handle_check_transactions(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_check_transactions(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Handler для MCP tool: check_transactions, analyze_queries."""
     file_path = arguments.get("file_path", "")
     if not file_path:
@@ -290,7 +290,7 @@ async def handle_check_transactions(project: Project, arguments: dict) -> list[t
         ]
 
 
-async def handle_analyze_architecture(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_analyze_architecture(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Handler для MCP tool: analyze_architecture."""
     config_dir = arguments.get("config_dir", "")
     if not config_dir:
@@ -347,7 +347,7 @@ async def handle_analyze_architecture(project: Project, arguments: dict) -> list
         ]
 
 
-async def handle_check_form_quality(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_check_form_quality(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Handler для MCP tool: check_form_quality, check_skd_quality."""
     config_name = arguments.get("config_name", "")
     if not config_name:
@@ -402,7 +402,7 @@ async def handle_check_form_quality(project: Project, arguments: dict) -> list[t
         ]
 
 
-async def handle_diff_configs(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_diff_configs(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Handler для MCP tool: diff_configs."""
     old_path = arguments.get("old_path", "")
     new_path = arguments.get("new_path", "")
@@ -470,7 +470,7 @@ async def handle_diff_configs(project: Project, arguments: dict) -> list[types.T
 
 
 # Реестр handlers
-QUALITY_HANDLERS: dict = {
+QUALITY_HANDLERS: dict[str, Any] = {
     "get_knowledge": handle_get_knowledge,
     "audit_security": handle_audit_security,
     "get_code_metrics": handle_get_code_metrics,

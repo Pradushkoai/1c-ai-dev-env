@@ -272,7 +272,7 @@ class VectorSearch:
         )
         logger.info("Векторный индекс metadata сохранён: %s", index_path)
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Статистика векторного индекса.
 
         Returns:

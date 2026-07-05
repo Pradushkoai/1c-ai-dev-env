@@ -58,7 +58,7 @@ def sync_to_async(func: Callable[..., T]) -> Callable[..., Awaitable[T]]:
     Или как декоратор:
 
         @sync_to_async
-        def my_heavy_sync_function(path: Path) -> dict:
+        def my_heavy_sync_function(path: Path) -> dict[str, Any]:
             ...
 
         # Теперь my_heavy_sync_function возвращает coroutine

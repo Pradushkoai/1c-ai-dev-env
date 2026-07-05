@@ -8,7 +8,7 @@ Handlers: get_object_structure, get_skd_schema, get_form_structure
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import mcp.types as types
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from src.project import Project
 
 
-async def handle_get_object_structure(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_get_object_structure(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Структура объекта метаданных из unified-metadata-index.json."""
     config_name = arguments.get("config_name", "")
     object_name = arguments.get("object_name", "")
@@ -114,7 +114,7 @@ async def handle_get_object_structure(project: Project, arguments: dict) -> list
     return [types.TextContent(type="text", text=json.dumps(found, ensure_ascii=False, indent=2))]
 
 
-async def handle_get_skd_schema(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_get_skd_schema(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Схема СКД из skd-index.json."""
     config_name = arguments.get("config_name", "")
     report_name = arguments.get("report_name", "")
@@ -191,7 +191,7 @@ async def handle_get_skd_schema(project: Project, arguments: dict) -> list[types
     return [types.TextContent(type="text", text=json.dumps(found, ensure_ascii=False, indent=2))]
 
 
-async def handle_get_form_structure(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_get_form_structure(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Структура формы из form-index.json."""
     config_name = arguments.get("config_name", "")
     form_name = arguments.get("form_name", "")
@@ -273,7 +273,7 @@ async def handle_get_form_structure(project: Project, arguments: dict) -> list[t
     return [types.TextContent(type="text", text=json.dumps(found, ensure_ascii=False, indent=2))]
 
 
-STRUCTURE_HANDLERS: dict = {
+STRUCTURE_HANDLERS: dict[str, Any] = {
     "get_object_structure": handle_get_object_structure,
     "get_skd_schema": handle_get_skd_schema,
     "get_form_structure": handle_get_form_structure,

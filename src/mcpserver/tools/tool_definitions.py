@@ -9,11 +9,12 @@ P2.2: вынесено из mcp_server.py для декомпозиции (SRP).
 """
 
 from __future__ import annotations
+from typing import Any
 
 import mcp.types as types
 
 
-def _build_tool(name: str, description: str, input_schema: dict) -> types.Tool:
+def _build_tool(name: str, description: str, input_schema: dict[str, Any]) -> types.Tool:
     """Создать types.Tool с заданными параметрами."""
     return types.Tool(
         name=name,

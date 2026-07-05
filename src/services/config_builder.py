@@ -16,7 +16,7 @@ import logging
 import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from .config_validator import ConfigValidator
 
@@ -77,7 +77,7 @@ class ConfigBuilder:
         name: str,
         force: bool = False,
         skip_if_fresh: bool = True,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Построить ВСЕ индексы для конфигурации. Возвращает отчёт.
 
@@ -88,7 +88,7 @@ class ConfigBuilder:
                           (только когда force=False)
 
         Returns:
-            dict с ключами: name, metadata, api, skd, forms, skipped
+            dict[str, Any] с ключами: name, metadata, api, skd, forms, skipped
 
         Raises:
             ValueError: если конфигурация не активна или исходники невалидны.
@@ -117,7 +117,7 @@ class ConfigBuilder:
                     "reason": "all indexes fresh",
                 }
 
-        report: dict = {
+        report: dict[str, Any] = {
             "name": name,
             "metadata": False,
             "api": False,

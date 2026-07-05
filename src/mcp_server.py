@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
-from typing import cast
+from typing import Any, cast
 
 import mcp.types as types
 from mcp.server import Server
@@ -56,48 +56,48 @@ def create_mcp_server() -> Server:
         return get_all_tool_definitions()
 
     @server.call_tool()
-    async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
+    async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
         """Выполняет tool и возвращает результат."""
         # Структурированный лог каждого вызова — для отладки и аудита
         with contextlib.suppress(Exception):
             log.info(f"mcp_tool_called: {name} args={list(arguments.keys()) if arguments else []}")
 
-        # P2.2: dict-dispatch для handlers группы 1 (config/search/metadata)
+        # P2.2: dict[str, Any]-dispatch для handlers группы 1 (config/search/metadata)
         from .mcpserver.handlers import CONFIG_SEARCH_HANDLERS
 
         handler = CONFIG_SEARCH_HANDLERS.get(name)
         if handler is not None:
             return cast(list[types.TextContent], await handler(project, arguments))
 
-        # P2.2: dict-dispatch для handlers группы 3a (BSL анализаторы)
+        # P2.2: dict[str, Any]-dispatch для handlers группы 3a (BSL анализаторы)
         from .mcpserver.handlers import ANALYZER_HANDLERS
 
         handler = ANALYZER_HANDLERS.get(name)
         if handler is not None:
             return cast(list[types.TextContent], await handler(project, arguments))
 
-        # P2.2: dict-dispatch для handlers группы 2 (dsl/cfe/skd/depgraph)
+        # P2.2: dict[str, Any]-dispatch для handlers группы 2 (dsl/cfe/skd/depgraph)
         from .mcpserver.handlers import DSL_CFE_HANDLERS
 
         handler = DSL_CFE_HANDLERS.get(name)
         if handler is not None:
             return cast(list[types.TextContent], await handler(project, arguments))
 
-        # P2.2: dict-dispatch для handlers группы 4 (openspec)
+        # P2.2: dict[str, Any]-dispatch для handlers группы 4 (openspec)
         from .mcpserver.handlers import MISC_HANDLERS
 
         handler = MISC_HANDLERS.get(name)
         if handler is not None:
             return cast(list[types.TextContent], await handler(project, arguments))
 
-        # P2.2: dict-dispatch для handlers группы 5 (inspect/data)
+        # P2.2: dict[str, Any]-dispatch для handlers группы 5 (inspect/data)
         from .mcpserver.handlers import INSPECT_DATA_HANDLERS
 
         handler = INSPECT_DATA_HANDLERS.get(name)
         if handler is not None:
             return cast(list[types.TextContent], await handler(project, arguments))
 
-        # P2.2: dict-dispatch для оставшихся handlers (группы 6-8)
+        # P2.2: dict[str, Any]-dispatch для оставшихся handlers (группы 6-8)
         # Структура/Генерация/Качество — проверяются одним проходом,
         # без дублирования (раньше STRUCTURE_HANDLERS искался дважды).
         from .mcpserver.handlers import GENERATE_HANDLERS, QUALITY_HANDLERS, STRUCTURE_HANDLERS

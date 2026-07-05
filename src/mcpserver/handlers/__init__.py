@@ -6,6 +6,7 @@ P2.2: handlers вынесены из mcp_server.py по группам.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from .analyzers import ANALYZER_HANDLERS
 from .config_search import CONFIG_SEARCH_HANDLERS
@@ -17,7 +18,7 @@ from .quality import QUALITY_HANDLERS
 from .structure import STRUCTURE_HANDLERS
 
 # Объединённый реестр всех handlers
-ALL_HANDLERS: dict = {}
+ALL_HANDLERS: dict[str, Any] = {}
 ALL_HANDLERS.update(CONFIG_SEARCH_HANDLERS)
 ALL_HANDLERS.update(DSL_CFE_HANDLERS)
 ALL_HANDLERS.update(ANALYZER_HANDLERS)

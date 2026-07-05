@@ -56,7 +56,7 @@ class PackageManifest:
     size_bytes: int = 0
     description: str = ""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "version": self.version,
             "created_at": self.created_at,
@@ -70,7 +70,7 @@ class PackageManifest:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> PackageManifest:
+    def from_dict(cls, data: dict[str, Any]) -> PackageManifest:
         return cls(
             version=data.get("version", "1.0"),
             created_at=data.get("created_at", ""),
@@ -184,7 +184,7 @@ class DataPackage:
 
     # ---- Загрузка ----
 
-    def load(self, input_path: Path) -> dict:
+    def load(self, input_path: Path) -> dict[str, Any]:
         """
         Восстановить данные из ZIP.
 
@@ -245,7 +245,7 @@ class DataPackage:
 
     # ---- Информация о пакете ----
 
-    def info(self, input_path: Path) -> dict:
+    def info(self, input_path: Path) -> dict[str, Any]:
         """
         Прочитать информацию о пакете без распаковки.
 
@@ -295,7 +295,7 @@ class DataPackage:
             description=description or "Autosave",
         )
 
-    def autoload(self) -> dict | None:
+    def autoload(self) -> dict[str, Any] | None:
         """
         Автоматически восстановить из стандартного места, если пакет существует.
 
@@ -311,7 +311,7 @@ class DataPackage:
 
     # ---- Статус данных ----
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         """
         Текущий статус данных: что доступно, что нужно перестроить.
 
@@ -320,7 +320,7 @@ class DataPackage:
             has_platform_methods: bool,
             configs: [{name, has_derived, has_raw}],
             autosave_available: bool,
-            autosave_info: dict | None,
+            autosave_info: dict[str, Any] | None,
         }
         """
         status: dict[str, Any] = {

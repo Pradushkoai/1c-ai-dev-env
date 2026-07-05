@@ -29,7 +29,7 @@ def validate_bsl(bsl_path: Path) -> dict[str, Any]:
     """Проверить BSL-файл через BSL Language Server.
 
     Returns:
-        dict с ключами: ok, errors, warnings, infos, diagnostics
+        dict[str, Any] с ключами: ok, errors, warnings, infos, diagnostics
     """
     if not Path(BSL_LS_BINARY).exists():
         return {

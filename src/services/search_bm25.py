@@ -30,6 +30,7 @@ Backward compat: v1 (TF-IDF) индексы продолжают работат�
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import math
@@ -508,12 +509,12 @@ def build_index_bm25(methods_json_path: Path, output_path: Path) -> int:
         "algorithm": "bm25",
         "methods": documents,
         "idf": idf_bm25,
-        "inverted_index": dict(inverted_index),
+        "inverted_index": dict[str, Any](inverted_index),
         "doc_lengths": doc_lengths_dict,
         "avg_doc_length": avg_doc_length,
         "total_methods": N,
-        "trigrams_index": dict(trigrams_index),
-        "method_trigrams": {str(k): list(v) for k, v in method_trigrams.items()},
+        "trigrams_index": dict[str, Any](trigrams_index),
+        "method_trigrams": {str(k): list[Any](v) for k, v in method_trigrams.items()},
         "bm25_params": {"k1": BM25_K1, "b": BM25_B},
     }
 
@@ -532,7 +533,7 @@ def _bm25_score(tf: int, idf: float, doc_length: float, avg_length: float) -> fl
     return idf * (tf * (k1 + 1)) / (tf + k1 * norm)
 
 
-def _load_index(index_path: Path) -> dict:
+def _load_index(index_path: Path) -> dict[str, Any]:
     """
     Загрузить BM25 индекс из JSON-файла (с кэшированием).
 
@@ -550,7 +551,7 @@ def _load_index(index_path: Path) -> dict:
         index_path: Путь к JSON-индексу.
 
     Returns:
-        dict с полями: methods, idf, inverted_index, doc_lengths, etc.
+        dict[str, Any] с полями: methods, idf, inverted_index, doc_lengths, etc.
 
     Raises:
         FileNotFoundError: Если index_path не существует.
@@ -646,7 +647,7 @@ def search_bm25(index_path: Path, query: str, limit: int = 10, hybrid: bool = Tr
     return results
 
 
-def _trigram_search(index: dict, query: str, candidate_ids: list[int] | None = None) -> dict[int, float]:
+def _trigram_search(index: dict[str, Any], query: str, candidate_ids: list[int] | None = None) -> dict[int, float]:
     """
     Триграммный поиск — для устойчивости к опечаткам.
 

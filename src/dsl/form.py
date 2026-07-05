@@ -1,6 +1,7 @@
 """form — компилятор JSON DSL → XML для управляемых форм (Form.xml)."""
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import xml.etree.ElementTree as ET
@@ -84,7 +85,7 @@ class FormCompiler:
 
         return result
 
-    def _write_form_item(self, parent: ET.Element, item_def: dict) -> None:
+    def _write_form_item(self, parent: ET.Element, item_def: dict[str, Any]) -> None:
         """Записать элемент формы."""
         item_type = item_def.get("type", "Label")
         item_elem = ET.SubElement(parent, f"{{{NS_MD}}}{item_type}")

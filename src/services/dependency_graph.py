@@ -33,6 +33,7 @@ Graph MCP через Neo4j) — но реализовано на networkx вме
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import re
@@ -189,7 +190,7 @@ class DependencyGraph:
 
         return result
 
-    def _scan_attributes(self, metadata: dict, result: DependencyGraphResult) -> None:
+    def _scan_attributes(self, metadata: dict[str, Any], result: DependencyGraphResult) -> None:
         """Сканировать реквизиты ссылочных типов."""
         objects_by_type = metadata.get("objects", {})
         for type_name, objs in objects_by_type.items():
@@ -211,7 +212,7 @@ class DependencyGraph:
                     for ts_attr in ts.get("attributes", []):
                         self._check_attribute_type(obj_full, ts_attr, f"ТЧ {ts_name}")
 
-    def _check_attribute_type(self, source_obj: str, attr: dict, context: str) -> None:
+    def _check_attribute_type(self, source_obj: str, attr: dict[str, Any], context: str) -> None:
         """Проверить тип реквизита на ссылочный."""
         attr_name = attr.get("name", "")
         # metadata_extractor хранит типы в 'types' (список), не в 'type' (строка)
@@ -262,7 +263,7 @@ class DependencyGraph:
 
         return refs
 
-    def _scan_register_recorders(self, metadata: dict, result: DependencyGraphResult) -> None:
+    def _scan_register_recorders(self, metadata: dict[str, Any], result: DependencyGraphResult) -> None:
         """Регистраторы регистров: Document.X → Register.Y.
 
         В 1С XML регистраторы хранятся в <RegisterRecords> внутри Properties документа.
@@ -302,7 +303,7 @@ class DependencyGraph:
                 elif isinstance(register_records, str) and register_records:
                     self._add_edge(doc_full, register_records, "registered_by", "регистратор")
 
-    def _scan_subsystems(self, metadata: dict, result: DependencyGraphResult) -> None:
+    def _scan_subsystems(self, metadata: dict[str, Any], result: DependencyGraphResult) -> None:
         """Подсистемы: объекты входят в подсистемы."""
         for subsystem in metadata.get("subsystems", []):
             ss_name = subsystem.get("name", "")
@@ -316,7 +317,7 @@ class DependencyGraph:
                 if isinstance(item, str) and "." in item:
                     self._add_edge(item, ss_full, "in_subsystem", "входит в подсистему")
 
-    def _scan_event_subscriptions(self, metadata: dict, result: DependencyGraphResult) -> None:
+    def _scan_event_subscriptions(self, metadata: dict[str, Any], result: DependencyGraphResult) -> None:
         """Подписки на события: EventSubscription.X → CommonModule.Y.handler."""
         for es in metadata.get("event_subscriptions", []):
             es_name = es.get("name", "")
@@ -534,7 +535,7 @@ class DependencyGraph:
         except (nx.NetworkXError, nx.NetworkXNoPath):
             return None
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Статистика графа."""
         return {
             "nodes": self._graph.number_of_nodes(),
@@ -546,11 +547,11 @@ class DependencyGraph:
             "is_dag": nx.is_directed_acyclic_graph(self._graph),
         }
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Сериализация графа в dict."""
         return {
             "config_name": self._config_name,
-            "nodes": list(self._graph.nodes()),
+            "nodes": list[Any](self._graph.nodes()),
             "edges": [
                 {
                     "source": e.source,

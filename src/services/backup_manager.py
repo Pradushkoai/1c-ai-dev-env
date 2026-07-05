@@ -93,7 +93,7 @@ class BackupManager:
         logger.info(f"Backup создан: {output_path} ({total_files} файлов, {total_size / 1024 / 1024:.1f} МБ)")
         return output_path
 
-    def restore_backup(self, backup_path: Path) -> dict:
+    def restore_backup(self, backup_path: Path) -> dict[str, Any]:
         """
         Восстановить данные из ZIP архива.
 
@@ -101,7 +101,7 @@ class BackupManager:
             backup_path: Путь к ZIP файлу
 
         Returns:
-            dict со статистикой восстановления
+            dict[str, Any] со статистикой восстановления
         """
         backup_path = Path(backup_path)
         if not backup_path.exists():
@@ -109,7 +109,7 @@ class BackupManager:
 
         stats: dict[str, Any] = {
             "files_restored": 0,
-            "dirs_restored": set(),
+            "dirs_restored": set[Any](),
             "size_bytes": 0,
         }
 
@@ -167,7 +167,7 @@ class BackupManager:
             backup_dir: Папка с ZIP архивами
 
         Returns:
-            list of dict с информацией о каждом backup
+            list[Any] of dict с информацией о каждом backup
         """
         backup_dir = Path(backup_dir)
         if not backup_dir.exists():

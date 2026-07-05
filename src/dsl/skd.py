@@ -1,6 +1,7 @@
 """skd — компилятор JSON DSL → XML для схем компоновки данных (СКД)."""
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import xml.etree.ElementTree as ET
@@ -99,7 +100,7 @@ class SkdCompiler:
 
         return result
 
-    def _write_data_set(self, parent: ET.Element, ds_def: dict) -> None:
+    def _write_data_set(self, parent: ET.Element, ds_def: dict[str, Any]) -> None:
         """Записать набор данных."""
         ds_type = ds_def.get("type", "query")
         type_map = {
@@ -129,7 +130,7 @@ class SkdCompiler:
         for field_def in ds_def.get("fields", []):
             self._write_dataset_field(ds_elem, field_def)
 
-    def _write_dataset_field(self, parent: ET.Element, field_def: dict) -> None:
+    def _write_dataset_field(self, parent: ET.Element, field_def: dict[str, Any]) -> None:
         """Записать поле набора данных."""
         f = ET.SubElement(parent, f"{{{NS_DCS}}}field")
         dp = ET.SubElement(f, f"{{{NS_DCS}}}dataPath")
@@ -145,7 +146,7 @@ class SkdCompiler:
             expr = ET.SubElement(f, f"{{{NS_DCS}}}expression")
             expr.text = field_def["expression"]
 
-    def _write_calculated_field(self, parent: ET.Element, cf_def: dict) -> None:
+    def _write_calculated_field(self, parent: ET.Element, cf_def: dict[str, Any]) -> None:
         """Записать вычисляемое поле."""
         cf = ET.SubElement(parent, f"{{{NS_DCS}}}calculatedField")
         dp = ET.SubElement(cf, f"{{{NS_DCS}}}dataPath")
@@ -161,7 +162,7 @@ class SkdCompiler:
             content = ET.SubElement(item, f"{{{NS_V8}}}content")
             content.text = cf_def["title"]
 
-    def _write_total_field(self, parent: ET.Element, tf_def: dict) -> None:
+    def _write_total_field(self, parent: ET.Element, tf_def: dict[str, Any]) -> None:
         """Записать итоговое поле (ресурс)."""
         tf = ET.SubElement(parent, f"{{{NS_DCS}}}totalField")
         dp = ET.SubElement(tf, f"{{{NS_DCS}}}dataPath")
@@ -175,7 +176,7 @@ class SkdCompiler:
             grp = ET.SubElement(tf, f"{{{NS_DCS}}}group")
             grp.text = tf_def["group"]
 
-    def _write_parameter(self, parent: ET.Element, param_def: dict) -> None:
+    def _write_parameter(self, parent: ET.Element, param_def: dict[str, Any]) -> None:
         """Записать параметр СКД."""
         p = ET.SubElement(parent, f"{{{NS_DCS}}}parameter")
         n = ET.SubElement(p, f"{{{NS_DCS}}}name")

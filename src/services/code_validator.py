@@ -28,6 +28,7 @@ code_validator.py — Валидация сгенерированного BSL-к
 """
 
 from __future__ import annotations
+from typing import Any
 
 import re
 import xml.etree.ElementTree as ET
@@ -45,7 +46,7 @@ class BSLValidator:
         self.errors: list[dict] = []
         self.warnings: list[dict] = []
 
-    def validate(self, bsl_content: str, file_path: str = "") -> dict:
+    def validate(self, bsl_content: str, file_path: str = "") -> dict[str, Any]:
         """Валидирует BSL-код.
 
         Returns:
@@ -212,7 +213,7 @@ class XMLValidator:
         self.errors: list[dict] = []
         self.warnings: list[dict] = []
 
-    def validate(self, xml_content: str, file_path: str = "") -> dict:
+    def validate(self, xml_content: str, file_path: str = "") -> dict[str, Any]:
         """Валидирует XML."""
         self.errors = []
         self.warnings = []
@@ -293,7 +294,7 @@ class XMLValidator:
 # ============================================================================
 
 
-def validate_structure(source_dir: Path) -> dict:
+def validate_structure(source_dir: Path) -> dict[str, Any]:
     """Проверяет структурную целостность обработки/отчёта.
 
     Returns:
@@ -359,7 +360,7 @@ def validate_structure(source_dir: Path) -> dict:
 # ============================================================================
 
 
-def validate_generated(source_dir: str) -> dict:
+def validate_generated(source_dir: str) -> dict[str, Any]:
     """Полная валидация сгенерированной обработки/отчёта.
 
     Args:

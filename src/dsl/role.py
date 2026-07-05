@@ -1,6 +1,7 @@
 """role — компилятор JSON DSL → XML для ролей 1С (Rights.xml)."""
 
 from __future__ import annotations
+from typing import Any
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -179,7 +180,7 @@ class RoleCompiler:
 
         return result
 
-    def _write_role_metadata(self, meta_path: Path, role_name: str, def_dict: dict) -> None:
+    def _write_role_metadata(self, meta_path: Path, role_name: str, def_dict: dict[str, Any]) -> None:
         """Записать метаданные роли (Roles/<Name>.xml)."""
         for prefix, uri in [("md", NS_MD), ("xr", NS_XR), ("v8", NS_V8)]:
             ET.register_namespace(prefix, uri)
@@ -214,7 +215,7 @@ class RoleCompiler:
         tree = ET.ElementTree(root)
         tree.write(meta_path, encoding="utf-8", xml_declaration=True)
 
-    def _write_rights_xml(self, rights_path: Path, def_dict: dict) -> None:
+    def _write_rights_xml(self, rights_path: Path, def_dict: dict[str, Any]) -> None:
         """Записать Rights.xml с правами на объекты.
 
         Формат: реальный 1C Rights.xml (version 2.18):
@@ -260,7 +261,7 @@ class RoleCompiler:
         tree = ET.ElementTree(root)
         tree.write(rights_path, encoding="utf-8", xml_declaration=True)
 
-    def _write_object_rights(self, parent: ET.Element, obj_def: dict | str, ns: str) -> None:
+    def _write_object_rights(self, parent: ET.Element, obj_def: dict[str, Any] | str, ns: str) -> None:
         """Записать права на один объект в реальном формате 1C."""
         if isinstance(obj_def, str):
             parsed = self._parse_object_shorthand(obj_def)
@@ -325,7 +326,7 @@ class RoleCompiler:
                 rls_elem = ET.SubElement(right_elem, f"{{{ns}}}restriction")
                 rls_elem.text = condition  # ET сам экранирует &
 
-    def _parse_object_shorthand(self, shorthand: str) -> dict:
+    def _parse_object_shorthand(self, shorthand: str) -> dict[str, Any]:
         """Парсит 'Тип.Имя: @пресет' или 'Тип.Имя: Право1, Право2'."""
         if ":" in shorthand:
             obj_part, rights_part = shorthand.split(":", 1)

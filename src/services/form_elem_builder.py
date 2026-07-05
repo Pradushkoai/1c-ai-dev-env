@@ -44,6 +44,7 @@ DSL пример:
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 from dataclasses import dataclass
@@ -108,27 +109,27 @@ class FormElemProp:
 # ─── Конструкторы Pattern (внутренний формат 1С) ─────────────────
 
 
-def _pattern_date() -> list:
+def _pattern_date() -> list[Any]:
     """Pattern для типа Дата (с квалификатором ДатаВремя)."""
     return ['"D"']
 
 
-def _pattern_string(length: int = 50) -> list:
+def _pattern_string(length: int = 50) -> list[Any]:
     """Pattern для типа Строка(length, variable)."""
     return ['"S"', str(length), "1"]
 
 
-def _pattern_number(digits: int = 10, fraction: int = 2) -> list:
+def _pattern_number(digits: int = 10, fraction: int = 2) -> list[Any]:
     """Pattern для типа Число(digits, fraction, non-negative)."""
     return ['"N"', str(digits), str(fraction), "0"]
 
 
-def _pattern_boolean() -> list:
+def _pattern_boolean() -> list[Any]:
     """Pattern для типа Булево."""
     return ['"B"']
 
 
-def _pattern_catalog_ref(catalog_name: str) -> list:
+def _pattern_catalog_ref(catalog_name: str) -> list[Any]:
     """Pattern для типа СправочникСсылка.<catalog_name>.
 
     В 1С используется идентификатор типа справочника, но в Form.elem.json
@@ -137,22 +138,22 @@ def _pattern_catalog_ref(catalog_name: str) -> list:
     return ['"#"', "Родитель"]  # упрощённо — будет уточнено через metadata
 
 
-def _pattern_document_ref(document_name: str) -> list:
+def _pattern_document_ref(document_name: str) -> list[Any]:
     """Pattern для типа ДокументСсылка.<document_name>."""
     return ['"#"', "Родитель"]
 
 
-def _pattern_valuetable() -> list:
+def _pattern_valuetable() -> list[Any]:
     """Pattern для типа ТаблицаЗначений (по UUID)."""
     return ['"#"', VALUETABLE_TYPE_UUID]
 
 
-def _pattern_data_processor_object() -> list:
+def _pattern_data_processor_object() -> list[Any]:
     """Pattern для типа Объект внешней обработки."""
     return ['"#"', "Родитель"]
 
 
-def _build_pattern(prop: FormElemProp) -> list:
+def _build_pattern(prop: FormElemProp) -> list[Any]:
     """Построить Pattern по типу реквизита."""
     if prop.type == "DataProcessorObject":
         return _pattern_data_processor_object()
@@ -176,14 +177,14 @@ def _build_pattern(prop: FormElemProp) -> list:
 # ─── Конструкторы raw-структур ────────────────────────────────────
 
 
-def _make_synonym(synonym: str) -> list:
+def _make_synonym(synonym: str) -> list[Any]:
     """Синоним в формате 1С: ["1", "1", ["\"ru\"", "\"<text>\""]] или ["1", "0"]."""
     if not synonym:
         return ["1", "0"]
     return ["1", "1", ['"ru"', f'"{synonym}"']]
 
 
-def _make_attr_raw(prop: FormElemProp, prop_id: int) -> list:
+def _make_attr_raw(prop: FormElemProp, prop_id: int) -> list[Any]:
     """Построить raw для реквизита (тип 9 = Attribute)."""
     raw = list(_BASE_ATTR_RAW)
     raw[1] = [str(prop_id)]
@@ -193,7 +194,7 @@ def _make_attr_raw(prop: FormElemProp, prop_id: int) -> list:
     return raw
 
 
-def _make_column_raw(col: FormElemColumn, col_id: int) -> dict:
+def _make_column_raw(col: FormElemColumn, col_id: int) -> dict[str, Any]:
     """Построить raw для колонки таблицы значений (тип 5 = Column).
 
     Структура проще, чем у Attribute: [type_id, id, unused, name, synonym, pattern, ...]
@@ -226,7 +227,7 @@ def _make_column_raw(col: FormElemColumn, col_id: int) -> dict:
     }
 
 
-def _make_valuetable_prop(prop: FormElemProp, prop_id: int) -> dict:
+def _make_valuetable_prop(prop: FormElemProp, prop_id: int) -> dict[str, Any]:
     """Построить полный реквизит ТаблицыЗначений с колонками."""
     raw = _make_attr_raw(prop, prop_id)
     columns_json = []
@@ -240,7 +241,7 @@ def _make_valuetable_prop(prop: FormElemProp, prop_id: int) -> dict:
     }
 
 
-def _make_simple_prop(prop: FormElemProp, prop_id: int) -> dict:
+def _make_simple_prop(prop: FormElemProp, prop_id: int) -> dict[str, Any]:
     """Построить простой реквизит (Date, String, Number, Boolean, Reference)."""
     return {
         "name": prop.name,
@@ -252,11 +253,11 @@ def _make_simple_prop(prop: FormElemProp, prop_id: int) -> dict:
 # ─── Главная функция ─────────────────────────────────────────────
 
 
-def build_form_elem(form_spec: dict, base_template_path: str | Path | None = None) -> dict:
+def build_form_elem(form_spec: dict[str, Any], base_template_path: str | Path | None = None) -> dict[str, Any]:
     """Построить Form.elem.json (формат v8unpack) из DSL-описания.
 
     Args:
-        form_spec: dict с ключом "props" — список описаний реквизитов.
+        form_spec: dict[str, Any] с ключом "props" — список описаний реквизитов.
             Каждый реквизит:
               {"name": "...", "type": "...", "synonym": "...", ...}
         base_template_path: путь к Form.elem.template.json (реальный EPF,
@@ -266,7 +267,7 @@ def build_form_elem(form_spec: dict, base_template_path: str | Path | None = Non
             Если None — генерируется с нуля (пустая форма).
 
     Returns:
-        dict в формате v8unpack Form.elem.json
+        dict[str, Any] в формате v8unpack Form.elem.json
 
     Важно: при base_template_path=None форма может быть невалидной для 1С
     (v8unpack неправильно сериализует пустую форму). Используйте
@@ -313,7 +314,7 @@ def build_form_elem(form_spec: dict, base_template_path: str | Path | None = Non
     return {"params": None, "props": props_json, "commands": [], "tree": [], "data": {}}
 
 
-def _parse_prop_spec(spec: dict) -> FormElemProp:
+def _parse_prop_spec(spec: dict[str, Any]) -> FormElemProp:
     """Распарсить описание реквизита из DSL в FormElemProp."""
     name = spec.get("name")
     if not name:
@@ -349,7 +350,7 @@ def _parse_prop_spec(spec: dict) -> FormElemProp:
     )
 
 
-def build_and_save_form_elem(form_spec: dict, output_path: Path) -> dict:
+def build_and_save_form_elem(form_spec: dict[str, Any], output_path: Path) -> dict[str, Any]:
     """Построить Form.elem.json и сохранить в файл.
 
     Args:

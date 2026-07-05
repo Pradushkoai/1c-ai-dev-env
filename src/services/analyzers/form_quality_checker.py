@@ -21,6 +21,7 @@ form_quality_checker.py — Проверка качества форм 1С.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 from dataclasses import dataclass
@@ -58,11 +59,11 @@ class FormQualityChecker:
 
         return issues
 
-    def check_form(self, form_data: dict) -> list[FormQualityIssue]:
+    def check_form(self, form_data: dict[str, Any]) -> list[FormQualityIssue]:
         """Проверка одной формы."""
         return self._check_form(form_data)
 
-    def _check_form(self, form_data: dict) -> list[FormQualityIssue]:
+    def _check_form(self, form_data: dict[str, Any]) -> list[FormQualityIssue]:
         issues = []
         form_name = form_data.get("name", "")
         parent_name = form_data.get("parent_name", "")
@@ -284,13 +285,13 @@ class FormQualityChecker:
                     nesting + 1,
                 )
 
-    def get_stats(self, issues: list[FormQualityIssue]) -> dict:
+    def get_stats(self, issues: list[FormQualityIssue]) -> dict[str, Any]:
         from collections import Counter
 
         return {
             "total": len(issues),
-            "by_severity": dict(Counter(i.severity for i in issues)),
-            "by_rule": dict(Counter(i.rule_id for i in issues)),
+            "by_severity": dict[str, Any](Counter(i.severity for i in issues)),
+            "by_rule": dict[str, Any](Counter(i.rule_id for i in issues)),
         }
 
 

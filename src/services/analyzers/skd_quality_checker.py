@@ -21,6 +21,7 @@ skd_quality_checker.py — Проверка качества СКД-схем 1С
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 from dataclasses import dataclass
@@ -54,10 +55,10 @@ class SKDQualityChecker:
             issues.extend(self._check_schema(schema))
         return issues
 
-    def check_schema(self, schema_data: dict) -> list[SKDIssue]:
+    def check_schema(self, schema_data: dict[str, Any]) -> list[SKDIssue]:
         return self._check_schema(schema_data)
 
-    def _check_schema(self, schema_data: dict) -> list[SKDIssue]:
+    def _check_schema(self, schema_data: dict[str, Any]) -> list[SKDIssue]:
         issues = []
         name = schema_data.get("name", "")
         parent_name = schema_data.get("parent_name", "")
@@ -220,13 +221,13 @@ class SKDQualityChecker:
 
         return issues
 
-    def get_stats(self, issues: list[SKDIssue]) -> dict:
+    def get_stats(self, issues: list[SKDIssue]) -> dict[str, Any]:
         from collections import Counter
 
         return {
             "total": len(issues),
-            "by_severity": dict(Counter(i.severity for i in issues)),
-            "by_rule": dict(Counter(i.rule_id for i in issues)),
+            "by_severity": dict[str, Any](Counter(i.severity for i in issues)),
+            "by_rule": dict[str, Any](Counter(i.rule_id for i in issues)),
         }
 
 

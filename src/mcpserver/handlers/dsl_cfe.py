@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 # ─── DSL compilers ───
 
 
-async def handle_dsl_compile_meta(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_dsl_compile_meta(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Компиляция JSON DSL → XML метаданных 1С."""
     from src.services.dsl_compiler import DslCompiler
 
@@ -55,7 +55,7 @@ async def handle_dsl_compile_meta(project: Project, arguments: dict) -> list[typ
         return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
-async def handle_dsl_compile_form(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_dsl_compile_form(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Компиляция JSON DSL → XML управляемой формы."""
     from src.services.dsl_compiler import DslCompiler
 
@@ -86,7 +86,7 @@ async def handle_dsl_compile_form(project: Project, arguments: dict) -> list[typ
         return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
-async def handle_dsl_compile_skd(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_dsl_compile_skd(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Компиляция JSON DSL → XML схемы компоновки данных."""
     from src.services.dsl_compiler import DslCompiler
 
@@ -117,7 +117,7 @@ async def handle_dsl_compile_skd(project: Project, arguments: dict) -> list[type
         return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
-async def handle_dsl_compile_mxl(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_dsl_compile_mxl(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Компиляция JSON DSL → XML MXL-макета."""
     from src.services.dsl_compiler import DslCompiler
 
@@ -148,7 +148,7 @@ async def handle_dsl_compile_mxl(project: Project, arguments: dict) -> list[type
         return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
-async def handle_dsl_compile_role(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_dsl_compile_role(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Компиляция JSON DSL → XML роли 1С."""
     from src.services.dsl_compiler import DslCompiler
 
@@ -183,7 +183,7 @@ async def handle_dsl_compile_role(project: Project, arguments: dict) -> list[typ
 # ─── CFE ───
 
 
-async def handle_cfe_borrow(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_cfe_borrow(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Заимствование объекта в расширение CFE."""
     from src.services.cfe_manager import CfeManager
 
@@ -223,7 +223,7 @@ async def handle_cfe_borrow(project: Project, arguments: dict) -> list[types.Tex
         return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
-async def handle_cfe_patch_method(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_cfe_patch_method(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Генерация &Перед/&После/&ИзменениеИКонтроль для метода."""
     from src.services.cfe_manager import CfeManager
 
@@ -267,7 +267,7 @@ async def handle_cfe_patch_method(project: Project, arguments: dict) -> list[typ
         return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
-async def handle_cfe_diff(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_cfe_diff(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Анализ расширения: что заимствовано, что перехвачено."""
     from src.services.cfe_manager import CfeManager
 
@@ -309,7 +309,7 @@ async def handle_cfe_diff(project: Project, arguments: dict) -> list[types.TextC
 # ─── СКД ───
 
 
-async def handle_skd_trace(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_skd_trace(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Трассировка поля через всю цепочку СКД."""
     template_path = arguments.get("template_path", "")
     field_name = arguments.get("field_name", "")
@@ -335,7 +335,7 @@ async def handle_skd_trace(project: Project, arguments: dict) -> list[types.Text
 # ─── Dependency graph ───
 
 
-async def handle_build_dependency_graph(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_build_dependency_graph(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Построение графа зависимостей метаданных."""
     from src.services.dependency_graph import DependencyGraph
 
@@ -370,7 +370,7 @@ async def handle_build_dependency_graph(project: Project, arguments: dict) -> li
         return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
-async def handle_dependency_query(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_dependency_query(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Запросы к графу зависимостей."""
     from src.services.dependency_graph import DependencyGraph
 
@@ -422,7 +422,7 @@ async def handle_dependency_query(project: Project, arguments: dict) -> list[typ
 
 
 # Реестр handlers группы 2
-DSL_CFE_HANDLERS: dict = {
+DSL_CFE_HANDLERS: dict[str, Any] = {
     "dsl_compile_meta": handle_dsl_compile_meta,
     "dsl_compile_form": handle_dsl_compile_form,
     "dsl_compile_skd": handle_dsl_compile_skd,

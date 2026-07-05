@@ -13,6 +13,7 @@ SessionManager — управление контекстом AI-сессий.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 from dataclasses import asdict, dataclass, field
@@ -34,11 +35,11 @@ class SessionState:
     context_summary: str = ""
     warnings: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict) -> SessionState:
+    def from_dict(cls, d: dict[str, Any]) -> SessionState:
         return cls(
             date=d.get("date", ""),
             current_task=d.get("current_task", ""),

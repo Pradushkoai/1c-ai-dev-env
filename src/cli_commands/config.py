@@ -6,6 +6,7 @@ P2.1: вынесено из cli.py.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import argparse
 from pathlib import Path
@@ -13,7 +14,7 @@ from pathlib import Path
 from src.project import Project
 
 
-def _print_build_report(report: dict) -> None:
+def _print_build_report(report: dict[str, Any]) -> None:
     """Унифицированный вывод отчёта build()."""
     name = report.get("name", "?")
     skipped = report.get("skipped", [])
@@ -98,7 +99,7 @@ def cmd_config_build(project: Project, args: argparse.Namespace) -> None:
                 print(f"    ⚠️ {w}")
         return
     force = getattr(args, "force", False)
-    build_report: dict = project.config_manager.build(args.name, force=force)
+    build_report: dict[str, Any] = project.config_manager.build(args.name, force=force)
     _print_build_report(build_report)
 
 

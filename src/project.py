@@ -113,7 +113,7 @@ class Project:
         """Проверить что все критичные пути существуют."""
         return self.paths.validate()
 
-    def list_configs(self) -> list:
+    def list_configs(self) -> list[Any]:
         """Список всех конфигураций."""
         return self.registry.list_all()
 

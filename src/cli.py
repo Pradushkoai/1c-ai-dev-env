@@ -15,6 +15,7 @@ Usage:
 """
 
 from __future__ import annotations
+from typing import Any
 
 import argparse
 import sys
@@ -326,7 +327,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
         print(f"   Repo: {gh._repo}")
         print(f"   Пакет: {dp.default_package_path}")
         print()
-        push_result: dict = gh.push(body=args.body or "Autosave data package")
+        push_result: dict[str, Any] = gh.push(body=args.body or "Autosave data package")
         if push_result.get("success"):
             print(f"✅ Загружено в release '{push_result['tag']}'")
             print(f"   Размер: {push_result['size_mb']:.1f} МБ")
@@ -354,7 +355,7 @@ def cmd_data(project: Project, args: argparse.Namespace) -> None:
         print(f"   Repo: {gh._repo}")
         print(f"   Target: {dp.default_package_path}")
         print()
-        pull_result: dict = gh.pull()
+        pull_result: dict[str, Any] = gh.pull()
         if pull_result.get("success"):
             print(f"✅ Скачано в: {pull_result['path']}")
             print(f"   Размер: {pull_result['size_mb']:.1f} МБ")

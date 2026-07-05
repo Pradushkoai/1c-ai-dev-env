@@ -386,7 +386,7 @@ class ConfigManager:
             pass
         return latest
 
-    def build(self, name: str, force: bool = False, skip_if_fresh: bool = True) -> dict:
+    def build(self, name: str, force: bool = False, skip_if_fresh: bool = True) -> dict[str, Any]:
         """Построить ВСЕ индексы для конфигурации. Возвращает отчёт.
 
         Запускает 4 парсера:

@@ -3,6 +3,7 @@
 """
 
 from __future__ import annotations
+from typing import Any
 
 from dataclasses import dataclass, field
 from datetime import date
@@ -60,7 +61,7 @@ class Configuration:
     # --- Фабричные методы ---
 
     @classmethod
-    def from_dict(cls, name: str, data: dict, project_root: Path) -> Configuration:
+    def from_dict(cls, name: str, data: dict[str, Any], project_root: Path) -> Configuration:
         """Создать из dict (config-registry.json)."""
         raw_path = data.get("path")
         path = (
@@ -89,7 +90,7 @@ class Configuration:
             added_at=data.get("added_at", date.today().isoformat()),
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Сериализовать в dict для config-registry.json."""
         return {
             "name": self.title,

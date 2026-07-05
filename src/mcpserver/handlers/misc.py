@@ -9,7 +9,7 @@ Handlers: openspec_*, inspect, data_status, get_object_structure,
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import mcp.types as types
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 # ─── OpenSpec ───
 
 
-async def handle_openspec_proposal(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_openspec_proposal(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Создание proposal в OpenSpec."""
     from src.services.openspec_manager import OpenSpecManager
 
@@ -67,7 +67,7 @@ async def handle_openspec_proposal(project: Project, arguments: dict) -> list[ty
         return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
-async def handle_openspec_list(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_openspec_list(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Список changes в OpenSpec."""
     from src.services.openspec_manager import OpenSpecManager
 
@@ -81,7 +81,7 @@ async def handle_openspec_list(project: Project, arguments: dict) -> list[types.
         return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
-async def handle_openspec_update_task(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_openspec_update_task(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Обновление task в OpenSpec."""
     from src.services.openspec_manager import OpenSpecManager
 
@@ -101,7 +101,7 @@ async def handle_openspec_update_task(project: Project, arguments: dict) -> list
         return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
-async def handle_openspec_archive(project: Project, arguments: dict) -> list[types.TextContent]:
+async def handle_openspec_archive(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Архивирование change в OpenSpec."""
     from src.services.openspec_manager import OpenSpecManager
 
@@ -120,7 +120,7 @@ async def handle_openspec_archive(project: Project, arguments: dict) -> list[typ
 
 # Реестр handlers группы 4 (OpenSpec)
 # inspect, data_status, get_* — будут добавлены в следующих коммитах
-MISC_HANDLERS: dict = {
+MISC_HANDLERS: dict[str, Any] = {
     "openspec_proposal": handle_openspec_proposal,
     "openspec_list": handle_openspec_list,
     "openspec_update_task": handle_openspec_update_task,

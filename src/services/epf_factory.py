@@ -49,6 +49,7 @@ Usage (CLI):
 """
 
 from __future__ import annotations
+from typing import Any
 
 import contextlib
 import json
@@ -124,7 +125,7 @@ class EpfFactory:
         bsl_code: str,
         output_epf: str | Path,
         form_name: str = "Форма",
-        form_spec: dict | str | Path | None = None,
+        form_spec: dict[str, Any] | str | Path | None = None,
         work_dir: str | Path | None = None,
         save_sources: bool = False,
         skip_bsl_validation: bool = False,
@@ -161,7 +162,7 @@ class EpfFactory:
         output_epf = Path(output_epf)
 
         # Pipeline context — передаётся между этапами
-        ctx: dict = {
+        ctx: dict[str, Any] = {
             "name": name,
             "synonym": synonym or name,
             "bsl_code": bsl_code,
@@ -200,7 +201,7 @@ class EpfFactory:
 
     # ─── Pipeline этапы (P2.4) ──────────────────────────────────
 
-    def _prepare_work_dir(self, result: EpfFactoryResult, ctx: dict) -> bool:
+    def _prepare_work_dir(self, result: EpfFactoryResult, ctx: dict[str, Any]) -> bool:
         """Этап 1: Подготовка рабочего каталога."""
         work_dir = ctx["work_dir"]
         if work_dir is None:
@@ -214,7 +215,7 @@ class EpfFactory:
         ctx["temp_dir"] = work_dir / "build_temp"
         return True
 
-    def _copy_templates(self, result: EpfFactoryResult, ctx: dict) -> bool:
+    def _copy_templates(self, result: EpfFactoryResult, ctx: dict[str, Any]) -> bool:
         """Этап 2: Копирование шаблонов v8unpack."""
         src_dir = ctx["src_dir"]
         form_dir = ctx["form_dir"]
@@ -230,7 +231,7 @@ class EpfFactory:
             return False
         return True
 
-    def _apply_form_spec(self, result: EpfFactoryResult, ctx: dict) -> bool:
+    def _apply_form_spec(self, result: EpfFactoryResult, ctx: dict[str, Any]) -> bool:
         """Этап 3: Генерация Form.elem.json из form_spec DSL (опционально)."""
         form_spec = ctx["form_spec"]
         if form_spec is None:
@@ -264,7 +265,7 @@ class EpfFactory:
             return False
         return True
 
-    def _generate_uuids(self, result: EpfFactoryResult, ctx: dict) -> bool:
+    def _generate_uuids(self, result: EpfFactoryResult, ctx: dict[str, Any]) -> bool:
         """Этап 4: Генерация новых UUID для обработки и формы."""
         result.proc_uuid = str(uuid.uuid4())
         result.form_uuid = str(uuid.uuid4())
@@ -274,7 +275,7 @@ class EpfFactory:
             ctx["old_form_uuid"] = json.load(f).get("uuid", "")
         return True
 
-    def _patch_ext_proc(self, result: EpfFactoryResult, ctx: dict) -> bool:
+    def _patch_ext_proc(self, result: EpfFactoryResult, ctx: dict[str, Any]) -> bool:
         """Этап 5: Подстановка name/synonym/UUID в ExternalDataProcessor.json."""
         try:
             self._patch_ext_proc_json(
@@ -293,7 +294,7 @@ class EpfFactory:
             return False
         return True
 
-    def _patch_form_id(self, result: EpfFactoryResult, ctx: dict) -> bool:
+    def _patch_form_id(self, result: EpfFactoryResult, ctx: dict[str, Any]) -> bool:
         """Этап 6: Подстановка UUID в Form.id.json."""
         try:
             self._patch_form_id_json(ctx["form_dir"] / "Form.id.json", result.form_uuid)
@@ -302,7 +303,7 @@ class EpfFactory:
             return False
         return True
 
-    def _write_bsl_module(self, result: EpfFactoryResult, ctx: dict) -> bool:
+    def _write_bsl_module(self, result: EpfFactoryResult, ctx: dict[str, Any]) -> bool:
         """Этап 7: Запись BSL-кода модуля формы."""
         bsl_path = ctx["form_dir"] / "Form.obj.bsl"
         bsl_path.write_text(ctx["bsl_code"], encoding="utf-8")
@@ -310,7 +311,7 @@ class EpfFactory:
         ctx["bsl_path"] = bsl_path
         return True
 
-    def _validate_bsl(self, result: EpfFactoryResult, ctx: dict) -> bool:
+    def _validate_bsl(self, result: EpfFactoryResult, ctx: dict[str, Any]) -> bool:
         """Этап 8: Проверка BSL через BSL LS (опционально)."""
         if ctx["skip_bsl_validation"]:
             return True
@@ -321,7 +322,7 @@ class EpfFactory:
         # Не блокируем сборку при ошибках BSL LS — это только предупреждения
         return True
 
-    def _build_epf(self, result: EpfFactoryResult, ctx: dict) -> bool:
+    def _build_epf(self, result: EpfFactoryResult, ctx: dict[str, Any]) -> bool:
         """Этап 9: Сборка .epf через v8unpack + патч block_size."""
         output_epf = ctx["output_epf"]
         src_dir = ctx["src_dir"]
@@ -374,7 +375,7 @@ class EpfFactory:
         result.size_bytes = output_epf.stat().st_size
         return True
 
-    def _verify_and_finalize(self, result: EpfFactoryResult, ctx: dict) -> bool:
+    def _verify_and_finalize(self, result: EpfFactoryResult, ctx: dict[str, Any]) -> bool:
         """Этап 10: Round-trip проверка + cleanup."""
         output_epf = ctx["output_epf"]
         src_dir = ctx["src_dir"]
@@ -440,7 +441,7 @@ class EpfFactory:
 
     # ─── Утилиты ────────────────────────────────────────────────
     @staticmethod
-    def list_templates() -> dict:
+    def list_templates() -> dict[str, Any]:
         """Список доступных шаблонов."""
         return {
             "ext_proc": str(TPL_EXT_PROC),

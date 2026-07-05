@@ -21,6 +21,7 @@ architecture_analyzer.py — Анализ архитектуры BSL кода 1�
 """
 
 from __future__ import annotations
+from typing import Any
 
 import re
 from collections import defaultdict
@@ -531,7 +532,7 @@ class ArchitectureAnalyzer:
                             break
         return issues
 
-    def get_stats(self, issues: list[ArchitectureIssue]) -> dict:
+    def get_stats(self, issues: list[ArchitectureIssue]) -> dict[str, Any]:
         """Статистика."""
         from collections import Counter
 
@@ -539,8 +540,8 @@ class ArchitectureAnalyzer:
         by_rule = Counter(i.rule_id for i in issues)
         return {
             "total_issues": len(issues),
-            "by_severity": dict(by_severity),
-            "by_rule": dict(by_rule),
+            "by_severity": dict[str, Any](by_severity),
+            "by_rule": dict[str, Any](by_rule),
         }
 
 

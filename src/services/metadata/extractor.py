@@ -33,6 +33,7 @@ metadata_extractor.py — Единый универсальный парсер �
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import os
@@ -64,7 +65,7 @@ class XMLUtils:
         return None
 
     @staticmethod
-    def get_children(elem, tag: str) -> list:
+    def get_children(elem, tag: str) -> list[Any]:
         """Возвращает всех потомков с указанным тегом."""
         if elem is None:
             return []
@@ -160,14 +161,14 @@ class UniversalObjectParser:
     def __init__(self):
         self.utils = XMLUtils()
 
-    def parse(self, xml_path: Path) -> dict | None:
+    def parse(self, xml_path: Path) -> dict[str, Any] | None:
         """Парсит XML файл метаданных объекта.
 
         Args:
             xml_path: Путь к XML файлу
 
         Returns:
-            dict с метаданными объекта или None при ошибке
+            dict[str, Any] с метаданными объекта или None при ошибке
         """
         root, error = XMLUtils.safe_parse(xml_path)
         if root is None:
@@ -229,7 +230,7 @@ class UniversalObjectParser:
 
         return result
 
-    def _parse_properties(self, properties_elem) -> dict:
+    def _parse_properties(self, properties_elem) -> dict[str, Any]:
         """Парсит ВСЕ свойства из <Properties> — динамически."""
         if properties_elem is None:
             return {}
@@ -279,7 +280,7 @@ class UniversalObjectParser:
 
         return props
 
-    def _parse_child_objects(self, child_objects_elem) -> dict:
+    def _parse_child_objects(self, child_objects_elem) -> dict[str, Any]:
         """Парсит <ChildObjects> — рекурсивно извлекает все вложенные объекты."""
         if child_objects_elem is None:
             return {}
@@ -334,7 +335,7 @@ class UniversalObjectParser:
 
         return result
 
-    def _parse_attribute(self, attr_elem) -> dict:
+    def _parse_attribute(self, attr_elem) -> dict[str, Any]:
         """Парсит <Attribute> — реквизит объекта."""
         uuid = attr_elem.get("uuid", "")
         properties = XMLUtils.get_child(attr_elem, "Properties")
@@ -356,7 +357,7 @@ class UniversalObjectParser:
 
         return result
 
-    def _parse_tabular_section(self, ts_elem) -> dict:
+    def _parse_tabular_section(self, ts_elem) -> dict[str, Any]:
         """Парсит <TabularSection> — табличную часть."""
         uuid = ts_elem.get("uuid", "")
         properties = XMLUtils.get_child(ts_elem, "Properties")
@@ -377,7 +378,7 @@ class UniversalObjectParser:
 
         return result
 
-    def _parse_standard_attribute(self, attr_elem) -> dict:
+    def _parse_standard_attribute(self, attr_elem) -> dict[str, Any]:
         """Парсит <xr:StandardAttribute> — стандартный реквизит."""
         return {
             "name": attr_elem.get("name", ""),
@@ -399,7 +400,7 @@ class ConfigParser:
     def __init__(self):
         self.utils = XMLUtils()
 
-    def parse_configuration(self, xml_path: Path) -> dict | None:
+    def parse_configuration(self, xml_path: Path) -> dict[str, Any] | None:
         """Парсит Configuration.xml — главный файл конфигурации."""
         root, error = XMLUtils.safe_parse(xml_path)
         if root is None:
@@ -535,7 +536,7 @@ class ConfigParser:
 
         return result
 
-    def parse_config_dump_info(self, xml_path: Path) -> dict | None:
+    def parse_config_dump_info(self, xml_path: Path) -> dict[str, Any] | None:
         """Парсит ConfigDumpInfo.xml — дамп версий объектов."""
         root, error = XMLUtils.safe_parse(xml_path)
         if root is None:
@@ -575,7 +576,7 @@ class RoleParser:
     def __init__(self):
         self.utils = XMLUtils()
 
-    def parse_role_metadata(self, xml_path: Path) -> dict | None:
+    def parse_role_metadata(self, xml_path: Path) -> dict[str, Any] | None:
         """Парсит метаданные роли (Role/<Имя>.xml)."""
         root, error = XMLUtils.safe_parse(xml_path)
         if root is None:
@@ -598,7 +599,7 @@ class RoleParser:
             "synonym": XMLUtils.get_synonym(properties) if properties is not None else "",
         }
 
-    def parse_rights(self, xml_path: Path) -> dict | None:
+    def parse_rights(self, xml_path: Path) -> dict[str, Any] | None:
         """Парсит Rights.xml — права доступа для роли."""
         root, error = XMLUtils.safe_parse(xml_path)
         if root is None:
@@ -657,7 +658,7 @@ class SubsystemParser:
     def __init__(self):
         self.utils = XMLUtils()
 
-    def parse(self, xml_path: Path) -> dict | None:
+    def parse(self, xml_path: Path) -> dict[str, Any] | None:
         """Парсит Subsystem/<Имя>.xml."""
         root, error = XMLUtils.safe_parse(xml_path)
         if root is None:
@@ -713,7 +714,7 @@ class SubsystemParser:
 class EventSubscriptionParser:
     """Парсер подписок на события."""
 
-    def parse(self, xml_path: Path) -> dict | None:
+    def parse(self, xml_path: Path) -> dict[str, Any] | None:
         root, error = XMLUtils.safe_parse(xml_path)
         if root is None:
             return None
@@ -753,7 +754,7 @@ class EventSubscriptionParser:
 class ScheduledJobParser:
     """Парсер регламентных заданий."""
 
-    def parse(self, xml_path: Path) -> dict | None:
+    def parse(self, xml_path: Path) -> dict[str, Any] | None:
         root, error = XMLUtils.safe_parse(xml_path)
         if root is None:
             return None
@@ -844,7 +845,7 @@ class MetadataExtractor:
         self.event_parser = EventSubscriptionParser()
         self.scheduled_job_parser = ScheduledJobParser()
 
-    def extract_all(self, config_dir: Path | str, progress_callback=None) -> dict:
+    def extract_all(self, config_dir: Path | str, progress_callback=None) -> dict[str, Any]:
         """Извлекает ВСЕ метаданные из конфигурации.
 
         Args:
@@ -852,7 +853,7 @@ class MetadataExtractor:
             progress_callback: Функция(done, total, current_type)
 
         Returns:
-            dict: {
+            dict[str, Any]: {
                 'configuration': {...},  # Configuration.xml
                 'config_dump_info': {...},  # ConfigDumpInfo.xml
                 'objects': {...},  # Все объекты по типам
@@ -989,7 +990,7 @@ class MetadataExtractor:
             return self.scheduled_job_parser
         return self.universal_parser
 
-    def _update_stats(self, stats: dict, obj: dict):
+    def _update_stats(self, stats: dict[str, Any], obj: dict[str, Any]):
         """Обновляет статистику."""
         stats["total_objects"] += 1
 
@@ -1003,7 +1004,7 @@ class MetadataExtractor:
         props = obj.get("properties", {})
         # Predefined данные будут в child_objects['predefined'] когда мы их добавим
 
-    def _parse_ext_dir(self, ext_dir: Path) -> dict:
+    def _parse_ext_dir(self, ext_dir: Path) -> dict[str, Any]:
         """Парсит файлы из Ext/ директории."""
         result = {
             "managed_application_module": False,
@@ -1049,7 +1050,7 @@ class MetadataExtractor:
 # ============================================================================
 
 
-def extract_and_save(config_dir: Path | str, output_path: Path | str) -> dict:
+def extract_and_save(config_dir: Path | str, output_path: Path | str) -> dict[str, Any]:
     """Извлекает все метаданные и сохраняет в unified-metadata-index.json.
 
     Args:
