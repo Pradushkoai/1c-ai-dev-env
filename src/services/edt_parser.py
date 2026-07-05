@@ -36,29 +36,65 @@ logger = logging.getLogger(__name__)
 NS_EDT = "http://g5.1c.ru/v8/dt/metadata/mdclasses"
 
 # Маппинг типов объектов EDT → unified format
+# D2.8 (2026-07-05): расширено с 9 до 26 типов
 EDT_TYPE_MAP: dict[str, str] = {
     "Catalog": "Catalog",
     "Document": "Document",
     "Enum": "Enum",
     "InformationRegister": "InformationRegister",
     "AccumulationRegister": "AccumulationRegister",
+    "AccountingRegister": "AccountingRegister",
+    "CalculationRegister": "CalculationRegister",
     "Constant": "Constant",
     "CommonModule": "CommonModule",
+    "CommonForm": "CommonForm",
+    "CommonCommand": "CommonCommand",
+    "CommonTemplate": "CommonTemplate",
+    "CommonPicture": "CommonPicture",
     "Report": "Report",
     "DataProcessor": "DataProcessor",
+    "ChartOfAccounts": "ChartOfAccounts",
+    "ChartOfCharacteristicTypes": "ChartOfCharacteristicTypes",
+    "ChartOfCalculationTypes": "ChartOfCalculationTypes",
+    "BusinessProcess": "BusinessProcess",
+    "Task": "Task",
+    "ExchangePlan": "ExchangePlan",
+    "DocumentJournal": "DocumentJournal",
+    "Sequence": "Sequence",
+    "DefinedType": "DefinedType",
+    "EventSubscription": "EventSubscription",
+    "ScheduledJob": "ScheduledJob",
 }
 
 # Папки EDT по типам объектов
+# D2.8 (2026-07-05): расширено с 9 до 26 типов
 EDT_DIRS: dict[str, str] = {
     "Catalog": "Catalogs",
     "Document": "Documents",
     "Enum": "Enums",
     "InformationRegister": "InformationRegisters",
     "AccumulationRegister": "AccumulationRegisters",
+    "AccountingRegister": "AccountingRegisters",
+    "CalculationRegister": "CalculationRegisters",
     "Constant": "Constants",
     "CommonModule": "CommonModules",
+    "CommonForm": "CommonForms",
+    "CommonCommand": "CommonCommands",
+    "CommonTemplate": "CommonTemplates",
+    "CommonPicture": "CommonPictures",
     "Report": "Reports",
     "DataProcessor": "DataProcessors",
+    "ChartOfAccounts": "ChartsOfAccounts",
+    "ChartOfCharacteristicTypes": "ChartsOfCharacteristicTypes",
+    "ChartOfCalculationTypes": "ChartsOfCalculationTypes",
+    "BusinessProcess": "BusinessProcesses",
+    "Task": "Tasks",
+    "ExchangePlan": "ExchangePlans",
+    "DocumentJournal": "DocumentJournals",
+    "Sequence": "Sequences",
+    "DefinedType": "DefinedTypes",
+    "EventSubscription": "EventSubscriptions",
+    "ScheduledJob": "ScheduledJobs",
 }
 
 
