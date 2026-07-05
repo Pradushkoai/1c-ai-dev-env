@@ -668,6 +668,7 @@ class ConfigManager:
             check=True,
             capture_output=True,
             text=True,
+            timeout=600,  # S8.2 (2026-07-05): DoS protection — 10 min max
         )
 
     def _build_api_reference(self, config: Configuration, output_md: Path, output_json: Path) -> None:
@@ -693,4 +694,5 @@ class ConfigManager:
             check=True,
             capture_output=True,
             text=True,
+            timeout=600,  # S8.2 (2026-07-05): DoS protection — 10 min max
         )

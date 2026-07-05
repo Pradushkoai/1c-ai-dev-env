@@ -174,6 +174,23 @@ Baseline (Этап 1.2 завершён 2026-07-04):
 - Без `SELECT *` — указывай конкретные поля.
 - Без функций в `WHERE` — замедляет запрос.
 
+### subprocess (S8.2 — 2026-07-05)
+- ❌ **НИКОГДА `shell=True`** — всегда list-form cmd: `subprocess.run(["cmd", "arg1", "arg2"], ...)`.
+- ✅ **ВСЕГДА `timeout=N`** — без timeout процесс может зависнуть навсегда (DoS).
+  - BSL LS: 60 сек (через `BSL_LS_TIMEOUT`)
+  - v8unpack: 120 сек (сборка EPF), 60 сек (распаковка)
+  - Скрипты индексации: 600 сек (10 мин, большие конфигурации)
+  - git/curl: 5-120 сек в зависимости от операции
+- ✅ **ВСЕГДА `capture_output=True`** — не засорять stdout/stderr пользователя.
+- ✅ **Проверяй returncode** — либо `check=True` (raise при ошибке), либо явная проверка.
+- ✅ **Не передавай user input в cmd** — все args должны быть из Path/static strings.
+  - Если user input неизбежен — валидируй через regex (как `github_releases.py:76` для repo name).
+- ✅ **Используй `sys.executable`** для запуска Python скриптов (не `"python3"` хардкод).
+  - Исключение: скрипты, запускаемые из CI, где `python3` — стандарт.
+
+**Audit (S8.2, 2026-07-05):** 8 файлов проверены, `shell=True` не используется нигде.
+3 отсутствующих `timeout` добавлены (config_builder.py:261, config_manager.py:666, config_manager.py:678).
+
 ### Коммиты
 - Формат: `<type>(<scope>): <description>` (см. CONTRIBUTING.md).
 - Один коммит — одно логическое изменение.

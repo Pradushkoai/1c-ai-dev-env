@@ -276,6 +276,7 @@ class ConfigBuilder:
             check=True,
             capture_output=True,
             text=True,
+            timeout=600,  # S8.2 (2026-07-05): DoS protection — 10 min max
         )
 
     @staticmethod

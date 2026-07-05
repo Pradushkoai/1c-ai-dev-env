@@ -3,6 +3,30 @@
 
 ## [Unreleased]
 
+### S8.2 — subprocess.run audit + AGENTS.md политика (2026-07-05)
+
+* **Аудит subprocess.run**: 8 файлов проверены (7 в src/, 1 в scripts/).
+  - ✅ `shell=True` НЕ используется нигде — отличный результат
+  - ❌ 3 вызова без `timeout` найдены и исправлены:
+    - `src/services/config_builder.py:261` — добавлен `timeout=600`
+    - `src/services/config_manager.py:666` — добавлен `timeout=600`
+    - `src/services/config_manager.py:678` — добавлен `timeout=600`
+  - ✅ User input в `cmd` не передаётся нигде (все args из Path/static)
+  - ✅ `github_releases.py` имеет валидацию repo name через regex
+* **AGENTS.md обновлён**: добавлена секция "subprocess (S8.2)" с политикой:
+  - ❌ НИКОГДА `shell=True`
+  - ✅ ВСЕГДА `timeout=N` (рекомендованные значения по типам операций)
+  - ✅ ВСЕГДА `capture_output=True`
+  - ✅ Проверяй returncode (`check=True` или явная проверка)
+  - ✅ Не передавай user input в cmd (если неизбежен — валидируй regex)
+  - ✅ Используй `sys.executable` для Python скриптов
+* **tests/test_subprocess_audit.py добавлен** (9 тестов):
+  - TestSubprocessSecurityAudit: проверка shell=True и timeout в src/ и scripts/
+  - TestAgentsMdSubprocessPolicy: проверка AGENTS.md содержит политику
+  - Blocking: test_no_shell_true_in_src, test_no_shell_true_in_scripts,
+    test_all_subprocess_calls_have_timeout_in_src
+* **Audit record**: AGENTS.md содержит запись "Audit (S8.2, 2026-07-05)"
+
 ### A-5 — OpenAPI validation в CI через spectral (2026-07-05)
 
 * **Создан CI workflow** `.github/workflows/openapi-validation.yml`:
