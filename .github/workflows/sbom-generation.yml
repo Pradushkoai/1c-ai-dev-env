@@ -1,0 +1,98 @@
+name: SBOM Generation
+
+# I7.9 (2026-07-05): SBOM (Software Bill of Materials) generation через CycloneDX.
+# Генерирует SBOM для каждого release и при push в main.
+# SBOM — JSON файл со списком всех зависимостей проекта.
+#
+# Использует: cyclonedx/cyclonedx-python-action (cyclonedx-py)
+# Формат: CycloneDX 1.5 (JSON)
+# Output: sbom.json (загружается как artifact + в GitHub Release)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  generate-sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install cyclonedx-py
+        run: pip install cyclonedx-bom
+
+      - name: Generate SBOM from pyproject.toml
+        # I7.9: генерация SBOM из зависимостей проекта
+        run: |
+          echo "=== Generating SBOM ==="
+          cyclonedx-py environment \
+            --output-format json \
+            --output-file sbom.json \
+            --schema-version 1.5
+
+          if [ -f sbom.json ]; then
+            echo "✅ SBOM generated: sbom.json"
+            echo "   Size: $(du -h sbom.json | cut -f1)"
+            echo "   Components: $(python3 -c "import json; print(len(json.load(open('sbom.json')).get('components', [])))")"
+          else
+            echo "❌ SBOM generation failed"
+            exit 1
+          fi
+
+      - name: Validate SBOM
+        # Проверка, что SBOM валидный CycloneDX JSON
+        run: |
+          python3 -c "
+          import json
+          with open('sbom.json') as f:
+              sbom = json.load(f)
+          assert 'bomFormat' in sbom, 'Missing bomFormat'
+          assert sbom['bomFormat'] == 'CycloneDX', f'Wrong bomFormat: {sbom[\"bomFormat\"]}'
+          assert 'specVersion' in sbom, 'Missing specVersion'
+          assert 'components' in sbom, 'Missing components'
+          print(f'✅ SBOM valid: {sbom[\"bomFormat\"]} {sbom[\"specVersion\"]}')
+          print(f'   Components: {len(sbom[\"components\"])}')
+          "
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-json
+          path: sbom.json
+          retention-days: 90
+
+      - name: Upload SBOM to GitHub Release
+        # I7.9: при публикации release — загрузить SBOM как asset
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: sbom.json
+
+      - name: Commit SBOM to repository
+        # I7.9: при push в main — закоммитить обновлённый SBOM
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add sbom.json
+          if git diff --cached --quiet; then
+            echo "ℹ️  SBOM unchanged — no commit needed"
+          else
+            git commit -m "chore(sbom): I7.9 — update SBOM (CycloneDX 1.5)"
+            git push
+            echo "✅ SBOM committed to repository"
+          fi

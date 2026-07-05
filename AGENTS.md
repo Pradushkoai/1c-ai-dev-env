@@ -208,6 +208,13 @@ Baseline (Этап 1.2 завершён 2026-07-04):
 **Audit (S8.6, 2026-07-05):** .env.example создан, .gitignore обновлён, detect-secrets в pre-commit,
 CI workflow создан, .secrets.baseline создан.
 
+### SBOM (I7.9 — 2026-07-05)
+- ✅ **SBOM генерируется через CycloneDX** — `.github/workflows/sbom-generation.yml`.
+- ✅ **Формат: CycloneDX 1.5 JSON** — стандарт для supply chain compliance.
+- ✅ **SBOM загружается в GitHub Release** — каждый release содержит `sbom.json`.
+- ✅ **SBOM коммитится в репозиторий** — при push в main обновляется `sbom.json`.
+- ✅ **Пользователи могут проверять transitive зависимости** на CVE через SBOM.
+
 ### Коммиты
 - Формат: `<type>(<scope>): <description>` (см. CONTRIBUTING.md).
 - Один коммит — одно логическое изменение.
