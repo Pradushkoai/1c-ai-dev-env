@@ -62,8 +62,75 @@ from .cli_commands.tools import (  # noqa: F401
 from .project import Project
 
 
+def cmd_update(project: Project, args: argparse.Namespace) -> None:
+    """I6.4 (2026-07-05): Обновить 1c-ai-dev-env до последней версии через pip."""
+    import subprocess
+
+    print("=== Обновление 1c-ai-dev-env ===")
+    print()
+
+    # Шаг 1: обновить Python-пакет
+    print("Шаг 1/2: Обновление Python-пакета...")
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--upgrade",
+             "1c-ai-dev-env @ git+https://github.com/Pradushkoai/1c-ai-dev-env.git@main"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+        )
+        if result.returncode == 0:
+            print("  ✅ Python-пакет обновлён")
+        else:
+            print(f"  ⚠️  Обновление из GitHub не удалось: {result.stderr[-200:]}")
+            print("  Попытка обновления из PyPI (если опубликован)...")
+            result2 = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "--upgrade", "1c-ai-dev-env"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+            )
+            if result2.returncode == 0:
+                print("  ✅ Python-пакет обновлён из PyPI")
+            else:
+                print(f"  ❌ Ошибка: {result2.stderr[-200:]}")
+                sys.exit(1)
+    except subprocess.TimeoutExpired:
+        print("  ❌ Таймаут при обновлении (120 сек)")
+        sys.exit(1)
+
+    # Шаг 2: проверить BSL LS версию
+    print()
+    print("Шаг 2/2: Проверка BSL Language Server...")
+    bsl_ls = project.paths.bsl_ls_binary
+    if bsl_ls.exists():
+        try:
+            bsl_result = subprocess.run(
+                [str(bsl_ls), "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            if bsl_result.returncode == 0:
+                version_line = bsl_result.stdout.strip().split("\n")[0]
+                print(f"  ✅ BSL LS: {version_line}")
+            else:
+                print(f"  ⚠️  BSL LS не отвечает: {bsl_result.stderr[:100]}")
+        except subprocess.TimeoutExpired:
+            print("  ⚠️  BSL LS таймаут (10 сек) — возможно, нужно обновить вручную")
+    else:
+        print(f"  ⚠️  BSL LS не найден: {bsl_ls}")
+        print("  Установите: bash install.sh")
+
+    print()
+    print("✅ Обновление завершено!")
+    print("   Проверьте: 1c-ai validate")
+
+
 def cmd_mcp(project: Project, args: argparse.Namespace) -> None:
-    """Управление MCP-сервером."""
     if args.mcp_command == "serve":
         try:
             import asyncio
@@ -368,6 +435,9 @@ def main() -> None:
     # validate
     sub.add_parser("validate", help="Проверить окружение")
 
+    # I6.4 (2026-07-05): update — self-update через pip
+    sub.add_parser("update", help="Обновить 1c-ai-dev-env до последней версии")
+
     # search
     p_search = sub.add_parser("search", help="Семантический поиск методов 1С")
     p_search.add_argument("query", help="Поисковый запрос")
@@ -656,6 +726,8 @@ def main() -> None:
             cmd_bsl_diff(project, args)
     elif args.command == "validate":
         cmd_validate(project, args)
+    elif args.command == "update":
+        cmd_update(project, args)
     elif args.command == "search":
         cmd_search(project, args)
     elif args.command == "search-code":
