@@ -123,10 +123,20 @@ class TestUpstreamIssueDocumentation:
     """
 
     def test_v8unpack_version_pinned(self) -> None:
-        """v8unpack версия закреплена в pyproject.toml (1.2.6)."""
+        """v8unpack зависимость закреплена в pyproject.toml.
+
+        T5.2 (2026-07-05): обновлено с v8unpack>=1.2.6 на git+https (v1.2.11),
+        т.к. на PyPI только 1.2.6, а в GitHub main — 1.2.11 с поддержкой .erf.
+        Баг block_size НЕ исправлен в 1.2.11, workaround сохраняется.
+        """
         pyproject_path = REPO_ROOT / "pyproject.toml"
         content = pyproject_path.read_text(encoding="utf-8")
-        assert "v8unpack>=1.2.6" in content, "pyproject.toml должен закреплять v8unpack>=1.2.6"
+        # T5.2: зависимость обновлена с v8unpack>=1.2.6 на git+https (1.2.11)
+        assert "v8unpack" in content, "pyproject.toml должен содержать зависимость v8unpack"
+        assert (
+            "v8unpack>=1.2.6" in content
+            or "v8unpack @ git+https://github.com/saby-integration/v8unpack" in content
+        ), "pyproject.toml должен закреплять v8unpack (PyPI 1.2.6 или GitHub 1.2.11)"
 
     def test_patch_script_is_workaround(self) -> None:
         """patch_epf_blocksize.py — обходной путь для upstream бага."""

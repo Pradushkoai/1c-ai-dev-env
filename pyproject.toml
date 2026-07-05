@@ -26,10 +26,15 @@ classifiers = [
 dependencies = [
     # P2.14: upper bounds добавлены для предотвращения breakage при major bumps.
     # P2.13: lxml/Pillow обновлены для закрытия CVE.
+    # T5.2: v8unpack обновлён с 1.2.6 до 1.2.11 (GitHub, т.к. на PyPI только 1.2.6).
+    #   1.2.11 добавляет: поддержку .erf (ExternalReport), fix OverflowError для
+    #   Windows FILETIME в EPF, fix base64 параметров.
+    #   ВАЖНО: баг block_size TOC (ADR-0007) НЕ исправлен в 1.2.11 — workaround
+    #   patch_epf_blocksize.py по-прежнему нужен. Native EPF packer (T5.1) актуален.
     "python-dotenv>=1.0,<2.0",
     "structlog>=24.0,<26.0",
     "networkx>=3.0,<4.0",
-    "v8unpack>=1.2.6,<2.0",
+    "v8unpack @ git+https://github.com/saby-integration/v8unpack.git@main#egg=v8unpack",
 ]
 
 [project.optional-dependencies]
@@ -68,7 +73,7 @@ dev = [
     "structlog>=24.0,<26.0",
     "mcp>=1.0,<2.0",
     "networkx>=3.0,<4.0",
-    "v8unpack>=1.2.6,<2.0",
+    "v8unpack @ git+https://github.com/saby-integration/v8unpack.git@main#egg=v8unpack",
     # P0.3: complexity budget + mutation testing
     "radon>=6.0,<7.0",
     "mutmut>=3.0,<4.0",

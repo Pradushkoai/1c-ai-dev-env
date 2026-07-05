@@ -3,6 +3,21 @@
 
 ## [Unreleased]
 
+### T5.2 — Обновление v8unpack (2026-07-05)
+
+* **v8unpack обновлён с 1.2.6 до 1.2.11** (через git+https, т.к. 1.2.11 не на PyPI).
+  Что нового в 1.2.11:
+  - Поддержка внешних отчётов `.erf` (ExternalReport) — важно для проекта
+  - Fix OverflowError для Windows FILETIME в EPF-контейнерах
+  - Fix base64 параметров в скобко-файлах
+* **Проверка бага block_size (ADR-0007)**: баг НЕ исправлен в 1.2.11.
+  Анализ кода `write_block` показал идентичное поведение с 1.2.6 для TOC-блока.
+  Workaround `scripts/patch_epf_blocksize.py` сохраняется.
+* **ADR-0007 обновлён**: добавлена секция "Проверка upstream (T5.2)" с результатами.
+* **docs/V8UNPACK_UPSTREAM.md обновлён**: добавлены результаты проверки, обновлён
+  minimal reproducer, обновлены версии.
+* **Native EPF packer (T5.1, M6) остаётся актуальным** для устранения зависимости.
+
 ### Changed — Этап 0. Стабилизация
 
 > Полный поэтапный план: [`docs/IMPROVEMENT_PLAN.md`](docs/IMPROVEMENT_PLAN.md).
