@@ -124,6 +124,7 @@ class TestBuildForce:
             patch.object(builder, "_run_script") as mock_run,
             patch.object(builder, "_build_api_reference") as mock_api,
             patch.object(builder, "_count_objects", return_value=5),
+            patch("src.services.metadata.streaming_parser.is_streaming_available", return_value=False),
         ):
             result = builder.build(name, force=True)
             assert result["name"] == name
@@ -140,6 +141,7 @@ class TestBuildForce:
             patch.object(builder, "_run_script") as mock_run,
             patch.object(builder, "_build_api_reference"),
             patch.object(builder, "_count_objects", return_value=0),
+            patch("src.services.metadata.streaming_parser.is_streaming_available", return_value=False),
         ):
             builder.build(name, force=True)
             # 3 скрипта (metadata, skd, forms) + 1 api reference
@@ -200,6 +202,7 @@ class TestBuildSkipIfFresh:
             patch.object(builder, "_run_script") as mock_run,
             patch.object(builder, "_build_api_reference") as mock_api,
             patch.object(builder, "_count_objects", return_value=0),
+            patch("src.services.metadata.streaming_parser.is_streaming_available", return_value=False),
         ):
             mock_validate.return_value = SourceValidation(
                 is_valid=True,
@@ -234,6 +237,7 @@ class TestBuildParserErrors:
             patch.object(builder, "_run_script", side_effect=[RuntimeError("metadata failed"), None, None]),
             patch.object(builder, "_build_api_reference"),
             patch.object(builder, "_count_objects", return_value=0),
+            patch("src.services.metadata.streaming_parser.is_streaming_available", return_value=False),
         ):
             result = builder.build(name, force=True)
             assert result["metadata"] is False
@@ -254,6 +258,7 @@ class TestBuildParserErrors:
             ),
             patch.object(builder, "_build_api_reference"),
             patch.object(builder, "_count_objects", return_value=0),
+            patch("src.services.metadata.streaming_parser.is_streaming_available", return_value=False),
         ):
             result = builder.build(name, force=True)
             assert result["metadata"] is True
@@ -274,6 +279,7 @@ class TestBuildParserErrors:
             ),
             patch.object(builder, "_build_api_reference"),
             patch.object(builder, "_count_objects", return_value=0),
+            patch("src.services.metadata.streaming_parser.is_streaming_available", return_value=False),
         ):
             result = builder.build(name, force=True)
             assert result["forms"] is False

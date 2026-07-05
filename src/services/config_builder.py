@@ -144,11 +144,28 @@ class ConfigBuilder:
         # 1. metadata_extractor
         if freshness_map.get("metadata", True):
             try:
-                self._run_script(
-                    scripts_dir / "metadata_extractor.py",
-                    [str(config_dir), str(derived_dir / "unified-metadata-index.json")],
-                )
-                report["metadata"] = True
+                # D2.5 (2026-07-05): пробуем streaming-парсинг для больших конфигураций
+                # если lxml установлен, иначе fallback на обычный extractor
+                metadata_output = derived_dir / "unified-metadata-index.json"
+                use_streaming = False
+                try:
+                    from src.services.metadata.streaming_parser import is_streaming_available
+                    use_streaming = is_streaming_available()
+                except ImportError:
+                    pass
+
+                if use_streaming:
+                    # Streaming для больших конфигураций (УТ11, ERP)
+                    from src.services.metadata.streaming_parser import stream_parse_config
+                    stream_parse_config(config_dir, metadata_output)
+                    report["metadata"] = True
+                else:
+                    # Обычный extractor (xml.etree.ElementTree)
+                    self._run_script(
+                        scripts_dir / "metadata_extractor.py",
+                        [str(config_dir), str(metadata_output)],
+                    )
+                    report["metadata"] = True
             except Exception as e:
                 logger.warning(
                     "parser_failed",
@@ -225,6 +242,16 @@ class ConfigBuilder:
         # Обновить реестр
         config.objects_count = self._count_objects(config.path)
         self._registry.add(config)
+
+        # D2.3 (2026-07-05): добавить schema_version в каждый построенный индекс
+        from src.services.index_versioning import add_schema_version_if_missing
+        for idx_file in [
+            derived_dir / "unified-metadata-index.json",
+            self._paths.config_api_reference_json(name),
+            derived_dir / "skd-index.json",
+            derived_dir / "form-index.json",
+        ]:
+            add_schema_version_if_missing(idx_file)
 
         return report
 

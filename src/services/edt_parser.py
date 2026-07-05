@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 NS_EDT = "http://g5.1c.ru/v8/dt/metadata/mdclasses"
 
 # Маппинг типов объектов EDT → unified format
-# D2.8 (2026-07-05): расширено с 9 до 26 типов
+# D2.8 (2026-07-05): расширено с 9 до 35 типов
 EDT_TYPE_MAP: dict[str, str] = {
     "Catalog": "Catalog",
     "Document": "Document",
@@ -51,6 +51,7 @@ EDT_TYPE_MAP: dict[str, str] = {
     "CommonCommand": "CommonCommand",
     "CommonTemplate": "CommonTemplate",
     "CommonPicture": "CommonPicture",
+    "CommonAttribute": "CommonAttribute",
     "Report": "Report",
     "DataProcessor": "DataProcessor",
     "ChartOfAccounts": "ChartOfAccounts",
@@ -60,14 +61,22 @@ EDT_TYPE_MAP: dict[str, str] = {
     "Task": "Task",
     "ExchangePlan": "ExchangePlan",
     "DocumentJournal": "DocumentJournal",
+    "DocumentNumerator": "DocumentNumerator",
     "Sequence": "Sequence",
     "DefinedType": "DefinedType",
     "EventSubscription": "EventSubscription",
     "ScheduledJob": "ScheduledJob",
+    "FilterCriterion": "FilterCriterion",
+    "CommandGroup": "CommandGroup",
+    "FunctionalOption": "FunctionalOption",
+    "FunctionalOptionParameter": "FunctionalOptionParameter",
+    "SessionParameter": "SessionParameter",
+    "SettingsStorage": "SettingsStorage",
+    "Style": "Style",
 }
 
 # Папки EDT по типам объектов
-# D2.8 (2026-07-05): расширено с 9 до 26 типов
+# D2.8 (2026-07-05): расширено с 9 до 35 типов
 EDT_DIRS: dict[str, str] = {
     "Catalog": "Catalogs",
     "Document": "Documents",
@@ -82,6 +91,7 @@ EDT_DIRS: dict[str, str] = {
     "CommonCommand": "CommonCommands",
     "CommonTemplate": "CommonTemplates",
     "CommonPicture": "CommonPictures",
+    "CommonAttribute": "CommonAttributes",
     "Report": "Reports",
     "DataProcessor": "DataProcessors",
     "ChartOfAccounts": "ChartsOfAccounts",
@@ -91,10 +101,18 @@ EDT_DIRS: dict[str, str] = {
     "Task": "Tasks",
     "ExchangePlan": "ExchangePlans",
     "DocumentJournal": "DocumentJournals",
+    "DocumentNumerator": "DocumentNumerators",
     "Sequence": "Sequences",
     "DefinedType": "DefinedTypes",
     "EventSubscription": "EventSubscriptions",
     "ScheduledJob": "ScheduledJobs",
+    "FilterCriterion": "FilterCriteria",
+    "CommandGroup": "CommandGroups",
+    "FunctionalOption": "FunctionalOptions",
+    "FunctionalOptionParameter": "FunctionalOptionsParameters",
+    "SessionParameter": "SessionParameters",
+    "SettingsStorage": "SettingsStorages",
+    "Style": "Styles",
 }
 
 
