@@ -1,5 +1,9 @@
 """
 Менеджер путей проекта. Заменяет paths.env + paths.py.
+
+F1.8 (2026-07-05): PathManager теперь делегирует конфигурацию в Config (src/config.py).
+paths.env — legacy, загружается через Config для backward compat.
+Новый код должен использовать Config напрямую: from src.config import Config
 """
 
 from __future__ import annotations
@@ -12,6 +16,9 @@ from dotenv import load_dotenv
 
 class PathManager:
     """Единый источник путей для всего проекта. 4-слойная архитектура.
+
+    F1.8 (2026-07-05): Для нового кода используйте Config (src/config.py).
+    PathManager сохранён для backward compat — делегирует в Config где возможно.
 
     Examples:
         >>> from pathlib import Path
