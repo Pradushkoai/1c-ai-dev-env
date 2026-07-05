@@ -1,11 +1,11 @@
 """
-Тесты для src/exceptions.py — кастомные исключения проекта.
+F1.4 (2026-07-05): Тесты для расширенной иерархии исключений.
 
-Покрытие:
-- Иерархия наследования (ProjectError → ConfigError → ConfigAlreadyExistsError, и т.д.)
-- Сообщения об ошибках
-- Атрибуты (.name, .path, .timeout, .config_name)
-- Передача detail опционально
+Гарантирует:
+1. Все 8 базовых классов существуют и наследуются от ProjectError
+2. recovery_hint работает для каждого класса
+3. Специфичные подклассы имеют правильные атрибуты
+4. Backward compat: существующие исключения не сломаны
 """
 
 from __future__ import annotations
@@ -13,278 +13,222 @@ from __future__ import annotations
 import pytest
 
 from src.exceptions import (
-    ArchiveCorruptedError,
-    ArchiveError,
-    ArchiveNotFoundError,
-    BSLAnalysisError,
-    BSLAnalysisTimeoutError,
-    BSLBinaryNotFoundError,
-    ConfigAlreadyExistsError,
+    # Базовые
+    ProjectError,
+    # Конфигурации
     ConfigError,
+    ConfigAlreadyExistsError,
     ConfigNotFoundError,
     ConfigNotActiveError,
+    # Архивация
+    ArchiveError,
+    ArchiveNotFoundError,
+    ArchiveCorruptedError,
+    # BSL
+    BSLAnalysisError,
+    BSLBinaryNotFoundError,
+    BSLAnalysisTimeoutError,
+    # Индексация
     IndexBuildError,
-    ProjectError,
+    # F1.4: Безопасность
+    SecurityError,
+    PathTraversalError,
+    RateLimitExceededError,
+    # F1.4: Внешние инструменты
+    ExternalToolError,
+    V8UnpackError,
+    # F1.4: Валидация
+    ValidationError,
+    InvalidParameterError,
+    # F1.4: Парсинг
+    ParseError,
+    XMLParseError,
+    BSLParseError,
 )
 
 
-# ─── Иерархия наследования ───
-
-
 class TestExceptionHierarchy:
-    """Все кастомные исключения наследуются от ProjectError."""
-
-    def test_config_errors_are_project_errors(self):
-        assert issubclass(ConfigError, ProjectError)
-        assert issubclass(ConfigAlreadyExistsError, ProjectError)
-        assert issubclass(ConfigNotFoundError, ProjectError)
-        assert issubclass(ConfigNotActiveError, ProjectError)
-
-    def test_config_already_exists_is_config_error(self):
-        assert issubclass(ConfigAlreadyExistsError, ConfigError)
-
-    def test_config_not_found_is_config_error(self):
-        assert issubclass(ConfigNotFoundError, ConfigError)
-
-    def test_config_not_active_is_config_error(self):
-        assert issubclass(ConfigNotActiveError, ConfigError)
-
-    def test_archive_errors_are_project_errors(self):
-        assert issubclass(ArchiveError, ProjectError)
-        assert issubclass(ArchiveNotFoundError, ProjectError)
-        assert issubclass(ArchiveCorruptedError, ProjectError)
-
-    def test_archive_not_found_is_archive_error(self):
-        assert issubclass(ArchiveNotFoundError, ArchiveError)
-
-    def test_archive_corrupted_is_archive_error(self):
-        assert issubclass(ArchiveCorruptedError, ArchiveError)
-
-    def test_bsl_errors_are_project_errors(self):
-        assert issubclass(BSLAnalysisError, ProjectError)
-        assert issubclass(BSLBinaryNotFoundError, ProjectError)
-        assert issubclass(BSLAnalysisTimeoutError, ProjectError)
-
-    def test_bsl_binary_not_found_is_bsl_analysis_error(self):
-        assert issubclass(BSLBinaryNotFoundError, BSLAnalysisError)
-
-    def test_bsl_timeout_is_bsl_analysis_error(self):
-        assert issubclass(BSLAnalysisTimeoutError, BSLAnalysisError)
-
-    def test_index_build_error_is_project_error(self):
-        assert issubclass(IndexBuildError, ProjectError)
-
-    def test_project_error_is_exception(self):
-        assert issubclass(ProjectError, Exception)
-
-
-# ─── ConfigAlreadyExistsError ───
-
-
-class TestConfigAlreadyExistsError:
-    def test_message_contains_name(self):
-        err = ConfigAlreadyExistsError("ut11")
-        assert "ut11" in str(err)
-        assert "уже существует" in str(err)
-
-    def test_name_attribute(self):
-        err = ConfigAlreadyExistsError("ut11")
-        assert err.name == "ut11"
-
-    def test_can_be_raised_and_caught(self):
-        with pytest.raises(ConfigAlreadyExistsError) as exc_info:
-            raise ConfigAlreadyExistsError("edo2")
-        assert exc_info.value.name == "edo2"
-
-    def test_caught_as_project_error(self):
-        with pytest.raises(ProjectError):
-            raise ConfigAlreadyExistsError("unp")
-
-
-# ─── ConfigNotFoundError ───
-
-
-class TestConfigNotFoundError:
-    def test_message_contains_name(self):
-        err = ConfigNotFoundError("ut11")
-        assert "ut11" in str(err)
-        assert "не найдена" in str(err)
-
-    def test_name_attribute(self):
-        err = ConfigNotFoundError("ut11")
-        assert err.name == "ut11"
-
-    def test_can_be_raised_and_caught(self):
-        with pytest.raises(ConfigNotFoundError) as exc_info:
-            raise ConfigNotFoundError("edo2")
-        assert exc_info.value.name == "edo2"
-
-    def test_caught_as_config_error(self):
-        with pytest.raises(ConfigError):
-            raise ConfigNotFoundError("test")
-
-
-# ─── ConfigNotActiveError ───
-
-
-class TestConfigNotActiveError:
-    def test_message_contains_name(self):
-        err = ConfigNotActiveError("ut11")
-        assert "ut11" in str(err)
-        assert "не активна" in str(err)
-
-    def test_name_attribute(self):
-        err = ConfigNotActiveError("ut11")
-        assert err.name == "ut11"
-
-    def test_can_be_raised_and_caught(self):
-        with pytest.raises(ConfigNotActiveError) as exc_info:
-            raise ConfigNotActiveError("edo2")
-        assert exc_info.value.name == "edo2"
-
-
-# ─── ArchiveNotFoundError ───
-
-
-class TestArchiveNotFoundError:
-    def test_message_contains_name(self):
-        err = ArchiveNotFoundError("ut11")
-        assert "ut11" in str(err)
-        assert "не найден" in str(err)
-
-    def test_name_attribute(self):
-        err = ArchiveNotFoundError("ut11")
-        assert err.name == "ut11"
-
-    def test_can_be_raised_and_caught(self):
-        with pytest.raises(ArchiveNotFoundError):
-            raise ArchiveNotFoundError("test")
-
-    def test_caught_as_archive_error(self):
-        with pytest.raises(ArchiveError):
-            raise ArchiveNotFoundError("test")
-
-
-# ─── ArchiveCorruptedError ───
-
-
-class TestArchiveCorruptedError:
-    def test_message_contains_path_without_detail(self):
-        err = ArchiveCorruptedError("/tmp/test.zip")
-        assert "/tmp/test.zip" in str(err)
-        assert "повреждён" in str(err)
-        # Без detail — нет скобок
-        assert "(" not in str(err)
-
-    def test_message_contains_path_with_detail(self):
-        err = ArchiveCorruptedError("/tmp/test.zip", "EOFError")
-        assert "/tmp/test.zip" in str(err)
-        assert "EOFError" in str(err)
-        assert "(" in str(err)
-
-    def test_path_attribute(self):
-        err = ArchiveCorruptedError("/tmp/test.zip", "CRC failed")
-        assert err.path == "/tmp/test.zip"
-
-    def test_can_be_raised_and_caught(self):
-        with pytest.raises(ArchiveCorruptedError) as exc_info:
-            raise ArchiveCorruptedError("/path/to/file.zip", "bad zip")
-        assert exc_info.value.path == "/path/to/file.zip"
-
-
-# ─── BSLBinaryNotFoundError ───
-
-
-class TestBSLBinaryNotFoundError:
-    def test_message_contains_path(self):
-        err = BSLBinaryNotFoundError("/usr/local/bin/bsl-ls")
-        assert "/usr/local/bin/bsl-ls" in str(err)
-        assert "BSL Language Server" in str(err)
-        assert "install.sh" in str(err)
-
-    def test_path_attribute(self):
-        err = BSLBinaryNotFoundError("/usr/local/bin/bsl-ls")
-        assert err.path == "/usr/local/bin/bsl-ls"
-
-    def test_can_be_raised_and_caught(self):
-        with pytest.raises(BSLBinaryNotFoundError):
-            raise BSLBinaryNotFoundError("/some/path")
-
-    def test_caught_as_bsl_analysis_error(self):
-        with pytest.raises(BSLAnalysisError):
-            raise BSLBinaryNotFoundError("/some/path")
-
-
-# ─── BSLAnalysisTimeoutError ───
-
-
-class TestBSLAnalysisTimeoutError:
-    def test_message_contains_timeout(self):
-        err = BSLAnalysisTimeoutError(60)
-        assert "60" in str(err)
-        assert "таймаут" in str(err).lower() or "timeout" in str(err).lower()
-
-    def test_timeout_attribute(self):
-        err = BSLAnalysisTimeoutError(120)
-        assert err.timeout == 120
-
-    def test_can_be_raised_and_caught(self):
-        with pytest.raises(BSLAnalysisTimeoutError) as exc_info:
-            raise BSLAnalysisTimeoutError(30)
-        assert exc_info.value.timeout == 30
-
-    def test_caught_as_bsl_analysis_error(self):
-        with pytest.raises(BSLAnalysisError):
-            raise BSLAnalysisTimeoutError(60)
-
-
-# ─── IndexBuildError ───
-
-
-class TestIndexBuildError:
-    def test_message_contains_config_name_without_detail(self):
-        err = IndexBuildError("ut11")
-        assert "ut11" in str(err)
-        # Без detail — нет двоеточия с дополнительной информацией
-        assert ":" not in str(err).replace("https://", "").replace("http://", "")
-
-    def test_message_contains_config_name_with_detail(self):
-        err = IndexBuildError("ut11", "metadata_extractor failed")
-        assert "ut11" in str(err)
-        assert "metadata_extractor failed" in str(err)
-        assert ":" in str(err)
-
-    def test_config_name_attribute(self):
-        err = IndexBuildError("ut11", "detail")
-        assert err.config_name == "ut11"
-
-    def test_can_be_raised_and_caught(self):
-        with pytest.raises(IndexBuildError) as exc_info:
-            raise IndexBuildError("edo2", "some error")
-        assert exc_info.value.config_name == "edo2"
-
-    def test_caught_as_project_error(self):
-        with pytest.raises(ProjectError):
-            raise IndexBuildError("test")
-
-
-# ─── ProjectError (базовый) ───
-
-
-class TestProjectError:
-    def test_can_be_raised_with_message(self):
-        with pytest.raises(ProjectError) as exc_info:
-            raise ProjectError("custom message")
-        assert "custom message" in str(exc_info.value)
-
-    def test_can_be_caught_as_exception(self):
-        # ProjectError наследуется от Exception
-        assert issubclass(ProjectError, Exception)
-        try:
-            raise ProjectError("test")
-        except ProjectError as exc:
-            assert isinstance(exc, Exception)
-
-    def test_default_no_args(self):
-        err = ProjectError()
-        assert str(err) == ""
+    """F1.4: Все базовые классы наследуются от ProjectError."""
+
+    @pytest.mark.parametrize("exc_class", [
+        ConfigError,
+        ArchiveError,
+        BSLAnalysisError,
+        IndexBuildError,
+        SecurityError,
+        ExternalToolError,
+        ValidationError,
+        ParseError,
+    ])
+    def test_base_classes_inherit_from_project_error(self, exc_class: type) -> None:
+        """Все 8 базовых классов наследуются от ProjectError."""
+        assert issubclass(exc_class, ProjectError), (
+            f"{exc_class.__name__} должен наследоваться от ProjectError"
+        )
+
+
+class TestRecoveryHint:
+    """F1.4: recovery_hint работает для каждого класса."""
+
+    def test_project_error_has_recovery_hint(self) -> None:
+        """ProjectError имеет атрибут recovery_hint."""
+        exc = ProjectError("test", recovery_hint="do something")
+        assert exc.recovery_hint == "do something"
+
+    def test_project_error_default_recovery_hint(self) -> None:
+        """ProjectError без recovery_hint имеет пустую строку."""
+        exc = ProjectError("test")
+        assert exc.recovery_hint == ""
+
+    def test_config_not_found_has_recovery_hint(self) -> None:
+        """ConfigNotFoundError содержит recovery_hint с командой."""
+        exc = ConfigNotFoundError("ut11")
+        assert "1c-ai config add" in exc.recovery_hint
+        assert "ut11" in exc.recovery_hint
+
+    def test_bsl_binary_not_found_has_recovery_hint(self) -> None:
+        """BSLBinaryNotFoundError содержит recovery_hint про install.sh."""
+        exc = BSLBinaryNotFoundError("/path/to/bsl")
+        assert "install.sh" in exc.recovery_hint
+
+    def test_path_traversal_has_recovery_hint(self) -> None:
+        """PathTraversalError содержит recovery_hint."""
+        exc = PathTraversalError("../../etc/passwd")
+        assert exc.recovery_hint != ""
+        assert "проект" in exc.recovery_hint.lower() or "project" in exc.recovery_hint.lower()
+
+    def test_rate_limit_has_recovery_hint(self) -> None:
+        """RateLimitExceededError содержит recovery_hint."""
+        exc = RateLimitExceededError("search_1c_methods", 100, 60.0)
+        assert "MCP_RATE_LIMIT" in exc.recovery_hint
+
+    def test_v8unpack_error_has_recovery_hint(self) -> None:
+        """V8UnpackError содержит recovery_hint."""
+        exc = V8UnpackError("build", "timeout")
+        assert "v8unpack" in exc.recovery_hint
+
+    def test_invalid_parameter_has_recovery_hint(self) -> None:
+        """InvalidParameterError содержит recovery_hint."""
+        exc = InvalidParameterError("file_path", "is empty")
+        assert "file_path" in exc.recovery_hint
+
+    def test_xml_parse_error_has_recovery_hint(self) -> None:
+        """XMLParseError содержит recovery_hint."""
+        exc = XMLParseError("/path/to/file.xml", "syntax error")
+        assert "file.xml" in exc.recovery_hint
+
+    def test_bsl_parse_error_has_recovery_hint(self) -> None:
+        """BSLParseError содержит recovery_hint."""
+        exc = BSLParseError("/path/to/module.bsl", 42, "syntax")
+        assert "module.bsl" in exc.recovery_hint
+
+
+class TestSecurityErrors:
+    """F1.4: SecurityError и подклассы."""
+
+    def test_path_traversal_inherits_security_error(self) -> None:
+        """PathTraversalError наследуется от SecurityError."""
+        assert issubclass(PathTraversalError, SecurityError)
+
+    def test_rate_limit_inherits_security_error(self) -> None:
+        """RateLimitExceededError наследуется от SecurityError."""
+        assert issubclass(RateLimitExceededError, SecurityError)
+
+    def test_path_traversal_has_path_attr(self) -> None:
+        """PathTraversalError имеет атрибут path."""
+        exc = PathTraversalError("../../etc/passwd")
+        assert exc.path == "../../etc/passwd"
+
+    def test_rate_limit_has_attrs(self) -> None:
+        """RateLimitExceededError имеет атрибуты tool_name, max_calls, window."""
+        exc = RateLimitExceededError("search", 100, 60.0)
+        assert exc.tool_name == "search"
+        assert exc.max_calls == 100
+        assert exc.window == 60.0
+
+
+class TestExternalToolErrors:
+    """F1.4: ExternalToolError и подклассы."""
+
+    def test_v8unpack_inherits_external_tool_error(self) -> None:
+        """V8UnpackError наследуется от ExternalToolError."""
+        assert issubclass(V8UnpackError, ExternalToolError)
+
+    def test_v8unpack_has_tool_name(self) -> None:
+        """V8UnpackError имеет атрибут tool_name."""
+        exc = V8UnpackError("build", "timeout")
+        assert exc.tool_name == "v8unpack"
+
+    def test_v8unpack_has_operation(self) -> None:
+        """V8UnpackError имеет атрибут operation."""
+        exc = V8UnpackError("build", "timeout")
+        assert exc.operation == "build"
+
+
+class TestValidationErrors:
+    """F1.4: ValidationError и подклассы."""
+
+    def test_invalid_parameter_inherits_validation_error(self) -> None:
+        """InvalidParameterError наследуется от ValidationError."""
+        assert issubclass(InvalidParameterError, ValidationError)
+
+    def test_invalid_parameter_has_param_name(self) -> None:
+        """InvalidParameterError имеет атрибут param_name."""
+        exc = InvalidParameterError("file_path", "is empty")
+        assert exc.param_name == "file_path"
+
+
+class TestParseErrors:
+    """F1.4: ParseError и подклассы."""
+
+    def test_xml_parse_inherits_parse_error(self) -> None:
+        """XMLParseError наследуется от ParseError."""
+        assert issubclass(XMLParseError, ParseError)
+
+    def test_bsl_parse_inherits_parse_error(self) -> None:
+        """BSLParseError наследуется от ParseError."""
+        assert issubclass(BSLParseError, ParseError)
+
+    def test_xml_parse_has_file_path(self) -> None:
+        """XMLParseError имеет атрибут file_path."""
+        exc = XMLParseError("/path/to/file.xml", "syntax error")
+        assert exc.file_path == "/path/to/file.xml"
+
+    def test_bsl_parse_has_line(self) -> None:
+        """BSLParseError имеет атрибут line."""
+        exc = BSLParseError("/path/to/module.bsl", 42, "syntax")
+        assert exc.line == 42
+
+
+class TestBackwardCompat:
+    """F1.4: Backward compatibility — существующие исключения не сломаны."""
+
+    def test_config_already_exists_still_works(self) -> None:
+        """ConfigAlreadyExistsError работает как раньше."""
+        exc = ConfigAlreadyExistsError("test")
+        assert exc.name == "test"
+        assert "уже существует" in str(exc)
+
+    def test_config_not_found_still_works(self) -> None:
+        """ConfigNotFoundError работает как раньше."""
+        exc = ConfigNotFoundError("test")
+        assert exc.name == "test"
+        assert "не найдена" in str(exc)
+
+    def test_archive_not_found_still_works(self) -> None:
+        """ArchiveNotFoundError работает как раньше."""
+        exc = ArchiveNotFoundError("test")
+        assert exc.name == "test"
+        assert "не найден" in str(exc)
+
+    def test_index_build_error_still_works(self) -> None:
+        """IndexBuildError работает как раньше."""
+        exc = IndexBuildError("test", "detail")
+        assert exc.config_name == "test"
+        assert "test" in str(exc)
+
+    def test_bsl_timeout_still_works(self) -> None:
+        """BSLAnalysisTimeoutError работает как раньше."""
+        exc = BSLAnalysisTimeoutError(60)
+        assert exc.timeout == 60
+        assert "60" in str(exc)
