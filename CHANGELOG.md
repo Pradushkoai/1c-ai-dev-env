@@ -3,6 +3,22 @@
 
 ## [Unreleased]
 
+### A-1 — Version bump OpenAPI spec до 6.0.0 (2026-07-05)
+
+* **OpenAPI spec версия обновлена с 5.3.1 до 6.0.0** — синхронизация с pyproject.toml.
+  Ранее spec содержал устаревшую версию 5.3.1 при версии проекта 6.0.0.
+* **scripts/generate_openapi.py обновлён**: версия в генераторе изменена с 5.3.1 на 6.0.0.
+  Добавлен комментарий с датой и причиной изменения (A-1).
+* **docs/mcp-openapi.json регенерирован** через `python3 scripts/generate_openapi.py`.
+  Spec теперь содержит актуальную версию 6.0.0 и 45 tools (актуальное количество).
+* **tests/test_openapi_spec.py добавлен** (14 тестов):
+  - TestOpenApiSpecStructure: базовая структура spec (5 тестов)
+  - TestOpenApiSpecVersion: A-1 — синхронизация версии с pyproject.toml (2 теста)
+  - TestOpenApiSpecTools: проверка 45 tools и их структуры (4 теста)
+  - TestOpenApiSpecGenerator: проверка генератора (3 теста)
+* Тест `test_spec_version_matches_pyproject` гарантирует, что spec версия всегда
+  соответствует pyproject.toml версии. При рассинхроне — запуск `generate_openapi.py`.
+
 ### T5.2 — Обновление v8unpack (2026-07-05)
 
 * **v8unpack обновлён с 1.2.6 до 1.2.11** (через git+https, т.к. 1.2.11 не на PyPI).

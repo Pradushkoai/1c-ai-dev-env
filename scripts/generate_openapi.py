@@ -107,7 +107,9 @@ def generate_openapi() -> dict:
                 "Каждый endpoint соответствует MCP tool. "
                 "Параметры передаются в JSON body."
             ),
-            "version": "5.3.1",
+            # A-1 (2026-07-05): версия синхронизирована с pyproject.toml (6.0.0).
+            # Ранее была 5.3.1 — рассинхрон с версией проекта.
+            "version": "6.0.0",
             "contact": {
                 "name": "Pradushkoai",
                 "url": "https://github.com/Pradushkoai/1c-ai-dev-env",

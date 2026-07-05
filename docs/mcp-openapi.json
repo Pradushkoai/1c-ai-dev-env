@@ -3,7 +3,7 @@
   "info": {
     "title": "1C AI Dev Environment — MCP Tools API",
     "description": "MCP (Model Context Protocol) tools for 1C development.\n\nКаждый endpoint соответствует MCP tool. Параметры передаются в JSON body.",
-    "version": "5.3.1",
+    "version": "6.0.0",
     "contact": {
       "name": "Pradushkoai",
       "url": "https://github.com/Pradushkoai/1c-ai-dev-env"
@@ -20,51 +20,11 @@
     }
   ],
   "paths": {
-    "/tools/list_configs": {
+    "/tools/analyze_architecture": {
       "post": {
-        "summary": "list_configs",
-        "description": "Список загруженных конфигураций 1С. Возвращает: name, version, status, objects_count, api_methods_count. Используй первым шагом, чтобы понять, какие данные доступны.",
-        "operationId": "list_configs",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {},
-                "required": []
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/search_1c_methods": {
-      "post": {
-        "summary": "search_1c_methods",
-        "description": "TF-IDF/BM25 семантический поиск по 8141 методам платформы 1С. Возвращает: name_ru, name_en, syntax, description, context. Пример: search_1c_methods(query='найти элемент по коду', limit=5)",
-        "operationId": "search_1c_methods",
+        "summary": "analyze_architecture",
+        "description": "Анализ архитектуры: циклические зависимости, God Object, мёртвый код, layering, regions, queries in forms. Пример: analyze_architecture(config_dir='data/configs/ut11').",
+        "operationId": "analyze_architecture",
         "tags": [
           "MCP Tools"
         ],
@@ -75,17 +35,13 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "query": {
+                  "config_dir": {
                     "type": "string",
-                    "description": "Required parameter: query"
-                  },
-                  "limit": {
-                    "type": "string",
-                    "description": "Optional parameter: limit"
+                    "description": "Required parameter: config_dir"
                   }
                 },
                 "required": [
-                  "query"
+                  "config_dir"
                 ]
               }
             }
@@ -111,11 +67,11 @@
         }
       }
     },
-    "/tools/search_code": {
+    "/tools/analyze_bsl": {
       "post": {
-        "summary": "search_code",
-        "description": "BM25 поиск по коду конфигурации (115K+ методов). Ищет по именам методов, сигнатурам, описаниям. Пример: search_code(query='создать заказ', config_name='ut11', limit=5). Используй для поиска 'как уже реализовано похожее' в конфигурации.",
-        "operationId": "search_code",
+        "summary": "analyze_bsl",
+        "description": "Анализ .bsl файла через BSL Language Server (187 диагностик). Возвращает: total, by_code, diagnostics. Требует установленного BSL LS (Java).",
+        "operationId": "analyze_bsl",
         "tags": [
           "MCP Tools"
         ],
@@ -126,22 +82,214 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "query": {
+                  "file_path": {
                     "type": "string",
-                    "description": "Required parameter: query"
-                  },
-                  "config_name": {
-                    "type": "string",
-                    "description": "Required parameter: config_name"
-                  },
-                  "limit": {
-                    "type": "string",
-                    "description": "Optional parameter: limit"
+                    "description": "Required parameter: file_path"
                   }
                 },
                 "required": [
-                  "query",
+                  "file_path"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/analyze_queries": {
+      "post": {
+        "summary": "analyze_queries",
+        "description": "Анализ запросов 1С: SELECT *, LIKE %, функции в WHERE, JOIN без ON, временные таблицы без индексов. Пример: analyze_queries(file_path='module.bsl').",
+        "operationId": "analyze_queries",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file_path": {
+                    "type": "string",
+                    "description": "Required parameter: file_path"
+                  }
+                },
+                "required": [
+                  "file_path"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/audit_security": {
+      "post": {
+        "summary": "audit_security",
+        "description": "Аудит безопасности BSL кода: SQL-инъекции, Выполнить(), хардкод паролей/токенов, COM-объекты, привилегированный режим, path traversal, небезопасная десериализация. 15 правил. Пример: audit_security(file_path='module.bsl').",
+        "operationId": "audit_security",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file_path": {
+                    "type": "string",
+                    "description": "Required parameter: file_path"
+                  }
+                },
+                "required": [
+                  "file_path"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/build_dependency_graph": {
+      "post": {
+        "summary": "build_dependency_graph",
+        "description": "Построить граф зависимостей метаданных 1С (networkx).",
+        "operationId": "build_dependency_graph",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "config_name": {
+                    "type": "string",
+                    "description": "Required parameter: config_name"
+                  }
+                },
+                "required": [
                   "config_name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/build_epf": {
+      "post": {
+        "summary": "build_epf",
+        "description": "Упаковка структуры каталога в .epf файл (внешняя обработка 1С). Принимает путь к каталогу (из generate_processing) и создаёт .epf. Пример: build_epf(source_dir='generated/ВыгрузкаНоменклатуры', output_path='ВыгрузкаНоменклатуры.epf').",
+        "operationId": "build_epf",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source_dir": {
+                    "type": "string",
+                    "description": "Required parameter: source_dir"
+                  },
+                  "output_path": {
+                    "type": "string",
+                    "description": "Required parameter: output_path"
+                  },
+                  "object_name": {
+                    "type": "string",
+                    "description": "Optional parameter: object_name"
+                  },
+                  "object_type": {
+                    "type": "string",
+                    "description": "Optional parameter: object_type"
+                  }
+                },
+                "required": [
+                  "source_dir",
+                  "output_path"
                 ]
               }
             }
@@ -227,11 +375,182 @@
         }
       }
     },
-    "/tools/get_form_elements": {
+    "/tools/cfe_borrow": {
       "post": {
-        "summary": "get_form_elements",
-        "description": "Элементы формы конфигурации (кнопки, поля, таблицы, группы). Пример: get_form_elements(config_name='obhod', form_name='Форма.ФормаАвторизации'). Если form_name не указан — возвращает список всех форм.",
-        "operationId": "get_form_elements",
+        "summary": "cfe_borrow",
+        "description": "Заимствовать объект из конфигурации в расширение (CFE).",
+        "operationId": "cfe_borrow",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "extension_path": {
+                    "type": "string",
+                    "description": "Required parameter: extension_path"
+                  },
+                  "config_path": {
+                    "type": "string",
+                    "description": "Required parameter: config_path"
+                  },
+                  "object_ref": {
+                    "type": "string",
+                    "description": "Required parameter: object_ref"
+                  }
+                },
+                "required": [
+                  "extension_path",
+                  "config_path",
+                  "object_ref"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/cfe_diff": {
+      "post": {
+        "summary": "cfe_diff",
+        "description": "Анализ расширения CFE: что заимствовано, что перехвачено.",
+        "operationId": "cfe_diff",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "extension_path": {
+                    "type": "string",
+                    "description": "Required parameter: extension_path"
+                  },
+                  "config_path": {
+                    "type": "string",
+                    "description": "Required parameter: config_path"
+                  }
+                },
+                "required": [
+                  "extension_path",
+                  "config_path"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/cfe_patch_method": {
+      "post": {
+        "summary": "cfe_patch_method",
+        "description": "Сгенерировать BSL перехватчик (&Перед/&После/&ИзменениеИКонтроль).",
+        "operationId": "cfe_patch_method",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "extension_path": {
+                    "type": "string",
+                    "description": "Required parameter: extension_path"
+                  },
+                  "module_path": {
+                    "type": "string",
+                    "description": "Required parameter: module_path"
+                  },
+                  "method_name": {
+                    "type": "string",
+                    "description": "Required parameter: method_name"
+                  },
+                  "interceptor_type": {
+                    "type": "string",
+                    "description": "Required parameter: interceptor_type"
+                  }
+                },
+                "required": [
+                  "extension_path",
+                  "module_path",
+                  "method_name",
+                  "interceptor_type"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/check_form_quality": {
+      "post": {
+        "summary": "check_form_quality",
+        "description": "Проверка качества форм: пустые, перегруженные, элементы без DataPath, кнопки без команд, дубли. Пример: check_form_quality(config_name='ut11').",
+        "operationId": "check_form_quality",
         "tags": [
           "MCP Tools"
         ],
@@ -245,10 +564,6 @@
                   "config_name": {
                     "type": "string",
                     "description": "Required parameter: config_name"
-                  },
-                  "form_name": {
-                    "type": "string",
-                    "description": "Optional parameter: form_name"
                   }
                 },
                 "required": [
@@ -278,11 +593,11 @@
         }
       }
     },
-    "/tools/get_api_reference": {
+    "/tools/check_skd_quality": {
       "post": {
-        "summary": "get_api_reference",
-        "description": "API-справочник конфигурации — экспортные методы общих модулей. Если module не указан — возвращает список всех модулей с кол-вом методов. Если module указан — возвращает методы конкретного модуля.",
-        "operationId": "get_api_reference",
+        "summary": "check_skd_quality",
+        "description": "Проверка качества СКД: без параметров, без отборов, пустые запросы, перегруженные. Пример: check_skd_quality(config_name='ut11').",
+        "operationId": "check_skd_quality",
         "tags": [
           "MCP Tools"
         ],
@@ -296,61 +611,10 @@
                   "config_name": {
                     "type": "string",
                     "description": "Required parameter: config_name"
-                  },
-                  "module": {
-                    "type": "string",
-                    "description": "Optional parameter: module"
                   }
                 },
                 "required": [
                   "config_name"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/analyze_bsl": {
-      "post": {
-        "summary": "analyze_bsl",
-        "description": "Анализ .bsl файла через BSL Language Server (187 диагностик). Возвращает: total, by_code, diagnostics. Требует установленного BSL LS (Java).",
-        "operationId": "analyze_bsl",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file_path": {
-                    "type": "string",
-                    "description": "Required parameter: file_path"
-                  }
-                },
-                "required": [
-                  "file_path"
                 ]
               }
             }
@@ -423,66 +687,11 @@
         }
       }
     },
-    "/tools/solve_context": {
+    "/tools/check_transactions": {
       "post": {
-        "summary": "solve_context",
-        "description": "Сбор контекста для решения задачи 1С. Собирает 7 источников: методы платформы (BM25), API-справочник, структура объектов (metadata-index), СКД-схемы (skd-index), формы (form-index), база знаний (паттерны/антипаттерны), стандарты 1С (302 проверки). Используй ПЕРВЫМ шагом при решении любой задачи.",
-        "operationId": "solve_context",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "query": {
-                    "type": "string",
-                    "description": "Required parameter: query"
-                  },
-                  "config": {
-                    "type": "string",
-                    "description": "Optional parameter: config"
-                  },
-                  "limit": {
-                    "type": "string",
-                    "description": "Optional parameter: limit"
-                  }
-                },
-                "required": [
-                  "query"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/solve_check": {
-      "post": {
-        "summary": "solve_check",
-        "description": "Полная проверка .bsl кода: 7 анализаторов. Уровни: 'quick' (4 анализатора, без Java), 'standard' (quick + BSL LS), 'full' (standard + code_metrics + metadata_standards). Возвращает: total_errors, total_warnings, violations, verdict, analyzers_run, metrics (для full). verdict: 'ready' / 'warnings' / 'errors'.",
-        "operationId": "solve_check",
+        "summary": "check_transactions",
+        "description": "Проверка транзакций BSL: несбалансированные, без Try/Catch, интерактив в транзакции, длинные/вложенные. Пример: check_transactions(file_path='module.bsl').",
+        "operationId": "check_transactions",
         "tags": [
           "MCP Tools"
         ],
@@ -496,10 +705,6 @@
                   "file_path": {
                     "type": "string",
                     "description": "Required parameter: file_path"
-                  },
-                  "level": {
-                    "type": "string",
-                    "description": "Optional parameter: level"
                   }
                 },
                 "required": [
@@ -569,11 +774,11 @@
         }
       }
     },
-    "/tools/get_object_structure": {
+    "/tools/dependency_query": {
       "post": {
-        "summary": "get_object_structure",
-        "description": "Полная структура объекта конфигурации: реквизиты, табличные части, формы, команды, предопределённые значения. Если object_name не указан — возвращает список всех объектов с краткой информацией. Пример: get_object_structure(config_name='ut11', object_name='Склады').",
-        "operationId": "get_object_structure",
+        "summary": "dependency_query",
+        "description": "Запрос к графу зависимостей: what_depends_on, dependencies_of, find_cycles, find_unused_objects, и т.д.",
+        "operationId": "dependency_query",
         "tags": [
           "MCP Tools"
         ],
@@ -588,17 +793,23 @@
                     "type": "string",
                     "description": "Required parameter: config_name"
                   },
-                  "object_name": {
+                  "query_type": {
                     "type": "string",
-                    "description": "Optional parameter: object_name"
+                    "description": "Required parameter: query_type"
                   },
-                  "object_type": {
+                  "object_ref": {
                     "type": "string",
-                    "description": "Optional parameter: object_type"
+                    "description": "Required parameter: object_ref"
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Optional parameter: target"
                   }
                 },
                 "required": [
-                  "config_name"
+                  "config_name",
+                  "query_type",
+                  "object_ref"
                 ]
               }
             }
@@ -624,11 +835,11 @@
         }
       }
     },
-    "/tools/get_skd_schema": {
+    "/tools/diff_configs": {
       "post": {
-        "summary": "get_skd_schema",
-        "description": "Структура СКД-схемы (Схемы Компоновки Данных) отчёта или обработки. Наборы данных (с запросами), параметры, поля, итоги. Если report_name не указан — список всех СКД-схем. Пример: get_skd_schema(config_name='ut11', report_name='ABCXYZАнализНоменклатуры').",
-        "operationId": "get_skd_schema",
+        "summary": "diff_configs",
+        "description": "Сравнение версий конфигурации: добавленные/удалённые/изменённые объекты, реквизиты, формы, роли. Пример: diff_configs(old_path='old.json', new_path='new.json').",
+        "operationId": "diff_configs",
         "tags": [
           "MCP Tools"
         ],
@@ -639,17 +850,18 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "config_name": {
+                  "old_path": {
                     "type": "string",
-                    "description": "Required parameter: config_name"
+                    "description": "Required parameter: old_path"
                   },
-                  "report_name": {
+                  "new_path": {
                     "type": "string",
-                    "description": "Optional parameter: report_name"
+                    "description": "Required parameter: new_path"
                   }
                 },
                 "required": [
-                  "config_name"
+                  "old_path",
+                  "new_path"
                 ]
               }
             }
@@ -675,11 +887,11 @@
         }
       }
     },
-    "/tools/get_form_structure": {
+    "/tools/dsl_compile_form": {
       "post": {
-        "summary": "get_form_structure",
-        "description": "Полная структура формы: элементы (InputField, Button, Table, и т.д.), их свойства (data_path, visible, enabled), события и обработчики, дерево элементов (ChildItems). Если form_name не указан — список всех форм. Пример: get_form_structure(config_name='ut11', form_name='ФормаЭлемента').",
-        "operationId": "get_form_structure",
+        "summary": "dsl_compile_form",
+        "description": "JSON DSL → Form.xml управляемой формы.",
+        "operationId": "dsl_compile_form",
         "tags": [
           "MCP Tools"
         ],
@@ -690,22 +902,343 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "config_name": {
+                  "definition": {
                     "type": "string",
-                    "description": "Required parameter: config_name"
+                    "description": "Required parameter: definition"
+                  },
+                  "output_path": {
+                    "type": "string",
+                    "description": "Required parameter: output_path"
+                  }
+                },
+                "required": [
+                  "definition",
+                  "output_path"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/dsl_compile_meta": {
+      "post": {
+        "summary": "dsl_compile_meta",
+        "description": "JSON DSL → XML метаданных 1С (23 типа объектов: Catalog, Document, Enum, и т.д.).",
+        "operationId": "dsl_compile_meta",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "definition": {
+                    "type": "string",
+                    "description": "Required parameter: definition"
+                  },
+                  "output_dir": {
+                    "type": "string",
+                    "description": "Required parameter: output_dir"
+                  }
+                },
+                "required": [
+                  "definition",
+                  "output_dir"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/dsl_compile_mxl": {
+      "post": {
+        "summary": "dsl_compile_mxl",
+        "description": "JSON DSL → MXL Template.xml (печатная форма).",
+        "operationId": "dsl_compile_mxl",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "definition": {
+                    "type": "string",
+                    "description": "Required parameter: definition"
+                  },
+                  "output_path": {
+                    "type": "string",
+                    "description": "Required parameter: output_path"
+                  }
+                },
+                "required": [
+                  "definition",
+                  "output_path"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/dsl_compile_role": {
+      "post": {
+        "summary": "dsl_compile_role",
+        "description": "JSON DSL → Rights.xml роли 1С.",
+        "operationId": "dsl_compile_role",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "definition": {
+                    "type": "string",
+                    "description": "Required parameter: definition"
+                  },
+                  "output_dir": {
+                    "type": "string",
+                    "description": "Required parameter: output_dir"
+                  }
+                },
+                "required": [
+                  "definition",
+                  "output_dir"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/dsl_compile_skd": {
+      "post": {
+        "summary": "dsl_compile_skd",
+        "description": "JSON DSL → СКД Template.xml (схема компоновки данных).",
+        "operationId": "dsl_compile_skd",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "definition": {
+                    "type": "string",
+                    "description": "Required parameter: definition"
+                  },
+                  "output_path": {
+                    "type": "string",
+                    "description": "Required parameter: output_path"
+                  }
+                },
+                "required": [
+                  "definition",
+                  "output_path"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/epf_factory_create": {
+      "post": {
+        "summary": "epf_factory_create",
+        "description": "Создать внешнюю обработку 1С (.epf) из BSL-кода через полный цикл: шаблоны v8unpack → подстановка name/synonym/UUID → запись BSL-модуля → проверка BSL LS → сборка .epf → round-trip. Не требует 1С. Пример: epf_factory_create(name='МояОбработка', bsl_code='...', output_path='/tmp/МояОбработка.epf').",
+        "operationId": "epf_factory_create",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Required parameter: name"
+                  },
+                  "output_path": {
+                    "type": "string",
+                    "description": "Required parameter: output_path"
+                  },
+                  "synonym": {
+                    "type": "string",
+                    "description": "Optional parameter: synonym"
+                  },
+                  "bsl_code": {
+                    "type": "string",
+                    "description": "Optional parameter: bsl_code"
+                  },
+                  "bsl_path": {
+                    "type": "string",
+                    "description": "Optional parameter: bsl_path"
                   },
                   "form_name": {
                     "type": "string",
                     "description": "Optional parameter: form_name"
                   },
-                  "parent_name": {
+                  "skip_bsl_validation": {
                     "type": "string",
-                    "description": "Optional parameter: parent_name"
+                    "description": "Optional parameter: skip_bsl_validation"
+                  },
+                  "save_sources": {
+                    "type": "string",
+                    "description": "Optional parameter: save_sources"
                   }
                 },
                 "required": [
-                  "config_name"
+                  "name",
+                  "output_path"
                 ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/epf_factory_templates": {
+      "post": {
+        "summary": "epf_factory_templates",
+        "description": "Список доступных шаблонов для epf_factory_create (ExternalDataProcessor.json, Form.json, Form.id.json, Form.elem.empty.json).",
+        "operationId": "epf_factory_templates",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": []
               }
             }
           }
@@ -866,11 +1399,11 @@
         }
       }
     },
-    "/tools/build_epf": {
+    "/tools/get_api_reference": {
       "post": {
-        "summary": "build_epf",
-        "description": "Упаковка структуры каталога в .epf файл (внешняя обработка 1С). Принимает путь к каталогу (из generate_processing) и создаёт .epf. Пример: build_epf(source_dir='generated/ВыгрузкаНоменклатуры', output_path='ВыгрузкаНоменклатуры.epf').",
-        "operationId": "build_epf",
+        "summary": "get_api_reference",
+        "description": "API-справочник конфигурации — экспортные методы общих модулей. Если module не указан — возвращает список всех модулей с кол-вом методов. Если module указан — возвращает методы конкретного модуля.",
+        "operationId": "get_api_reference",
         "tags": [
           "MCP Tools"
         ],
@@ -881,26 +1414,17 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "source_dir": {
+                  "config_name": {
                     "type": "string",
-                    "description": "Required parameter: source_dir"
+                    "description": "Required parameter: config_name"
                   },
-                  "output_path": {
+                  "module": {
                     "type": "string",
-                    "description": "Required parameter: output_path"
-                  },
-                  "object_name": {
-                    "type": "string",
-                    "description": "Optional parameter: object_name"
-                  },
-                  "object_type": {
-                    "type": "string",
-                    "description": "Optional parameter: object_type"
+                    "description": "Optional parameter: module"
                   }
                 },
                 "required": [
-                  "source_dir",
-                  "output_path"
+                  "config_name"
                 ]
               }
             }
@@ -926,11 +1450,11 @@
         }
       }
     },
-    "/tools/validate_generated": {
+    "/tools/get_code_metrics": {
       "post": {
-        "summary": "validate_generated",
-        "description": "Валидация сгенерированного кода: BSL-синтаксис (области, процедуры, циклы), XML-структура, целостность файлов. Возвращает: verdict (perfect/warnings/errors), total_errors, total_warnings. Пример: validate_generated(source_dir='generated/ВыгрузкаНоменклатуры').",
-        "operationId": "validate_generated",
+        "summary": "get_code_metrics",
+        "description": "Метрики кода BSL: LOC, цикломатическая/когнитивная сложность, вложенность, дублирование, God Object, Long Method, Too Many Params, техдолг, health score. Пример: get_code_metrics(file_path='module.bsl').",
+        "operationId": "get_code_metrics",
         "tags": [
           "MCP Tools"
         ],
@@ -941,13 +1465,119 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "source_dir": {
+                  "file_path": {
                     "type": "string",
-                    "description": "Required parameter: source_dir"
+                    "description": "Required parameter: file_path"
                   }
                 },
                 "required": [
-                  "source_dir"
+                  "file_path"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/get_form_elements": {
+      "post": {
+        "summary": "get_form_elements",
+        "description": "Элементы формы конфигурации (кнопки, поля, таблицы, группы). Пример: get_form_elements(config_name='obhod', form_name='Форма.ФормаАвторизации'). Если form_name не указан — возвращает список всех форм.",
+        "operationId": "get_form_elements",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "config_name": {
+                    "type": "string",
+                    "description": "Required parameter: config_name"
+                  },
+                  "form_name": {
+                    "type": "string",
+                    "description": "Optional parameter: form_name"
+                  }
+                },
+                "required": [
+                  "config_name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/get_form_structure": {
+      "post": {
+        "summary": "get_form_structure",
+        "description": "Полная структура формы: элементы (InputField, Button, Table, и т.д.), их свойства (data_path, visible, enabled), события и обработчики, дерево элементов (ChildItems). Если form_name не указан — список всех форм. Пример: get_form_structure(config_name='ut11', form_name='ФормаЭлемента').",
+        "operationId": "get_form_structure",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "config_name": {
+                    "type": "string",
+                    "description": "Required parameter: config_name"
+                  },
+                  "form_name": {
+                    "type": "string",
+                    "description": "Optional parameter: form_name"
+                  },
+                  "parent_name": {
+                    "type": "string",
+                    "description": "Optional parameter: parent_name"
+                  }
+                },
+                "required": [
+                  "config_name"
                 ]
               }
             }
@@ -1026,246 +1656,11 @@
         }
       }
     },
-    "/tools/audit_security": {
+    "/tools/get_object_structure": {
       "post": {
-        "summary": "audit_security",
-        "description": "Аудит безопасности BSL кода: SQL-инъекции, Выполнить(), хардкод паролей/токенов, COM-объекты, привилегированный режим, path traversal, небезопасная десериализация. 15 правил. Пример: audit_security(file_path='module.bsl').",
-        "operationId": "audit_security",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file_path": {
-                    "type": "string",
-                    "description": "Required parameter: file_path"
-                  }
-                },
-                "required": [
-                  "file_path"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/get_code_metrics": {
-      "post": {
-        "summary": "get_code_metrics",
-        "description": "Метрики кода BSL: LOC, цикломатическая/когнитивная сложность, вложенность, дублирование, God Object, Long Method, Too Many Params, техдолг, health score. Пример: get_code_metrics(file_path='module.bsl').",
-        "operationId": "get_code_metrics",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file_path": {
-                    "type": "string",
-                    "description": "Required parameter: file_path"
-                  }
-                },
-                "required": [
-                  "file_path"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/check_transactions": {
-      "post": {
-        "summary": "check_transactions",
-        "description": "Проверка транзакций BSL: несбалансированные, без Try/Catch, интерактив в транзакции, длинные/вложенные. Пример: check_transactions(file_path='module.bsl').",
-        "operationId": "check_transactions",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file_path": {
-                    "type": "string",
-                    "description": "Required parameter: file_path"
-                  }
-                },
-                "required": [
-                  "file_path"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/analyze_architecture": {
-      "post": {
-        "summary": "analyze_architecture",
-        "description": "Анализ архитектуры: циклические зависимости, God Object, мёртвый код, layering, regions, queries in forms. Пример: analyze_architecture(config_dir='data/configs/ut11').",
-        "operationId": "analyze_architecture",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "config_dir": {
-                    "type": "string",
-                    "description": "Required parameter: config_dir"
-                  }
-                },
-                "required": [
-                  "config_dir"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/analyze_queries": {
-      "post": {
-        "summary": "analyze_queries",
-        "description": "Анализ запросов 1С: SELECT *, LIKE %, функции в WHERE, JOIN без ON, временные таблицы без индексов. Пример: analyze_queries(file_path='module.bsl').",
-        "operationId": "analyze_queries",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file_path": {
-                    "type": "string",
-                    "description": "Required parameter: file_path"
-                  }
-                },
-                "required": [
-                  "file_path"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/check_form_quality": {
-      "post": {
-        "summary": "check_form_quality",
-        "description": "Проверка качества форм: пустые, перегруженные, элементы без DataPath, кнопки без команд, дубли. Пример: check_form_quality(config_name='ut11').",
-        "operationId": "check_form_quality",
+        "summary": "get_object_structure",
+        "description": "Полная структура объекта конфигурации: реквизиты, табличные части, формы, команды, предопределённые значения. Если object_name не указан — возвращает список всех объектов с краткой информацией. Пример: get_object_structure(config_name='ut11', object_name='Склады').",
+        "operationId": "get_object_structure",
         "tags": [
           "MCP Tools"
         ],
@@ -1279,109 +1674,18 @@
                   "config_name": {
                     "type": "string",
                     "description": "Required parameter: config_name"
-                  }
-                },
-                "required": [
-                  "config_name"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/check_skd_quality": {
-      "post": {
-        "summary": "check_skd_quality",
-        "description": "Проверка качества СКД: без параметров, без отборов, пустые запросы, перегруженные. Пример: check_skd_quality(config_name='ut11').",
-        "operationId": "check_skd_quality",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "config_name": {
-                    "type": "string",
-                    "description": "Required parameter: config_name"
-                  }
-                },
-                "required": [
-                  "config_name"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/diff_configs": {
-      "post": {
-        "summary": "diff_configs",
-        "description": "Сравнение версий конфигурации: добавленные/удалённые/изменённые объекты, реквизиты, формы, роли. Пример: diff_configs(old_path='old.json', new_path='new.json').",
-        "operationId": "diff_configs",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "old_path": {
-                    "type": "string",
-                    "description": "Required parameter: old_path"
                   },
-                  "new_path": {
+                  "object_name": {
                     "type": "string",
-                    "description": "Required parameter: new_path"
+                    "description": "Optional parameter: object_name"
+                  },
+                  "object_type": {
+                    "type": "string",
+                    "description": "Optional parameter: object_type"
                   }
                 },
                 "required": [
-                  "old_path",
-                  "new_path"
+                  "config_name"
                 ]
               }
             }
@@ -1407,11 +1711,11 @@
         }
       }
     },
-    "/tools/epf_factory_create": {
+    "/tools/get_skd_schema": {
       "post": {
-        "summary": "epf_factory_create",
-        "description": "Создать внешнюю обработку 1С (.epf) из BSL-кода через полный цикл: шаблоны v8unpack → подстановка name/synonym/UUID → запись BSL-модуля → проверка BSL LS → сборка .epf → round-trip. Не требует 1С. Пример: epf_factory_create(name='МояОбработка', bsl_code='...', output_path='/tmp/МояОбработка.epf').",
-        "operationId": "epf_factory_create",
+        "summary": "get_skd_schema",
+        "description": "Структура СКД-схемы (Схемы Компоновки Данных) отчёта или обработки. Наборы данных (с запросами), параметры, поля, итоги. Если report_name не указан — список всех СКД-схем. Пример: get_skd_schema(config_name='ut11', report_name='ABCXYZАнализНоменклатуры').",
+        "operationId": "get_skd_schema",
         "tags": [
           "MCP Tools"
         ],
@@ -1422,42 +1726,81 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "config_name": {
+                    "type": "string",
+                    "description": "Required parameter: config_name"
+                  },
+                  "report_name": {
+                    "type": "string",
+                    "description": "Optional parameter: report_name"
+                  }
+                },
+                "required": [
+                  "config_name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/inspect": {
+      "post": {
+        "summary": "inspect",
+        "description": "Единый анализ объектов 1С: cf, meta, form, skd, mxl, role, subsystem, depgraph.",
+        "operationId": "inspect",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "target": {
+                    "type": "string",
+                    "description": "Required parameter: target"
+                  },
+                  "path": {
+                    "type": "string",
+                    "description": "Required parameter: path"
+                  },
+                  "mode": {
+                    "type": "string",
+                    "description": "Optional parameter: mode"
+                  },
                   "name": {
                     "type": "string",
-                    "description": "Required parameter: name"
+                    "description": "Optional parameter: name"
                   },
-                  "output_path": {
+                  "config_name": {
                     "type": "string",
-                    "description": "Required parameter: output_path"
-                  },
-                  "synonym": {
-                    "type": "string",
-                    "description": "Optional parameter: synonym"
-                  },
-                  "bsl_code": {
-                    "type": "string",
-                    "description": "Optional parameter: bsl_code"
-                  },
-                  "bsl_path": {
-                    "type": "string",
-                    "description": "Optional parameter: bsl_path"
-                  },
-                  "form_name": {
-                    "type": "string",
-                    "description": "Optional parameter: form_name"
-                  },
-                  "skip_bsl_validation": {
-                    "type": "string",
-                    "description": "Optional parameter: skip_bsl_validation"
-                  },
-                  "save_sources": {
-                    "type": "string",
-                    "description": "Optional parameter: save_sources"
+                    "description": "Optional parameter: config_name"
                   }
                 },
                 "required": [
-                  "name",
-                  "output_path"
+                  "target",
+                  "path"
                 ]
               }
             }
@@ -1483,11 +1826,11 @@
         }
       }
     },
-    "/tools/epf_factory_templates": {
+    "/tools/list_configs": {
       "post": {
-        "summary": "epf_factory_templates",
-        "description": "Список доступных шаблонов для epf_factory_create (ExternalDataProcessor.json, Form.json, Form.id.json, Form.elem.empty.json).",
-        "operationId": "epf_factory_templates",
+        "summary": "list_configs",
+        "description": "Список загруженных конфигураций 1С. Возвращает: name, version, status, objects_count, api_methods_count. Используй первым шагом, чтобы понять, какие данные доступны.",
+        "operationId": "list_configs",
         "tags": [
           "MCP Tools"
         ],
@@ -1499,6 +1842,530 @@
                 "type": "object",
                 "properties": {},
                 "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/openspec_archive": {
+      "post": {
+        "summary": "openspec_archive",
+        "description": "Архивировать завершённый OpenSpec change.",
+        "operationId": "openspec_archive",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "change_id": {
+                    "type": "string",
+                    "description": "Required parameter: change_id"
+                  }
+                },
+                "required": [
+                  "change_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/openspec_list": {
+      "post": {
+        "summary": "openspec_list",
+        "description": "Список OpenSpec changes.",
+        "operationId": "openspec_list",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "include_archived": {
+                    "type": "string",
+                    "description": "Optional parameter: include_archived"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/openspec_proposal": {
+      "post": {
+        "summary": "openspec_proposal",
+        "description": "Создать OpenSpec proposal (Specification-Driven Development).",
+        "operationId": "openspec_proposal",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "change_id": {
+                    "type": "string",
+                    "description": "Required parameter: change_id"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Required parameter: title"
+                  },
+                  "context": {
+                    "type": "string",
+                    "description": "Optional parameter: context"
+                  },
+                  "approach": {
+                    "type": "string",
+                    "description": "Optional parameter: approach"
+                  },
+                  "tasks": {
+                    "type": "string",
+                    "description": "Optional parameter: tasks"
+                  }
+                },
+                "required": [
+                  "change_id",
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/openspec_update_task": {
+      "post": {
+        "summary": "openspec_update_task",
+        "description": "Обновить задачу в OpenSpec change (отметить завершённой/незавершённой).",
+        "operationId": "openspec_update_task",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "change_id": {
+                    "type": "string",
+                    "description": "Required parameter: change_id"
+                  },
+                  "task_index": {
+                    "type": "string",
+                    "description": "Required parameter: task_index"
+                  },
+                  "completed": {
+                    "type": "string",
+                    "description": "Optional parameter: completed"
+                  }
+                },
+                "required": [
+                  "change_id",
+                  "task_index"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/search_1c_methods": {
+      "post": {
+        "summary": "search_1c_methods",
+        "description": "TF-IDF/BM25 семантический поиск по 8141 методам платформы 1С. Возвращает: name_ru, name_en, syntax, description, context. Пример: search_1c_methods(query='найти элемент по коду', limit=5)",
+        "operationId": "search_1c_methods",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "Required parameter: query"
+                  },
+                  "limit": {
+                    "type": "string",
+                    "description": "Optional parameter: limit"
+                  }
+                },
+                "required": [
+                  "query"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/search_code": {
+      "post": {
+        "summary": "search_code",
+        "description": "BM25 поиск по коду конфигурации (115K+ методов). Ищет по именам методов, сигнатурам, описаниям. Пример: search_code(query='создать заказ', config_name='ut11', limit=5). Используй для поиска 'как уже реализовано похожее' в конфигурации.",
+        "operationId": "search_code",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "Required parameter: query"
+                  },
+                  "config_name": {
+                    "type": "string",
+                    "description": "Required parameter: config_name"
+                  },
+                  "limit": {
+                    "type": "string",
+                    "description": "Optional parameter: limit"
+                  }
+                },
+                "required": [
+                  "query",
+                  "config_name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/skd_trace": {
+      "post": {
+        "summary": "skd_trace",
+        "description": "Трассировка поля СКД через всю цепочку: dataset → calculated → resource.",
+        "operationId": "skd_trace",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "template_path": {
+                    "type": "string",
+                    "description": "Required parameter: template_path"
+                  },
+                  "field_name": {
+                    "type": "string",
+                    "description": "Required parameter: field_name"
+                  }
+                },
+                "required": [
+                  "template_path",
+                  "field_name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/solve_check": {
+      "post": {
+        "summary": "solve_check",
+        "description": "Полная проверка .bsl кода: 7 анализаторов. Уровни: 'quick' (4 анализатора, без Java), 'standard' (quick + BSL LS), 'full' (standard + code_metrics + metadata_standards). Возвращает: total_errors, total_warnings, violations, verdict, analyzers_run, metrics (для full). verdict: 'ready' / 'warnings' / 'errors'.",
+        "operationId": "solve_check",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file_path": {
+                    "type": "string",
+                    "description": "Required parameter: file_path"
+                  },
+                  "level": {
+                    "type": "string",
+                    "description": "Optional parameter: level"
+                  }
+                },
+                "required": [
+                  "file_path"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/solve_context": {
+      "post": {
+        "summary": "solve_context",
+        "description": "Сбор контекста для решения задачи 1С. Собирает 7 источников: методы платформы (BM25), API-справочник, структура объектов (metadata-index), СКД-схемы (skd-index), формы (form-index), база знаний (паттерны/антипаттерны), стандарты 1С (302 проверки). Используй ПЕРВЫМ шагом при решении любой задачи.",
+        "operationId": "solve_context",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "Required parameter: query"
+                  },
+                  "config": {
+                    "type": "string",
+                    "description": "Optional parameter: config"
+                  },
+                  "limit": {
+                    "type": "string",
+                    "description": "Optional parameter: limit"
+                  }
+                },
+                "required": [
+                  "query"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/validate_generated": {
+      "post": {
+        "summary": "validate_generated",
+        "description": "Валидация сгенерированного кода: BSL-синтаксис (области, процедуры, циклы), XML-структура, целостность файлов. Возвращает: verdict (perfect/warnings/errors), total_errors, total_warnings. Пример: validate_generated(source_dir='generated/ВыгрузкаНоменклатуры').",
+        "operationId": "validate_generated",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source_dir": {
+                    "type": "string",
+                    "description": "Required parameter: source_dir"
+                  }
+                },
+                "required": [
+                  "source_dir"
+                ]
               }
             }
           }
