@@ -21,79 +21,8 @@ import xml.etree.ElementTree as ET
 from collections import OrderedDict, defaultdict
 from datetime import datetime
 
-
-def strip_ns(tag):
-    if "}" in tag:
-        return tag.split("}", 1)[1]
-    return tag
-
-
-def get_child(elem, tag):
-    if elem is None:
-        return None
-    for child in elem:
-        if strip_ns(child.tag) == tag:
-            return child
-    return None
-
-
-def get_text(elem, tag, default=""):
-    child = get_child(elem, tag)
-    if child is not None:
-        return child.text or ""
-    return default
-
-
-def get_synonym_text(parent, tag="Synonym"):
-    elem = get_child(parent, tag)
-    if elem is None:
-        return ""
-    if elem.text and elem.text.strip():
-        return elem.text.strip()
-    for item in elem:
-        if strip_ns(item.tag) == "item":
-            content = get_text(item, "content")
-            if content:
-                return content
-    return ""
-
-
-def get_type_description(type_elem):
-    """
-    Извлекает описание типа из элемента <Type>.
-    Возвращает строковое описание (например, 'xs:string', 'CatalogRef.Номенклатура', 'xs:decimal(10,2)').
-    """
-    if type_elem is None:
-        return ""
-
-    types = []
-    for child in type_elem:
-        tag = strip_ns(child.tag)
-        if tag == "Type":
-            # v8:Type
-            text = (child.text or "").strip()
-            if text:
-                types.append(text)
-
-    # Дополнительные свойства типа
-    type_qualifiers = []
-    number_qualifiers = get_child(type_elem, "NumberQualifiers")
-    if number_qualifiers is not None:
-        precision = get_text(number_qualifiers, "Precision")
-        scale = get_text(number_qualifiers, "Scale")
-        if precision:
-            type_qualifiers.append(f"({precision},{scale or '0'})")
-
-    string_qualifiers = get_child(type_elem, "StringQualifiers")
-    if string_qualifiers is not None:
-        length = get_text(string_qualifiers, "Length")
-        if length:
-            type_qualifiers.append(f"[{length}]")
-
-    result = ", ".join(types) if types else ""
-    if type_qualifiers:
-        result += " " + " ".join(type_qualifiers)
-    return result
+# D2.2 (2026-07-05): XML утилиты вынесены в _xml_utils.py для переиспользования
+from ._xml_utils import strip_ns, get_child, get_text, get_synonym_text, get_type_description
 
 
 # === ПАРСИНГ Configuration.xml ===
