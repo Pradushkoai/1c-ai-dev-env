@@ -1,0 +1,59 @@
+name: OpenAPI Validation
+
+# A-5 (2026-07-05): OpenAPI spec validation через spectral.
+# Blocking при invalid spec. Гарантирует, что docs/mcp-openapi.json валиден.
+#
+# Использует: stoplightio/spectral-action@v0.8.11
+# Ruleset: .spectral.yaml (minimal — OpenAPI 3.0 standard rules)
+# Spec: docs/mcp-openapi.json
+#
+# Запуск: на каждый push и pull_request (как ci.yml)
+
+on: [push, pull_request]
+
+jobs:
+  openapi-validate:
+    name: OpenAPI Spec Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate OpenAPI spec with Spectral
+        # A-5: spectral проверяет docs/mcp-openapi.json на соответствие OpenAPI 3.0
+        # Blocking: если spec невалиден — CI падает
+        uses: stoplightio/spectral-action@v0.8.11
+        with:
+          file_glob: "docs/mcp-openapi.json"
+          spectral_ruleset: ".spectral.yaml"
+
+      - name: Verify spec version matches pyproject.toml
+        # A-1: дополнительная проверка синхронизации версии spec с pyproject.toml
+        # Если spec версия != pyproject версия — CI падает
+        run: |
+          SPEC_VER=$(python3 -c "import json; print(json.load(open('docs/mcp-openapi.json'))['info']['version'])")
+          PYPROJECT_VER=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "spec: $SPEC_VER, pyproject: $PYPROJECT_VER"
+          if [ "$SPEC_VER" != "$PYPROJECT_VER" ]; then
+            echo "❌ OpenAPI spec version ($SPEC_VER) != pyproject.toml version ($PYPROJECT_VER)"
+            echo "   Запустите: python3 scripts/generate_openapi.py"
+            exit 1
+          fi
+          echo "✅ OpenAPI spec version synchronized with pyproject.toml: $SPEC_VER"
+
+      - name: Verify spec has 45 tools
+        # Дополнительная проверка: spec должен содержать 45 MCP tools
+        # Если количество tools изменилось — нужно обновить spec (generate_openapi.py)
+        run: |
+          TOOLS_COUNT=$(python3 -c "import json; print(len(json.load(open('docs/mcp-openapi.json'))['paths']))")
+          echo "Tools count: $TOOLS_COUNT"
+          if [ "$TOOLS_COUNT" != "45" ]; then
+            echo "⚠️  OpenAPI spec contains $TOOLS_COUNT tools (expected 45)"
+            echo "   Если количество tools изменилось — запустите: python3 scripts/generate_openapi.py"
+            echo "   и обновите ожидаемое количество в этом workflow"
+            # Non-blocking warning (tools count может меняться при добавлении новых tools)
+            # Если хотим blocking — раскомментировать следующую строку:
+            # exit 1
+          else
+            echo "✅ OpenAPI spec contains 45 tools"
+          fi
