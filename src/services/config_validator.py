@@ -97,6 +97,7 @@ class IndexStatus:
     size_bytes: int = 0
     is_stale: bool = False
     stale_reason: str = ""
+    source_hash_match: bool = True  # D2.4: True если hash исходников совпадает с сохранённым
 
 
 @dataclass
@@ -105,6 +106,7 @@ class IndexFreshnessReport:
 
     config_name: str
     source_mtime: float | None = None
+    source_hash: str = ""  # D2.4: content hash исходников
     all_fresh: bool = True
     indexes: list[IndexStatus] = field(default_factory=list)
     stale_indexes: list[str] = field(default_factory=list)
@@ -204,9 +206,11 @@ class ConfigValidator:
         """
         Проверить актуальность индексов конфигурации.
 
+        D2.4 (2026-07-05): добавлена content hash проверка.
         Для каждого из 4 индексов (metadata/api/skd/forms):
         - существует ли файл?
-        - новее ли source чем index? (по mtime)
+        - совпадает ли hash исходников с сохранённым? (content-based, primary)
+        - новее ли source чем index? (mtime-based, fallback если нет hash файла)
 
         Args:
             name: Имя конфигурации.
@@ -214,6 +218,8 @@ class ConfigValidator:
         Returns:
             IndexFreshnessReport со списками stale_indexes и missing_indexes.
         """
+        import hashlib
+
         config = self._registry.get(name)
         if not config or not config.is_active():
             return IndexFreshnessReport(
@@ -225,6 +231,9 @@ class ConfigValidator:
 
         source_mtime = self._latest_source_mtime(config.path)
 
+        # D2.4: вычисляем content hash исходников
+        source_hash = self._compute_source_hash(config.path)
+
         derived_dir = self._paths.config_derived_dir(name)
         index_files = {
             "metadata": derived_dir / "unified-metadata-index.json",
@@ -233,10 +242,22 @@ class ConfigValidator:
             "forms": derived_dir / "form-index.json",
         }
 
+        # D2.4: путь к файлу с сохранённым hash
+        hash_file = derived_dir / ".source-hash"
+
         report = IndexFreshnessReport(
             config_name=name,
             source_mtime=source_mtime,
+            source_hash=source_hash,
         )
+
+        # D2.4: читаем сохранённый hash
+        stored_hash = ""
+        if hash_file.exists():
+            try:
+                stored_hash = hash_file.read_text(encoding="utf-8").strip()
+            except (OSError, UnicodeDecodeError):
+                pass
 
         for idx_name, idx_path in index_files.items():
             status = IndexStatus(name=idx_name, path=idx_path, exists=False, mtime=None)
@@ -246,16 +267,35 @@ class ConfigValidator:
                 status.mtime = idx_path.stat().st_mtime
                 status.size_bytes = idx_path.stat().st_size
 
-                if source_mtime is not None and source_mtime > status.mtime:
-                    status.is_stale = True
-                    delta = int(source_mtime - status.mtime)
-                    status.stale_reason = (
-                        f"исходники новее на {delta} сек "
-                        f"(source={time.ctime(source_mtime)}, "
-                        f"index={time.ctime(status.mtime)})"
-                    )
-                    report.stale_indexes.append(idx_name)
-                    report.all_fresh = False
+                # D2.4: если есть сохранённый hash — используем content-based проверку
+                if stored_hash:
+                    if source_hash == stored_hash:
+                        # Hash совпадает — индекс свежий, даже если mtime изменился
+                        status.source_hash_match = True
+                        # Не stale, даже если mtime source > mtime index
+                    else:
+                        # Hash differs — содержимое изменилось, индекс устарел
+                        status.source_hash_match = False
+                        status.is_stale = True
+                        status.stale_reason = (
+                            f"content hash изменился "
+                            f"(stored={stored_hash[:12]}..., current={source_hash[:12]}...)"
+                        )
+                        report.stale_indexes.append(idx_name)
+                        report.all_fresh = False
+                else:
+                    # Нет сохранённого hash — fallback на mtime проверку
+                    status.source_hash_match = False
+                    if source_mtime is not None and source_mtime > status.mtime:
+                        status.is_stale = True
+                        delta = int(source_mtime - status.mtime)
+                        status.stale_reason = (
+                            f"исходники новее на {delta} сек (mtime fallback, нет .source-hash) "
+                            f"(source={time.ctime(source_mtime)}, "
+                            f"index={time.ctime(status.mtime)})"
+                        )
+                        report.stale_indexes.append(idx_name)
+                        report.all_fresh = False
             else:
                 status.is_stale = True
                 status.stale_reason = "индекс отсутствует"
@@ -283,3 +323,69 @@ class ConfigValidator:
         except (OSError, PermissionError):
             pass
         return latest
+
+    @staticmethod
+    def _compute_source_hash(config_dir: Path) -> str:
+        """
+        D2.4 (2026-07-05): Вычислить content hash исходников конфигурации.
+
+        Hash строится из содержимого всех .xml и .bsl файлов в config_dir.
+        Если содержимое не изменилось — hash совпадает, даже если mtime изменился
+        (например, после `touch`).
+
+        Args:
+            config_dir: Путь к директории конфигурации.
+
+        Returns:
+            SHA-256 hex строка (первые 64 символа).
+        """
+        import hashlib
+
+        hasher = hashlib.sha256()
+        try:
+            files_sorted: list[Path] = []
+            for pattern in ("*.xml", "*.bsl"):
+                files_sorted.extend(f for f in config_dir.rglob(pattern) if f.is_file())
+            files_sorted.sort()  # Детерминированный порядок
+
+            for f in files_sorted:
+                try:
+                    # Включаем относительный путь + содержимое в hash
+                    rel = str(f.relative_to(config_dir))
+                    hasher.update(rel.encode("utf-8"))
+                    hasher.update(b"\0")
+                    content = f.read_bytes()
+                    hasher.update(content)
+                    hasher.update(b"\0")
+                except (OSError, PermissionError, ValueError):
+                    continue
+        except (OSError, PermissionError):
+            pass
+
+        return hasher.hexdigest()
+
+    def save_source_hash(self, name: str) -> str:
+        """
+        D2.4 (2026-07-05): Сохранить текущий content hash исходников.
+
+        Вызывается после построения индексов (ConfigManager.build()),
+        чтобы при следующей проверке freshness сравнивать hash, а не mtime.
+
+        Args:
+            name: Имя конфигурации.
+
+        Returns:
+            Сохранённый hash (SHA-256 hex).
+        """
+        config = self._registry.get(name)
+        if not config or not config.is_active():
+            return ""
+
+        source_hash = self._compute_source_hash(config.path)
+        derived_dir = self._paths.config_derived_dir(name)
+        hash_file = derived_dir / ".source-hash"
+
+        derived_dir.mkdir(parents=True, exist_ok=True)
+        hash_file.write_text(source_hash, encoding="utf-8")
+
+        return source_hash

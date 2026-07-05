@@ -536,6 +536,11 @@ class ConfigManager:
         config.objects_count = self._count_objects(config.path)
         self._registry.add(config)
 
+        # D2.4 (2026-07-05): сохранить content hash исходников
+        # для идемпотентной проверки freshness при следующем build
+        if not skipped or skipped != ["all"]:
+            self.validator.save_source_hash(name)
+
         return report
 
     def _run_script(self, script_path: Path, args: list[str]) -> None:
