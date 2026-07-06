@@ -55,7 +55,7 @@ test = [
     "pytest-asyncio>=0.23,<1.0",
     "hypothesis>=6.0,<7.0",
     # P2.13: CVE-2022-2309 (NULL deref), обновлено с 4.9 → 5.0+
-    "lxml>=5.0,<6.0",
+    "lxml>=5.0,<7.0",
     # P2.13: CVE-2023-50447 (arbitrary code execution via TIFF), обновлено с 10.0 → 10.2+
     "Pillow>=10.2.0,<12.0",
 ]
@@ -65,7 +65,7 @@ dev = [
     "pytest-benchmark>=4.0,<6.0",
     "pytest-asyncio>=0.23,<1.0",
     "hypothesis>=6.0,<7.0",
-    "lxml>=5.0,<6.0",
+    "lxml>=5.0,<7.0",
     "Pillow>=10.2.0,<12.0",
     "ruff>=0.5,<1.0",
     "mypy>=1.10,<2.0",
