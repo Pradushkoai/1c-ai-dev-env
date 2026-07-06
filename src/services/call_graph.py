@@ -160,6 +160,42 @@ class CallGraph:
             ],
         }
 
+    def save(self, path: Path) -> None:
+        """Сохранить граф в JSON файл для последующей быстрой загрузки."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(self.to_dict(), f, ensure_ascii=False)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> CallGraph:
+        """Десериализация из dict (после json.load)."""
+        graph = cls(config_name=data.get("config_name", ""))
+        for e in data.get("edges", []):
+            graph.edges.append(CallEdge(
+                caller_module=e["caller_module"],
+                caller_method=e["caller_method"],
+                callee_module=e["callee_module"],
+                callee_method=e["callee_method"],
+                line=e.get("line", 0),
+                file=e.get("file", ""),
+            ))
+        graph._reindex()
+        return graph
+
+    @classmethod
+    def load(cls, path: Path) -> CallGraph | None:
+        """Загрузить граф из JSON файла. Возвращает None если файл не существует."""
+        if not path.exists():
+            return None
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            return cls.from_dict(data)
+        except (json.JSONDecodeError, OSError, KeyError) as e:
+            import logging
+            logging.getLogger(__name__).warning("Failed to load call graph from %s: %s", path, e)
+            return None
+
 
 # ============================================================================
 # ПАРСЕР .bsl ФАЙЛОВ
@@ -325,7 +361,7 @@ STANDARD_OBJECTS = {
 }
 
 
-def build_call_graph(config_name: str, paths: PathManager | None = None) -> CallGraph:
+def build_call_graph(config_name: str, paths: PathManager | None = None, use_cache: bool = True) -> CallGraph:
     """
     Построить граф вызовов для конфигурации.
 
@@ -333,15 +369,30 @@ def build_call_graph(config_name: str, paths: PathManager | None = None) -> Call
     1. Кросс-модульные вызовы: ОбменДокументы.ВыполнитьПолныйОбмен()
     2. Локальные вызовы: ВыполнитьЗапрос() внутри того же модуля
 
+    При use_cache=True (по умолчанию) — загружает из cache файла если существует,
+    иначе строит и сохраняет. Cache файл: derived/configs/<name>/call-graph-index.json
+
     Args:
         config_name: Имя конфигурации (ut11, obhod, ...)
         paths: PathManager (если None — создаётся)
+        use_cache: Использовать кэш (default: True)
 
     Returns:
         CallGraph с рёбрами и индексами
     """
     if paths is None:
         paths = PathManager()
+
+    # D-5: Check cache first
+    cache_path = paths.config_derived_dir(config_name) / "call-graph-index.json"
+    if use_cache:
+        cached = CallGraph.load(cache_path)
+        if cached is not None:
+            import logging
+            logging.getLogger(__name__).info(
+                "Call graph loaded from cache: %s (%d edges)", cache_path, len(cached.edges)
+            )
+            return cached
 
     config_dir = paths.config_path(config_name)
     if not config_dir.exists():
@@ -433,4 +484,17 @@ def build_call_graph(config_name: str, paths: PathManager | None = None) -> Call
                         graph.edges.append(edge)
 
     graph._reindex()
+
+    # D-5: Save to cache for fast subsequent loads
+    if use_cache:
+        try:
+            graph.save(cache_path)
+            import logging
+            logging.getLogger(__name__).info(
+                "Call graph saved to cache: %s (%d edges)", cache_path, len(graph.edges)
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Failed to save call graph cache: %s", e)
+
     return graph

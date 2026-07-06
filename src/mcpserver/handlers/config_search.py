@@ -49,6 +49,18 @@ async def handle_search_code(project: Project, arguments: dict[str, Any]) -> lis
     query = arguments.get("query", "")
     config_name = arguments.get("config_name", "")
     limit = arguments.get("limit", 10)
+
+    # D-5: Если config_name не указан, пытаемся найти первую активную конфигурацию
+    if not config_name:
+        configs = project.config_manager._registry.list_active()
+        if configs:
+            config_name = configs[0].name
+        else:
+            return [types.TextContent(type="text", text=json.dumps(
+                {"error": "config_name required", "hint": "Укажите config_name или используйте list_configs() для просмотра доступных"},
+                ensure_ascii=False
+            ))]
+
     from src.services.search_code import search_code
 
     results = await run_sync(search_code, config_name, query, limit, project.paths)
