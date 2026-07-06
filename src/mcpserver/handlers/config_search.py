@@ -66,9 +66,27 @@ async def handle_call_graph(project: Project, arguments: dict[str, Any]) -> list
     action = arguments.get("action", "stats")
     module = arguments.get("module", "")
     method = arguments.get("method", "")
+
+    if not config_name:
+        return [types.TextContent(type="text", text=json.dumps(
+            {"error": "config_name required", "hint": "Используйте list_configs для просмотра доступных конфигураций"},
+            ensure_ascii=False
+        ))]
+
     from src.services.call_graph import build_call_graph
 
-    graph = await run_sync(build_call_graph, config_name, project.paths)
+    try:
+        graph = await run_sync(build_call_graph, config_name, project.paths)
+    except FileNotFoundError as e:
+        return [types.TextContent(type="text", text=json.dumps(
+            {"error": str(e), "hint": f"Сначала добавьте и проиндексируйте конфигурацию: 1c-ai config add --name {config_name} --zip <path> && 1c-ai config build --name {config_name}"},
+            ensure_ascii=False
+        ))]
+    except Exception as e:
+        return [types.TextContent(type="text", text=json.dumps(
+            {"error": f"call_graph failed: {e}", "hint": "Проверьте что конфигурация проиндексирована"},
+            ensure_ascii=False
+        ))]
     result: Any = None
     if action == "stats":
         result = graph.get_stats()

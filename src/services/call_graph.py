@@ -344,6 +344,13 @@ def build_call_graph(config_name: str, paths: PathManager | None = None) -> Call
         paths = PathManager()
 
     config_dir = paths.config_path(config_name)
+    if not config_dir.exists():
+        raise FileNotFoundError(
+            f"Конфигурация '{config_name}' не найдена. "
+            f"Выполните: 1c-ai config add --name {config_name} --zip <path.zip> && "
+            f"1c-ai config build --name {config_name}"
+        )
+
     graph = CallGraph(config_name=config_name)
 
     # Загружаем список экспортных методов из api-reference.json
@@ -351,13 +358,19 @@ def build_call_graph(config_name: str, paths: PathManager | None = None) -> Call
     export_methods: set[str] = set()  # "ИмяМодуля.ИмяМетода"
     module_names: set[str] = set()
     if api_json.exists():
-        with open(api_json, encoding="utf-8") as f:
-            modules = json.load(f)
-        for mod in modules:
-            mod_name = mod.get("name", "")
-            module_names.add(mod_name)
-            for method in mod.get("methods", []):
-                export_methods.add(f"{mod_name}.{method.get('name', '')}")
+        try:
+            with open(api_json, encoding="utf-8") as f:
+                modules = json.load(f)
+            for mod in modules:
+                mod_name = mod.get("name", "")
+                module_names.add(mod_name)
+                for method in mod.get("methods", []):
+                    export_methods.add(f"{mod_name}.{method.get('name', '')}")
+        except (json.JSONDecodeError, OSError) as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Failed to load api-reference.json for '%s': %s", config_name, e
+            )
 
     # Парсим все .bsl файлы
     bsl_files = list(config_dir.rglob("*.bsl"))

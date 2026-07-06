@@ -64,7 +64,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="build_dependency_graph",
-            description="Построить граф зависимостей метаданных 1С (networkx).",
+            description="Построить граф зависимостей метаданных 1С (networkx). Возвращает: nodes, edges, cycles, stats. Требует предварительно построенный индекс. Пример: build_dependency_graph(config_name='УправлениеТорговлей').",
             input_schema={
                 "properties": {"config_name": {"type": "string"}},
                 "required": ["config_name"],
@@ -111,7 +111,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="cfe_borrow",
-            description="Заимствовать объект из конфигурации в расширение (CFE).",
+            description="Заимствовать объект из конфигурации в расширение (CFE). Создаёт XML с ObjectBelonging=Adopted. Пример: cfe_borrow(object_type='Catalog', object_name='Товары', cfe_name='МоеРасширение').",
             input_schema={
                 "properties": {
                     "config_path": {"type": "string"},
@@ -124,7 +124,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="cfe_diff",
-            description="Анализ расширения CFE: что заимствовано, перехвачено.",
+            description="Анализ расширения CFE: что заимствовано, перехвачено. Возвращает: borrowed, patched, added. Пример: cfe_diff(config_path='data/configs/ut11', extension_path='data/cfe/МоеРасш').",
             input_schema={
                 "properties": {"config_path": {"type": "string"}, "extension_path": {"type": "string"}},
                 "required": ["extension_path", "config_path"],
@@ -133,7 +133,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="cfe_patch_method",
-            description="Сгенерировать BSL перехватчик (&Перед/&После/&ИзменениеИКонтроль).",
+            description="Сгенерировать BSL перехватчик (&Перед/&После/&ИзменениеИКонтроль). Создаёт BSL код патча метода. Пример: cfe_patch_method(extension_path='cfe/', interceptor_type='Before', module_path='Module.bsl', method_name='ПриОткрытии').",
             input_schema={
                 "properties": {
                     "extension_path": {"type": "string"},
@@ -183,12 +183,12 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="data_status",
-            description="Статус данных проекта: что доступно (платформа, конфигурации), что нужно перестроить, доступен ли autosave пакет. Используй, если данные не находятся — возможно нужно autoload через CLI. Возвращает: has_platform_index, has_platform_methods, configs[], autosave_available.",
+            description="Статус данных проекта: что доступно (платформа, конфигурации), что нужно перестроить, доступен ли autosave пакет. Возвращает: has_platform_index, has_platform_methods, configs[], autosave_available. Пример: data_status().",
             input_schema={"properties": {}, "type": "object"},
         ),
         _build_tool(
             name="dependency_query",
-            description="Запрос к графу зависимостей: what_depends_on, dependencies_of, find_cycles, и т.д.",
+            description="Запрос к графу зависимостей: what_depends_on, dependencies_of, find_cycles, и т.д. Возвращает nodes, edges, cycles. Пример: dependency_query(config_name='УТ', query_type='descendants', object_name='Справочник.Товары').",
             input_schema={
                 "properties": {
                     "config_name": {"type": "string"},
@@ -214,7 +214,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="dsl_compile_form",
-            description="JSON DSL → Form.xml управляемой формы.",
+            description="JSON DSL → Form.xml управляемой формы 1С. Создаёт XML формы из описания элементов. Пример: dsl_compile_form(definition={...}, output_path='Form.xml').",
             input_schema={
                 "properties": {"definition": {"type": "object"}, "output_path": {"type": "string"}},
                 "required": ["definition", "output_path"],
@@ -223,7 +223,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="dsl_compile_meta",
-            description="JSON DSL → XML метаданных 1С (23 типа объектов).",
+            description="JSON DSL → XML метаданных 1С (23 типа: Catalog, Document, CommonModule и др.). Пример: dsl_compile_meta(definition={'type':'Catalog','name':'Товары'}, output_dir='/tmp/out').",
             input_schema={
                 "properties": {"definition": {"type": "object"}, "output_dir": {"type": "string"}},
                 "required": ["definition", "output_dir"],
@@ -232,7 +232,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="dsl_compile_mxl",
-            description="JSON DSL → MXL Template.xml (печатная форма).",
+            description="JSON DSL → MXL Template.xml (печатная форма). Создаёт табличный документ из описания. Пример: dsl_compile_mxl(definition={...}, output_path='Template.xml').",
             input_schema={
                 "properties": {"definition": {"type": "object"}, "output_path": {"type": "string"}},
                 "required": ["definition", "output_path"],
@@ -241,7 +241,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="dsl_compile_role",
-            description="JSON DSL → Rights.xml роли 1С.",
+            description="JSON DSL → Rights.xml роли 1С. Создаёт роль с правами доступа к объектам. Пример: dsl_compile_role(definition={...}, output_dir='Roles/').",
             input_schema={
                 "properties": {"definition": {"type": "object"}, "output_dir": {"type": "string"}},
                 "required": ["definition", "output_dir"],
@@ -250,7 +250,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="dsl_compile_skd",
-            description="JSON DSL → СКД Template.xml.",
+            description="JSON DSL → СКД Template.xml. Создаёт схему компоновки данных с запросом и полями. Пример: dsl_compile_skd(definition={...}, output_path='Schema.xml').",
             input_schema={
                 "properties": {"definition": {"type": "object"}, "output_path": {"type": "string"}},
                 "required": ["definition", "output_path"],
@@ -285,7 +285,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="epf_factory_templates",
-            description="Список доступных шаблонов для epf_factory_create. Возвращает пути к шаблонам ExternalDataProcessor.json, Form.json, Form.id.json, Form.elem.empty.json.",
+            description="Список доступных шаблонов для epf_factory_create. Возвращает пути к шаблонам ExternalDataProcessor.json, Form.json, Form.id.json, Form.elem.empty.json. Пример: epf_factory_templates().",
             input_schema={"properties": {}, "type": "object"},
         ),
         _build_tool(
@@ -434,7 +434,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="inspect",
-            description="Единый анализ объектов 1С: cf, meta, form, skd, mxl, role, subsystem, depgraph.",
+            description="Единый анализ объектов 1С: cf, meta, form, skd, mxl, role, subsystem, depgraph. Возвращает свойства и структуру объекта. Пример: inspect(type='cf', path='data/configs/ut11').",
             input_schema={
                 "properties": {
                     "config_name": {"type": "string"},
@@ -449,22 +449,22 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="list_configs",
-            description="Список загруженных конфигураций 1С. Возвращает: name, version, status, objects_count, api_methods_count. Используй первым шагом, чтобы понять, какие данные доступны.",
+            description="Список загруженных конфигураций 1С. Возвращает: name, version, status, objects_count, api_methods_count. Используй первым шагом. Пример: list_configs().",
             input_schema={"properties": {}, "type": "object"},
         ),
         _build_tool(
             name="openspec_archive",
-            description="Архивировать завершённый OpenSpec change.",
+            description="Архивировать завершённый OpenSpec change. Перемещает proposal в архив. Пример: openspec_archive(id='proposal-001').",
             input_schema={"properties": {"change_id": {"type": "string"}}, "required": ["change_id"], "type": "object"},
         ),
         _build_tool(
             name="openspec_list",
-            description="Список OpenSpec changes.",
+            description="Список OpenSpec changes (управление изменениями). Возвращает массив с id, title, status. Пример: openspec_list() или openspec_list(status='active').",
             input_schema={"properties": {"include_archived": {"type": "boolean"}}, "type": "object"},
         ),
         _build_tool(
             name="openspec_proposal",
-            description="Создать OpenSpec proposal (Specification-Driven Development).",
+            description="Создать OpenSpec proposal (Specification-Driven Development). Принимает title, description, tasks. Возвращает id. Пример: openspec_proposal(title='Добавить справочник', description='Новый справочник').",
             input_schema={
                 "properties": {
                     "approach": {"type": "string"},
@@ -479,7 +479,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="openspec_update_task",
-            description="Обновить задачу в OpenSpec change.",
+            description="Обновить задачу в OpenSpec change. Принимает proposal_id, task_id, new_status. Пример: openspec_update_task(proposal_id='p1', task_id='t1', new_status='done').",
             input_schema={
                 "properties": {
                     "change_id": {"type": "string"},
@@ -517,7 +517,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="skd_trace",
-            description="Трассировка поля СКД через всю цепочку: dataset → calculated → resource.",
+            description="Трассировка поля СКД через всю цепочку: dataset → calculated → resource. Возвращает источник значения поля. Пример: skd_trace(config_name='УТ', template_name='ОсновнаяСхема', field_name='Сумма').",
             input_schema={
                 "properties": {"field_name": {"type": "string"}, "template_path": {"type": "string"}},
                 "required": ["template_path", "field_name"],
