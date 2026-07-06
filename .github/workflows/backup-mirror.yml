@@ -140,7 +140,7 @@ jobs:
     if: github.event_name == 'schedule' && (github.run_at_month == 1 || github.run_at_month == 4 || github.run_at_month == 7 || github.run_at_month == 10)
     steps:
       - name: Download latest bundle artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: git-bundle-backup-latest
           path: ./backup
