@@ -124,7 +124,7 @@ jobs:
     if: github.event_name == 'schedule'
     needs: [pip-audit, safety, license-check]
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v9
         with:
           script: |
             const date = new Date().toISOString().split('T')[0];

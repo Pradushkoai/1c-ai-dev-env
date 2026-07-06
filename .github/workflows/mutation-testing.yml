@@ -41,7 +41,7 @@ jobs:
       - name: Create issue if mutation score < 70%
         # Этап 5.4: порог повышен с 60% до 70%
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             github.rest.issues.create({
