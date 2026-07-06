@@ -1,5 +1,9 @@
 # Dependabot — автоматическое обновление зависимостей
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# Настройка: минимальное количество PR, только security updates.
+# Major updates игнорируются (breaking changes).
+# Grouping: все minor/patch updates в один PR.
 
 version: 2
 
@@ -8,24 +12,22 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       day: "monday"
       time: "04:00"
       timezone: "Europe/Minsk"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "python"
     commit-message:
       prefix: "deps"
       include: "scope"
-    # Группируем minor и patch updates в один PR
     groups:
       python-minor:
         update-types:
           - "minor"
           - "patch"
-    # Игнорируем pre-release
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
@@ -34,11 +36,11 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       day: "monday"
       time: "04:00"
       timezone: "Europe/Minsk"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
     labels:
       - "dependencies"
       - "github-actions"
