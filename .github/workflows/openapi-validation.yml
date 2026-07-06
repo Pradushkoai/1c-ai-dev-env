@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate OpenAPI spec with Spectral
         # A-5: spectral проверяет docs/mcp-openapi.json на соответствие OpenAPI 3.0
