@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.cli.production_ready import (
+from src.cli_tools.production_ready import (
     CoverageReport,
     DocsStatus,
     KEY_DOCS,

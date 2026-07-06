@@ -445,7 +445,14 @@ def load_index_into_qdrant(
     if loaded is None:
         return -1
 
-    from qdrant_client.http.models import PointStruct
+    try:
+        from qdrant_client.http.models import PointStruct
+    except ImportError:
+        logger.warning(
+            "qdrant_client not installed — cannot load index into Qdrant. "
+            "Install with: pip install qdrant-client"
+        )
+        return -1
 
     points = [
         PointStruct(id=idx, vector=emb.tolist(), payload=payload)

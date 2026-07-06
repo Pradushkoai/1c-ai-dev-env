@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from src.cli.mcp_improvements import (
+from src.cli_tools.mcp_improvements import (
     MIN_MCP_SDK_VERSION,
     MCP_SDK_VERSIONS,
     RECOMMENDED_MCP_SDK_VERSION,

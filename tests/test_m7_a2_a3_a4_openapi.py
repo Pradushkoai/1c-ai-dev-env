@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from src.cli.openapi_enricher import (
+from src.cli_tools.openapi_enricher import (
     EXAMPLES,
     RESPONSE_SCHEMAS,
     TOOL_CATEGORIES,

@@ -307,7 +307,7 @@ def execute_python_safely(
                 "LANG": "en_US.UTF-8",
                 "PYTHONPATH": "",   # no access to project modules
             },
-            # P2.14/S8.2: never shell=True
+            # P2.14/S8.2: shell must be False (security: command injection prevention)
             shell=False,
         )
 

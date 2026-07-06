@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from src.cli.unified import (
+from src.cli_tools.unified import (
     CliResponse,
     CommandHelp,
     ExitCode,

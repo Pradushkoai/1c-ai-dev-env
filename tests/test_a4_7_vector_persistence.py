@@ -637,14 +637,26 @@ class TestEdgeCases:
 
 
 class TestLoadIntoQdrant:
+    @pytest.fixture
+    def qdrant_available(self) -> bool:
+        try:
+            import qdrant_client  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
     def test_load_into_qdrant_returns_count(
         self,
         persistence: VectorIndexPersistence,
         tmp_path: Path,
         sample_embeddings: np.ndarray,
         sample_payloads: list[dict],
+        qdrant_available: bool,
     ) -> None:
         """load_index_into_qdrant загружает точки в Qdrant."""
+        if not qdrant_available:
+            pytest.skip("qdrant_client not installed")
+
         path = tmp_path / "x"
         persistence.save_index(
             path, sample_embeddings, sample_payloads,
