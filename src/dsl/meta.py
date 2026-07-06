@@ -42,16 +42,28 @@ class MetaCompiler:
             CompileResult с путями к созданным файлам
         """
         # Парсим definition
-        if isinstance(definition, (str, Path)):
-            def_path = Path(definition)
-            if def_path.exists():
-                with open(def_path, encoding="utf-8") as f:
-                    def_dict = json.load(f)
-            else:
-                # JSON-строка
-                def_dict = json.loads(str(definition))
-        elif isinstance(definition, dict):
+        if isinstance(definition, dict):
             def_dict = definition
+        elif isinstance(definition, Path):
+            # Path — всегда файл
+            with open(definition, encoding="utf-8") as f:
+                def_dict = json.load(f)
+        elif isinstance(definition, str):
+            # Строка может быть JSON-строкой или путём к файлу.
+            # Сначала пробуем JSON (самый частый случай от MCP),
+            # затем — файл (если JSON не парсится и файл существует).
+            try:
+                def_dict = json.loads(definition)
+            except (json.JSONDecodeError, ValueError):
+                # Не JSON — возможно путь к файлу
+                def_path = Path(definition)
+                if def_path.exists():
+                    with open(def_path, encoding="utf-8") as f:
+                        def_dict = json.load(f)
+                else:
+                    raise ValueError(
+                        f"definition не является валидным JSON и файл не найден: {definition[:200]}"
+                    )
         else:
             raise ValueError(f"Неверный тип definition: {type(definition)}")
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Any
 
+import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -32,19 +33,24 @@ class MxlCompiler:
             definition: JSON-определение MXL-макета
             output_path: путь к выходному Template.xml
         """
-        if isinstance(definition, (str, Path)):
-            def_path = Path(definition)
-            if def_path.exists():
-                import json as _json
-
-                with open(def_path, encoding="utf-8") as f:
-                    def_dict = _json.load(f)
-            else:
-                import json as _json
-
-                def_dict = _json.loads(str(definition))
-        elif isinstance(definition, dict):
+        # Парсим definition (json-first для MCP, file-fallback для CLI)
+        if isinstance(definition, dict):
             def_dict = definition
+        elif isinstance(definition, Path):
+            with open(definition, encoding="utf-8") as f:
+                def_dict = json.load(f)
+        elif isinstance(definition, str):
+            try:
+                def_dict = json.loads(definition)
+            except (json.JSONDecodeError, ValueError):
+                def_path = Path(definition)
+                if def_path.exists():
+                    with open(def_path, encoding="utf-8") as f:
+                        def_dict = json.load(f)
+                else:
+                    raise ValueError(
+                        f"definition не является валидным JSON и файл не найден: {definition[:200]}"
+                    )
         else:
             raise ValueError(f"Неверный тип definition: {type(definition)}")
 
