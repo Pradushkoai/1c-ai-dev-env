@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" version="2.18">
+	<Document uuid="b1c2d3e4-0002-0001-0000-000000000001">
+		<Properties>
+			<Name>Продажа</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Продажа</v8:content>
+				</v8:item>
+			</Synonym>
+			<Comment>Документ продажи</Comment>
+			<NumberType>String</NumberType>
+			<NumberLength>9</NumberLength>
+			<NumberPeriodicity>Nonperiodical</NumberPeriodicity>
+		</Properties>
+		<ChildObjects>
+			<Attribute>Контрагент</Attribute>
+			<Attribute>Сумма</Attribute>
+			<TabularSection>Товары</TabularSection>
+		</ChildObjects>
+	</Document>
+</MetaDataObject>

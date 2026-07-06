@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" version="2.18">
+	<Subsystem uuid="b1c2d3e4-0004-0001-0000-000000000001">
+		<Properties>
+			<Name>Продажи</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Продажи</v8:content>
+				</v8:item>
+			</Synonym>
+			<Comment>Подсистема продаж</Comment>
+			<IncludeInCommandInterface>true</IncludeInCommandInterface>
+		</Properties>
+		<Content>
+			<xr:Item xsi:type="xr:MDObjectRef">Catalog.Товары</xr:Item>
+			<xr:Item xsi:type="xr:MDObjectRef">Catalog.Контрагенты</xr:Item>
+			<xr:Item xsi:type="xr:MDObjectRef">Document.Продажа</xr:Item>
+		</Content>
+	</Subsystem>
+</MetaDataObject>

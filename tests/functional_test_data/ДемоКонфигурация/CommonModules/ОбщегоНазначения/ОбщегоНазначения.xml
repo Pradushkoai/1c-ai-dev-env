@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" version="2.18">
+	<CommonModule uuid="b1c2d3e4-0003-0001-0000-000000000001">
+		<Properties>
+			<Name>ОбщегоНазначения</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Общего назначения</v8:content>
+				</v8:item>
+			</Synonym>
+			<Comment>Общие функции</Comment>
+			<Global>false</Global>
+			<Client>false</Client>
+			<Server>true</Server>
+			<ExternalConnection>false</ExternalConnection>
+			<ServerCall>true</ServerCall>
+			<Privileged>false</Privileged>
+		</Properties>
+	</CommonModule>
+</MetaDataObject>

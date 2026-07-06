@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.18">
+	<Configuration uuid="b1c2d3e4-0000-0000-0000-000000000001">
+		<InternalInfo>
+			<xr:ContainedObject>
+				<xr:ClassId>9cd510cd-abfc-11d4-9434-004095e12fc7</xr:ClassId>
+				<xr:ObjectId>b1c2d3e4-0000-0000-0000-000000000002</xr:ObjectId>
+			</xr:ContainedObject>
+		</InternalInfo>
+		<Properties>
+			<Name>ДемоКонфигурация</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Демо конфигурация для функционального тестирования</v8:content>
+				</v8:item>
+			</Synonym>
+			<Comment>Содержит справочники, документы, общие модули с типичными ошибками и чистым кодом</Comment>
+			<DefaultLanguage>Language.Русский</DefaultLanguage>
+			<DefaultDataLockControlMode>Managed</DefaultDataLockControlMode>
+			<DefaultObjectLockControlMode>Managed</DefaultObjectLockControlMode>
+			<DefaultRunMode>ManagedApplication</DefaultRunMode>
+			<UsePurposes>
+				<v8:Value>ApplicationPlatform</v8:Value>
+			</UsePurposes>
+			<ScriptVariant>Russian</ScriptVariant>
+			<DefaultRoles/>
+			<Vendor>Z.ai Test Suite</Vendor>
+			<Version>1.0.0</Version>
+			<ConfigurationExtensionCompatibilityMode>Version8_3_17</ConfigurationExtensionCompatibilityMode>
+		</Properties>
+		<ChildObjects>
+			<Language>Русский</Language>
+			<Subsystem>Продажи</Subsystem>
+			<CommonModule>ОбщегоНазначения</CommonModule>
+			<CommonModule>СекретныйМодуль</CommonModule>
+			<Catalog>Товары</Catalog>
+			<Catalog>Контрагенты</Catalog>
+			<Document>Продажа</Document>
+		</ChildObjects>
+	</Configuration>
+</MetaDataObject>
