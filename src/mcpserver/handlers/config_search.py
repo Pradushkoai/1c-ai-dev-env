@@ -22,10 +22,18 @@ if TYPE_CHECKING:
 async def handle_list_configs(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Список загруженных конфигураций 1С."""
     configs = project.list_configs_info()
+    response = {
+        "configs": configs,
+        "_next_steps": [
+            "inspect(type='cf', path=<config_path>) — полная структура конфигурации",
+            "search_1c_methods(query='...') — поиск методов платформы 1С",
+            "get_object_structure(config_name='<name>') — структура конкретного объекта",
+        ],
+    }
     return [
         types.TextContent(
             type="text",
-            text=json.dumps(configs, ensure_ascii=False, indent=2),
+            text=json.dumps(response, ensure_ascii=False, indent=2),
         )
     ]
 
@@ -34,12 +42,32 @@ async def handle_search_1c_methods(project: Project, arguments: dict[str, Any]) 
     """BM25 поиск по методам платформы 1С."""
     query = arguments.get("query", "")
     limit = arguments.get("limit", 10)
-    # P1.10: BM25 search может быть тяжёлым (100K+ методов) — не блокируем event loop.
     results = await run_sync(project.search_methods, query, limit)
+
+    # Tool chaining hints: анализируем результаты и подсказываем следующий шаг
+    next_steps: list[str] = []
+    if results:
+        contexts = {r.get("context", "") for r in results if r.get("context")}
+        for ctx in list(contexts)[:3]:
+            if ctx:
+                next_steps.append(
+                    f"get_object_structure(config_name='{ctx}') — структура объекта '{ctx}'"
+                )
+        next_steps.append("call_graph(action='callers', module='<имя>', method='<метод>') — кто вызывает метод")
+        next_steps.append("bsl_templates — шаблон BSL кода для найденной задачи")
+    else:
+        next_steps.append("list_configs() — проверить какие конфигурации загружены")
+        next_steps.append("get_api_reference(config_name='<name>') — получить API reference")
+
+    response = {
+        "results": results,
+        "total": len(results),
+        "_next_steps": next_steps,
+    }
     return [
         types.TextContent(
             type="text",
-            text=json.dumps(results, ensure_ascii=False, indent=2),
+            text=json.dumps(response, ensure_ascii=False, indent=2),
         )
     ]
 
@@ -50,7 +78,6 @@ async def handle_search_code(project: Project, arguments: dict[str, Any]) -> lis
     config_name = arguments.get("config_name", "")
     limit = arguments.get("limit", 10)
 
-    # D-5: Если config_name не указан, пытаемся найти первую активную конфигурацию
     if not config_name:
         configs = project.config_manager._registry.list_active()
         if configs:
@@ -64,10 +91,27 @@ async def handle_search_code(project: Project, arguments: dict[str, Any]) -> lis
     from src.services.search_code import search_code
 
     results = await run_sync(search_code, config_name, query, limit, project.paths)
+
+    next_steps: list[str] = []
+    if results:
+        modules = {r.get("module", "") for r in results if r.get("module")}
+        for mod in list(modules)[:3]:
+            if mod:
+                next_steps.append(
+                    f"get_object_structure(config_name='{config_name}', object_name='{mod}') — структура модуля '{mod}'"
+                )
+        next_steps.append("audit_security(file_path='<path_to_bsl>') — аудит безопасности найденного кода")
+        next_steps.append("check_standards(file_path='<path_to_bsl>') — проверка стандартов 1С")
+
+    response = {
+        "results": results,
+        "total": len(results),
+        "_next_steps": next_steps,
+    }
     return [
         types.TextContent(
             type="text",
-            text=json.dumps(results, ensure_ascii=False, indent=2),
+            text=json.dumps(response, ensure_ascii=False, indent=2),
         )
     ]
 
@@ -120,10 +164,19 @@ async def handle_call_graph(project: Project, arguments: dict[str, Any]) -> list
         result = graph.find_cycles()
     else:
         result = graph.to_dict()
+
+    response = {
+        "result": result,
+        "_next_steps": [
+            f"get_object_structure(config_name='{config_name}', object_name='<имя_модуля>') — структура модуля",
+            "search_1c_methods(query='...') — поиск связанных методов",
+            "audit_security(file_path='<path_to_bsl>') — аудит безопасности кода",
+        ],
+    }
     return [
         types.TextContent(
             type="text",
-            text=json.dumps(result, ensure_ascii=False, indent=2),
+            text=json.dumps(response, ensure_ascii=False, indent=2),
         )
     ]
 

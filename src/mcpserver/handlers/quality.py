@@ -128,6 +128,25 @@ async def handle_audit_security(project: Project, arguments: dict[str, Any]) -> 
                 for v in violations
             ],
         }
+        # Tool chaining hints
+        if violations:
+            critical = [v for v in violations if v.severity in ("CRITICAL", "HIGH")]
+            if critical:
+                response["_next_steps"] = [
+                    "Исправьте CRITICAL/HIGH нарушения перед использованием кода",
+                    "check_standards(file_path='<тот_же_файл>') — проверка стандартов 1С",
+                    "bsl_templates — используйте безопасные шаблоны (SEC001: параметризованные запросы)",
+                ]
+            else:
+                response["_next_steps"] = [
+                    "check_standards(file_path='<тот_же_файл>') — полная проверка стандартов 1С",
+                    "code_sandbox — проверка кода в sandbox перед выполнением",
+                ]
+        else:
+            response["_next_steps"] = [
+                "check_standards(file_path='<тот_же_файл>') — проверка стандартов 1С",
+                "Код безопасен — можно использовать",
+            ]
         return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
     except Exception as e:
         return [

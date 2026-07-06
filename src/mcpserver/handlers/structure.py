@@ -111,7 +111,31 @@ async def handle_get_object_structure(project: Project, arguments: dict[str, Any
             )
         ]
 
-    return [types.TextContent(type="text", text=json.dumps(found, ensure_ascii=False, indent=2))]
+    # Tool chaining: подсказываем следующий шаг на основе типа объекта
+    obj_type = found.get("type", "")
+    obj_name = found.get("name", "")
+    next_steps: list[str] = []
+
+    if obj_type in ("AccumulationRegister", "InformationRegister"):
+        next_steps.append(f"bsl_templates — используйте шаблон query_with_filter для запроса к {obj_name}")
+        next_steps.append(f"search_1c_methods(query='{obj_name}') — найти методы работающие с регистром")
+        next_steps.append("audit_security(file_path='<код>') — проверить запрос на SQL-инъекции (SEC001)")
+    elif obj_type in ("Catalog", "Document"):
+        next_steps.append(f"search_1c_methods(query='{obj_name}') — найти методы работающие с объектом")
+        next_steps.append(f"call_graph(config_name='{config_name}', action='callers', module='{obj_name}') — кто обращается к объекту")
+    elif obj_type == "CommonModule":
+        next_steps.append(f"call_graph(config_name='{config_name}', action='callees', module='{obj_name}', method='<метод>') — что вызывает модуль")
+        next_steps.append("audit_security(file_path='<путь_к_Module.bsl>') — аудит безопасности кода модуля")
+        next_steps.append("check_standards(file_path='<путь_к_Module.bsl>') — проверка стандартов 1С")
+    else:
+        next_steps.append("search_1c_methods(query='...') — поиск связанных методов")
+        next_steps.append("call_graph(config_name='<name>', action='stats') — граф вызовов")
+
+    response = {
+        "object": found,
+        "_next_steps": next_steps,
+    }
+    return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
 
 
 async def handle_get_skd_schema(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
