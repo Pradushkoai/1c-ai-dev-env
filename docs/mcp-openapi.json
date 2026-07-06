@@ -3,7 +3,7 @@
   "info": {
     "title": "1C AI Dev Environment — MCP Tools API",
     "description": "MCP (Model Context Protocol) tools for 1C development.\n\nКаждый endpoint соответствует MCP tool. Параметры передаются в JSON body.",
-    "version": "6.0.0",
+    "version": "7.0.0",
     "contact": {
       "name": "Pradushkoai",
       "url": "https://github.com/Pradushkoai/1c-ai-dev-env"
