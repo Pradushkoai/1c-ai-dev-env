@@ -1,0 +1,569 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Form xmlns="http://v8.1c.ru/8.3/xcf/logform" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:dcscor="http://v8.1c.ru/8.1/data-composition-system/core" xmlns:dcssch="http://v8.1c.ru/8.1/data-composition-system/schema" xmlns:dcsset="http://v8.1c.ru/8.1/data-composition-system/settings" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.18">
+	<WindowOpeningMode>LockOwnerWindow</WindowOpeningMode>
+	<CommandBarLocation>None</CommandBarLocation>
+	<VerticalScroll>useIfNecessary</VerticalScroll>
+	<AutoCommandBar name="ФормаКоманднаяПанель" id="-1"/>
+	<Events>
+		<Event name="OnCreateAtServer">ПриСозданииНаСервере</Event>
+	</Events>
+	<ChildItems>
+		<Pages name="Страницы" id="1">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Страницы</v8:content>
+				</v8:item>
+			</Title>
+			<ToolTip>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Страницы</v8:content>
+				</v8:item>
+			</ToolTip>
+			<PagesRepresentation>TabsOnTop</PagesRepresentation>
+			<ExtendedTooltip name="СтраницыExtendedTooltip" id="82"/>
+			<ChildItems>
+				<Page name="СтраницаЦеныНоменклатуры" id="2">
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Цены номенклатуры</v8:content>
+						</v8:item>
+					</Title>
+					<ToolTip>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Страница цены номенклатуры</v8:content>
+						</v8:item>
+					</ToolTip>
+					<ExtendedTooltip name="СтраницаЦеныНоменклатурыExtendedTooltip" id="90"/>
+					<ChildItems>
+						<UsualGroup name="ГруппаБыстрыеОтборыЦены" id="49">
+							<Title>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Группа быстрые отборы цены</v8:content>
+								</v8:item>
+							</Title>
+							<ToolTip>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Группа быстрые отборы цены</v8:content>
+								</v8:item>
+							</ToolTip>
+							<Group>Horizontal</Group>
+							<Behavior>Usual</Behavior>
+							<Representation>None</Representation>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="ГруппаБыстрыеОтборыЦеныExtendedTooltip" id="91"/>
+							<ChildItems>
+								<InputField name="ПериодЦеныНоменклатуры" id="70">
+									<DataPath>ПериодЦеныНоменклатуры</DataPath>
+									<TitleLocation>Top</TitleLocation>
+									<Width>16</Width>
+									<HorizontalStretch>false</HorizontalStretch>
+									<ClearButton>true</ClearButton>
+									<ContextMenu name="ПериодЦеныНоменклатурыКонтекстноеМеню" id="71"/>
+									<ExtendedTooltip name="ПериодЦеныНоменклатурыExtendedTooltip" id="92"/>
+									<Events>
+										<Event name="OnChange">ПериодЦеныНоменклатурыПриИзменении</Event>
+									</Events>
+								</InputField>
+								<InputField name="ВидЦеныНоменклатуры" id="46">
+									<DataPath>ВидЦеныНоменклатуры</DataPath>
+									<TitleLocation>Top</TitleLocation>
+									<Width>21</Width>
+									<HorizontalStretch>false</HorizontalStretch>
+									<ClearButton>true</ClearButton>
+									<ContextMenu name="ВидЦеныНоменклатурыКонтекстноеМеню" id="47"/>
+									<ExtendedTooltip name="ВидЦеныНоменклатурыExtendedTooltip" id="93"/>
+									<Events>
+										<Event name="OnChange">ВидЦеныНоменклатурыПриИзменении</Event>
+									</Events>
+								</InputField>
+							</ChildItems>
+						</UsualGroup>
+						<Table name="ЦеныНоменклатуры" id="4">
+							<UseAlternationRowColor>true</UseAlternationRowColor>
+							<EnableStartDrag>true</EnableStartDrag>
+							<FileDragMode>AsFile</FileDragMode>
+							<DataPath>ЦеныНоменклатуры</DataPath>
+							<RowPictureDataPath>ЦеныНоменклатуры.DefaultPicture</RowPictureDataPath>
+							<CommandSet>
+								<ExcludedCommand>CopyToClipboard</ExcludedCommand>
+								<ExcludedCommand>SetDateInterval</ExcludedCommand>
+							</CommandSet>
+							<AutoRefresh>false</AutoRefresh>
+							<AutoRefreshPeriod>60</AutoRefreshPeriod>
+							<Period>
+								<v8:variant xsi:type="v8:StandardPeriodVariant">Custom</v8:variant>
+								<v8:startDate>0001-01-01T00:00:00</v8:startDate>
+								<v8:endDate>0001-01-01T00:00:00</v8:endDate>
+							</Period>
+							<ChoiceFoldersAndItems>Items</ChoiceFoldersAndItems>
+							<RestoreCurrentRow>false</RestoreCurrentRow>
+							<TopLevelParent xsi:nil="true"/>
+							<ShowRoot>true</ShowRoot>
+							<AllowRootChoice>false</AllowRootChoice>
+							<UpdateOnDataChange>Auto</UpdateOnDataChange>
+							<AllowGettingCurrentRowURL>true</AllowGettingCurrentRowURL>
+							<ContextMenu name="ЦеныНоменклатурыКонтекстноеМеню" id="5"/>
+							<AutoCommandBar name="ЦеныНоменклатурыКоманднаяПанель" id="6"/>
+							<ExtendedTooltip name="ЦеныНоменклатурыExtendedTooltip" id="94"/>
+							<SearchStringAddition name="ЦеныНоменклатурыСтрокаПоиска" id="117">
+								<AdditionSource>
+									<Item>ЦеныНоменклатуры</Item>
+									<Type>SearchStringRepresentation</Type>
+								</AdditionSource>
+								<ContextMenu name="ЦеныНоменклатурыСтрокаПоискаКонтекстноеМеню" id="118"/>
+								<ExtendedTooltip name="ЦеныНоменклатурыСтрокаПоискаРасширеннаяПодсказка" id="119"/>
+							</SearchStringAddition>
+							<ViewStatusAddition name="ЦеныНоменклатурыСостояниеПросмотра" id="120">
+								<AdditionSource>
+									<Item>ЦеныНоменклатуры</Item>
+									<Type>ViewStatusRepresentation</Type>
+								</AdditionSource>
+								<ContextMenu name="ЦеныНоменклатурыСостояниеПросмотраКонтекстноеМеню" id="121"/>
+								<ExtendedTooltip name="ЦеныНоменклатурыСостояниеПросмотраРасширеннаяПодсказка" id="122"/>
+							</ViewStatusAddition>
+							<SearchControlAddition name="ЦеныНоменклатурыУправлениеПоиском" id="123">
+								<AdditionSource>
+									<Item>ЦеныНоменклатуры</Item>
+									<Type>SearchControl</Type>
+								</AdditionSource>
+								<ContextMenu name="ЦеныНоменклатурыУправлениеПоискомКонтекстноеМеню" id="124"/>
+								<ExtendedTooltip name="ЦеныНоменклатурыУправлениеПоискомРасширеннаяПодсказка" id="125"/>
+							</SearchControlAddition>
+							<ChildItems>
+								<LabelField name="ЦеныНоменклатурыПериод" id="74">
+									<DataPath>ЦеныНоменклатуры.Period</DataPath>
+									<ContextMenu name="ЦеныНоменклатурыПериодКонтекстноеМеню" id="75"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыПериодExtendedTooltip" id="95"/>
+								</LabelField>
+								<LabelField name="ЦеныНоменклатурыВидЦены" id="9">
+									<DataPath>ЦеныНоменклатуры.ВидЦены</DataPath>
+									<ContextMenu name="ЦеныНоменклатурыВидЦеныКонтекстноеМеню" id="10"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыВидЦеныExtendedTooltip" id="96"/>
+								</LabelField>
+								<LabelField name="ЦеныНоменклатурыХарактеристика" id="13">
+									<DataPath>ЦеныНоменклатуры.Характеристика</DataPath>
+									<ContextMenu name="ЦеныНоменклатурыХарактеристикаКонтекстноеМеню" id="14"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыХарактеристикаExtendedTooltip" id="97"/>
+								</LabelField>
+								<LabelField name="ЦеныНоменклатурыУпаковка" id="11">
+									<DataPath>ЦеныНоменклатуры.Упаковка</DataPath>
+									<ContextMenu name="ЦеныНоменклатурыУпаковкаКонтекстноеМеню" id="12"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыУпаковкаExtendedTooltip" id="98"/>
+								</LabelField>
+								<LabelField name="ЦеныНоменклатурыЦена" id="15">
+									<DataPath>ЦеныНоменклатуры.Цена</DataPath>
+									<ContextMenu name="ЦеныНоменклатурыЦенаКонтекстноеМеню" id="16"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыЦенаExtendedTooltip" id="99"/>
+								</LabelField>
+								<LabelField name="ЦеныНоменклатурыВалюта" id="7">
+									<DataPath>ЦеныНоменклатуры.Валюта</DataPath>
+									<ContextMenu name="ЦеныНоменклатурыВалютаКонтекстноеМеню" id="8"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыВалютаExtendedTooltip" id="100"/>
+								</LabelField>
+							</ChildItems>
+						</Table>
+					</ChildItems>
+				</Page>
+				<Page name="СтраницаЦеныНоменклатурыПоставщиков" id="3">
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Цены номенклатуры поставщиков</v8:content>
+						</v8:item>
+					</Title>
+					<ToolTip>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Страница цены номенклатуры поставщиков</v8:content>
+						</v8:item>
+					</ToolTip>
+					<ExtendedTooltip name="СтраницаЦеныНоменклатурыПоставщиковExtendedTooltip" id="101"/>
+					<ChildItems>
+						<UsualGroup name="ГруппаБыстрыеОтборыЦеныПоставщиков" id="55">
+							<Title>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Группа отборы цены номенклатуры</v8:content>
+								</v8:item>
+							</Title>
+							<ToolTip>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Группа отборы цены номенклатуры</v8:content>
+								</v8:item>
+							</ToolTip>
+							<Group>Horizontal</Group>
+							<Behavior>Usual</Behavior>
+							<Representation>None</Representation>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="ГруппаБыстрыеОтборыЦеныПоставщиковExtendedTooltip" id="102"/>
+							<ChildItems>
+								<InputField name="ПериодЦеныНоменклатурыПоставщика" id="72">
+									<DataPath>ПериодЦеныНоменклатурыПоставщика</DataPath>
+									<TitleLocation>Top</TitleLocation>
+									<Width>16</Width>
+									<HorizontalStretch>false</HorizontalStretch>
+									<ClearButton>true</ClearButton>
+									<ContextMenu name="ПериодЦеныНоменклатурыПоставщикаКонтекстноеМеню" id="73"/>
+									<ExtendedTooltip name="ПериодЦеныНоменклатурыПоставщикаExtendedTooltip" id="103"/>
+									<Events>
+										<Event name="OnChange">ПериодЦеныНоменклатурыПоставщикаПриИзменении</Event>
+										<Event name="Clearing">ПериодЦеныНоменклатурыПоставщикаОчистка</Event>
+									</Events>
+								</InputField>
+								<InputField name="Партнер" id="63">
+									<DataPath>Партнер</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Поставщик</v8:content>
+										</v8:item>
+									</Title>
+									<TitleLocation>Top</TitleLocation>
+									<Width>21</Width>
+									<HorizontalStretch>false</HorizontalStretch>
+									<ClearButton>true</ClearButton>
+									<ContextMenu name="ПартнерКонтекстноеМеню" id="64"/>
+									<ExtendedTooltip name="ПартнерРасширеннаяПодсказка" id="104"/>
+									<Events>
+										<Event name="OnChange">ПартнерПриИзменении</Event>
+									</Events>
+								</InputField>
+								<InputField name="ВидЦеныПоставщика" id="68">
+									<DataPath>ВидЦеныПоставщика</DataPath>
+									<TitleLocation>Top</TitleLocation>
+									<Width>21</Width>
+									<HorizontalStretch>false</HorizontalStretch>
+									<ClearButton>true</ClearButton>
+									<ContextMenu name="ВидЦеныПоставщикаКонтекстноеМеню" id="69"/>
+									<ExtendedTooltip name="ВидЦеныПоставщикаРасширеннаяПодсказка" id="106"/>
+									<Events>
+										<Event name="OnChange">ВидЦеныПоставщикаПриИзменении</Event>
+									</Events>
+								</InputField>
+							</ChildItems>
+						</UsualGroup>
+						<Table name="ЦеныНоменклатурыПоставщиков" id="19">
+							<UseAlternationRowColor>true</UseAlternationRowColor>
+							<EnableStartDrag>true</EnableStartDrag>
+							<FileDragMode>AsFile</FileDragMode>
+							<DataPath>ЦеныНоменклатурыПоставщиков</DataPath>
+							<RowPictureDataPath>ЦеныНоменклатурыПоставщиков.DefaultPicture</RowPictureDataPath>
+							<CommandSet>
+								<ExcludedCommand>CopyToClipboard</ExcludedCommand>
+								<ExcludedCommand>SetDateInterval</ExcludedCommand>
+							</CommandSet>
+							<AutoRefresh>false</AutoRefresh>
+							<AutoRefreshPeriod>60</AutoRefreshPeriod>
+							<Period>
+								<v8:variant xsi:type="v8:StandardPeriodVariant">Custom</v8:variant>
+								<v8:startDate>0001-01-01T00:00:00</v8:startDate>
+								<v8:endDate>0001-01-01T00:00:00</v8:endDate>
+							</Period>
+							<ChoiceFoldersAndItems>Items</ChoiceFoldersAndItems>
+							<RestoreCurrentRow>false</RestoreCurrentRow>
+							<TopLevelParent xsi:nil="true"/>
+							<ShowRoot>true</ShowRoot>
+							<AllowRootChoice>false</AllowRootChoice>
+							<UpdateOnDataChange>Auto</UpdateOnDataChange>
+							<AllowGettingCurrentRowURL>true</AllowGettingCurrentRowURL>
+							<ContextMenu name="ЦеныНоменклатурыПоставщиковКонтекстноеМеню" id="20"/>
+							<AutoCommandBar name="ЦеныНоменклатурыПоставщиковКоманднаяПанель" id="21"/>
+							<ExtendedTooltip name="ЦеныНоменклатурыПоставщиковExtendedTooltip" id="107"/>
+							<SearchStringAddition name="ЦеныНоменклатурыПоставщиковСтрокаПоиска" id="126">
+								<AdditionSource>
+									<Item>ЦеныНоменклатурыПоставщиков</Item>
+									<Type>SearchStringRepresentation</Type>
+								</AdditionSource>
+								<ContextMenu name="ЦеныНоменклатурыПоставщиковСтрокаПоискаКонтекстноеМеню" id="127"/>
+								<ExtendedTooltip name="ЦеныНоменклатурыПоставщиковСтрокаПоискаРасширеннаяПодсказка" id="128"/>
+							</SearchStringAddition>
+							<ViewStatusAddition name="ЦеныНоменклатурыПоставщиковСостояниеПросмотра" id="129">
+								<AdditionSource>
+									<Item>ЦеныНоменклатурыПоставщиков</Item>
+									<Type>ViewStatusRepresentation</Type>
+								</AdditionSource>
+								<ContextMenu name="ЦеныНоменклатурыПоставщиковСостояниеПросмотраКонтекстноеМеню" id="130"/>
+								<ExtendedTooltip name="ЦеныНоменклатурыПоставщиковСостояниеПросмотраРасширеннаяПодсказка" id="131"/>
+							</ViewStatusAddition>
+							<SearchControlAddition name="ЦеныНоменклатурыПоставщиковУправлениеПоиском" id="132">
+								<AdditionSource>
+									<Item>ЦеныНоменклатурыПоставщиков</Item>
+									<Type>SearchControl</Type>
+								</AdditionSource>
+								<ContextMenu name="ЦеныНоменклатурыПоставщиковУправлениеПоискомКонтекстноеМеню" id="133"/>
+								<ExtendedTooltip name="ЦеныНоменклатурыПоставщиковУправлениеПоискомРасширеннаяПодсказка" id="134"/>
+							</SearchControlAddition>
+							<ChildItems>
+								<LabelField name="ЦеныНоменклатурыПоставщиковПериод" id="76">
+									<DataPath>ЦеныНоменклатурыПоставщиков.Period</DataPath>
+									<ContextMenu name="ЦеныНоменклатурыПоставщиковПериодКонтекстноеМеню" id="77"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыПоставщиковПериодExtendedTooltip" id="108"/>
+								</LabelField>
+								<LabelField name="ЦеныНоменклатурыПоставщиковПартнер" id="135">
+									<DataPath>ЦеныНоменклатурыПоставщиков.Партнер</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Поставщик</v8:content>
+										</v8:item>
+									</Title>
+									<ContextMenu name="ЦеныНоменклатурыПоставщиковПартнерКонтекстноеМеню" id="136"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыПоставщиковПартнерРасширеннаяПодсказка" id="137"/>
+								</LabelField>
+								<LabelField name="ЦеныНоменклатурыПоставщиковВидЦеныПоставщика" id="32">
+									<DataPath>ЦеныНоменклатурыПоставщиков.ВидЦеныПоставщика</DataPath>
+									<ContextMenu name="ЦеныНоменклатурыПоставщиковВидЦеныПоставщикаКонтекстноеМеню" id="33"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыПоставщиковВидЦеныПоставщикаРасширеннаяПодсказка" id="111"/>
+								</LabelField>
+								<LabelField name="ЦеныНоменклатурыПоставщиковХарактеристика" id="34">
+									<DataPath>ЦеныНоменклатурыПоставщиков.Характеристика</DataPath>
+									<ContextMenu name="ЦеныНоменклатурыПоставщиковХарактеристикаКонтекстноеМеню" id="35"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыПоставщиковХарактеристикаExtendedTooltip" id="112"/>
+								</LabelField>
+								<LabelField name="ЦеныНоменклатурыПоставщиковВалюта" id="22">
+									<DataPath>ЦеныНоменклатурыПоставщиков.Валюта</DataPath>
+									<ContextMenu name="ЦеныНоменклатурыПоставщиковВалютаКонтекстноеМеню" id="23"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыПоставщиковВалютаExtendedTooltip" id="113"/>
+								</LabelField>
+								<LabelField name="ЦеныНоменклатурыПоставщиковУпаковка" id="30">
+									<DataPath>ЦеныНоменклатурыПоставщиков.Упаковка</DataPath>
+									<ContextMenu name="ЦеныНоменклатурыПоставщиковУпаковкаКонтекстноеМеню" id="31"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыПоставщиковУпаковкаExtendedTooltip" id="114"/>
+								</LabelField>
+								<LabelField name="ЦеныНоменклатурыПоставщиковЦена" id="36">
+									<DataPath>ЦеныНоменклатурыПоставщиков.Цена</DataPath>
+									<ContextMenu name="ЦеныНоменклатурыПоставщиковЦенаКонтекстноеМеню" id="37"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыПоставщиковЦенаExtendedTooltip" id="115"/>
+								</LabelField>
+								<LabelField name="ЦеныНоменклатурыПоставщиковНоменклатураПоставщика" id="26">
+									<DataPath>ЦеныНоменклатурыПоставщиков.НоменклатураПоставщика</DataPath>
+									<ContextMenu name="ЦеныНоменклатурыПоставщиковНоменклатураПоставщикаКонтекстноеМеню" id="27"/>
+									<ExtendedTooltip name="ЦеныНоменклатурыПоставщиковНоменклатураПоставщикаExtendedTooltip" id="116"/>
+								</LabelField>
+							</ChildItems>
+						</Table>
+					</ChildItems>
+				</Page>
+			</ChildItems>
+		</Pages>
+	</ChildItems>
+	<Attributes>
+		<Attribute name="ЦеныНоменклатуры" id="2">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Цены номенклатуры</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>cfg:DynamicList</v8:Type>
+			</Type>
+			<UseAlways>
+				<Field>ЦеныНоменклатуры.Recorder</Field>
+			</UseAlways>
+			<Settings xsi:type="DynamicList">
+				<ManualQuery>true</ManualQuery>
+				<DynamicDataRead>true</DynamicDataRead>
+				<QueryText>ВЫБРАТЬ РАЗРЕШЕННЫЕ
+	РегистрСведенийЦеныНоменклатурыСрезПоследних.Период,
+	РегистрСведенийЦеныНоменклатурыСрезПоследних.Регистратор,
+	РегистрСведенийЦеныНоменклатурыСрезПоследних.НомерСтроки,
+	РегистрСведенийЦеныНоменклатурыСрезПоследних.Активность,
+	РегистрСведенийЦеныНоменклатурыСрезПоследних.Номенклатура,
+	РегистрСведенийЦеныНоменклатурыСрезПоследних.ВидЦены,
+	РегистрСведенийЦеныНоменклатурыСрезПоследних.Характеристика,
+	РегистрСведенийЦеныНоменклатурыСрезПоследних.Цена,
+	РегистрСведенийЦеныНоменклатурыСрезПоследних.Упаковка,
+	РегистрСведенийЦеныНоменклатурыСрезПоследних.Валюта
+ИЗ
+	РегистрСведений.ЦеныНоменклатуры КАК РегистрСведенийЦеныНоменклатурыСрезПоследних
+</QueryText>
+				<MainTable>InformationRegister.ЦеныНоменклатуры</MainTable>
+				<ListSettings>
+					<dcsset:filter>
+						<dcsset:viewMode>Normal</dcsset:viewMode>
+						<dcsset:userSettingID>dfcece9d-5077-440b-b6b3-45a5cb4538eb</dcsset:userSettingID>
+					</dcsset:filter>
+					<dcsset:order>
+						<dcsset:viewMode>Normal</dcsset:viewMode>
+						<dcsset:userSettingID>88619765-ccb3-46c6-ac52-38e9c992ebd4</dcsset:userSettingID>
+					</dcsset:order>
+					<dcsset:conditionalAppearance>
+						<dcsset:viewMode>Normal</dcsset:viewMode>
+						<dcsset:userSettingID>b75fecce-942b-4aed-abc9-e6a02e460fb3</dcsset:userSettingID>
+					</dcsset:conditionalAppearance>
+					<dcsset:itemsViewMode>Normal</dcsset:itemsViewMode>
+					<dcsset:itemsUserSettingID>911b6018-f537-43e8-a417-da56b22f9aec</dcsset:itemsUserSettingID>
+				</ListSettings>
+			</Settings>
+		</Attribute>
+		<Attribute name="ЦеныНоменклатурыПоставщиков" id="3">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Цены номенклатуры поставщиков</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>cfg:DynamicList</v8:Type>
+			</Type>
+			<Settings xsi:type="DynamicList">
+				<ManualQuery>true</ManualQuery>
+				<DynamicDataRead>true</DynamicDataRead>
+				<QueryText>ВЫБРАТЬ РАЗРЕШЕННЫЕ
+	ЦеныНоменклатурыПоставщиковСрезПоследних.Партнер КАК Партнер,
+	ЦеныНоменклатурыПоставщиковСрезПоследних.ВидЦеныПоставщика,
+	ЦеныНоменклатурыПоставщиковСрезПоследних.Характеристика,
+	ЦеныНоменклатурыПоставщиковСрезПоследних.Цена,
+	ЦеныНоменклатурыПоставщиковСрезПоследних.Упаковка,
+	ЦеныНоменклатурыПоставщиковСрезПоследних.Валюта,
+	ЦеныНоменклатурыПоставщиковСрезПоследних.НоменклатураПоставщика,
+	ЦеныНоменклатурыПоставщиковСрезПоследних.Период,
+	ЦеныНоменклатурыПоставщиковСрезПоследних.Регистратор
+ИЗ
+	РегистрСведений.ЦеныНоменклатурыПоставщиков КАК ЦеныНоменклатурыПоставщиковСрезПоследних</QueryText>
+				<MainTable>InformationRegister.ЦеныНоменклатурыПоставщиков</MainTable>
+				<ListSettings>
+					<dcsset:filter>
+						<dcsset:viewMode>Normal</dcsset:viewMode>
+						<dcsset:userSettingID>dfcece9d-5077-440b-b6b3-45a5cb4538eb</dcsset:userSettingID>
+					</dcsset:filter>
+					<dcsset:order>
+						<dcsset:viewMode>Normal</dcsset:viewMode>
+						<dcsset:userSettingID>88619765-ccb3-46c6-ac52-38e9c992ebd4</dcsset:userSettingID>
+					</dcsset:order>
+					<dcsset:conditionalAppearance>
+						<dcsset:viewMode>Normal</dcsset:viewMode>
+						<dcsset:userSettingID>b75fecce-942b-4aed-abc9-e6a02e460fb3</dcsset:userSettingID>
+					</dcsset:conditionalAppearance>
+					<dcsset:itemsViewMode>Normal</dcsset:itemsViewMode>
+					<dcsset:itemsUserSettingID>911b6018-f537-43e8-a417-da56b22f9aec</dcsset:itemsUserSettingID>
+				</ListSettings>
+			</Settings>
+		</Attribute>
+		<Attribute name="ПрайсЛист" id="1">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Прайс лист</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>cfg:ReportObject.ПрайсЛист</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="ТаблицаПрайсЛист" id="4">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Таблица прайс лист</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type xmlns:mxl="http://v8.1c.ru/8.2/data/spreadsheet">mxl:SpreadsheetDocument</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="ОтборНоменклатура" id="5">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Отбор номенклатура</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>cfg:CatalogRef.Номенклатура</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="ВидЦеныНоменклатуры" id="6">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Вид цены</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>cfg:CatalogRef.ВидыЦен</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="Партнер" id="12">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Партнер</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>cfg:CatalogRef.Партнеры</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="Соглашение" id="13">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Соглашение</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>cfg:CatalogRef.СоглашенияСПоставщиками</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="ВидЦеныПоставщика" id="9">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Вид цены</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>cfg:CatalogRef.ВидыЦенПоставщиков</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="ПериодЦеныНоменклатуры" id="15">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Период</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>v8:StandardPeriod</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="ПериодЦеныНоменклатурыПоставщика" id="7">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Период</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>v8:StandardPeriod</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="АдресСхемыПрайсЛист" id="8">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Адрес схемы прайс лист</v8:content>
+				</v8:item>
+			</Title>
+			<Type/>
+		</Attribute>
+		<Attribute name="АдресДанныхРасшифровкиПрайсЛист" id="10">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Адрес данных расшифровки прайс лист</v8:content>
+				</v8:item>
+			</Title>
+			<Type/>
+		</Attribute>
+	</Attributes>
+</Form>

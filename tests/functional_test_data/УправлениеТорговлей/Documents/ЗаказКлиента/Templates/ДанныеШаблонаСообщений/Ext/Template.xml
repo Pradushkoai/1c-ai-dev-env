@@ -1,0 +1,450 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<DataCompositionSchema xmlns="http://v8.1c.ru/8.1/data-composition-system/schema" xmlns:dcscom="http://v8.1c.ru/8.1/data-composition-system/common" xmlns:dcscor="http://v8.1c.ru/8.1/data-composition-system/core" xmlns:dcsset="http://v8.1c.ru/8.1/data-composition-system/settings" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<dataSource>
+		<name>ИсточникДанных1</name>
+		<dataSourceType>Local</dataSourceType>
+	</dataSource>
+	<dataSet xsi:type="DataSetQuery">
+		<name>Данные</name>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>Дата</dataPath>
+			<field>Дата</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>Номер</dataPath>
+			<field>Номер</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>ЗаказКлиента</dataPath>
+			<field>ЗаказКлиента</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>КодСтроки</dataPath>
+			<field>КодСтроки</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>Номенклатура</dataPath>
+			<field>Номенклатура</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>Склад</dataPath>
+			<field>Склад</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>Характеристика</dataPath>
+			<field>Характеристика</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>Статус</dataPath>
+			<field>Статус</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>БизнесРегион</dataPath>
+			<field>БизнесРегион</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>КонтактноеЛицоДатаРождения</dataPath>
+			<field>ДатаРождения</field>
+			<title xsi:type="v8:LocalStringType">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Дата рождения контактного лица</v8:content>
+				</v8:item>
+			</title>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>КонтактноеЛицоДолжностьПоВизитке</dataPath>
+			<field>КонтактноеЛицоДолжностьПоВизитке</field>
+			<title xsi:type="v8:LocalStringType">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Должность контактного лица по визитке</v8:content>
+				</v8:item>
+			</title>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>КонтактноеЛицоНаименование</dataPath>
+			<field>КонтактноеЛицоНаименование</field>
+			<title xsi:type="v8:LocalStringType">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Наименование контактного лица</v8:content>
+				</v8:item>
+			</title>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>АдресДоставки</dataPath>
+			<field>АдресДоставки</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>БанковскийСчет</dataPath>
+			<field>БанковскийСчет</field>
+			<title xsi:type="v8:LocalStringType">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Номер банковского счета</v8:content>
+				</v8:item>
+			</title>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>ГрафикОплаты</dataPath>
+			<field>ГрафикОплаты</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>Грузоотправитель</dataPath>
+			<field>Грузоотправитель</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>Грузополучатель</dataPath>
+			<field>Грузополучатель</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>ДатаОтгрузки</dataPath>
+			<field>ДатаОтгрузки</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>ДатаПоДаннымКлиента</dataPath>
+			<field>ДатаПоДаннымКлиента</field>
+			<title xsi:type="v8:LocalStringType">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Дата заказа по данным клиента</v8:content>
+				</v8:item>
+			</title>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>Договор</dataPath>
+			<field>Договор</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>ДополнительнаяИнформация</dataPath>
+			<field>ДополнительнаяИнформация</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>ЖелаемаяДатаОтгрузки</dataPath>
+			<field>ЖелаемаяДатаОтгрузки</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>КартаЛояльности</dataPath>
+			<field>КартаЛояльности</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>КонтактноеЛицоОбращение</dataPath>
+			<field>КонтактноеЛицоОбращение</field>
+			<title xsi:type="v8:LocalStringType">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Обращение к контактному лицу</v8:content>
+				</v8:item>
+			</title>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>Менеджер</dataPath>
+			<field>Менеджер</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>НомерПоДаннымКлиента</dataPath>
+			<field>НомерПоДаннымКлиента</field>
+			<title xsi:type="v8:LocalStringType">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Номер заказа по данным клиента</v8:content>
+				</v8:item>
+			</title>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>ПартнерОбращение</dataPath>
+			<field>ПартнерОбращение</field>
+			<title xsi:type="v8:LocalStringType">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Обращение к партнеру</v8:content>
+				</v8:item>
+			</title>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>ПеревозчикНаименованиеПолное</dataPath>
+			<field>ПеревозчикНаименованиеПолное</field>
+			<title xsi:type="v8:LocalStringType">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Перевозчик</v8:content>
+				</v8:item>
+			</title>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>СпособДоставки</dataPath>
+			<field>СпособДоставки</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>СуммаАвансаДоОбеспечения</dataPath>
+			<field>СуммаАвансаДоОбеспечения</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>СуммаДокумента</dataPath>
+			<field>СуммаДокумента</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>СуммаКредитаПослеОтгрузки</dataPath>
+			<field>СуммаКредитаПослеОтгрузки</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>СуммаПредоплатыДоОтгрузки</dataPath>
+			<field>СуммаПредоплатыДоОтгрузки</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>ФормаОплаты</dataPath>
+			<field>ФормаОплаты</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>АдресДоставкиПеревозчика</dataPath>
+			<field>АдресДоставкиПеревозчика</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>ДополнительнаяИнформацияПоДоставке</dataPath>
+			<field>ДополнительнаяИнформацияПоДоставке</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>АналитикаУчетаПоПартнерам</dataPath>
+			<field>АналитикаУчетаПоПартнерам</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>Валюта</dataPath>
+			<field>Валюта</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>ОставщийсяДолгКлиента</dataPath>
+			<field>ОставщийсяДолгКлиента</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>СуммаОплачено</dataPath>
+			<field>СуммаОплачено</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>СуммаОтгружено</dataPath>
+			<field>СуммаОтгружено</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>СуммаПросроченнойОплаты</dataPath>
+			<field>СуммаПросроченнойОплаты</field>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>ПартнерНаименование</dataPath>
+			<field>ПартнерНаименование</field>
+			<title xsi:type="v8:LocalStringType">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Наименование партнера</v8:content>
+				</v8:item>
+			</title>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>Серия</dataPath>
+			<field>Серия</field>
+		</field>
+		<dataSource>ИсточникДанных1</dataSource>
+		<query>ВЫБРАТЬ РАЗРЕШЕННЫЕ
+	ДокументЗаказКлиента.Номер,
+	ДокументЗаказКлиента.Дата,
+	ДокументЗаказКлиента.Статус,
+	Партнеры.Наименование КАК ПартнерНаименование,
+	Партнеры.БизнесРегион,
+	ВЫБОР
+		КОГДА Партнеры.Пол = ЗНАЧЕНИЕ(Перечисление.ПолФизическогоЛица.Мужской)
+			ТОГДА &amp;ОбращениеМужскойРод
+		КОГДА Партнеры.Пол = ЗНАЧЕНИЕ(Перечисление.ПолФизическогоЛица.Женский)
+			ТОГДА &amp;ОбращениеЖенскийРод
+		ИНАЧЕ &amp;ОбращениеПолНеопределен
+	КОНЕЦ КАК ПартнерОбращение,
+	КонтактныеЛицаПартнеров.Наименование КАК КонтактноеЛицоНаименование,
+	КонтактныеЛицаПартнеров.ДолжностьПоВизитке КАК КонтактноеЛицоДолжностьПоВизитке,
+	ВЫБОР
+		КОГДА КонтактныеЛицаПартнеров.Пол = ЗНАЧЕНИЕ(Перечисление.ПолФизическогоЛица.Мужской)
+			ТОГДА &amp;ОбращениеМужскойРод
+		КОГДА КонтактныеЛицаПартнеров.Пол = ЗНАЧЕНИЕ(Перечисление.ПолФизическогоЛица.Женский)
+			ТОГДА &amp;ОбращениеЖенскийРод
+		ИНАЧЕ &amp;ОбращениеПолНеопределен
+	КОНЕЦ КАК КонтактноеЛицоОбращение,
+	ДокументЗаказКлиента.ЖелаемаяДатаОтгрузки,
+	ДокументЗаказКлиента.ГрафикОплаты,
+	ДокументЗаказКлиента.Склад,
+	ДокументЗаказКлиента.ДополнительнаяИнформация,
+	ДокументЗаказКлиента.Менеджер,
+	ДокументЗаказКлиента.Валюта,
+	ДокументЗаказКлиента.ФормаОплаты,
+	ДокументЗаказКлиента.БанковскийСчет,
+	ДокументЗаказКлиента.СуммаАвансаДоОбеспечения,
+	ДокументЗаказКлиента.СуммаПредоплатыДоОтгрузки,
+	ДокументЗаказКлиента.СуммаДокумента - (ДокументЗаказКлиента.СуммаАвансаДоОбеспечения + ДокументЗаказКлиента.СуммаПредоплатыДоОтгрузки) КАК СуммаКредитаПослеОтгрузки,
+	ДокументЗаказКлиента.СуммаДокумента,
+	ДокументЗаказКлиента.ДатаОтгрузки,
+	ДокументЗаказКлиента.КартаЛояльности,
+	ДокументЗаказКлиента.НомерПоДаннымКлиента,
+	ДокументЗаказКлиента.ДатаПоДаннымКлиента,
+	ДокументЗаказКлиента.Договор,
+	ДокументЗаказКлиента.АдресДоставки,
+	ДокументЗаказКлиента.Грузоотправитель,
+	ДокументЗаказКлиента.Грузополучатель,
+	ДокументЗаказКлиента.СпособДоставки,
+	Перевозчики.НаименованиеПолное КАК ПеревозчикНаименованиеПолное,
+	ДокументЗаказКлиента.АдресДоставкиПеревозчика,
+	ДокументЗаказКлиента.ДополнительнаяИнформацияПоДоставке,
+	ВЫБОР
+		КОГДА ДокументЗаказКлиента.ХозяйственнаяОперация &lt;&gt; ЗНАЧЕНИЕ(Перечисление.ХозяйственныеОперации.ПередачаНаКомиссию)
+				И ДокументЗаказКлиента.ПорядокРасчетов &lt;&gt; ЗНАЧЕНИЕ(Перечисление.ПорядокРасчетов.ПоДоговорамКонтрагентов)
+				И ДокументЗаказКлиента.Проведен
+				И ДокументЗаказКлиента.Статус &lt;&gt; ЗНАЧЕНИЕ(Перечисление.СтатусыЗаказовКлиентов.НеСогласован)
+				И ДокументЗаказКлиента.СуммаДокумента &gt; 0
+			ТОГДА ВЫРАЗИТЬ(ДокументЗаказКлиента.СуммаДокумента - ЕСТЬNULL(РасчетыСКлиентамиОстатки.КОплатеОстаток, 0) КАК ЧИСЛО(15, 2))
+		ИНАЧЕ 0
+	КОНЕЦ КАК СуммаОплачено,
+	ВЫБОР
+		КОГДА ДокументЗаказКлиента.Проведен
+				И ДокументЗаказКлиента.ПорядокРасчетов &lt;&gt; ЗНАЧЕНИЕ(Перечисление.ПорядокРасчетов.ПоДоговорамКонтрагентов)
+				И ДокументЗаказКлиента.Статус &lt;&gt; ЗНАЧЕНИЕ(Перечисление.СтатусыЗаказовКлиентов.НеСогласован)
+				И ДокументЗаказКлиента.СуммаДокумента &gt; 0
+				И ЕСТЬNULL(РасчетыСКлиентамиОстаткиНаДатуАктуальности.КОплатеОстаток, 0) &gt; 0
+			ТОГДА ВЫРАЗИТЬ(ЕСТЬNULL(РасчетыСКлиентамиОстаткиНаДатуАктуальности.КОплатеОстаток, 0) КАК ЧИСЛО(15, 2))
+		ИНАЧЕ 0
+	КОНЕЦ КАК СуммаПросроченнойОплаты,
+	ВЫБОР
+		КОГДА ДокументЗаказКлиента.Проведен
+				И ДокументЗаказКлиента.Статус &lt;&gt; ЗНАЧЕНИЕ(Перечисление.СтатусыЗаказовКлиентов.НеСогласован)
+				И ДокументЗаказКлиента.СуммаДокумента &gt; 0
+			ТОГДА ДокументЗаказКлиента.СуммаДокумента - ЕСТЬNULL(ЗаказыКлиентовОстатки.СуммаОстаток, 0)
+		ИНАЧЕ 0
+	КОНЕЦ КАК СуммаОтгружено,
+	ВЫБОР
+		КОГДА ДокументЗаказКлиента.Проведен
+				И ДокументЗаказКлиента.ПорядокРасчетов &lt;&gt; ЗНАЧЕНИЕ(Перечисление.ПорядокРасчетов.ПоДоговорамКонтрагентов)
+				И ДокументЗаказКлиента.Статус &lt;&gt; ЗНАЧЕНИЕ(Перечисление.СтатусыЗаказовКлиентов.НеСогласован)
+				И ДокументЗаказКлиента.СуммаДокумента &gt; 0
+				И ЕСТЬNULL(РасчетыСКлиентамиОстатки.СуммаОстаток, 0) &gt; 0
+			ТОГДА ВЫРАЗИТЬ(ЕСТЬNULL(РасчетыСКлиентамиОстатки.СуммаОстаток, 0) КАК ЧИСЛО(15, 2))
+		ИНАЧЕ 0
+	КОНЕЦ КАК ОставщийсяДолгКлиента,
+	КонтактныеЛицаПартнеров.ДатаРождения
+ИЗ
+	Документ.ЗаказКлиента КАК ДокументЗаказКлиента
+		{ЛЕВОЕ СОЕДИНЕНИЕ РегистрНакопления.ЗаказыКлиентов.Остатки(
+				,
+				ЗаказКлиента = &amp;ЗаказКлиента
+					И ЗаказКлиента ССЫЛКА Документ.ЗаказКлиента) КАК ЗаказыКлиентовОстатки
+		ПО (ЗаказыКлиентовОстатки.ЗаказКлиента = ДокументЗаказКлиента.Ссылка)
+		ЛЕВОЕ СОЕДИНЕНИЕ Справочник.Партнеры КАК Партнеры
+		ПО ДокументЗаказКлиента.Партнер = Партнеры.Ссылка
+		ЛЕВОЕ СОЕДИНЕНИЕ Справочник.КонтактныеЛицаПартнеров КАК КонтактныеЛицаПартнеров
+		ПО ДокументЗаказКлиента.КонтактноеЛицо = КонтактныеЛицаПартнеров.Ссылка
+		ЛЕВОЕ СОЕДИНЕНИЕ Справочник.Партнеры КАК Перевозчики
+		ПО ДокументЗаказКлиента.ПеревозчикПартнер = Перевозчики.Ссылка}
+		{ЛЕВОЕ СОЕДИНЕНИЕ РегистрНакопления.РасчетыСКлиентами.Остатки(
+				,
+				ЗаказКлиента = &amp;ЗаказКлиента
+					И ЗаказКлиента ССЫЛКА Документ.ЗаказКлиента) КАК РасчетыСКлиентамиОстатки
+		ПО ДокументЗаказКлиента.Ссылка = РасчетыСКлиентамиОстатки.ЗаказКлиента
+		ЛЕВОЕ СОЕДИНЕНИЕ РегистрНакопления.РасчетыСКлиентами.Остатки(
+				&amp;ТекущаяДата,
+				ЗаказКлиента = &amp;ЗаказКлиента
+					И ЗаказКлиента ССЫЛКА Документ.ЗаказКлиента) КАК РасчетыСКлиентамиОстаткиНаДатуАктуальности
+		ПО ДокументЗаказКлиента.Ссылка = РасчетыСКлиентамиОстаткиНаДатуАктуальности.ЗаказКлиента}
+ГДЕ
+	ДокументЗаказКлиента.Ссылка = &amp;ЗаказКлиента</query>
+	</dataSet>
+	<parameter>
+		<name>ЗаказКлиента</name>
+		<title xsi:type="v8:LocalStringType">
+			<v8:item>
+				<v8:lang>ru</v8:lang>
+				<v8:content>Заказ клиента</v8:content>
+			</v8:item>
+		</title>
+		<valueType>
+			<v8:Type xmlns:d4p1="http://v8.1c.ru/8.1/data/enterprise/current-config">d4p1:DocumentRef.ЗаявкаНаВозвратТоваровОтКлиента</v8:Type>
+			<v8:Type xmlns:d4p1="http://v8.1c.ru/8.1/data/enterprise/current-config">d4p1:DocumentRef.ЗаказКлиента</v8:Type>
+		</valueType>
+		<value xsi:nil="true"/>
+		<useRestriction>true</useRestriction>
+	</parameter>
+	<parameter>
+		<name>Период</name>
+		<title xsi:type="v8:LocalStringType">
+			<v8:item>
+				<v8:lang>ru</v8:lang>
+				<v8:content>Период</v8:content>
+			</v8:item>
+		</title>
+		<valueType>
+			<v8:Type>xs:dateTime</v8:Type>
+			<v8:DateQualifiers>
+				<v8:DateFractions>DateTime</v8:DateFractions>
+			</v8:DateQualifiers>
+		</valueType>
+		<value xsi:type="xs:dateTime">0001-01-01T00:00:00</value>
+		<useRestriction>false</useRestriction>
+	</parameter>
+	<parameter>
+		<name>ТекущаяДата</name>
+		<title xsi:type="v8:LocalStringType">
+			<v8:item>
+				<v8:lang>ru</v8:lang>
+				<v8:content>Текущая дата</v8:content>
+			</v8:item>
+		</title>
+		<valueType>
+			<v8:Type>xs:dateTime</v8:Type>
+			<v8:DateQualifiers>
+				<v8:DateFractions>DateTime</v8:DateFractions>
+			</v8:DateQualifiers>
+		</valueType>
+		<value xsi:type="xs:dateTime">0001-01-01T00:00:00</value>
+		<useRestriction>true</useRestriction>
+		<expression>ТекущаяДатаСеанса()</expression>
+	</parameter>
+	<parameter>
+		<name>ОбращениеЖенскийРод</name>
+		<title xsi:type="v8:LocalStringType">
+			<v8:item>
+				<v8:lang>ru</v8:lang>
+				<v8:content>Обращение женский род</v8:content>
+			</v8:item>
+		</title>
+		<value xsi:nil="true"/>
+		<useRestriction>true</useRestriction>
+	</parameter>
+	<parameter>
+		<name>ОбращениеМужскойРод</name>
+		<title xsi:type="v8:LocalStringType">
+			<v8:item>
+				<v8:lang>ru</v8:lang>
+				<v8:content>Обращение мужской род</v8:content>
+			</v8:item>
+		</title>
+		<value xsi:nil="true"/>
+		<useRestriction>true</useRestriction>
+	</parameter>
+	<parameter>
+		<name>ОбращениеПолНеопределен</name>
+		<title xsi:type="v8:LocalStringType">
+			<v8:item>
+				<v8:lang>ru</v8:lang>
+				<v8:content>Обращение пол неопределен</v8:content>
+			</v8:item>
+		</title>
+		<value xsi:nil="true"/>
+		<useRestriction>true</useRestriction>
+	</parameter>
+	<settingsVariant>
+		<dcsset:name>Основной</dcsset:name>
+		<dcsset:presentation xsi:type="xs:string">Основной</dcsset:presentation>
+		<dcsset:settings xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows">
+			<dcsset:item xsi:type="dcsset:StructureItemGroup">
+				<dcsset:order>
+					<dcsset:item xsi:type="dcsset:OrderItemAuto"/>
+				</dcsset:order>
+				<dcsset:selection>
+					<dcsset:item xsi:type="dcsset:SelectedItemAuto"/>
+				</dcsset:selection>
+			</dcsset:item>
+		</dcsset:settings>
+	</settingsVariant>
+</DataCompositionSchema>

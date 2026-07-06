@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<PredefinedData xmlns="http://v8.1c.ru/8.3/xcf/predef" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CatalogPredefinedItems" version="2.18">
+	<Item id="136ec1fa-8fc3-4a9e-89ae-658b30096dc2">
+		<Name>РозничныеМагазины</Name>
+		<Code/>
+		<Description>Розничные магазины</Description>
+		<IsFolder>true</IsFolder>
+	</Item>
+	<Item id="8be69c43-e9a3-401f-98da-67e4d39290ea">
+		<Name>Склад1</Name>
+		<Code/>
+		<Description>Склад1</Description>
+		<IsFolder>false</IsFolder>
+	</Item>
+	<Item id="29862f7c-be64-48ec-a913-e8cf895a79cc">
+		<Name>Склад3</Name>
+		<Code/>
+		<Description>Склад3</Description>
+		<IsFolder>false</IsFolder>
+	</Item>
+	<Item id="c11d9156-d2d5-4adc-89a0-6f31f0f9f4c3">
+		<Name>Склад5</Name>
+		<Code/>
+		<Description>Склад5</Description>
+		<IsFolder>false</IsFolder>
+	</Item>
+</PredefinedData>

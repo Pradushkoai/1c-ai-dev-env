@@ -1,0 +1,747 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Form xmlns="http://v8.1c.ru/8.3/xcf/logform" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:dcscor="http://v8.1c.ru/8.1/data-composition-system/core" xmlns:dcssch="http://v8.1c.ru/8.1/data-composition-system/schema" xmlns:dcsset="http://v8.1c.ru/8.1/data-composition-system/settings" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.18">
+	<AutoCommandBar name="ФормаКоманднаяПанель" id="-1">
+		<Autofill>false</Autofill>
+		<ChildItems>
+			<Button name="РазрешитьРедактирование" id="5">
+				<Type>CommandBarButton</Type>
+				<DefaultButton>true</DefaultButton>
+				<SkipOnInput>false</SkipOnInput>
+				<CommandName>Form.Command.РазрешитьРедактирование</CommandName>
+				<ExtendedTooltip name="РазрешитьРедактированиеExtendedTooltip" id="79"/>
+			</Button>
+			<Button name="Закрыть" id="12">
+				<Type>CommandBarButton</Type>
+				<Representation>PictureAndText</Representation>
+				<SkipOnInput>false</SkipOnInput>
+				<CommandName>Form.StandardCommand.Close</CommandName>
+				<ExtendedTooltip name="ЗакрытьExtendedTooltip" id="80"/>
+			</Button>
+		</ChildItems>
+	</AutoCommandBar>
+	<Events>
+		<Event name="OnCreateAtServer">ПриСозданииНаСервере</Event>
+	</Events>
+	<ChildItems>
+		<UsualGroup name="ГруппаТипСклада" id="32">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Тип склада</v8:content>
+				</v8:item>
+			</Title>
+			<ToolTip>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Группа использовать ордерную схему при поступлении</v8:content>
+				</v8:item>
+			</ToolTip>
+			<Group>Vertical</Group>
+			<Behavior>Usual</Behavior>
+			<Representation>None</Representation>
+			<ShowTitle>false</ShowTitle>
+			<ExtendedTooltip name="ГруппаТипСкладаExtendedTooltip" id="81"/>
+			<ChildItems>
+				<LabelDecoration name="ОписаниеТипСклада" id="33">
+					<AutoMaxWidth>false</AutoMaxWidth>
+					<SkipOnInput>false</SkipOnInput>
+					<TextColor>web:FireBrick</TextColor>
+					<Title formatted="false">
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Поле не рекомендуется изменять, если уже есть введенные по складу документы розничной торговли.</v8:content>
+						</v8:item>
+					</Title>
+					<ContextMenu name="ОписаниеТипСкладаКонтекстноеМеню" id="34"/>
+					<ExtendedTooltip name="ОписаниеТипСкладаExtendedTooltip" id="82"/>
+				</LabelDecoration>
+				<CheckBoxField name="РазрешитьРедактированиеТипСклада" id="35">
+					<DataPath>РазрешитьРедактированиеТипСклада</DataPath>
+					<TitleLocation>Right</TitleLocation>
+					<CheckBoxType>Auto</CheckBoxType>
+					<ContextMenu name="РазрешитьРедактированиеТипСкладаКонтекстноеМеню" id="36"/>
+					<ExtendedTooltip name="РазрешитьРедактированиеТипСкладаExtendedTooltip" id="83"/>
+				</CheckBoxField>
+				<LabelDecoration name="ОписаниеЦеховаяКладовая" id="123">
+					<AutoMaxWidth>false</AutoMaxWidth>
+					<SkipOnInput>false</SkipOnInput>
+					<TextColor>web:FireBrick</TextColor>
+					<Title formatted="false">
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Поле не рекомендуется изменять, если уже есть введенные по складу производственные документы.</v8:content>
+						</v8:item>
+					</Title>
+					<ContextMenu name="ОписаниеЦеховаяКладоваяКонтекстноеМеню" id="124"/>
+					<ExtendedTooltip name="ОписаниеЦеховаяКладоваяРасширеннаяПодсказка" id="125"/>
+				</LabelDecoration>
+				<CheckBoxField name="РазрешитьРедактированиеЦеховуюКладовую" id="120">
+					<DataPath>РазрешитьРедактированиеЦеховойКладовой</DataPath>
+					<TitleLocation>Right</TitleLocation>
+					<CheckBoxType>Auto</CheckBoxType>
+					<ContextMenu name="РазрешитьРедактированиеЦеховуюКладовуюКонтекстноеМеню" id="121"/>
+					<ExtendedTooltip name="РазрешитьРедактированиеЦеховуюКладовуюРасширеннаяПодсказка" id="122"/>
+				</CheckBoxField>
+			</ChildItems>
+		</UsualGroup>
+		<UsualGroup name="ГруппаРодитель" id="37">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Группа родитель</v8:content>
+				</v8:item>
+			</Title>
+			<ToolTip>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Группа родитель</v8:content>
+				</v8:item>
+			</ToolTip>
+			<Group>Vertical</Group>
+			<Behavior>Usual</Behavior>
+			<Representation>None</Representation>
+			<ShowTitle>false</ShowTitle>
+			<ExtendedTooltip name="ГруппаРодительExtendedTooltip" id="84"/>
+			<ChildItems>
+				<LabelDecoration name="ОписаниеРодитель" id="40">
+					<AutoMaxWidth>false</AutoMaxWidth>
+					<MaxWidth>68</MaxWidth>
+					<SkipOnInput>false</SkipOnInput>
+					<TextColor>web:FireBrick</TextColor>
+					<Title formatted="false">
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Поле не рекомендуется изменять, если уже есть введенные по складу документы.</v8:content>
+						</v8:item>
+					</Title>
+					<ContextMenu name="ОписаниеРодительКонтекстноеМеню" id="41"/>
+					<ExtendedTooltip name="ОписаниеРодительExtendedTooltip" id="85"/>
+				</LabelDecoration>
+				<CheckBoxField name="РазрешитьРедактированиеРодитель" id="38">
+					<DataPath>РазрешитьРедактированиеРодитель</DataPath>
+					<TitleLocation>Right</TitleLocation>
+					<CheckBoxType>Auto</CheckBoxType>
+					<ContextMenu name="РазрешитьРедактированиеРодительКонтекстноеМеню" id="39"/>
+					<ExtendedTooltip name="РазрешитьРедактированиеРодительExtendedTooltip" id="86"/>
+				</CheckBoxField>
+			</ChildItems>
+		</UsualGroup>
+		<UsualGroup name="ГруппаЗависимыеОтОрдернойСхемы" id="78">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Группа зависимые от ордерной схемы</v8:content>
+				</v8:item>
+			</Title>
+			<ToolTip>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Группа зависимые от ордерной схемы</v8:content>
+				</v8:item>
+			</ToolTip>
+			<Group>Vertical</Group>
+			<Behavior>Usual</Behavior>
+			<Representation>None</Representation>
+			<ShowTitle>false</ShowTitle>
+			<ExtendedTooltip name="ГруппаЗависимыеОтОрдернойСхемыExtendedTooltip" id="87"/>
+			<ChildItems>
+				<UsualGroup name="ГруппаИспользоватьОрдернуюСхемуПриПоступлении" id="9">
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Использовать ордерную схему при поступлении</v8:content>
+						</v8:item>
+					</Title>
+					<ToolTip>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Группа использовать ордерную схему при поступлении</v8:content>
+						</v8:item>
+					</ToolTip>
+					<Group>Vertical</Group>
+					<Behavior>Usual</Behavior>
+					<Representation>None</Representation>
+					<ShowTitle>false</ShowTitle>
+					<ExtendedTooltip name="ГруппаИспользоватьОрдернуюСхемуПриПоступленииExtendedTooltip" id="88"/>
+					<ChildItems>
+						<LabelDecoration name="ОписаниеИспользоватьОрдернуюСхемуПриПоступлении" id="10">
+							<AutoMaxWidth>false</AutoMaxWidth>
+							<MaxWidth>68</MaxWidth>
+							<SkipOnInput>false</SkipOnInput>
+							<TextColor>web:FireBrick</TextColor>
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Флаг не рекомендуется снимать, если есть документы, введенные после включения ордерной схемы при поступлении.</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ОписаниеИспользоватьОрдернуюСхемуПриПоступленииКонтекстноеМеню" id="11"/>
+							<ExtendedTooltip name="ОписаниеИспользоватьОрдернуюСхемуПриПоступленииExtendedTooltip" id="89"/>
+						</LabelDecoration>
+						<CheckBoxField name="РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриПоступлении" id="3">
+							<DataPath>РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриПоступлении</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриПоступленииКонтекстноеМеню" id="4"/>
+							<ExtendedTooltip name="РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриПоступленииExtendedTooltip" id="90"/>
+						</CheckBoxField>
+						<LabelDecoration name="ОписаниеДатаНачалаОрдернойСхемыПриПоступлении" id="61">
+							<AutoMaxWidth>false</AutoMaxWidth>
+							<MaxWidth>68</MaxWidth>
+							<SkipOnInput>false</SkipOnInput>
+							<TextColor>web:FireBrick</TextColor>
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Поле не рекомендуется изменять, если есть документы, введенные после включения ордерной схемы при поступлении.</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ОписаниеДатаНачалаОрдернойСхемыПриПоступленииКонтекстноеМеню" id="62"/>
+							<ExtendedTooltip name="ОписаниеДатаНачалаОрдернойСхемыПриПоступленииExtendedTooltip" id="91"/>
+						</LabelDecoration>
+						<CheckBoxField name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриПоступлении" id="55">
+							<DataPath>РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриПоступлении</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриПоступленииКонтекстноеМеню" id="56"/>
+							<ExtendedTooltip name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриПоступленииExtendedTooltip" id="92"/>
+						</CheckBoxField>
+						<LabelDecoration name="ОписаниеИспользоватьСтатусыПриходныхОрдеров" id="65">
+							<AutoMaxWidth>false</AutoMaxWidth>
+							<MaxWidth>68</MaxWidth>
+							<SkipOnInput>false</SkipOnInput>
+							<TextColor>web:FireBrick</TextColor>
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Флаг не рекомендуется снимать, если по складу есть приходные ордера на товары не в последнем статусе.</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ОписаниеИспользоватьСтатусыПриходныхОрдеровКонтекстноеМеню" id="66"/>
+							<ExtendedTooltip name="ОписаниеИспользоватьСтатусыПриходныхОрдеровExtendedTooltip" id="93"/>
+						</LabelDecoration>
+						<CheckBoxField name="РазрешитьИспользоватьСтатусыПриходныхОрдеров" id="49">
+							<DataPath>РазрешитьИспользоватьСтатусыПриходныхОрдеров</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РазрешитьИспользоватьСтатусыПриходныхОрдеровКонтекстноеМеню" id="50"/>
+							<ExtendedTooltip name="РазрешитьИспользоватьСтатусыПриходныхОрдеровExtendedTooltip" id="94"/>
+						</CheckBoxField>
+					</ChildItems>
+				</UsualGroup>
+				<UsualGroup name="ГруппаИспользоватьОрдернуюСхемуПриОтгрузке" id="8">
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Использовать ордерную схему при отгрузке</v8:content>
+						</v8:item>
+					</Title>
+					<ToolTip>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Группа использовать ордерную схему при отгрузке</v8:content>
+						</v8:item>
+					</ToolTip>
+					<Group>Vertical</Group>
+					<Behavior>Usual</Behavior>
+					<Representation>None</Representation>
+					<ShowTitle>false</ShowTitle>
+					<ExtendedTooltip name="ГруппаИспользоватьОрдернуюСхемуПриОтгрузкеExtendedTooltip" id="95"/>
+					<ChildItems>
+						<LabelDecoration name="ОписаниеИспользоватьОрдернуюСхемуПриОтгрузке" id="6">
+							<AutoMaxWidth>false</AutoMaxWidth>
+							<MaxWidth>68</MaxWidth>
+							<SkipOnInput>false</SkipOnInput>
+							<TextColor>web:FireBrick</TextColor>
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Флаг не рекомендуется снимать, если есть распоряжения на отгрузку со склада, введенные после включения ордерной схемы при отгрузке.</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ОписаниеИспользоватьОрдернуюСхемуПриОтгрузкеКонтекстноеМеню" id="7"/>
+							<ExtendedTooltip name="ОписаниеИспользоватьОрдернуюСхемуПриОтгрузкеExtendedTooltip" id="96"/>
+						</LabelDecoration>
+						<CheckBoxField name="РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриОтгрузке" id="1">
+							<DataPath>РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриОтгрузке</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриОтгрузкеКонтекстноеМеню" id="2"/>
+							<ExtendedTooltip name="РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриОтгрузкеExtendedTooltip" id="97"/>
+						</CheckBoxField>
+						<LabelDecoration name="ОписаниеДатаНачалаОрдернойСхемыПриОтгрузке" id="59">
+							<AutoMaxWidth>false</AutoMaxWidth>
+							<MaxWidth>68</MaxWidth>
+							<SkipOnInput>false</SkipOnInput>
+							<TextColor>web:FireBrick</TextColor>
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Поле не рекомендуется редактировать, если есть распоряжения на отгрузку со склада, введенные после включения ордерной схемы при отгрузке.</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ОписаниеДатаНачалаОрдернойСхемыПриОтгрузкеКонтекстноеМеню" id="60"/>
+							<ExtendedTooltip name="ОписаниеДатаНачалаОрдернойСхемыПриОтгрузкеExtendedTooltip" id="98"/>
+						</LabelDecoration>
+						<CheckBoxField name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриОтгрузке" id="57">
+							<DataPath>РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриОтгрузке</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриОтгрузкеКонтекстноеМеню" id="58"/>
+							<ExtendedTooltip name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриОтгрузкеExtendedTooltip" id="99"/>
+						</CheckBoxField>
+						<LabelDecoration name="ОписаниеИспользоватьСтатусыРасходныхОрдеров" id="68">
+							<AutoMaxWidth>false</AutoMaxWidth>
+							<MaxWidth>68</MaxWidth>
+							<SkipOnInput>false</SkipOnInput>
+							<TextColor>web:FireBrick</TextColor>
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Флаг не рекомендуется снимать, если по складу есть расходные ордера на товары не в последнем статусе.</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ОписаниеИспользоватьСтатусыРасходныхОрдеровКонтекстноеМеню" id="69"/>
+							<ExtendedTooltip name="ОписаниеИспользоватьСтатусыРасходныхОрдеровExtendedTooltip" id="100"/>
+						</LabelDecoration>
+						<CheckBoxField name="РазрешитьИспользоватьСтатусыРасходныхОрдеров" id="51">
+							<DataPath>РазрешитьИспользоватьСтатусыРасходныхОрдеров</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РазрешитьИспользоватьСтатусыРасходныхОрдеровКонтекстноеМеню" id="52"/>
+							<ExtendedTooltip name="РазрешитьИспользоватьСтатусыРасходныхОрдеровExtendedTooltip" id="101"/>
+						</CheckBoxField>
+					</ChildItems>
+				</UsualGroup>
+				<UsualGroup name="ГруппаИспользоватьОрдернуюСхемуПриОформленииИзлишковИНедостач" id="27">
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Использовать ордерную схему при оформлении излишков и недостач</v8:content>
+						</v8:item>
+					</Title>
+					<ToolTip>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Группа использовать ордерную схему при оформлении излишков и недостач</v8:content>
+						</v8:item>
+					</ToolTip>
+					<Group>Vertical</Group>
+					<Behavior>Usual</Behavior>
+					<Representation>None</Representation>
+					<ShowTitle>false</ShowTitle>
+					<ExtendedTooltip name="ГруппаИспользоватьОрдернуюСхемуПриОформленииИзлишковИНедостачExtendedTooltip" id="102"/>
+					<ChildItems>
+						<LabelDecoration name="ОписаниеИспользоватьОрдернуюСхемуПриОтраженииИзлишковИНедостач" id="28">
+							<AutoMaxWidth>false</AutoMaxWidth>
+							<MaxWidth>68</MaxWidth>
+							<TextColor>web:FireBrick</TextColor>
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Флаг не рекомендуется снимать, если по складу есть документы, введенные после включения ордерной схемы при оформлении излишков, недостач.</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ОписаниеИспользоватьОрдернуюСхемуПриОтраженииИзлишковИНедостачКонтекстноеМеню" id="29"/>
+							<ExtendedTooltip name="ОписаниеИспользоватьОрдернуюСхемуПриОтраженииИзлишковИНедостачExtendedTooltip" id="103"/>
+						</LabelDecoration>
+						<CheckBoxField name="РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриОформленииИзлишковНедостач" id="30">
+							<DataPath>РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриОформленииИзлишковНедостач</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриОформленииИзлишковНедостачКонтекстноеМеню" id="31"/>
+							<ExtendedTooltip name="РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриОформленииИзлишковНедостачExtendedTooltip" id="104"/>
+						</CheckBoxField>
+						<LabelDecoration name="ОписаниеДатаНачалаОрдернойСхемыПриОтраженииИзлишковНедостач" id="63">
+							<AutoMaxWidth>false</AutoMaxWidth>
+							<MaxWidth>68</MaxWidth>
+							<TextColor>web:FireBrick</TextColor>
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Поле не рекомендуется редактировать, если по складу есть документы, введенные после включения ордерной схемы при оформлении излишков, недостач.</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ОписаниеДатаНачалаОрдернойСхемыПриОтраженииИзлишковНедостачКонтекстноеМеню" id="64"/>
+							<ExtendedTooltip name="ОписаниеДатаНачалаОрдернойСхемыПриОтраженииИзлишковНедостачExtendedTooltip" id="105"/>
+						</LabelDecoration>
+						<CheckBoxField name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриОтраженииИзлишковНедостач" id="53">
+							<DataPath>РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриОтраженииИзлишковНедостач</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриОтраженииИзлишковНедостачКонтекстноеМеню" id="54"/>
+							<ExtendedTooltip name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриОтраженииИзлишковНедостачExtendedTooltip" id="106"/>
+						</CheckBoxField>
+					</ChildItems>
+				</UsualGroup>
+				<UsualGroup name="ГруппаИспользоватьСкладскиеПомещения" id="18">
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Использовать складские помещения</v8:content>
+						</v8:item>
+					</Title>
+					<ToolTip>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Группа использовать складские помещения</v8:content>
+						</v8:item>
+					</ToolTip>
+					<Group>Vertical</Group>
+					<Behavior>Usual</Behavior>
+					<Representation>None</Representation>
+					<ShowTitle>false</ShowTitle>
+					<ExtendedTooltip name="ГруппаИспользоватьСкладскиеПомещенияExtendedTooltip" id="107"/>
+					<ChildItems>
+						<LabelDecoration name="ОписаниеИспользоватьСкладскиеПомещения" id="19">
+							<AutoMaxWidth>false</AutoMaxWidth>
+							<MaxWidth>68</MaxWidth>
+							<SkipOnInput>false</SkipOnInput>
+							<TextColor>web:FireBrick</TextColor>
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Флаг не рекомендуется изменять, если были документы по помещениям, на которые разбит склад.</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ОписаниеИспользоватьСкладскиеПомещенияКонтекстноеМеню" id="20"/>
+							<ExtendedTooltip name="ОписаниеИспользоватьСкладскиеПомещенияExtendedTooltip" id="108"/>
+						</LabelDecoration>
+						<CheckBoxField name="РазрешитьРедактированиеИспользоватьСкладскиеПомещения" id="21">
+							<DataPath>РазрешитьРедактированиеИспользоватьСкладскиеПомещения</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РазрешитьРедактированиеИспользоватьСкладскиеПомещенияКонтекстноеМеню" id="22"/>
+							<ExtendedTooltip name="РазрешитьРедактированиеИспользоватьСкладскиеПомещенияExtendedTooltip" id="109"/>
+						</CheckBoxField>
+						<LabelDecoration name="ОписаниеДатаНачалаИспользованияСкладскихПомещений" id="72">
+							<AutoMaxWidth>false</AutoMaxWidth>
+							<MaxWidth>68</MaxWidth>
+							<SkipOnInput>false</SkipOnInput>
+							<TextColor>web:FireBrick</TextColor>
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Поле не рекомендуется редактировать, если были документы по помещениям, на которые разбит склад.</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ОписаниеДатаНачалаИспользованияСкладскихПомещенийКонтекстноеМеню" id="73"/>
+							<ExtendedTooltip name="ОписаниеДатаНачалаИспользованияСкладскихПомещенийExtendedTooltip" id="110"/>
+						</LabelDecoration>
+						<CheckBoxField name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриОтраженииИзлишковНедостач1" id="70">
+							<DataPath>РазрешитьРедактированиеДатаНачалаИспользованияСкладскихПомещений</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриОтраженииИзлишковНедостач1КонтекстноеМеню" id="71"/>
+							<ExtendedTooltip name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриОтраженииИзлишковНедостач1ExtendedTooltip" id="111"/>
+						</CheckBoxField>
+					</ChildItems>
+				</UsualGroup>
+				<UsualGroup name="ГруппаИспользоватьАдресноеХранение" id="13">
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Настройка использования ячеек</v8:content>
+						</v8:item>
+					</Title>
+					<ToolTip>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Группа использовать адресное хранение</v8:content>
+						</v8:item>
+					</ToolTip>
+					<Group>Vertical</Group>
+					<Behavior>Usual</Behavior>
+					<Representation>None</Representation>
+					<ShowTitle>false</ShowTitle>
+					<ExtendedTooltip name="ГруппаИспользоватьАдресноеХранениеExtendedTooltip" id="112"/>
+					<ChildItems>
+						<LabelDecoration name="ОписаниеИспользоватьАдресноеХранение" id="14">
+							<AutoMaxWidth>false</AutoMaxWidth>
+							<MaxWidth>68</MaxWidth>
+							<SkipOnInput>false</SkipOnInput>
+							<TextColor>web:FireBrick</TextColor>
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Поле не рекомендуется изменять, если настройка установлена в состояние "Использовать для хранения остатков номенклатуры" и есть документы по складским ячейкам, на которые разбит склад.</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ОписаниеИспользоватьАдресноеХранениеКонтекстноеМеню" id="15"/>
+							<ExtendedTooltip name="ОписаниеИспользоватьАдресноеХранениеExtendedTooltip" id="113"/>
+						</LabelDecoration>
+						<CheckBoxField name="РазрешитьРедактированиеНастройкаАдресногоХранения" id="16">
+							<DataPath>РазрешитьРедактированиеНастройкаАдресногоХранения</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РазрешитьРедактированиеНастройкаАдресногоХраненияКонтекстноеМеню" id="17"/>
+							<ExtendedTooltip name="РазрешитьРедактированиеНастройкаАдресногоХраненияExtendedTooltip" id="114"/>
+						</CheckBoxField>
+						<LabelDecoration name="ОписаниеДатаНачалаАдресногоХраненияОстатков" id="76">
+							<AutoMaxWidth>false</AutoMaxWidth>
+							<MaxWidth>68</MaxWidth>
+							<SkipOnInput>false</SkipOnInput>
+							<TextColor>web:FireBrick</TextColor>
+							<Title formatted="false">
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>Поле не рекомендуется изменять, если были документы по складским ячейкам, на которые разбит склад.</v8:content>
+								</v8:item>
+							</Title>
+							<ContextMenu name="ОписаниеДатаНачалаАдресногоХраненияОстатковКонтекстноеМеню" id="77"/>
+							<ExtendedTooltip name="ОписаниеДатаНачалаАдресногоХраненияОстатковExtendedTooltip" id="115"/>
+						</LabelDecoration>
+						<CheckBoxField name="РазрешитьРедактированиеДатаНачалаАдресногоХраненияОстатков" id="74">
+							<DataPath>РазрешитьРедактированиеДатаНачалаАдресногоХраненияОстатков</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РазрешитьРедактированиеДатаНачалаАдресногоХраненияОстатковКонтекстноеМеню" id="75"/>
+							<ExtendedTooltip name="РазрешитьРедактированиеДатаНачалаАдресногоХраненияОстатковExtendedTooltip" id="116"/>
+						</CheckBoxField>
+					</ChildItems>
+				</UsualGroup>
+			</ChildItems>
+		</UsualGroup>
+		<UsualGroup name="ГруппаРозничныйВидЦены" id="44">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Розничный вид цены</v8:content>
+				</v8:item>
+			</Title>
+			<ToolTip>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Розничный вид цены</v8:content>
+				</v8:item>
+			</ToolTip>
+			<Group>Vertical</Group>
+			<Behavior>Usual</Behavior>
+			<Representation>None</Representation>
+			<ShowTitle>false</ShowTitle>
+			<ExtendedTooltip name="ГруппаРозничныйВидЦеныExtendedTooltip" id="117"/>
+			<ChildItems>
+				<LabelDecoration name="ОписаниеРозничныйВидЦены" id="45">
+					<AutoMaxWidth>false</AutoMaxWidth>
+					<MaxWidth>68</MaxWidth>
+					<SkipOnInput>false</SkipOnInput>
+					<TextColor>web:FireBrick</TextColor>
+					<Title formatted="false">
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Поле не рекомендуется изменять, если уже есть введенные по складу документы.</v8:content>
+						</v8:item>
+					</Title>
+					<ContextMenu name="ОписаниеРозничныйВидЦеныКонтекстноеМеню" id="46"/>
+					<ExtendedTooltip name="ОписаниеРозничныйВидЦеныExtendedTooltip" id="118"/>
+				</LabelDecoration>
+				<CheckBoxField name="РазрешитьРедактированиеРозничныйВидЦены" id="47">
+					<DataPath>РазрешитьРедактированиеРозничныйВидЦены</DataPath>
+					<TitleLocation>Right</TitleLocation>
+					<CheckBoxType>Auto</CheckBoxType>
+					<ContextMenu name="РазрешитьРедактированиеРозничныйВидЦеныКонтекстноеМеню" id="48"/>
+					<ExtendedTooltip name="РазрешитьРедактированиеРозничныйВидЦеныExtendedTooltip" id="119"/>
+				</CheckBoxField>
+			</ChildItems>
+		</UsualGroup>
+	</ChildItems>
+	<Attributes>
+		<Attribute name="РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриОтгрузке" id="1">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование флага "Использовать ордерную схему при отгрузке"</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриПоступлении" id="2">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование флага "Использовать ордерную схему при поступлении"</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьРедактированиеНастройкаАдресногоХранения" id="3">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование настройки использования ячеек</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьРедактированиеИспользоватьСкладскиеПомещения" id="4">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование флага "Использовать складские помещения"</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьРедактированиеИспользоватьОрдернуюСхемуПриОформленииИзлишковНедостач" id="5">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование флага "Использовать ордерную схему при оформлении излишков, недостач"</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьРедактированиеТипСклада" id="6">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование поля "Тип склада"</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьРедактированиеРодитель" id="7">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование поля "Группа складов"</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьРедактированиеРозничныйВидЦены" id="9">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование розничного вида цены</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьИспользоватьСтатусыРасходныхОрдеров" id="8">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование флага "Использовать статусы расходных ордеров"</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьИспользоватьСтатусыПриходныхОрдеров" id="10">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование флага "Использовать статусы приходных ордеров"</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриПоступлении" id="11">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование даты начала использования ордерной схемы при поступлении</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриОтгрузке" id="12">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование даты начала использования ордерной схемы при отгрузке</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьРедактированиеДатаНачалаОрдернойСхемыПриОтраженииИзлишковНедостач" id="13">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование даты начала использования ордерной схемы при отражении излишков, недостач</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьРедактированиеДатаНачалаИспользованияСкладскихПомещений" id="14">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование даты начала использования складских помещений</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьРедактированиеДатаНачалаАдресногоХраненияОстатков" id="15">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование даты начала адресного хранения остатков</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+		</Attribute>
+		<Attribute name="РазрешитьРедактированиеЦеховойКладовой" id="16">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование поля "Кладовая цеха"</v8:content>
+				</v8:item>
+			</Title>
+			<Type>
+				<v8:Type>xs:boolean</v8:Type>
+			</Type>
+			<FunctionalOptions>
+				<Item>FunctionalOption.УправлениеПредприятием</Item>
+			</FunctionalOptions>
+		</Attribute>
+	</Attributes>
+	<Commands>
+		<Command name="РазрешитьРедактирование" id="1">
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование</v8:content>
+				</v8:item>
+			</Title>
+			<ToolTip>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Разрешить редактирование</v8:content>
+				</v8:item>
+			</ToolTip>
+			<Action>РазрешитьРедактирование</Action>
+			<CurrentRowUse>DontUse</CurrentRowUse>
+		</Command>
+	</Commands>
+</Form>

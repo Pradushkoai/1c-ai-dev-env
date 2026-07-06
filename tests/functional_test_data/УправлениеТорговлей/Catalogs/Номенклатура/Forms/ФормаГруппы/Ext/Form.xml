@@ -1,0 +1,868 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Form xmlns="http://v8.1c.ru/8.3/xcf/logform" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:dcscor="http://v8.1c.ru/8.1/data-composition-system/core" xmlns:dcssch="http://v8.1c.ru/8.1/data-composition-system/schema" xmlns:dcsset="http://v8.1c.ru/8.1/data-composition-system/settings" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.18">
+	<WindowOpeningMode>LockOwnerWindow</WindowOpeningMode>
+	<UseForFoldersAndItems>Folders</UseForFoldersAndItems>
+	<AutoCommandBar name="ФормаКоманднаяПанель" id="-1"/>
+	<Events>
+		<Event name="OnCreateAtServer">ПриСозданииНаСервере</Event>
+	</Events>
+	<ChildItems>
+		<UsualGroup name="Группа1" id="19">
+			<Group>AlwaysHorizontal</Group>
+			<Behavior>Usual</Behavior>
+			<ExtendedTooltip name="Группа1РасширеннаяПодсказка" id="20"/>
+			<ChildItems>
+				<InputField name="Код" id="1">
+					<DataPath>Объект.Code</DataPath>
+					<EditMode>EnterOnInput</EditMode>
+					<ContextMenu name="КодКонтекстноеМеню" id="2"/>
+					<ExtendedTooltip name="КодExtendedTooltip" id="7"/>
+				</InputField>
+				<InputField name="Наименование" id="3">
+					<DataPath>Объект.Description</DataPath>
+					<EditMode>EnterOnInput</EditMode>
+					<ContextMenu name="НаименованиеКонтекстноеМеню" id="4"/>
+					<ExtendedTooltip name="НаименованиеExtendedTooltip" id="8"/>
+				</InputField>
+				<InputField name="Родитель" id="5">
+					<DataPath>Объект.Parent</DataPath>
+					<Title>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Входит в группу</v8:content>
+						</v8:item>
+					</Title>
+					<EditMode>EnterOnInput</EditMode>
+					<ContextMenu name="РодительКонтекстноеМеню" id="6"/>
+					<ExtendedTooltip name="РодительExtendedTooltip" id="9"/>
+				</InputField>
+			</ChildItems>
+		</UsualGroup>
+		<UsualGroup name="Группа4" id="87">
+			<Group>AlwaysHorizontal</Group>
+			<Behavior>Usual</Behavior>
+			<ExtendedTooltip name="Группа4РасширеннаяПодсказка" id="88"/>
+			<ChildItems>
+				<InputField name="Склад" id="10">
+					<DataPath>Объект.Склад</DataPath>
+					<ClearButton>true</ClearButton>
+					<OpenButton>false</OpenButton>
+					<ContextMenu name="СкладКонтекстноеМеню" id="11"/>
+					<ExtendedTooltip name="СкладРасширеннаяПодсказка" id="12"/>
+				</InputField>
+				<InputField name="СкладскоеПомещение" id="194">
+					<DataPath>Объект.СкладскоеПомещение</DataPath>
+					<ChoiceParameterLinks>
+						<xr:Link>
+							<xr:Name>Отбор.Владелец</xr:Name>
+							<xr:DataPath xsi:type="xs:string">Объект.Склад</xr:DataPath>
+							<xr:ValueChange>Clear</xr:ValueChange>
+						</xr:Link>
+					</ChoiceParameterLinks>
+					<TypeLink>
+						<xr:DataPath>Объект.Склад</xr:DataPath>
+						<xr:LinkItem>0</xr:LinkItem>
+					</TypeLink>
+					<ContextMenu name="СкладскоеПомещениеКонтекстноеМеню" id="195"/>
+					<ExtendedTooltip name="СкладскоеПомещениеРасширеннаяПодсказка" id="196"/>
+				</InputField>
+				<InputField name="НаименованиеГруппыДляПрайса" id="13">
+					<DataPath>Объект.НаименованиеГруппыДляПрайса</DataPath>
+					<ContextMenu name="НаименованиеГруппыДляПрайсаКонтекстноеМеню" id="14"/>
+					<ExtendedTooltip name="НаименованиеГруппыДляПрайсаРасширеннаяПодсказка" id="15"/>
+				</InputField>
+				<InputField name="МинимальныйОстатокДляПрайса" id="16">
+					<DataPath>Объект.МинимальныйОстатокДляПрайса</DataPath>
+					<ContextMenu name="МинимальныйОстатокДляПрайсаКонтекстноеМеню" id="17"/>
+					<ExtendedTooltip name="МинимальныйОстатокДляПрайсаРасширеннаяПодсказка" id="18"/>
+				</InputField>
+			</ChildItems>
+		</UsualGroup>
+		<UsualGroup name="Группа27" id="268">
+			<Behavior>Usual</Behavior>
+			<Representation>StrongSeparation</Representation>
+			<ExtendedTooltip name="Группа27РасширеннаяПодсказка" id="269"/>
+			<ChildItems>
+				<UsualGroup name="Группа28" id="279">
+					<Group>Vertical</Group>
+					<Behavior>Usual</Behavior>
+					<ShowTitle>false</ShowTitle>
+					<ExtendedTooltip name="Группа28РасширеннаяПодсказка" id="280"/>
+					<ChildItems>
+						<CheckBoxField name="РегулированиеЦенОпт" id="281">
+							<DataPath>Объект.РегулированиеЦенОпт</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РегулированиеЦенОптКонтекстноеМеню" id="282"/>
+							<ExtendedTooltip name="РегулированиеЦенОптРасширеннаяПодсказка" id="283"/>
+						</CheckBoxField>
+						<CheckBoxField name="РегулированиеЦенРозница" id="284">
+							<DataPath>Объект.РегулированиеЦенРозница</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="РегулированиеЦенРозницаКонтекстноеМеню" id="285"/>
+							<ExtendedTooltip name="РегулированиеЦенРозницаРасширеннаяПодсказка" id="286"/>
+						</CheckBoxField>
+					</ChildItems>
+				</UsualGroup>
+				<LabelDecoration name="Декорация2" id="289">
+					<Width>13</Width>
+					<ContextMenu name="Декорация2КонтекстноеМеню" id="290"/>
+					<ExtendedTooltip name="Декорация2РасширеннаяПодсказка" id="291"/>
+				</LabelDecoration>
+				<UsualGroup name="Группа29" id="287">
+					<Behavior>Usual</Behavior>
+					<Representation>StrongSeparation</Representation>
+					<United>false</United>
+					<ExtendedTooltip name="Группа29РасширеннаяПодсказка" id="288"/>
+					<ChildItems>
+						<CheckBoxField name="НедоступноДляОпта" id="270">
+							<DataPath>Объект.НедоступноДляОпта</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="НедоступноДляОптаКонтекстноеМеню" id="271"/>
+							<ExtendedTooltip name="НедоступноДляОптаРасширеннаяПодсказка" id="272"/>
+						</CheckBoxField>
+						<CheckBoxField name="НедоступноДляРозницы" id="273">
+							<DataPath>Объект.НедоступноДляРозницы</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="НедоступноДляРозницыКонтекстноеМеню" id="274"/>
+							<ExtendedTooltip name="НедоступноДляРозницыРасширеннаяПодсказка" id="275"/>
+						</CheckBoxField>
+						<CheckBoxField name="НеДоступенДляИнтМаг" id="276">
+							<DataPath>Объект.НеДоступенДляИнтМаг</DataPath>
+							<TitleLocation>Right</TitleLocation>
+							<CheckBoxType>Auto</CheckBoxType>
+							<ContextMenu name="НеДоступенДляИнтМагКонтекстноеМеню" id="277"/>
+							<ExtendedTooltip name="НеДоступенДляИнтМагРасширеннаяПодсказка" id="278"/>
+						</CheckBoxField>
+					</ChildItems>
+				</UsualGroup>
+			</ChildItems>
+		</UsualGroup>
+		<CheckBoxField name="ВесКонтроль" id="292">
+			<DataPath>Объект.ВесКонтроль</DataPath>
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Контролировать вес (взвешиваемые товары)</v8:content>
+				</v8:item>
+			</Title>
+			<CheckBoxType>Auto</CheckBoxType>
+			<ContextMenu name="ВесКонтрольКонтекстноеМеню" id="293"/>
+			<ExtendedTooltip name="ВесКонтрольРасширеннаяПодсказка" id="294"/>
+		</CheckBoxField>
+		<LabelDecoration name="Декорация1" id="89">
+			<Width>1</Width>
+			<Height>3</Height>
+			<ContextMenu name="Декорация1КонтекстноеМеню" id="90"/>
+			<ExtendedTooltip name="Декорация1РасширеннаяПодсказка" id="91"/>
+		</LabelDecoration>
+		<UsualGroup name="ИнфоДляСайта" id="21">
+			<EnableContentChange>true</EnableContentChange>
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Наименование характеристик для сайта</v8:content>
+				</v8:item>
+			</Title>
+			<ToolTip>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Инфо для сайта</v8:content>
+				</v8:item>
+			</ToolTip>
+			<Group>AlwaysHorizontal</Group>
+			<Behavior>Usual</Behavior>
+			<ExtendedTooltip name="ИнфоДляСайтаРасширеннаяПодсказка" id="22"/>
+			<ChildItems>
+				<UsualGroup name="Группа2" id="23">
+					<GroupHorizontalAlign>Left</GroupHorizontalAlign>
+					<Group>Vertical</Group>
+					<Behavior>Usual</Behavior>
+					<Representation>None</Representation>
+					<ExtendedTooltip name="Группа2РасширеннаяПодсказка" id="24"/>
+					<ChildItems>
+						<UsualGroup name="Группа5" id="92">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа5РасширеннаяПодсказка" id="93"/>
+							<ChildItems>
+								<InputField name="Порядок1" id="94">
+									<DataPath>Объект.Порядок1</DataPath>
+									<ContextMenu name="Порядок1КонтекстноеМеню" id="95"/>
+									<ExtendedTooltip name="Порядок1РасширеннаяПодсказка" id="96"/>
+								</InputField>
+								<InputField name="Характеристика1" id="25">
+									<DataPath>Объект.Характеристика1</DataPath>
+									<ContextMenu name="Характеристика1КонтекстноеМеню" id="26"/>
+									<ExtendedTooltip name="Характеристика1РасширеннаяПодсказка" id="27"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар1" id="205">
+									<DataPath>Объект.ФильтрХар1</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр01</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар1КонтекстноеМеню" id="206"/>
+									<ExtendedTooltip name="ФильтрХар1РасширеннаяПодсказка" id="207"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа6" id="97">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа6РасширеннаяПодсказка" id="98"/>
+							<ChildItems>
+								<InputField name="Порядок2" id="99">
+									<DataPath>Объект.Порядок2</DataPath>
+									<ContextMenu name="Порядок2КонтекстноеМеню" id="100"/>
+									<ExtendedTooltip name="Порядок2РасширеннаяПодсказка" id="101"/>
+								</InputField>
+								<InputField name="Характеристика2" id="28">
+									<DataPath>Объект.Характеристика2</DataPath>
+									<ContextMenu name="Характеристика2КонтекстноеМеню" id="29"/>
+									<ExtendedTooltip name="Характеристика2РасширеннаяПодсказка" id="30"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар2" id="208">
+									<DataPath>Объект.ФильтрХар2</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр02</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар2КонтекстноеМеню" id="209"/>
+									<ExtendedTooltip name="ФильтрХар2РасширеннаяПодсказка" id="210"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа7" id="102">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа7РасширеннаяПодсказка" id="103"/>
+							<ChildItems>
+								<InputField name="Порядок3" id="104">
+									<DataPath>Объект.Порядок3</DataPath>
+									<ContextMenu name="Порядок3КонтекстноеМеню" id="105"/>
+									<ExtendedTooltip name="Порядок3РасширеннаяПодсказка" id="106"/>
+								</InputField>
+								<InputField name="Характеристика3" id="31">
+									<DataPath>Объект.Характеристика3</DataPath>
+									<ContextMenu name="Характеристика3КонтекстноеМеню" id="32"/>
+									<ExtendedTooltip name="Характеристика3РасширеннаяПодсказка" id="33"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар3" id="211">
+									<DataPath>Объект.ФильтрХар3</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр03</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар3КонтекстноеМеню" id="212"/>
+									<ExtendedTooltip name="ФильтрХар3РасширеннаяПодсказка" id="213"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа8" id="107">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа8РасширеннаяПодсказка" id="108"/>
+							<ChildItems>
+								<InputField name="Порядок4" id="109">
+									<DataPath>Объект.Порядок4</DataPath>
+									<ContextMenu name="Порядок4КонтекстноеМеню" id="110"/>
+									<ExtendedTooltip name="Порядок4РасширеннаяПодсказка" id="111"/>
+								</InputField>
+								<InputField name="Характеристика4" id="34">
+									<DataPath>Объект.Характеристика4</DataPath>
+									<ContextMenu name="Характеристика4КонтекстноеМеню" id="35"/>
+									<ExtendedTooltip name="Характеристика4РасширеннаяПодсказка" id="36"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар4" id="214">
+									<DataPath>Объект.ФильтрХар4</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр04</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар4КонтекстноеМеню" id="215"/>
+									<ExtendedTooltip name="ФильтрХар4РасширеннаяПодсказка" id="216"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа9" id="112">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа9РасширеннаяПодсказка" id="113"/>
+							<ChildItems>
+								<InputField name="Порядок5" id="114">
+									<DataPath>Объект.Порядок5</DataPath>
+									<ContextMenu name="Порядок5КонтекстноеМеню" id="115"/>
+									<ExtendedTooltip name="Порядок5РасширеннаяПодсказка" id="116"/>
+								</InputField>
+								<InputField name="Характеристика5" id="37">
+									<DataPath>Объект.Характеристика5</DataPath>
+									<ContextMenu name="Характеристика5КонтекстноеМеню" id="38"/>
+									<ExtendedTooltip name="Характеристика5РасширеннаяПодсказка" id="39"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар5" id="217">
+									<DataPath>Объект.ФильтрХар5</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр05</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар5КонтекстноеМеню" id="218"/>
+									<ExtendedTooltip name="ФильтрХар5РасширеннаяПодсказка" id="219"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа10" id="117">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа10РасширеннаяПодсказка" id="118"/>
+							<ChildItems>
+								<InputField name="Порядок6" id="119">
+									<DataPath>Объект.Порядок6</DataPath>
+									<ContextMenu name="Порядок6КонтекстноеМеню" id="120"/>
+									<ExtendedTooltip name="Порядок6РасширеннаяПодсказка" id="121"/>
+								</InputField>
+								<InputField name="Характеристика6" id="40">
+									<DataPath>Объект.Характеристика6</DataPath>
+									<ContextMenu name="Характеристика6КонтекстноеМеню" id="41"/>
+									<ExtendedTooltip name="Характеристика6РасширеннаяПодсказка" id="42"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар6" id="220">
+									<DataPath>Объект.ФильтрХар6</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр06</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар6КонтекстноеМеню" id="221"/>
+									<ExtendedTooltip name="ФильтрХар6РасширеннаяПодсказка" id="222"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа11" id="122">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа11РасширеннаяПодсказка" id="123"/>
+							<ChildItems>
+								<InputField name="Порядок7" id="124">
+									<DataPath>Объект.Порядок7</DataPath>
+									<ContextMenu name="Порядок7КонтекстноеМеню" id="125"/>
+									<ExtendedTooltip name="Порядок7РасширеннаяПодсказка" id="126"/>
+								</InputField>
+								<InputField name="Характеристика7" id="43">
+									<DataPath>Объект.Характеристика7</DataPath>
+									<ContextMenu name="Характеристика7КонтекстноеМеню" id="44"/>
+									<ExtendedTooltip name="Характеристика7РасширеннаяПодсказка" id="45"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар7" id="223">
+									<DataPath>Объект.ФильтрХар7</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр07</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар7КонтекстноеМеню" id="224"/>
+									<ExtendedTooltip name="ФильтрХар7РасширеннаяПодсказка" id="225"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа12" id="127">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа12РасширеннаяПодсказка" id="128"/>
+							<ChildItems>
+								<InputField name="Порядок8" id="129">
+									<DataPath>Объект.Порядок8</DataPath>
+									<ContextMenu name="Порядок8КонтекстноеМеню" id="130"/>
+									<ExtendedTooltip name="Порядок8РасширеннаяПодсказка" id="131"/>
+								</InputField>
+								<InputField name="Характеристика8" id="46">
+									<DataPath>Объект.Характеристика8</DataPath>
+									<ContextMenu name="Характеристика8КонтекстноеМеню" id="47"/>
+									<ExtendedTooltip name="Характеристика8РасширеннаяПодсказка" id="48"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар8" id="226">
+									<DataPath>Объект.ФильтрХар8</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр08</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар8КонтекстноеМеню" id="227"/>
+									<ExtendedTooltip name="ФильтрХар8РасширеннаяПодсказка" id="228"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа13" id="132">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа13РасширеннаяПодсказка" id="133"/>
+							<ChildItems>
+								<InputField name="Порядок9" id="134">
+									<DataPath>Объект.Порядок9</DataPath>
+									<ContextMenu name="Порядок9КонтекстноеМеню" id="135"/>
+									<ExtendedTooltip name="Порядок9РасширеннаяПодсказка" id="136"/>
+								</InputField>
+								<InputField name="Характеристика9" id="49">
+									<DataPath>Объект.Характеристика9</DataPath>
+									<ContextMenu name="Характеристика9КонтекстноеМеню" id="50"/>
+									<ExtendedTooltip name="Характеристика9РасширеннаяПодсказка" id="51"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар9" id="229">
+									<DataPath>Объект.ФильтрХар9</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр09</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар9КонтекстноеМеню" id="230"/>
+									<ExtendedTooltip name="ФильтрХар9РасширеннаяПодсказка" id="231"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа25" id="192">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа25РасширеннаяПодсказка" id="193"/>
+							<ChildItems>
+								<InputField name="Порядок10" id="139">
+									<DataPath>Объект.Порядок10</DataPath>
+									<ContextMenu name="Порядок10КонтекстноеМеню" id="140"/>
+									<ExtendedTooltip name="Порядок10РасширеннаяПодсказка" id="141"/>
+								</InputField>
+								<InputField name="Характеристика10" id="52">
+									<DataPath>Объект.Характеристика10</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Хар10</v8:content>
+										</v8:item>
+									</Title>
+									<ContextMenu name="Характеристика10КонтекстноеМеню" id="53"/>
+									<ExtendedTooltip name="Характеристика10РасширеннаяПодсказка" id="54"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар10" id="232">
+									<DataPath>Объект.ФильтрХар10</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр10</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар10КонтекстноеМеню" id="233"/>
+									<ExtendedTooltip name="ФильтрХар10РасширеннаяПодсказка" id="234"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+					</ChildItems>
+				</UsualGroup>
+				<UsualGroup name="Группа3" id="55">
+					<GroupHorizontalAlign>Right</GroupHorizontalAlign>
+					<Behavior>Usual</Behavior>
+					<ShowTitle>false</ShowTitle>
+					<ExtendedTooltip name="Группа3РасширеннаяПодсказка" id="56"/>
+					<ChildItems>
+						<UsualGroup name="Группа15" id="142">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ExtendedTooltip name="Группа15РасширеннаяПодсказка" id="143"/>
+							<ChildItems>
+								<InputField name="Порядок11" id="144">
+									<DataPath>Объект.Порядок11</DataPath>
+									<ContextMenu name="Порядок11КонтекстноеМеню" id="145"/>
+									<ExtendedTooltip name="Порядок11РасширеннаяПодсказка" id="146"/>
+								</InputField>
+								<InputField name="Характеристика11" id="57">
+									<DataPath>Объект.Характеристика11</DataPath>
+									<ContextMenu name="Характеристика11КонтекстноеМеню" id="58"/>
+									<ExtendedTooltip name="Характеристика11РасширеннаяПодсказка" id="59"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар11" id="235">
+									<DataPath>Объект.ФильтрХар11</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр11</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар11КонтекстноеМеню" id="236"/>
+									<ExtendedTooltip name="ФильтрХар11РасширеннаяПодсказка" id="237"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа16" id="147">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа16РасширеннаяПодсказка" id="148"/>
+							<ChildItems>
+								<InputField name="Порядок12" id="149">
+									<DataPath>Объект.Порядок12</DataPath>
+									<ContextMenu name="Порядок12КонтекстноеМеню" id="150"/>
+									<ExtendedTooltip name="Порядок12РасширеннаяПодсказка" id="151"/>
+								</InputField>
+								<InputField name="Характеристика12" id="60">
+									<DataPath>Объект.Характеристика12</DataPath>
+									<ContextMenu name="Характеристика12КонтекстноеМеню" id="61"/>
+									<ExtendedTooltip name="Характеристика12РасширеннаяПодсказка" id="62"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар12" id="238">
+									<DataPath>Объект.ФильтрХар12</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр12</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар12КонтекстноеМеню" id="239"/>
+									<ExtendedTooltip name="ФильтрХар12РасширеннаяПодсказка" id="240"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа17" id="152">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа17РасширеннаяПодсказка" id="153"/>
+							<ChildItems>
+								<InputField name="Порядок13" id="154">
+									<DataPath>Объект.Порядок13</DataPath>
+									<ContextMenu name="Порядок13КонтекстноеМеню" id="155"/>
+									<ExtendedTooltip name="Порядок13РасширеннаяПодсказка" id="156"/>
+								</InputField>
+								<InputField name="Характеристика13" id="63">
+									<DataPath>Объект.Характеристика13</DataPath>
+									<ContextMenu name="Характеристика13КонтекстноеМеню" id="64"/>
+									<ExtendedTooltip name="Характеристика13РасширеннаяПодсказка" id="65"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар13" id="241">
+									<DataPath>Объект.ФильтрХар13</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр13</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар13КонтекстноеМеню" id="242"/>
+									<ExtendedTooltip name="ФильтрХар13РасширеннаяПодсказка" id="243"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа18" id="157">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа18РасширеннаяПодсказка" id="158"/>
+							<ChildItems>
+								<InputField name="Порядок14" id="159">
+									<DataPath>Объект.Порядок14</DataPath>
+									<ContextMenu name="Порядок14КонтекстноеМеню" id="160"/>
+									<ExtendedTooltip name="Порядок14РасширеннаяПодсказка" id="161"/>
+								</InputField>
+								<InputField name="Характеристика14" id="66">
+									<DataPath>Объект.Характеристика14</DataPath>
+									<ContextMenu name="Характеристика14КонтекстноеМеню" id="67"/>
+									<ExtendedTooltip name="Характеристика14РасширеннаяПодсказка" id="68"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар14" id="244">
+									<DataPath>Объект.ФильтрХар14</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр14</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар14КонтекстноеМеню" id="245"/>
+									<ExtendedTooltip name="ФильтрХар14РасширеннаяПодсказка" id="246"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа19" id="162">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа19РасширеннаяПодсказка" id="163"/>
+							<ChildItems>
+								<InputField name="Порядок15" id="164">
+									<DataPath>Объект.Порядок15</DataPath>
+									<ContextMenu name="Порядок15КонтекстноеМеню" id="165"/>
+									<ExtendedTooltip name="Порядок15РасширеннаяПодсказка" id="166"/>
+								</InputField>
+								<InputField name="Характеристика15" id="69">
+									<DataPath>Объект.Характеристика15</DataPath>
+									<ContextMenu name="Характеристика15КонтекстноеМеню" id="70"/>
+									<ExtendedTooltip name="Характеристика15РасширеннаяПодсказка" id="71"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар15" id="247">
+									<DataPath>Объект.ФильтрХар15</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр15</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар15КонтекстноеМеню" id="248"/>
+									<ExtendedTooltip name="ФильтрХар15РасширеннаяПодсказка" id="249"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа20" id="167">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа20РасширеннаяПодсказка" id="168"/>
+							<ChildItems>
+								<InputField name="Порядок16" id="169">
+									<DataPath>Объект.Порядок16</DataPath>
+									<ContextMenu name="Порядок16КонтекстноеМеню" id="170"/>
+									<ExtendedTooltip name="Порядок16РасширеннаяПодсказка" id="171"/>
+								</InputField>
+								<InputField name="Характеристика16" id="72">
+									<DataPath>Объект.Характеристика16</DataPath>
+									<ContextMenu name="Характеристика16КонтекстноеМеню" id="73"/>
+									<ExtendedTooltip name="Характеристика16РасширеннаяПодсказка" id="74"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар16" id="250">
+									<DataPath>Объект.ФильтрХар16</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр16</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар16КонтекстноеМеню" id="251"/>
+									<ExtendedTooltip name="ФильтрХар16РасширеннаяПодсказка" id="252"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа21" id="172">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа21РасширеннаяПодсказка" id="173"/>
+							<ChildItems>
+								<InputField name="Порядок17" id="174">
+									<DataPath>Объект.Порядок17</DataPath>
+									<ContextMenu name="Порядок17КонтекстноеМеню" id="175"/>
+									<ExtendedTooltip name="Порядок17РасширеннаяПодсказка" id="176"/>
+								</InputField>
+								<InputField name="Характеристика17" id="75">
+									<DataPath>Объект.Характеристика17</DataPath>
+									<ContextMenu name="Характеристика17КонтекстноеМеню" id="76"/>
+									<ExtendedTooltip name="Характеристика17РасширеннаяПодсказка" id="77"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар17" id="253">
+									<DataPath>Объект.ФильтрХар17</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр17</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар17КонтекстноеМеню" id="254"/>
+									<ExtendedTooltip name="ФильтрХар17РасширеннаяПодсказка" id="255"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа22" id="177">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа22РасширеннаяПодсказка" id="178"/>
+							<ChildItems>
+								<InputField name="Порядок18" id="179">
+									<DataPath>Объект.Порядок18</DataPath>
+									<ContextMenu name="Порядок18КонтекстноеМеню" id="180"/>
+									<ExtendedTooltip name="Порядок18РасширеннаяПодсказка" id="181"/>
+								</InputField>
+								<InputField name="Характеристика18" id="78">
+									<DataPath>Объект.Характеристика18</DataPath>
+									<ContextMenu name="Характеристика18КонтекстноеМеню" id="79"/>
+									<ExtendedTooltip name="Характеристика18РасширеннаяПодсказка" id="80"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар18" id="256">
+									<DataPath>Объект.ФильтрХар18</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр18</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар18КонтекстноеМеню" id="257"/>
+									<ExtendedTooltip name="ФильтрХар18РасширеннаяПодсказка" id="258"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа23" id="182">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа23РасширеннаяПодсказка" id="183"/>
+							<ChildItems>
+								<InputField name="Порядок19" id="184">
+									<DataPath>Объект.Порядок19</DataPath>
+									<ContextMenu name="Порядок19КонтекстноеМеню" id="185"/>
+									<ExtendedTooltip name="Порядок19РасширеннаяПодсказка" id="186"/>
+								</InputField>
+								<InputField name="Характеристика19" id="81">
+									<DataPath>Объект.Характеристика19</DataPath>
+									<ContextMenu name="Характеристика19КонтекстноеМеню" id="82"/>
+									<ExtendedTooltip name="Характеристика19РасширеннаяПодсказка" id="83"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар19" id="259">
+									<DataPath>Объект.ФильтрХар19</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр19</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар19КонтекстноеМеню" id="260"/>
+									<ExtendedTooltip name="ФильтрХар19РасширеннаяПодсказка" id="261"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа24" id="187">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа24РасширеннаяПодсказка" id="188"/>
+							<ChildItems>
+								<InputField name="Порядок20" id="189">
+									<DataPath>Объект.Порядок20</DataPath>
+									<ContextMenu name="Порядок20КонтекстноеМеню" id="190"/>
+									<ExtendedTooltip name="Порядок20РасширеннаяПодсказка" id="191"/>
+								</InputField>
+								<InputField name="Характеристика20" id="84">
+									<DataPath>Объект.Характеристика20</DataPath>
+									<ContextMenu name="Характеристика20КонтекстноеМеню" id="85"/>
+									<ExtendedTooltip name="Характеристика20РасширеннаяПодсказка" id="86"/>
+								</InputField>
+								<CheckBoxField name="ФильтрХар20" id="262">
+									<DataPath>Объект.ФильтрХар20</DataPath>
+									<Title>
+										<v8:item>
+											<v8:lang>ru</v8:lang>
+											<v8:content>Фильтр20</v8:content>
+										</v8:item>
+									</Title>
+									<CheckBoxType>Auto</CheckBoxType>
+									<ContextMenu name="ФильтрХар20КонтекстноеМеню" id="263"/>
+									<ExtendedTooltip name="ФильтрХар20РасширеннаяПодсказка" id="264"/>
+								</CheckBoxField>
+							</ChildItems>
+						</UsualGroup>
+						<UsualGroup name="Группа14" id="137">
+							<Group>AlwaysHorizontal</Group>
+							<Behavior>Usual</Behavior>
+							<ShowTitle>false</ShowTitle>
+							<ExtendedTooltip name="Группа14РасширеннаяПодсказка" id="138"/>
+						</UsualGroup>
+					</ChildItems>
+				</UsualGroup>
+			</ChildItems>
+		</UsualGroup>
+		<UsualGroup name="Группа26" id="203">
+			<Behavior>Usual</Behavior>
+			<ExtendedTooltip name="Группа26РасширеннаяПодсказка" id="204"/>
+			<ChildItems>
+				<InputField name="КодДляСтатистикиРозница" id="197">
+					<DataPath>Объект.КодДляСтатистикиРозница</DataPath>
+					<ContextMenu name="КодДляСтатистикиРозницаКонтекстноеМеню" id="198"/>
+					<ExtendedTooltip name="КодДляСтатистикиРозницаРасширеннаяПодсказка" id="199"/>
+				</InputField>
+				<InputField name="КодДляСтатистикиРозниц_Раздел4" id="200">
+					<DataPath>Объект.КодДляСтатистикиРозница_Раздел4</DataPath>
+					<ContextMenu name="КодДляСтатистикиРозниц_Раздел4КонтекстноеМеню" id="201"/>
+					<ExtendedTooltip name="КодДляСтатистикиРозниц_Раздел4РасширеннаяПодсказка" id="202"/>
+				</InputField>
+			</ChildItems>
+		</UsualGroup>
+		<CheckBoxField name="ОбъединятьНоменклатуру" id="265">
+			<DataPath>Объект.ОбъединятьНоменклатуру</DataPath>
+			<Title>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Объединять Номенклатуру(Для монитора загрузки)</v8:content>
+				</v8:item>
+			</Title>
+			<CheckBoxType>Auto</CheckBoxType>
+			<ContextMenu name="ОбъединятьНоменклатуруКонтекстноеМеню" id="266"/>
+			<ExtendedTooltip name="ОбъединятьНоменклатуруРасширеннаяПодсказка" id="267"/>
+		</CheckBoxField>
+	</ChildItems>
+	<Attributes>
+		<Attribute name="Объект" id="1">
+			<Type>
+				<v8:Type>cfg:CatalogObject.Номенклатура</v8:Type>
+			</Type>
+			<MainAttribute>true</MainAttribute>
+			<SavedData>true</SavedData>
+		</Attribute>
+	</Attributes>
+	<CommandInterface>
+		<NavigationPanel>
+			<Item>
+				<Command>CommonCommand.МоиЗаметкиПоПредмету</Command>
+				<Type>Added</Type>
+				<Attribute>Объект.Ref</Attribute>
+				<CommandGroup>FormNavigationPanelGoTo</CommandGroup>
+				<DefaultVisible>false</DefaultVisible>
+			</Item>
+		</NavigationPanel>
+		<CommandBar>
+			<Item>
+				<Command>CommonCommand.СоздатьЗаметкуПоПредмету</Command>
+				<Type>Added</Type>
+				<Attribute>Объект.Ref</Attribute>
+				<CommandGroup>CommandGroup.Органайзер</CommandGroup>
+				<DefaultVisible>false</DefaultVisible>
+			</Item>
+		</CommandBar>
+	</CommandInterface>
+</Form>
