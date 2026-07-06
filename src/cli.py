@@ -136,12 +136,32 @@ def cmd_mcp(project: Project, args: argparse.Namespace) -> None:
         try:
             import asyncio
 
-            from .mcp_server import run_mcp_server
+            # D-5/I6.3: transport selection
+            transport = getattr(args, "transport", "stdio")
+            host = getattr(args, "host", "127.0.0.1")
+            port = getattr(args, "port", 8080)
 
-            asyncio.run(run_mcp_server())
+            if transport == "stdio":
+                from .mcp_server import run_mcp_server
+                asyncio.run(run_mcp_server())
+            elif transport in ("sse", "http", "streamable-http"):
+                from .mcp_http_server import run_mcp_http_server
+                print(f"🚀 MCP server ({transport}) starting on {host}:{port}")
+                if host == "0.0.0.0":
+                    print("⚠️  Сервер доступен извне! Убедитесь что есть firewall/TLS.")
+                print(f"   Health check: http://{host}:{port}/health")
+                print(f"   SSE endpoint: http://{host}:{port}/sse")
+                print(f"   HTTP endpoint: http://{host}:{port}/mcp")
+                asyncio.run(run_mcp_http_server(transport=transport, host=host, port=port))
+            else:
+                print(f"❌ Неизвестный transport: {transport}")
+                print("   Используйте: stdio, sse, или http")
+                sys.exit(1)
         except ImportError as e:
             print(f"❌ MCP SDK не установлен: {e}")
             print("   Установите: pip install mcp")
+            if transport != "stdio":
+                print("   Для HTTP/SSE также: pip install uvicorn starlette")
             sys.exit(1)
     elif args.mcp_command == "tools":
         # Выводим список tools — импортируем tool_definitions напрямую
@@ -511,7 +531,24 @@ def main() -> None:
     # mcp
     p_mcp = sub.add_parser("mcp", help="MCP-сервер для IDE/LLM")
     mcp_sub = p_mcp.add_subparsers(dest="mcp_command", required=True)
-    mcp_sub.add_parser("serve", help="Запустить MCP-сервер (stdio)")
+    mcp_serve = mcp_sub.add_parser("serve", help="Запустить MCP-сервер")
+    mcp_serve.add_argument(
+        "--transport", "-t",
+        choices=["stdio", "sse", "http"],
+        default="stdio",
+        help="Transport: stdio (по умолчанию), sse, или http (streamable HTTP)",
+    )
+    mcp_serve.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Хост для HTTP/SSE transport (по умолчанию 127.0.0.1, используйте 0.0.0.0 для external)",
+    )
+    mcp_serve.add_argument(
+        "--port", "-p",
+        type=int,
+        default=8080,
+        help="Порт для HTTP/SSE transport (по умолчанию 8080)",
+    )
     mcp_sub.add_parser("tools", help="Вывести список доступных tools")
 
     # data — persistence данных

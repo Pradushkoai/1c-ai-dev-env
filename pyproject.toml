@@ -45,6 +45,11 @@ rag = [
 mcp = [
     "mcp>=1.0,<2.0",
 ]
+mcp-http = [
+    "mcp>=1.0,<2.0",
+    "uvicorn>=0.27,<1.0",
+    "starlette>=0.37,<1.0",
+]
 metrics = [
     "prometheus-client>=0.20,<1.0",
 ]
