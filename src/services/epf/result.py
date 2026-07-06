@@ -25,5 +25,7 @@ class EpfFactoryResult:
     bsl_lines: int = 0
     bsl_warnings: int = 0
     bsl_errors: int = 0
+    bsl_validation_ok: bool = False
     round_trip_ok: bool = False
     work_dir: Path | None = None  # если save_sources=True
+    native_mode: bool = False  # T5.1b: True если создано через NativeEpfWriter
