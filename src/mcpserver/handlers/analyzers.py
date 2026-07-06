@@ -86,7 +86,7 @@ async def handle_check_standards(project: Project, arguments: dict[str, Any]) ->
 
 
 async def handle_solve_context(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
-    """Сбор контекста для решения задачи 1С."""
+    """Сбор контекста для решения задачи 1С + workflow recommendations."""
     from src.services.task_processor import TaskProcessor
 
     query = arguments.get("query", "")
@@ -94,13 +94,75 @@ async def handle_solve_context(project: Project, arguments: dict[str, Any]) -> l
     limit = arguments.get("limit", 5)
 
     processor = TaskProcessor(project.paths)
-    # P1.10: solve() собирает контекст из 7 источников — sync I/O тяжелый.
     ctx = await run_sync(processor.solve, query, config_name=config, limit=limit)
+    ctx_dict = ctx.to_dict()
+
+    # Step 3: Generate workflow recommendations based on task type
+    query_lower = query.lower()
+    workflow: list[dict[str, str]] = []
+
+    # Detect task type and recommend workflow
+    if any(w in query_lower for w in ["запрос", "query", "register", "регистр", "выбрать"]):
+        # Task: write a query
+        workflow = [
+            {"step": 1, "tool": "search_1c_methods", "why": "Найти методы работающие с регистром/объектом"},
+            {"step": 2, "tool": "get_object_structure", "why": "Получить точные имена полей (ресурсы, измерения) ПЕРЕД написанием запроса"},
+            {"step": 3, "tool": "bsl_templates", "why": "Использовать шаблон query_with_filter (SEC001: параметризованный запрос)"},
+            {"step": 4, "tool": "audit_security", "why": "Проверить готовый код на SQL-инъекции (SEC001)"},
+            {"step": 5, "tool": "check_standards", "why": "Проверить стандарты 1С (ключевые слова, области, тернарные операторы)"},
+        ]
+    elif any(w in query_lower for w in ["обработк", "epf", "внешняя", "форма"]):
+        # Task: create EPF / form
+        workflow = [
+            {"step": 1, "tool": "search_1c_methods", "why": "Найти похожие реализации"},
+            {"step": 2, "tool": "get_object_structure", "why": "Получить структуру объекта для формы"},
+            {"step": 3, "tool": "bsl_templates", "why": "Использовать шаблон для генерации BSL кода"},
+            {"step": 4, "tool": "epf_factory_create", "why": "Создать .epf файл из сгенерированного кода"},
+            {"step": 5, "tool": "audit_security", "why": "Проверить код на безопасность"},
+        ]
+    elif any(w in query_lower for w in ["аудит", "security", "безопасн", "уязвим"]):
+        # Task: security audit
+        workflow = [
+            {"step": 1, "tool": "audit_security", "why": "Аудит BSL кода (15 правил SEC001-SEC015)"},
+            {"step": 2, "tool": "check_standards", "why": "Проверка стандартов 1С (56 правил)"},
+            {"step": 3, "tool": "code_sandbox", "why": "Проверка кода в sandbox перед выполнением"},
+        ]
+    elif any(w in query_lower for w in ["зависим", "архитектур", "call", "вызов"]):
+        # Task: architecture analysis
+        workflow = [
+            {"step": 1, "tool": "inspect", "why": "Получить обзор конфигурации (типы, количество объектов)"},
+            {"step": 2, "tool": "build_dependency_graph", "why": "Построить граф зависимостей метаданных"},
+            {"step": 3, "tool": "call_graph", "why": "Анализ вызовов методов (callers, callees, cycles, dead-code)"},
+        ]
+    elif any(w in query_lower for w in ["поиск", "find", "search", "метод"]):
+        # Task: search
+        workflow = [
+            {"step": 1, "tool": "list_configs", "why": "Проверить какие конфигурации загружены"},
+            {"step": 2, "tool": "search_1c_methods", "why": "BM25 поиск по методам платформы 1С"},
+            {"step": 3, "tool": "search_code", "why": "BM25 поиск по коду конфигурации"},
+            {"step": 4, "tool": "get_object_structure", "why": "Получить структуру найденного объекта"},
+        ]
+    else:
+        # Default workflow
+        workflow = [
+            {"step": 1, "tool": "list_configs", "why": "Проверить доступные конфигурации"},
+            {"step": 2, "tool": "search_1c_methods", "why": "Найти релевантные методы"},
+            {"step": 3, "tool": "get_object_structure", "why": "Получить структуру объекта"},
+            {"step": 4, "tool": "call_graph", "why": "Анализ зависимостей"},
+            {"step": 5, "tool": "audit_security", "why": "Проверка безопасности"},
+            {"step": 6, "tool": "check_standards", "why": "Проверка стандартов"},
+        ]
+
+    response = {
+        **ctx_dict,
+        "_workflow": workflow,
+        "_workflow_hint": "Следуйте шагам workflow выше для решения задачи. Каждый step указывает tool и причину вызова.",
+    }
 
     return [
         types.TextContent(
             type="text",
-            text=json.dumps(ctx.to_dict(), ensure_ascii=False, indent=2),
+            text=json.dumps(response, ensure_ascii=False, indent=2),
         )
     ]
 
