@@ -26,7 +26,7 @@ jobs:
 
       - name: Set up QEMU
         # I7.1: QEMU для кросс-компиляции (amd64 → arm64)
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: arm64
 
