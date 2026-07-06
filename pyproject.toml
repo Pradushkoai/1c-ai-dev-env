@@ -48,7 +48,7 @@ mcp = [
 mcp-http = [
     "mcp>=1.0,<2.0",
     "uvicorn>=0.27,<1.0",
-    "starlette>=0.37,<1.0",
+    "starlette>=0.37,<2.0",
 ]
 metrics = [
     "prometheus-client>=0.20,<1.0",
