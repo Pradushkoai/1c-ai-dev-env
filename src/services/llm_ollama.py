@@ -212,6 +212,74 @@ class OllamaClient:
             logger.warning("Ollama generate error: %s", e)
             return OllamaResponse(error=f"Generate error: {e}", model=use_model)
 
+    def generate_stream(
+        self,
+        prompt: str,
+        context: str = "",
+        model: str | None = None,
+        system: str = "",
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
+    ) -> Any:
+        """A4.3: Streaming генерация текста через Ollama.
+
+        Возвращает generator, который yield'ит chunks текста по мере их поступления.
+        Ollama /api/generate с stream=true возвращает newline-delimited JSON,
+        каждый объект содержит поле "response" с куском текста.
+
+        Args:
+            prompt: Пользовательский промпт.
+            context: Контекст для RAG.
+            model: Модель (если None — self.model).
+            system: Системный промпт.
+            temperature: Temperature.
+            max_tokens: Максимум токенов.
+
+        Yields:
+            str chunks текста по мере генерации.
+
+        Raises:
+            urllib.error.URLError: Если Ollama недоступен.
+        """
+        use_model = model or self.model
+        full_prompt = self._build_prompt(prompt, context, system)
+
+        payload: dict[str, Any] = {
+            "model": use_model,
+            "prompt": full_prompt,
+            "stream": True,  # A4.3: streaming mode
+            "options": {
+                "temperature": temperature,
+                "num_predict": max_tokens,
+            },
+        }
+
+        url = f"{self.base_url}/api/generate"
+        data = json.dumps(payload).encode("utf-8")
+
+        req = urllib.request.Request(
+            url,
+            data=data,
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+
+        # Streaming: читаем response построчно
+        with urllib.request.urlopen(req, timeout=self.timeout) as response:
+            for line in response:
+                line = line.decode("utf-8").strip()
+                if not line:
+                    continue
+                try:
+                    chunk = json.loads(line)
+                    text = chunk.get("response", "")
+                    if text:
+                        yield text
+                    if chunk.get("done", False):
+                        break
+                except json.JSONDecodeError:
+                    continue
+
     def _build_prompt(self, prompt: str, context: str, system: str) -> str:
         """Построить полный промпт с контекстом и системными инструкциями.
 
