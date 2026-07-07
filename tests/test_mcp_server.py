@@ -205,8 +205,11 @@ def test_call_list_configs(mcp_server_with_mock_project):
     assert len(result.root.content) > 0
     text = result.root.content[0].text
     data = json.loads(text)
-    assert isinstance(data, list)
-    assert data[0]["name"] == "ut11"
+    # P1.x: handler возвращает dict с configs + _next_steps
+    assert isinstance(data, dict)
+    configs = data["configs"]
+    assert configs[0]["name"] == "ut11"
+    assert "_next_steps" in data
 
 
 def test_call_search_1c_methods(mcp_server_with_mock_project):
@@ -223,8 +226,10 @@ def test_call_search_1c_methods(mcp_server_with_mock_project):
     )
     project.search_methods.assert_called_once_with("найти", 10)
     data = json.loads(result.root.content[0].text)
-    assert len(data) == 1
-    assert data[0]["name_ru"] == "Найти"
+    # P1.x: handler возвращает dict с results + total + _next_steps
+    results = data["results"]
+    assert len(results) == 1
+    assert results[0]["name_ru"] == "Найти"
 
 
 def test_call_get_api_reference_without_module(mcp_server_with_mock_project):

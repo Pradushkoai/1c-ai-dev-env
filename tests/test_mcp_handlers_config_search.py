@@ -39,8 +39,13 @@ class TestHandleListConfigs:
         project.list_configs_info.return_value = [{"name": "ut11", "version": "11.5"}]
         result = await handle_list_configs(project, {})
         data = _parse(result)
-        assert len(data) == 1
-        assert data[0]["name"] == "ut11"
+        # P1.x: handler возвращает dict с configs + _next_steps
+        configs = data["configs"]
+        assert len(configs) == 1
+        assert configs[0]["name"] == "ut11"
+        # _next_steps присутствует для LLM-агентов
+        assert "_next_steps" in data
+        assert isinstance(data["_next_steps"], list)
 
     @pytest.mark.asyncio
     async def test_empty_configs(self):
@@ -48,7 +53,9 @@ class TestHandleListConfigs:
         project.list_configs_info.return_value = []
         result = await handle_list_configs(project, {})
         data = _parse(result)
-        assert data == []
+        # P1.x: даже при пустом списке возвращается dict с configs и _next_steps
+        assert data["configs"] == []
+        assert "_next_steps" in data
 
 
 # ─── handle_search_1c_methods ───
@@ -61,7 +68,10 @@ class TestHandleSearch1cMethods:
         project.search_methods.return_value = [{"name": "НайтиПоКоду", "score": 0.95}]
         result = await handle_search_1c_methods(project, {"query": "найти", "limit": 5})
         data = _parse(result)
-        assert len(data) == 1
+        # P1.x: handler возвращает dict с results + total + _next_steps
+        results = data["results"]
+        assert len(results) == 1
+        assert results[0]["name"] == "НайтиПоКоду"
         project.search_methods.assert_called_once_with("найти", 5)
 
     @pytest.mark.asyncio
@@ -70,7 +80,9 @@ class TestHandleSearch1cMethods:
         project.search_methods.return_value = []
         result = await handle_search_1c_methods(project, {"query": ""})
         data = _parse(result)
-        assert data == []
+        # P1.x: пустой запрос возвращает dict с пустым results
+        assert data["results"] == []
+        assert data["total"] == 0
 
     @pytest.mark.asyncio
     async def test_default_limit(self):
@@ -91,7 +103,10 @@ class TestHandleSearchCode:
             mock_search.return_value = [{"name": "СоздатьЗаказ", "score": 0.9}]
             result = await handle_search_code(project, {"query": "заказ", "config_name": "ut11", "limit": 5})
             data = _parse(result)
-            assert len(data) == 1
+            # P1.x: handler возвращает dict с results + total + _next_steps
+            results = data["results"]
+            assert len(results) == 1
+            assert results[0]["name"] == "СоздатьЗаказ"
             mock_search.assert_called_once_with("ut11", "заказ", 5, project.paths)
 
     @pytest.mark.asyncio
@@ -101,7 +116,9 @@ class TestHandleSearchCode:
             mock_search.return_value = []
             result = await handle_search_code(project, {"query": "несуществующее", "config_name": "ut11"})
             data = _parse(result)
-            assert data == []
+            # P1.x: пустой результат возвращает dict с пустым results
+            assert data["results"] == []
+            assert data["total"] == 0
 
 
 # ─── handle_call_graph ───
@@ -117,7 +134,9 @@ class TestHandleCallGraph:
             mock_build.return_value = graph
             result = await handle_call_graph(project, {"config_name": "ut11", "action": "stats"})
             data = _parse(result)
-            assert data["total_methods"] == 100
+            # P1.x: handler возвращает dict с result + _next_steps
+            assert data["result"]["total_methods"] == 100
+            assert "_next_steps" in data
 
     @pytest.mark.asyncio
     async def test_cycles_action(self):
@@ -128,7 +147,7 @@ class TestHandleCallGraph:
             mock_build.return_value = graph
             result = await handle_call_graph(project, {"config_name": "ut11", "action": "cycles"})
             data = _parse(result)
-            assert len(data) == 1
+            assert len(data["result"]) == 1
 
     @pytest.mark.asyncio
     async def test_callers_action(self):
@@ -142,7 +161,7 @@ class TestHandleCallGraph:
                 {"config_name": "ut11", "action": "callers", "module": "M1", "method": "F2"},
             )
             data = _parse(result)
-            assert len(data) == 1
+            assert len(data["result"]) == 1
 
     @pytest.mark.asyncio
     async def test_callees_action(self):
@@ -156,7 +175,7 @@ class TestHandleCallGraph:
                 {"config_name": "ut11", "action": "callees", "module": "M1", "method": "F1"},
             )
             data = _parse(result)
-            assert len(data) == 1
+            assert len(data["result"]) == 1
 
     @pytest.mark.asyncio
     async def test_dead_code_action(self):
@@ -171,8 +190,8 @@ class TestHandleCallGraph:
             project.paths.config_api_reference_json.return_value = api_path
             result = await handle_call_graph(project, {"config_name": "ut11", "action": "dead-code"})
             data = _parse(result)
-            assert len(data) == 1
-            assert data[0]["module"] == "M1"
+            assert len(data["result"]) == 1
+            assert data["result"][0]["module"] == "M1"
 
     @pytest.mark.asyncio
     async def test_unknown_action_returns_dict(self):
@@ -183,7 +202,9 @@ class TestHandleCallGraph:
             mock_build.return_value = graph
             result = await handle_call_graph(project, {"config_name": "ut11", "action": "unknown"})
             data = _parse(result)
-            assert "nodes" in data
+            # P1.x: handler оборачивает в dict с result + _next_steps
+            assert "nodes" in data["result"]
+            assert "_next_steps" in data
 
 
 # ─── handle_get_form_elements ───
