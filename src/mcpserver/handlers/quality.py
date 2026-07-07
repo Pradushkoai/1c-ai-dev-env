@@ -488,6 +488,93 @@ async def handle_diff_configs(project: Project, arguments: dict[str, Any]) -> li
         ]
 
 
+# ─── P1.5: Статический валидатор запросов ───
+
+
+async def handle_validate_query_static(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
+    """P1.5: Статическая валидация запроса 1С по метаданным из выгрузки (без живой базы).
+
+    Проверяет: существование таблиц и полей, доступность виртуальных таблиц по типу
+    регистра (Остатки только для AccumulationRegister.Balance), типы в агрегатных
+    функциях (СУММА ожидает число), корректность алиасов таблиц.
+    """
+    query_text = arguments.get("query", "")
+    config_name = arguments.get("config_name", "")
+
+    if not query_text.strip():
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps({"error": "query is required"}, ensure_ascii=False),
+            )
+        ]
+
+    # Ищем metadata index для указанной (или любой) конфигурации
+    metadata_path = None
+    configs_root = project.paths.derived / "configs"
+    if config_name:
+        candidate = configs_root / config_name / "unified-metadata-index.json"
+        if candidate.exists():
+            metadata_path = candidate
+    else:
+        # Берём любую доступную конфигурацию
+        if configs_root.exists():
+            for cfg_dir in sorted(configs_root.iterdir()):
+                candidate = cfg_dir / "unified-metadata-index.json"
+                if candidate.exists():
+                    metadata_path = candidate
+                    break
+
+    if metadata_path is None:
+        available: list[str] = []
+        if configs_root.exists():
+            available = [
+                d.name
+                for d in configs_root.iterdir()
+                if (d / "unified-metadata-index.json").exists()
+            ]
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(
+                    {
+                        "error": "metadata index not found",
+                        "hint": "Run: 1c-ai config build --name <name>",
+                        "config_name": config_name,
+                        "available_configs": available,
+                    },
+                    ensure_ascii=False,
+                ),
+            )
+        ]
+
+    try:
+        # P1.5: импорт внутри функции (как в других handlers)
+        from src.services.analyzers.query_validator_static import StaticQueryValidator
+
+        validator = StaticQueryValidator.from_metadata_file(metadata_path)
+        result = validator.validate(query_text)
+        response = result.to_dict()
+        response["metadata_file"] = str(metadata_path)
+        response["config_name"] = config_name or metadata_path.parent.name
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(response, ensure_ascii=False, indent=2),
+            )
+        ]
+    except Exception as e:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(
+                    {"error": f"Validation failed: {str(e)}"},
+                    ensure_ascii=False,
+                ),
+            )
+        ]
+
+
 # Реестр handlers
 QUALITY_HANDLERS: dict[str, Any] = {
     "get_knowledge": handle_get_knowledge,
@@ -499,4 +586,5 @@ QUALITY_HANDLERS: dict[str, Any] = {
     "check_form_quality": handle_check_form_quality,
     "check_skd_quality": handle_check_form_quality,  # P3: split into separate handler
     "diff_configs": handle_diff_configs,
+    "validate_query_static": handle_validate_query_static,  # P1.5: статический валидатор запросов
 }

@@ -43,5 +43,6 @@
   "skd_trace",
   "solve_check",
   "solve_context",
-  "validate_generated"
+  "validate_generated",
+  "validate_query_static"
 ]

@@ -147,5 +147,8 @@
   ],
   "validate_generated": [
     "source_dir"
+  ],
+  "validate_query_static": [
+    "query"
   ]
 }

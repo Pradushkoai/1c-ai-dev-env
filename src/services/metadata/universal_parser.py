@@ -83,6 +83,65 @@ class UniversalObjectParser:
             "file": str(xml_path.name),
         }
 
+        # P1.5: добавляем платформенные стандартные реквизиты (Ссылка, Период, Регистратор, ...)
+        # Они не описаны в XML, но всегда доступны в запросах 1С.
+        try:
+            from .standard_attributes import get_standard_attributes
+
+            platform_std_attrs = get_standard_attributes(obj_type, props)
+            if platform_std_attrs:
+                # Объединяем с распарсенными <StandardAttributes> из XML
+                existing_names = {a.get("name") for a in std_attrs}
+                for attr in platform_std_attrs:
+                    if attr.get("name") not in existing_names:
+                        std_attrs.append(attr)
+                # Также добавляем в child_objects.attributes для удобства валидатора
+                existing_child_names = {a.get("name") for a in children.get("attributes", [])}
+                for attr in platform_std_attrs:
+                    if attr.get("name") not in existing_child_names:
+                        children.setdefault("attributes", []).append(attr)
+        except Exception:
+            # Если стандартные реквизиты недоступны — не критично
+            pass
+
+        # P1.5: разделяем attributes по kind (Dimension / Resource / Attribute / Standard)
+        # для удобства статического валидатора запросов.
+        dimensions = []
+        resources = []
+        plain_attributes = []
+        standard_attrs_separated = []
+        for attr in children.get("attributes", []):
+            kind = attr.get("kind", "Attribute")
+            if kind == "Dimension":
+                dimensions.append(attr)
+            elif kind == "Resource":
+                resources.append(attr)
+            elif kind == "Standard":
+                standard_attrs_separated.append(attr)
+            else:
+                plain_attributes.append(attr)
+        children["dimensions"] = dimensions
+        children["resources"] = resources
+        children["attributes_only"] = plain_attributes
+        children["standard_attributes"] = standard_attrs_separated
+
+        # P1.5: ресолвинг типов полей в структурированное представление
+        # (CatalogRef.X → {kind: 'ref', ref_kind: 'Catalog', ref_name: 'X'})
+        try:
+            from .type_resolver import resolve_field_types_from_metadata
+
+            for attr_list_key in ("attributes", "dimensions", "resources", "attributes_only", "standard_attributes"):
+                for attr in children.get(attr_list_key, []):
+                    if "types" in attr and not attr.get("resolved_type"):
+                        attr["resolved_type"] = resolve_field_types_from_metadata(attr["types"]).to_dict()
+            # Также для реквизитов табличных частей
+            for ts in children.get("tabular_sections", []):
+                for attr in ts.get("attributes", []):
+                    if "types" in attr and not attr.get("resolved_type"):
+                        attr["resolved_type"] = resolve_field_types_from_metadata(attr["types"]).to_dict()
+        except Exception:
+            pass
+
         # Убираем Name/Synonym/Comment из properties (они уже в верхнем уровне)
         for key in ("Name", "Synonym", "Comment"):
             props.pop(key, None)
@@ -182,6 +241,28 @@ class UniversalObjectParser:
                 attr = self._parse_attribute(child)
                 attr["kind"] = tag
                 result["attributes"].append(attr)
+            elif tag == "PredefinedItem":
+                # P1.5: предопределённые элементы справочников/планов видов характеристик
+                # Формат XML: <PredefinedItem uuid="..."><Name>...</Name><Code>...</Code>...
+                #              <IsFolder>false</IsFolder><Item>...</Item></PredefinedItem>
+                # Поддерживается также <Predefined> (без Item-суффикса) — зависит от версии платформы.
+                result["predefined"].append(self._parse_predefined_item(child))
+            elif tag == "Predefined":
+                # Альтернативный формат — вложенный <Predefined> для предопределённых
+                predefined_data = self._parse_predefined_data(child)
+                if predefined_data:
+                    result["predefined"].extend(predefined_data)
+            elif tag in ("PredefinedData", "PredefinedValue"):
+                # Ещё один вариант имени тега
+                predefined_props = XMLUtils.get_child(child, "Properties")
+                result["predefined"].append(
+                    {
+                        "name": XMLUtils.get_text(predefined_props, "Name") if predefined_props is not None else (child.text or ""),
+                        "uuid": child.get("uuid", ""),
+                        "is_folder": XMLUtils.get_bool(predefined_props, "IsFolder") if predefined_props is not None else False,
+                        "code": XMLUtils.get_text(predefined_props, "Code") if predefined_props is not None else "",
+                    }
+                )
             else:
                 # Другие вложенные объекты
                 result["other"].append(
@@ -193,6 +274,54 @@ class UniversalObjectParser:
                 )
 
         return result
+
+    def _parse_predefined_item(self, item_elem) -> dict[str, Any]:
+        """P1.5: Парсит <PredefinedItem> — предопределённый элемент.
+
+        Формат:
+            <PredefinedItem uuid="...">
+                <Name>Услуга</Name>
+                <Code>000000001</Code>
+                <IsFolder>false</IsFolder>
+                <Item .../>   <!-- родитель, если есть -->
+            </PredefinedItem>
+        """
+        props = {
+            "name": XMLUtils.get_text(item_elem, "Name"),
+            "uuid": item_elem.get("uuid", ""),
+            "is_folder": XMLUtils.get_bool(item_elem, "IsFolder"),
+            "code": XMLUtils.get_text(item_elem, "Code"),
+        }
+        # Родитель (для иерархических предопределённых)
+        parent_name = ""
+        for child in item_elem:
+            if XMLUtils.strip_ns(child.tag) == "Item":
+                # Item может содержать ссылку на родительский предопределённый
+                parent_name = XMLUtils.get_text(child, "Name") or child.text or ""
+                break
+        if parent_name:
+            props["parent"] = parent_name
+        return props
+
+    def _parse_predefined_data(self, predefined_elem) -> list[dict[str, Any]]:
+        """P1.5: Парсит содержимое <Predefined> — список предопределённых элементов."""
+        items: list[dict[str, Any]] = []
+        for child in predefined_elem:
+            tag = XMLUtils.strip_ns(child.tag)
+            if tag in ("PredefinedItem", "PredefinedData", "PredefinedValue", "Item"):
+                if tag == "PredefinedItem":
+                    items.append(self._parse_predefined_item(child))
+                else:
+                    props = XMLUtils.get_child(child, "Properties")
+                    items.append(
+                        {
+                            "name": XMLUtils.get_text(props, "Name") if props is not None else (child.text or ""),
+                            "uuid": child.get("uuid", ""),
+                            "is_folder": XMLUtils.get_bool(props, "IsFolder") if props is not None else False,
+                            "code": XMLUtils.get_text(props, "Code") if props is not None else "",
+                        }
+                    )
+        return items
 
     def _parse_attribute(self, attr_elem) -> dict[str, Any]:
         """Парсит <Attribute> — реквизит объекта."""

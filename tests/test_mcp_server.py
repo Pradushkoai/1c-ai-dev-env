@@ -17,14 +17,14 @@ from src.mcp_server import _get_tools_description, create_mcp_server
 # ============ _get_tools_description ============
 
 
-def test_get_tools_description_returns_45_tools():
-    """Должно быть 45 tools (P1.2 — синхронизировано с list_tools handler)."""
+def test_get_tools_description_returns_46_tools():
+    """Должно быть 46 tools (P1.5 — добавлен validate_query_static)."""
     tools = _get_tools_description()
-    assert len(tools) == 45
+    assert len(tools) == 46
 
 
 def test_get_tools_description_names():
-    """Имена tools соответствуют спецификации (45 tools, P1.2 sync)."""
+    """Имена tools соответствуют спецификации (46 tools, P1.5 sync)."""
     tools = _get_tools_description()
     expected = {
         # Базовые 29 tools
@@ -74,6 +74,8 @@ def test_get_tools_description_names():
         "openspec_list",
         "openspec_update_task",
         "openspec_archive",
+        # P1.5: статический валидатор запросов 1С
+        "validate_query_static",
     }
     actual = {t["name"] for t in tools}
     assert actual == expected, f"Missing: {expected - actual}, Extra: {actual - expected}"
@@ -367,8 +369,8 @@ def test_call_list_tools(mcp_server_with_mock_project):
     assert handler is not None
 
     result = asyncio.run(handler(ListToolsRequest(method="tools/list")))
-    # 29 (из _get_tools_description) + 16 (динамически зарегистрированные) = 45
-    assert len(result.root.tools) == 45
+    # 29 (из _get_tools_description) + 17 (динамически зарегистрированные + validate_query_static) = 46
+    assert len(result.root.tools) == 46
     names = {t.name for t in result.root.tools}
     assert "list_configs" in names
     assert "solve_check" in names

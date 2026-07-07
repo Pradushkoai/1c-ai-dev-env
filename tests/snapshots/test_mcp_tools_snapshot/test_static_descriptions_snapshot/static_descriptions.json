@@ -434,5 +434,15 @@
       "source_dir"
     ],
     "optional_params": []
+  },
+  {
+    "name": "validate_query_static",
+    "description": "P1.5: Статическая валидация запроса 1С по метаданным из выгрузки (БЕЗ живой базы). Проверяет: существование таблиц и полей, доступность виртуальных таблиц (Остатки только для AccumulationRegister.Balance), типы в агрегатах (СУММА ожидает число), корректность алиасов. Пример: validate_query_static(query='ВЫБРАТЬ Рег.Номенклатура ИЗ РегистрНакопления.Выручка КАК Рег', config_name='ut11').",
+    "required_params": [
+      "query"
+    ],
+    "optional_params": [
+      "config_name"
+    ]
   }
 ]

@@ -776,5 +776,21 @@
       "source_dir"
     ],
     "type": "object"
+  },
+  "validate_query_static": {
+    "properties": {
+      "config_name": {
+        "description": "Имя конфигурации (как в list_configs). Если не указано — использует любую доступную.",
+        "type": "string"
+      },
+      "query": {
+        "description": "Текст запроса 1С для валидации",
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "type": "object"
   }
 }

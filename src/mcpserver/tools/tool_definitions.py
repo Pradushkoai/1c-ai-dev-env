@@ -1,8 +1,11 @@
 """
-tool_definitions.py — определения всех 45 MCP tools (types.Tool).
+tool_definitions.py — определения всех 46 MCP tools (types.Tool).
 
 P2.2: вынесено из mcp_server.py для декомпозиции (SRP).
 Каждое определение — types.Tool с name, description, inputSchema.
+
+P1.5 (2026-07-06): добавлен validate_query_static (статическая валидация
+запросов 1С без живой базы). Всего tools: 46.
 
 Источник истины — tests/snapshots/test_mcp_tools_snapshot/.
 Любое изменение имён/описаний/схем требует --snapshot-update.
@@ -24,7 +27,7 @@ def _build_tool(name: str, description: str, input_schema: dict[str, Any]) -> ty
 
 
 def get_all_tool_definitions() -> list[types.Tool]:
-    """Вернуть список всех 45 MCP tools (для list_tools handler)."""
+    """Вернуть список всех 46 MCP tools (для list_tools handler)."""
     return [
         _build_tool(
             name="analyze_architecture",
@@ -565,6 +568,28 @@ def get_all_tool_definitions() -> list[types.Tool]:
                 "type": "object",
             },
         ),
+        _build_tool(
+            name="validate_query_static",
+            description=(
+                "P1.5: Статическая валидация запроса 1С по метаданным из выгрузки (БЕЗ живой базы). "
+                "Проверяет: существование таблиц и полей, доступность виртуальных таблиц по типу регистра "
+                "(Остатки только для AccumulationRegister.Balance), типы в агрегатных функциях "
+                "(СУММА ожидает число), корректность алиасов таблиц. Возвращает: valid, total_errors, "
+                "total_warnings, issues[] с rule_id и рекомендациями. "
+                "Пример: validate_query_static(query='ВЫБРАТЬ Рег.Номенклатура ИЗ РегистрНакопления.Выручка.Остатки КАК Рег', config_name='ut11')."
+            ),
+            input_schema={
+                "properties": {
+                    "query": {"description": "Текст запроса 1С для валидации", "type": "string"},
+                    "config_name": {
+                        "description": "Имя конфигурации (как в list_configs). Если не указано — использует любую доступную.",
+                        "type": "string",
+                    },
+                },
+                "required": ["query"],
+                "type": "object",
+            },
+        ),
     ]
 
 
@@ -843,5 +868,11 @@ def get_all_descriptions() -> list[dict]:
             "description": "Валидация сгенерированного кода: BSL-синтаксис (области, процедуры, циклы), XML-структура, целостность файлов. Возвращает: verdict (perfect/warnings/errors), total_errors, total_warnings. Пример: validate_generated(source_dir='generated/ВыгрузкаНоменклатуры').",
             "required_params": ["source_dir"],
             "optional_params": [],
+        },
+        {
+            "name": "validate_query_static",
+            "description": "P1.5: Статическая валидация запроса 1С по метаданным из выгрузки (БЕЗ живой базы). Проверяет: существование таблиц и полей, доступность виртуальных таблиц (Остатки только для AccumulationRegister.Balance), типы в агрегатах (СУММА ожидает число), корректность алиасов. Пример: validate_query_static(query='ВЫБРАТЬ Рег.Номенклатура ИЗ РегистрНакопления.Выручка КАК Рег', config_name='ut11').",
+            "required_params": ["query"],
+            "optional_params": ["config_name"],
         },
     ]
