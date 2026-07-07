@@ -2,29 +2,38 @@
 
 > Дорожная карта развития 1c-ai-dev-env.
 
-## Текущая версия: v6.0.0 (Beta)
+## Текущая версия: v6.1.0 (Beta → approaching Production-Ready)
 
-v6.0.0 завершает план v2 (Solo Edition). 19 из 20 задач выполнены.
-Проект находится в **Beta**-статусе: ядро стабильно, но Production-Ready
-откладывается до выполнения критериев ниже.
+**July 2026 — Architecture refactoring completed (Phase 1-4 of plan).**
 
-> ⚠️ **Корректировка от 2026-07-04**: ранее v6.0.0 заявлялся как
-> "Production-Ready". После аудита статус понижен до Beta — см.
-> [ADR-0006](adr/0006-scope-reduction-v6.md) и критерии перехода ниже.
-> Это более честная оценка для solo-dev проекта без реальных
-> пользователей SaaS/Enterprise фич.
+После завершения 4-фазного рефакторинга (см. [ADR-0009](adr/0009-architecture-refactor-strategy.md))
+репозиторий существенно улучшился:
+
+| Метрика | До рефакторинга | После |
+|---------|-----------------|-------|
+| Test failures (pre-existing) | 14 | 0 |
+| experimental/ LOC | ~1334 | 0 |
+| Дубликаты BSL модулей | 2 | 1 (thin wrapper) |
+| scripts/ файлы | 42 | 39 |
+| tool_definitions.py LOC | 879 | 623 |
+| call_graph.py LOC | 668 | 80 (re-export) |
+| Структура core/services/adapters | нет | да |
+| Architecture diagram | нет | C4 |
+| ADR | 8 | 10 |
 
 ### Критерии перехода Beta → Production-Ready
 
 Переход к Production-Ready состоится при выполнении **всех** условий:
 
-1. **Coverage ≥ 80%** (текущее: 72%, цель: 80% — этап 5.2 частично)
+1. **Coverage ≥ 80%** (текущее: ~73%, цель: 80% — Phase 1 стабилизировала, Phase 2-3 сохранили)
 2. **mypy strict без исключений** (warn_return_any ✅, disallow_any_generics gradual ✅)
 3. **Реальные пользователи** — ≥ 3 внешних issue/PR от non-author (0 на данный момент)
 4. **Bus factor > 1** — ≥ 1 активный контрибьютор кроме автора (0 на данный момент)
-5. **Документация актуальна** — Stability Matrix в README ✅, все public APIs задокументированы ✅
-6. **Нет критических TODO/FIXME** без issue-ссылки ✅ (этап 3.4)
-7. **Demo-конфигурация** проходит smoke-тест у внешнего пользователя ✅ (этап 7.1)
+5. **Документация актуальна** — Stability Matrix в README ✅, C4 диаграмма ✅ (Phase 4.1), ADR-0009 ✅ (Phase 4.2), DEPENDENCIES.md ✅ (Phase 4.4)
+6. **Нет критических TODO/FIXME** без issue-ссылки ✅
+7. **Demo-конфигурация** проходит smoke-тест у внешнего пользователя ✅
+
+**Осталось:** поднять coverage с 73% до 80% и получить реальных пользователей.
 
 До выполнения этих условий проект остаётся Beta. Использовать в
 production — на свой риск.
@@ -61,7 +70,29 @@ production — на свой риск.
 ### Заморожено (SaaS/Enterprise/Plugin, ADR-0006)
 
 Перенесено в BACKLOG до появления команды и реальных пользователей.
-Код сохранён в `experimental/` (см. задачу 0.1).
+Код `experimental/` удалён в Phase 1.2 рефакторинга (ADR-0009).
+
+## План v6.1: Architecture Refactoring (July 2026) — ✅ COMPLETED
+
+4-фазный рефакторинг по Strangler Fig Pattern (см. [ADR-0009](adr/0009-architecture-refactor-strategy.md)).
+
+| Фаза | Задача | Статус | Коммит |
+|------|--------|--------|--------|
+| 1.1 | Починить 14 pre-existing test failures | ✅ DONE | `2b01873` |
+| 1.2 | Удалить experimental/ (-1334 LOC) | ✅ DONE | `1f06f7d` |
+| 1.3 | bsl_ast.py → thin wrapper над bsl_tree_sitter | ✅ DONE | `2903194` |
+| 1.4 | Аудит scripts/, удаление 3 мёртвых скриптов | ✅ DONE | `61802ba` |
+| 2 | core/services/adapters слои с Protocol-контрактами | ✅ DONE | `e3df9a5` |
+| 3.1 | CLI — уже организован (src/cli.py + cli_commands/) | ✅ DONE | (no change needed) |
+| 3.2 | Handlers — domain aggregate modules | ✅ DONE | `bb0f7b5` |
+| 3.3 | tool_definitions.py — single source of truth (-256 LOC) | ✅ DONE | `5cd3017` |
+| 3.4 | call_graph.py — split into 3 modules (668→80 LOC) | ✅ DONE | `7d00000` |
+| 4.1 | C4 architecture diagram | ✅ DONE | this commit |
+| 4.2 | ADR-0009 refactor strategy | ✅ DONE | this commit |
+| 4.3 | ROADMAP update | ✅ DONE | this commit |
+| 4.4 | DEPENDENCIES.md | ✅ DONE | this commit |
+
+### Заморожено (SaaS/Enterprise/Plugin, ADR-0006)
 
 | ID | Задача | Причина заморозки |
 |----|--------|--------------------|
