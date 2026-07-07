@@ -409,7 +409,8 @@ class TestRegexFallbackWhenTreeSitterUnavailable:
 
     def test_parse_with_tree_sitter_returns_empty_when_unavailable(self, sample_bsl_module, tmp_path):
         """_parse_bsl_file_with_tree_sitter возвращает [] если tree-sitter недоступен."""
-        with patch("src.services.call_graph._TREE_SITTER_AVAILABLE", False):
+        # P3.4: _TREE_SITTER_AVAILABLE теперь в call_graph_parser (не call_graph)
+        with patch("src.services.call_graph_parser._TREE_SITTER_AVAILABLE", False):
             edges = _parse_bsl_file_with_tree_sitter(
                 sample_bsl_module, tmp_path, "TestModule", set(), set()
             )
