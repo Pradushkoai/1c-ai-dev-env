@@ -1,7 +1,7 @@
 [
   {
     "name": "analyze_architecture",
-    "description": "Анализ архитектуры: циклические зависимости, God Object, мёртвый код, layering, regions, queries in forms. Пример: analyze_architecture(config_dir='data/configs/ut11').",
+    "description": "Анализ архитектуры конфигурации: циклические зависимости, God Object, мёртвый код, layering, regions, queries in forms. Пример: analyze_architecture(config_dir='data/configs/ut11').",
     "required_params": [
       "config_dir"
     ],
@@ -9,7 +9,7 @@
   },
   {
     "name": "analyze_bsl",
-    "description": "Анализ .bsl файла через BSL Language Server (187 диагностик). Возвращает: total, by_code, diagnostics. Требует установленного BSL LS (Java).",
+    "description": "Анализ .bsl файла через BSL Language Server (187 диагностик). Возвращает: total, by_code (диагностика → кол-во), diagnostics (список). Требует установленного BSL LS (Java). Пример: analyze_bsl(file_path='/tmp/module.bsl')",
     "required_params": [
       "file_path"
     ],
@@ -17,7 +17,7 @@
   },
   {
     "name": "analyze_queries",
-    "description": "Анализ запросов 1С: SELECT *, LIKE %, функции в WHERE, JOIN без ON, временные таблицы без индексов. Пример: analyze_queries(file_path='module.bsl').",
+    "description": "Анализ запросов 1С в BSL коде: SELECT *, LIKE %, функции в WHERE, JOIN без ON, временные таблицы без индексов. Пример: analyze_queries(file_path='module.bsl').",
     "required_params": [
       "file_path"
     ],
@@ -25,7 +25,7 @@
   },
   {
     "name": "audit_security",
-    "description": "Аудит безопасности BSL кода: SQL-инъекции, Выполнить(), хардкод паролей/токенов, COM-объекты, привилегированный режим, path traversal, небезопасная десериализация. 15 правил. Пример: audit_security(file_path='module.bsl').",
+    "description": "Аудит безопасности BSL кода (15 правил SEC001-SEC015): SQL-инъекции, Выполнить(), пароли, COM, path traversal. ВЫЗЫВАЙТЕ ПОСЛЕ НАПИСАНИЯ КОДА для проверки. Пример: audit_security(file_path='module.bsl').",
     "required_params": [
       "file_path"
     ],
@@ -33,7 +33,7 @@
   },
   {
     "name": "build_dependency_graph",
-    "description": "Построить граф зависимостей метаданных 1С (networkx).",
+    "description": "Граф зависимостей метаданных 1С: какие объекты ссылаются на какие. Возвращает: nodes, edges, cycles. Используйте для анализа архитектуры конфигурации. Пример: build_dependency_graph(config_name='УТ11').",
     "required_params": [
       "config_name"
     ],
@@ -41,7 +41,7 @@
   },
   {
     "name": "build_epf",
-    "description": "Упаковка структуры каталога в .epf файл (внешняя обработка 1С). Принимает путь к каталогу (из generate_processing) и создаёт .epf. Пример: build_epf(source_dir='generated/ВыгрузкаНоменклатуры', output_path='ВыгрузкаНоменклатуры.epf').",
+    "description": "Упаковка структуры каталога в .epf файл (внешняя обработка 1С). Принимает путь к каталогу (из generate_processing или generate_report) и создаёт .epf файл. Пример: build_epf(source_dir='generated/ВыгрузкаНоменклатуры', output_path='ВыгрузкаНоменклатуры.epf').",
     "required_params": [
       "source_dir",
       "output_path"
@@ -53,19 +53,19 @@
   },
   {
     "name": "call_graph",
-    "description": "Граф вызовов методов конфигурации. Кто кого вызывает, мёртвый код, циклы. Action: stats, callers, callees, dead-code, cycles. Пример: call_graph(config_name='obhod', action='callees', module='ОбменДокументы', method='ВыполнитьПолныйОбмен').",
+    "description": "Граф вызовов методов: callers (кто вызывает), callees (кого вызывает), cycles (циклы), dead-code (мёртвый код). Используйте ПОСЛЕ search_1c_methods для анализа зависимостей найденного метода. Пример: call_graph(config_name='ut11', action='callers', module='ПродажиСервер', method='ОтразитьВыручку')",
     "required_params": [
       "config_name",
       "action"
     ],
     "optional_params": [
-      "module",
-      "method"
+      "method",
+      "module"
     ]
   },
   {
     "name": "cfe_borrow",
-    "description": "Заимствовать объект из конфигурации в расширение (CFE).",
+    "description": "Заимствовать объект из конфигурации в расширение (CFE). Создаёт XML с ObjectBelonging=Adopted. Пример: cfe_borrow(object_type='Catalog', object_name='Товары', cfe_name='МоеРасширение').",
     "required_params": [
       "extension_path",
       "config_path",
@@ -75,7 +75,7 @@
   },
   {
     "name": "cfe_diff",
-    "description": "Анализ расширения CFE: что заимствовано, что перехвачено.",
+    "description": "Анализ расширения CFE: что заимствовано, перехвачено. Возвращает: borrowed, patched, added. Пример: cfe_diff(config_path='data/configs/ut11', extension_path='data/cfe/МоеРасш').",
     "required_params": [
       "extension_path",
       "config_path"
@@ -84,7 +84,7 @@
   },
   {
     "name": "cfe_patch_method",
-    "description": "Сгенерировать BSL перехватчик (&Перед/&После/&ИзменениеИКонтроль).",
+    "description": "Сгенерировать BSL перехватчик (&Перед/&После/&ИзменениеИКонтроль). Создаёт BSL код патча метода. Пример: cfe_patch_method(extension_path='cfe/', interceptor_type='Before', module_path='Module.bsl', method_name='ПриОткрытии').",
     "required_params": [
       "extension_path",
       "module_path",
@@ -95,7 +95,7 @@
   },
   {
     "name": "check_form_quality",
-    "description": "Проверка качества форм: пустые, перегруженные, элементы без DataPath, кнопки без команд, дубли. Пример: check_form_quality(config_name='ut11').",
+    "description": "Проверка качества форм: пустые формы, перегруженные, элементы без DataPath, кнопки без команд, дублирующие имена. Пример: check_form_quality(config_name='ut11').",
     "required_params": [
       "config_name"
     ],
@@ -103,7 +103,7 @@
   },
   {
     "name": "check_skd_quality",
-    "description": "Проверка качества СКД: без параметров, без отборов, пустые запросы, перегруженные. Пример: check_skd_quality(config_name='ut11').",
+    "description": "Проверка качества СКД-схем: без параметров, без отборов, пустые запросы, перегруженные. Пример: check_skd_quality(config_name='ut11').",
     "required_params": [
       "config_name"
     ],
@@ -111,7 +111,7 @@
   },
   {
     "name": "check_standards",
-    "description": "Проверка .bsl файла на 56 правил стандартов 1С. Возвращает: список нарушений (rule_id, severity, line, message). Не требует Java — работает мгновенно.",
+    "description": "Проверка .bsl на 56 правил стандартов 1С. ВЫЗЫВАЙТЕ ПОСЛЕ audit_security для полной проверки качества кода. Не требует Java. Пример: check_standards(file_path='/tmp/module.bsl')",
     "required_params": [
       "file_path"
     ],
@@ -119,7 +119,7 @@
   },
   {
     "name": "check_transactions",
-    "description": "Проверка транзакций BSL: несбалансированные, без Try/Catch, интерактив в транзакции, длинные/вложенные. Пример: check_transactions(file_path='module.bsl').",
+    "description": "Проверка транзакций BSL: несбалансированные, без Try/Catch, интерактив в транзакции, длинные/вложенные транзакции. Пример: check_transactions(file_path='module.bsl').",
     "required_params": [
       "file_path"
     ],
@@ -127,13 +127,13 @@
   },
   {
     "name": "data_status",
-    "description": "Статус данных проекта: что доступно (платформа, конфигурации), что нужно перестроить, доступен ли autosave пакет. Используй, если данные не находятся — возможно нужно autoload.",
+    "description": "Статус данных проекта: что доступно (платформа, конфигурации), что нужно перестроить, доступен ли autosave пакет. Возвращает: has_platform_index, has_platform_methods, configs[], autosave_available. Пример: data_status().",
     "required_params": [],
     "optional_params": []
   },
   {
     "name": "dependency_query",
-    "description": "Запрос к графу зависимостей: what_depends_on, dependencies_of, find_cycles, find_unused_objects, и т.д.",
+    "description": "Запрос к графу зависимостей: what_depends_on, dependencies_of, find_cycles, и т.д. Возвращает nodes, edges, cycles. Пример: dependency_query(config_name='УТ', query_type='descendants', object_name='Справочник.Товары').",
     "required_params": [
       "config_name",
       "query_type",
@@ -145,7 +145,7 @@
   },
   {
     "name": "diff_configs",
-    "description": "Сравнение версий конфигурации: добавленные/удалённые/изменённые объекты, реквизиты, формы, роли. Пример: diff_configs(old_path='old.json', new_path='new.json').",
+    "description": "Сравнение версий конфигурации: добавленные/удалённые/изменённые объекты, реквизиты, формы, команды, роли, подсистемы. Пример: diff_configs(old_path='old.json', new_path='new.json').",
     "required_params": [
       "old_path",
       "new_path"
@@ -154,7 +154,7 @@
   },
   {
     "name": "dsl_compile_form",
-    "description": "JSON DSL → Form.xml управляемой формы.",
+    "description": "JSON DSL → Form.xml управляемой формы 1С. Создаёт XML формы из описания элементов. Пример: dsl_compile_form(definition={...}, output_path='Form.xml').",
     "required_params": [
       "definition",
       "output_path"
@@ -163,7 +163,7 @@
   },
   {
     "name": "dsl_compile_meta",
-    "description": "JSON DSL → XML метаданных 1С (23 типа объектов: Catalog, Document, Enum, и т.д.).",
+    "description": "JSON DSL → XML метаданных 1С (23 типа: Catalog, Document, CommonModule и др.). Пример: dsl_compile_meta(definition={'type':'Catalog','name':'Товары'}, output_dir='/tmp/out').",
     "required_params": [
       "definition",
       "output_dir"
@@ -172,7 +172,7 @@
   },
   {
     "name": "dsl_compile_mxl",
-    "description": "JSON DSL → MXL Template.xml (печатная форма).",
+    "description": "JSON DSL → MXL Template.xml (печатная форма). Создаёт табличный документ из описания. Пример: dsl_compile_mxl(definition={...}, output_path='Template.xml').",
     "required_params": [
       "definition",
       "output_path"
@@ -181,7 +181,7 @@
   },
   {
     "name": "dsl_compile_role",
-    "description": "JSON DSL → Rights.xml роли 1С.",
+    "description": "JSON DSL → Rights.xml роли 1С. Создаёт роль с правами доступа к объектам. Пример: dsl_compile_role(definition={...}, output_dir='Roles/').",
     "required_params": [
       "definition",
       "output_dir"
@@ -190,7 +190,7 @@
   },
   {
     "name": "dsl_compile_skd",
-    "description": "JSON DSL → СКД Template.xml (схема компоновки данных).",
+    "description": "JSON DSL → СКД Template.xml. Создаёт схему компоновки данных с запросом и полями. Пример: dsl_compile_skd(definition={...}, output_path='Schema.xml').",
     "required_params": [
       "definition",
       "output_path"
@@ -199,57 +199,59 @@
   },
   {
     "name": "epf_factory_create",
-    "description": "Создать внешнюю обработку 1С (.epf) из BSL-кода через полный цикл: шаблоны v8unpack → подстановка name/synonym/UUID → запись BSL-модуля → проверка BSL LS → сборка .epf → round-trip. Не требует 1С. Пример: epf_factory_create(name='МояОбработка', bsl_code='...', output_path='/tmp/МояОбработка.epf').",
+    "description": "Создать внешнюю обработку 1С (.epf) из BSL-кода через полный цикл: шаблоны v8unpack → подстановка name/synonym/UUID → запись BSL-модуля → проверка через BSL LS → сборка .epf → round-trip проверка. Не требует установленной 1С. Пример: epf_factory_create(name='МояОбработка', synonym='Моя обработка', bsl_code='#Область ПрограммныйИнтерфейс\\n#КонецОбласти', output_path='/tmp/МояОбработка.epf')",
     "required_params": [
       "name",
       "output_path"
     ],
     "optional_params": [
-      "synonym",
       "bsl_code",
       "bsl_path",
       "form_name",
+      "form_spec",
+      "form_spec_path",
+      "save_sources",
       "skip_bsl_validation",
-      "save_sources"
+      "synonym"
     ]
   },
   {
     "name": "epf_factory_templates",
-    "description": "Список доступных шаблонов для epf_factory_create (ExternalDataProcessor.json, Form.json, Form.id.json, Form.elem.empty.json).",
+    "description": "Список доступных шаблонов для epf_factory_create. Возвращает пути к шаблонам ExternalDataProcessor.json, Form.json, Form.id.json, Form.elem.empty.json. Пример: epf_factory_templates().",
     "required_params": [],
     "optional_params": []
   },
   {
     "name": "generate_processing",
-    "description": "Генерация внешней обработки 1С: модуль объекта, модуль формы, XML метаданные. Создаёт структуру файлов готовую для упаковки в .epf. Пример: generate_processing(name='ВыгрузкаНоменклатуры', synonym='Выгрузка номенклатуры').",
+    "description": "Генерация внешней обработки 1С. Создаёт структуру файлов: модуль объекта (Ext/Module.bsl), модуль формы (Forms/Форма/Ext/Form/Module.bsl), XML метаданные. Готово для упаковки в .epf. Пример: generate_processing(name='ВыгрузкаНоменклатуры', synonym='Выгрузка номенклатуры').",
     "required_params": [
       "name",
       "synonym"
     ],
     "optional_params": [
-      "description",
       "author",
+      "description",
       "output_dir"
     ]
   },
   {
     "name": "generate_report",
-    "description": "Генерация отчёта на СКД: модуль объекта с СКД-логикой, форма отчёта, СКД-схема (DataCompositionSchema). Пример: generate_report(name='ОтчетПоПродажам', synonym='Отчёт по продажам', data_source='Документ.РеализацияТоваровУслуг').",
+    "description": "Генерация отчёта на СКД (Схеме Компоновки Данных). Создаёт: модуль объекта с СКД-логикой, форму отчёта, СКД-схему (DataCompositionSchema). Пример: generate_report(name='ОтчетПоПродажам', synonym='Отчёт по продажам', data_source='Документ.РеализацияТоваровУслуг').",
     "required_params": [
       "name",
       "synonym"
     ],
     "optional_params": [
-      "description",
       "author",
-      "output_dir",
       "data_source",
-      "main_query"
+      "description",
+      "main_query",
+      "output_dir"
     ]
   },
   {
     "name": "get_api_reference",
-    "description": "API-справочник конфигурации — экспортные методы общих модулей. Если module не указан — возвращает список всех модулей с кол-вом методов. Если module указан — возвращает методы конкретного модуля.",
+    "description": "API-справочник конфигурации — экспортные методы общих модулей. Если module не указан — возвращает список всех модулей с кол-вом методов. Если module указан — возвращает методы конкретного модуля. Пример: get_api_reference(config_name='ut11', module='ОбщегоНазначения')",
     "required_params": [
       "config_name"
     ],
@@ -259,7 +261,7 @@
   },
   {
     "name": "get_code_metrics",
-    "description": "Метрики кода BSL: LOC, цикломатическая/когнитивная сложность, вложенность, дублирование, God Object, Long Method, Too Many Params, техдолг, health score. Пример: get_code_metrics(file_path='module.bsl').",
+    "description": "Метрики кода BSL: LOC (строки кода), цикломатическая/когнитивная сложность, вложенность, дублирование кода, God Object, Long Method, Too Many Params, технический долг, health score (0-100). Пример: get_code_metrics(file_path='module.bsl').",
     "required_params": [
       "file_path"
     ],
@@ -267,7 +269,7 @@
   },
   {
     "name": "get_form_elements",
-    "description": "Элементы формы конфигурации (кнопки, поля, таблицы, группы). Пример: get_form_elements(config_name='obhod', form_name='Форма.ФормаАвторизации'). Если form_name не указан — возвращает список всех форм.",
+    "description": "Элементы формы конфигурации (кнопки, поля, таблицы, группы). Если form_name не указан — возвращает список всех форм. Пример: get_form_elements(config_name='obhod', form_name='Форма.ФормаАвторизации')",
     "required_params": [
       "config_name"
     ],
@@ -277,7 +279,7 @@
   },
   {
     "name": "get_form_structure",
-    "description": "Полная структура формы: элементы (InputField, Button, Table, и т.д.), их свойства (data_path, visible, enabled), события и обработчики, дерево элементов (ChildItems). Если form_name не указан — список всех форм. Пример: get_form_structure(config_name='ut11', form_name='ФормаЭлемента').",
+    "description": "Полная структура формы: элементы (InputField, Button, Table, UsualGroup, и т.д.), их свойства (data_path, visible, enabled, read_only), события и обработчики, дерево элементов (ChildItems). Если form_name не указан — список всех форм с краткой информацией. Пример: get_form_structure(config_name='ut11', form_name='ФормаЭлемента', parent_name='Склады').",
     "required_params": [
       "config_name"
     ],
@@ -288,17 +290,17 @@
   },
   {
     "name": "get_knowledge",
-    "description": "База знаний 1С: паттерны (создание справочника, документа, обработки, отчёта СКД), антипаттерны, best practices. Если query не указан — список всех статей. Если item_id указан — полный текст статьи. Пример: get_knowledge(query='справочник'), get_knowledge(item_id='create_catalog').",
+    "description": "База знаний 1С: паттерны (создание справочника, документа, обработки, отчёта на СКД), антипаттерны, best practices. Если query не указан — список всех статей. Если item_id указан — полный текст статьи. Пример: get_knowledge(query='справочник'), get_knowledge(item_id='create_catalog').",
     "required_params": [],
     "optional_params": [
-      "query",
+      "category",
       "item_id",
-      "category"
+      "query"
     ]
   },
   {
     "name": "get_object_structure",
-    "description": "Полная структура объекта конфигурации: реквизиты, табличные части, формы, команды, предопределённые значения. Если object_name не указан — возвращает список всех объектов с краткой информацией. Пример: get_object_structure(config_name='ut11', object_name='Склады').",
+    "description": "Полная структура объекта конфигурации: ресурсы, измерения, реквизиты (с типами), табличные части. ВЫЗЫВАЙТЕ ПЕРЕД НАПИСАНИЕМ ЗАПРОСА для получения точных имён полей. Если object_name не указан — список всех объектов. Пример: get_object_structure(config_name='ut11', object_name='ВыручкаИСебестоимостьПродаж').",
     "required_params": [
       "config_name"
     ],
@@ -309,7 +311,7 @@
   },
   {
     "name": "get_skd_schema",
-    "description": "Структура СКД-схемы (Схемы Компоновки Данных) отчёта или обработки. Наборы данных (с запросами), параметры, поля, итоги. Если report_name не указан — список всех СКД-схем. Пример: get_skd_schema(config_name='ut11', report_name='ABCXYZАнализНоменклатуры').",
+    "description": "Структура СКД-схемы (Схемы Компоновки Данных) отчёта или обработки. СКД — основной механизм отчётов в 1С 8.3. Возвращает: наборы данных (data_sets) с запросами, параметры, поля, итоги. Если report_name не указан — список всех СКД-схем в конфигурации. Пример: get_skd_schema(config_name='ut11', report_name='ABCXYZАнализНоменклатуры').",
     "required_params": [
       "config_name"
     ],
@@ -319,26 +321,26 @@
   },
   {
     "name": "inspect",
-    "description": "Единый анализ объектов 1С: cf, meta, form, skd, mxl, role, subsystem, depgraph.",
+    "description": "Инспекция объектов 1С: cf (конфигурация — обзор всех объектов), meta, form, skd, mxl, role, subsystem. НАЧАЛЬНЫЙ ШАГ для понимания структуры конфигурации. Возвращает свойства и структуру. Пример: inspect(type='cf', path='data/configs/ut11').",
     "required_params": [
       "target",
       "path"
     ],
     "optional_params": [
+      "config_name",
       "mode",
-      "name",
-      "config_name"
+      "name"
     ]
   },
   {
     "name": "list_configs",
-    "description": "Список загруженных конфигураций 1С. Возвращает: name, version, status, objects_count, api_methods_count. Используй первым шагом, чтобы понять, какие данные доступны.",
+    "description": "Список загруженных конфигураций 1С. ВЫЗЫВАЙТЕ ПЕРВЫМ для понимания какие данные доступны. Возвращает: name, version, status, objects_count. Пример: list_configs().",
     "required_params": [],
     "optional_params": []
   },
   {
     "name": "openspec_archive",
-    "description": "Архивировать завершённый OpenSpec change.",
+    "description": "Архивировать завершённый OpenSpec change. Перемещает proposal в архив. Пример: openspec_archive(id='proposal-001').",
     "required_params": [
       "change_id"
     ],
@@ -346,7 +348,7 @@
   },
   {
     "name": "openspec_list",
-    "description": "Список OpenSpec changes.",
+    "description": "Список OpenSpec changes (управление изменениями). Возвращает массив с id, title, status. Пример: openspec_list() или openspec_list(status='active').",
     "required_params": [],
     "optional_params": [
       "include_archived"
@@ -354,20 +356,20 @@
   },
   {
     "name": "openspec_proposal",
-    "description": "Создать OpenSpec proposal (Specification-Driven Development).",
+    "description": "Создать OpenSpec proposal (Specification-Driven Development). Принимает title, description, tasks. Возвращает id. Пример: openspec_proposal(title='Добавить справочник', description='Новый справочник').",
     "required_params": [
       "change_id",
       "title"
     ],
     "optional_params": [
-      "context",
       "approach",
+      "context",
       "tasks"
     ]
   },
   {
     "name": "openspec_update_task",
-    "description": "Обновить задачу в OpenSpec change (отметить завершённой/незавершённой).",
+    "description": "Обновить задачу в OpenSpec change. Принимает proposal_id, task_id, new_status. Пример: openspec_update_task(proposal_id='p1', task_id='t1', new_status='done').",
     "required_params": [
       "change_id",
       "task_index"
@@ -378,7 +380,7 @@
   },
   {
     "name": "search_1c_methods",
-    "description": "TF-IDF/BM25 семантический поиск по 8141 методам платформы 1С. Возвращает: name_ru, name_en, syntax, description, context. Пример: search_1c_methods(query='найти элемент по коду', limit=5)",
+    "description": "BM25 семантический поиск по методам платформы 1С. ПЕРВЫЙ ШАГ при работе с конфигурацией. После поиска вызовите get_object_structure для получения полей найденного объекта. Возвращает: name_ru, name_en, context, score. Пример: search_1c_methods(query='найти элемент по коду', limit=5)",
     "required_params": [
       "query"
     ],
@@ -388,7 +390,7 @@
   },
   {
     "name": "search_code",
-    "description": "BM25 поиск по коду конфигурации (115K+ методов). Ищет по именам методов, сигнатурам, описаниям. Пример: search_code(query='создать заказ', config_name='ut11', limit=5). Используй для поиска 'как уже реализовано похожее' в конфигурации.",
+    "description": "BM25 поиск по коду конфигурации. Ищет по именам методов, сигнатурам, описаниям. Используйте для поиска 'как уже реализовано похожее'. После поиска вызовите get_object_structure для структуры найденного модуля. Пример: search_code(query='создать заказ', config_name='ut11', limit=5)",
     "required_params": [
       "query",
       "config_name"
@@ -399,7 +401,7 @@
   },
   {
     "name": "skd_trace",
-    "description": "Трассировка поля СКД через всю цепочку: dataset → calculated → resource.",
+    "description": "Трассировка поля СКД через всю цепочку: dataset → calculated → resource. Возвращает источник значения поля. Пример: skd_trace(config_name='УТ', template_name='ОсновнаяСхема', field_name='Сумма').",
     "required_params": [
       "template_path",
       "field_name"
@@ -408,7 +410,7 @@
   },
   {
     "name": "solve_check",
-    "description": "Полная проверка .bsl кода: 7 анализаторов. Уровни: 'quick' (4 анализатора, без Java), 'standard' (quick + BSL LS), 'full' (standard + code_metrics + metadata_standards). Возвращает: total_errors, total_warnings, violations, verdict, analyzers_run, metrics (для full). verdict: 'ready' / 'warnings' / 'errors'.",
+    "description": "Полная проверка .bsl кода: 7 анализаторов. Уровни: 'quick' (4 анализатора, без Java), 'standard' (quick + BSL LS), 'full' (standard + code_metrics + metadata_standards). Возвращает: total_errors, total_warnings, violations, verdict, analyzers_run, metrics (для full). verdict: 'ready' (0 errors), 'warnings' (0 errors, есть warnings), 'errors' (есть errors). Пример: solve_check(file_path='/tmp/module.bsl', level='standard')",
     "required_params": [
       "file_path"
     ],
@@ -418,7 +420,7 @@
   },
   {
     "name": "solve_context",
-    "description": "Сбор контекста для решения задачи 1С. Собирает 7 источников: методы платформы (BM25), API-справочник, структура объектов (metadata-index), СКД-схемы (skd-index), формы (form-index), база знаний (паттерны/антипаттерны), стандарты 1С (302 проверки). Используй ПЕРВЫМ шагом при решении любой задачи.",
+    "description": "META-TOOL: сбор контекста + workflow recommendations. ВЫЗЫВАЙТЕ ПЕРВЫМ при решении любой задачи. Анализирует тип задачи (запрос, обработка, аудит, архитектура, поиск) и возвращает _workflow — пошаговый план какие tools вызывать и в каком порядке. Собирает 7 источников: методы платформы (BM25), API-справочник, структура объектов, СКД-схемы, формы, база знаний, стандарты. Пример: solve_context(query='написать запрос к регистру продаж', config='ut11').",
     "required_params": [
       "query"
     ],
@@ -429,7 +431,7 @@
   },
   {
     "name": "validate_generated",
-    "description": "Валидация сгенерированного кода: BSL-синтаксис (области, процедуры, циклы), XML-структура, целостность файлов. Возвращает: verdict (perfect/warnings/errors), total_errors, total_warnings. Пример: validate_generated(source_dir='generated/ВыгрузкаНоменклатуры').",
+    "description": "Валидация сгенерированного кода: BSL-синтаксис (сбалансированность областей, процедур, циклов), XML-структура (обязательные теги, UUID), целостность файлов. Возвращает: verdict (perfect/warnings/errors), total_errors, total_warnings. Пример: validate_generated(source_dir='generated/ВыгрузкаНоменклатуры').",
     "required_params": [
       "source_dir"
     ],
@@ -437,7 +439,7 @@
   },
   {
     "name": "validate_query_static",
-    "description": "P1.5: Статическая валидация запроса 1С по метаданным из выгрузки (БЕЗ живой базы). Проверяет: существование таблиц и полей, доступность виртуальных таблиц (Остатки только для AccumulationRegister.Balance), типы в агрегатах (СУММА ожидает число), корректность алиасов. Пример: validate_query_static(query='ВЫБРАТЬ Рег.Номенклатура ИЗ РегистрНакопления.Выручка КАК Рег', config_name='ut11').",
+    "description": "P1.5: Статическая валидация запроса 1С по метаданным из выгрузки (БЕЗ живой базы). Проверяет: существование таблиц и полей, доступность виртуальных таблиц по типу регистра (Остатки только для AccumulationRegister.Balance), типы в агрегатных функциях (СУММА ожидает число), корректность алиасов таблиц. Возвращает: valid, total_errors, total_warnings, issues[] с rule_id и рекомендациями. Пример: validate_query_static(query='ВЫБРАТЬ Рег.Номенклатура ИЗ РегистрНакопления.Выручка.Остатки КАК Рег', config_name='ut11').",
     "required_params": [
       "query"
     ],
