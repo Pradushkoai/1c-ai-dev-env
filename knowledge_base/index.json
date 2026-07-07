@@ -1,6 +1,6 @@
 {
-  "version": "1.0",
-  "description": "База знаний 1С разработки — паттерны, антипаттерны, best practices",
+  "version": "2.0",
+  "description": "База знаний 1С разработки — паттерны, антипаттерны, best practices, стандарты",
   "categories": {
     "patterns": {
       "description": "Паттерны создания объектов 1С",
@@ -32,30 +32,105 @@
           "file": "patterns/create_skd_report.md",
           "keywords": ["отчёт", "скд", "skd", "компоновка", "report", "data composition"],
           "applies_to": ["Report"]
+        },
+        {
+          "id": "form_patterns",
+          "title": "Паттерны форм",
+          "file": "patterns/form-patterns.md",
+          "keywords": ["форма", "form", "ui", "элементы"],
+          "applies_to": ["Form"]
         }
       ]
     },
     "antipatterns": {
-      "description": "Антипаттерны — чего не делать",
+      "description": "Антипаттерны — чего не делать (30 шт: 10 базовых + 20 из BSL LS)",
       "items": [
         {
           "id": "common_antipatterns",
-          "title": "Общие антипаттерны 1С",
+          "title": "Общие антипаттерны 1С (30 шт)",
           "file": "antipatterns/common_antipatterns.md",
-          "keywords": ["антипаттерн", "плохая практика", "ошибка", "запрос в цикле"]
+          "keywords": ["антипаттерн", "плохая практика", "запрет"],
+          "categories": ["критичные", "транзакции", "общие модули", "безопасность", "производительность", "устаревшее", "дизайн кода"]
+        },
+        {
+          "id": "query_antipatterns",
+          "title": "Антипаттерны запросов 1С (10 шт)",
+          "file": "query_optimization/antipatterns.md",
+          "keywords": ["запрос", "query", "sql", "антипаттерн"],
+          "categories": ["подзапрос", "join", "виртуальная таблица", "составной тип", "или в where", "запрос в цикле"]
         }
       ]
     },
     "best_practices": {
-      "description": "Best practices 1С разработки",
+      "description": "Best practices (38 шт: 20 базовых + 18 из BSL LS + ITS)",
       "items": [
         {
           "id": "general_best_practices",
-          "title": "Общие best practices",
+          "title": "Общие best practices 1С (38 шт)",
           "file": "best_practices/general_best_practices.md",
-          "keywords": ["best practice", "стандарт", "рекомендация", "архитектура"]
+          "keywords": ["best practice", "рекомендация", "стандарт"],
+          "categories": ["архитектура", "запросы", "формы", "производительность", "транзакции", "общие модули", "безопасность", "стандарты кода"]
+        }
+      ]
+    },
+    "query_optimization": {
+      "description": "Оптимизация запросов 1С — 15 паттернов",
+      "items": [
+        {
+          "id": "optimization_patterns",
+          "title": "Паттерны оптимизации запросов (15 шт)",
+          "file": "query_optimization/optimization_patterns.md",
+          "keywords": ["оптимизация", "запрос", "производительность", "join", "временная таблица", "индекс"],
+          "patterns": ["join-vs-subquery", "temp-table-vs-join-subquery", "virtual-table-params", "cast-composite-types", "presentation-function", "or-to-union-all", "union-vs-union-all", "virtual-table-to-temp", "indexes", "like-optimization", "no-query-in-loop", "no-select-star", "parameterized-queries", "select-top-with-order", "full-outer-join"]
+        }
+      ]
+    },
+    "query_standards": {
+      "description": "Стандарты 1С по запросам — 21 стандарт ITS",
+      "items": [
+        {
+          "id": "its_query_rules",
+          "title": "Стандарты ITS: Работа с запросами (10 шт)",
+          "file": "query_standards/its_query_rules.md",
+          "keywords": ["стандарт", "its", "запрос", "оформление", "объединить", "подобно"],
+          "standards": ["std437", "std436", "std438", "std435", "std434", "std412", "std535", "std726", "std758", "std787"]
+        },
+        {
+          "id": "its_query_optimization",
+          "title": "Стандарты ITS: Оптимизация запросов (11 шт)",
+          "file": "query_standards/its_query_optimization.md",
+          "keywords": ["стандарт", "its", "оптимизация", "индекс", "виртуальная таблица", "временная таблица"],
+          "standards": ["std729", "std652", "std654", "std655", "std656", "std657", "std658", "std708", "std733", "std777", "std791"]
+        }
+      ]
+    },
+    "diagnostics": {
+      "description": "Каталог диагностик BSL Language Server — 184 шт",
+      "items": [
+        {
+          "id": "bsl_ls_catalog",
+          "title": "Каталог диагностик BSL LS (184 шт, 12 тегов)",
+          "file": "diagnostics/bsl_ls_catalog.md",
+          "keywords": ["диагностика", "bsl ls", "language server", "правило", "анализ"],
+          "tags": ["STANDARD", "SQL", "PERFORMANCE", "BRAINOVERLOAD", "BADPRACTICE", "CLUMSY", "DESIGN", "SUSPICIOUS", "UNPREDICTABLE", "DEPRECATED", "ERROR", "LOCALIZE"],
+          "categories": ["SQL (17)", "PERFORMANCE (6)", "STANDARD (20)", "ERROR (8)", "BADPRACTICE/DEPRECATED (11)", "DESIGN/SUSPICIOUS/UNPREDICTABLE (8)", "TRANSACTIONS (4)", "SECURITY (5)"]
         }
       ]
     }
+  },
+  "stats": {
+    "patterns": 5,
+    "antipatterns": 40,
+    "best_practices": 38,
+    "query_optimization_patterns": 15,
+    "query_standards_its": 21,
+    "bsl_ls_diagnostics": 184,
+    "total_knowledge_items": 303
+  },
+  "sources": {
+    "its": "https://its.1c.ru/db/v8std",
+    "v8std": "https://v8std.ru",
+    "bsl_ls": "https://1c-syntax.github.io/bsl-language-server",
+    "bsl_parser": "https://github.com/1c-syntax/bsl-parser"
   }
 }
