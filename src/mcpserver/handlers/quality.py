@@ -332,6 +332,7 @@ async def handle_analyze_queries(project: Project, arguments: dict[str, Any]) ->
             "file_path": file_path,
             "total_issues": stats["total"],
             "by_severity": stats["by_severity"],
+            "by_tags": stats.get("by_tags", {}),
             "issues": [
                 {
                     "rule_id": i.rule_id,
@@ -339,6 +340,7 @@ async def handle_analyze_queries(project: Project, arguments: dict[str, Any]) ->
                     "line": i.line,
                     "message": i.message,
                     "recommendation": i.recommendation,
+                    "tags": i.tags or [],
                 }
                 for i in issues
             ],

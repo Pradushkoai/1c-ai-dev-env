@@ -39,6 +39,27 @@
           "file": "patterns/form-patterns.md",
           "keywords": ["форма", "form", "ui", "элементы"],
           "applies_to": ["Form"]
+        },
+        {
+          "id": "transaction_patterns",
+          "title": "Паттерны работы с транзакциями",
+          "file": "patterns/transaction_patterns.md",
+          "keywords": ["транзакция", "transaction", "начать", "зафиксировать", "отменить"],
+          "applies_to": ["Document", "Catalog", "InformationRegister", "AccumulationRegister"]
+        },
+        {
+          "id": "common_module_patterns",
+          "title": "Паттерны общих модулей",
+          "file": "patterns/common_module_patterns.md",
+          "keywords": ["общий модуль", "common module", "кэшируемый", "клиент", "сервер", "глобальный"],
+          "applies_to": ["CommonModule"]
+        },
+        {
+          "id": "security_patterns",
+          "title": "Паттерны безопасности",
+          "file": "patterns/security_patterns.md",
+          "keywords": ["безопасность", "security", "sql-инъекция", "параметризованный запрос", "безопасный режим"],
+          "applies_to": ["CommonModule", "Catalog", "Document"]
         }
       ]
     },
@@ -119,13 +140,15 @@
     }
   },
   "stats": {
-    "patterns": 5,
+    "patterns": 8,
     "antipatterns": 40,
     "best_practices": 38,
     "query_optimization_patterns": 15,
     "query_standards_its": 21,
     "bsl_ls_diagnostics": 184,
-    "total_knowledge_items": 303
+    "query_analyzer_rules": 18,
+    "query_optimizer_rules": 18,
+    "total_knowledge_items": 342
   },
   "sources": {
     "its": "https://its.1c.ru/db/v8std",

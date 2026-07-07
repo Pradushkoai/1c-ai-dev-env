@@ -38,6 +38,11 @@ class QueryIssue:
     query_snippet: str
     message: str
     recommendation: str = ""
+    tags: list[str] = None  # P3: категории BSL LS (STANDARD, SQL, PERFORMANCE, ...)
+
+    def __post_init__(self):
+        if self.tags is None:
+            self.tags = []
 
 
 class QueryAnalyzer:
@@ -73,6 +78,15 @@ class QueryAnalyzer:
             issues.extend(self._check_no_distinct(query_text, line_num))
             issues.extend(self._check_join_without_on(query_text, line_num))
             issues.extend(self._check_temp_table_no_index(query_text, line_num))
+            # P2: 8 новых правил из BSL LS
+            issues.extend(self._check_ref_overuse(query_text, line_num))
+            issues.extend(self._check_join_with_virtual_table(query_text, line_num))
+            issues.extend(self._check_or_in_join(query_text, line_num))
+            issues.extend(self._check_multiline_string_in_query(query_text, line_num))
+            issues.extend(self._check_fields_from_join_without_isnull(query_text, line_num))
+            issues.extend(self._check_virtual_table_without_params(query_text, line_num))
+            issues.extend(self._check_assign_alias_fields(query_text, line_num))
+            issues.extend(self._check_union_without_all(query_text, line_num))
 
         return issues
 
@@ -155,6 +169,7 @@ class QueryAnalyzer:
                     query_snippet=query[:100],
                     message="ВЫБРАТЬ * — выбираются все поля, включая ненужные",
                     recommendation="Указывайте только нужные поля: ВЫБРАТЬ Поле1, Поле2. См. паттерн: knowledge_base/query_optimization/optimization_patterns.md#no-select-star",
+                    tags=["SQL", "PERFORMANCE"],
                 )
             )
         return issues
@@ -231,6 +246,7 @@ class QueryAnalyzer:
                     query_snippet=query[:100],
                     message="ПОДОБНО с % в начале — full table scan (не использует индекс)",
                     recommendation='Избегайте ПОДОБНО "%текст". Используйте ПОДОБНО "текст%". См. паттерн: knowledge_base/query_optimization/optimization_patterns.md#like-optimization',
+                    tags=["SQL", "PERFORMANCE"],
                 )
             )
         return issues
@@ -328,8 +344,185 @@ class QueryAnalyzer:
                         query_snippet=query[:100],
                         message="Временная таблица без ИНДЕКСИРОВАТЬ — медленные соединения",
                         recommendation="Добавьте ИНДЕКСИРОВАТЬ ПО Поле после ПОМЕСТИТЬ",
+                        tags=["SQL", "PERFORMANCE"],
                     )
                 )
+        return issues
+
+    # =====================================================================
+    # P2: НОВЫЕ ПРАВИЛА из BSL LS (Q011-Q018)
+    # =====================================================================
+
+    def _check_ref_overuse(self, query: str, line: int) -> list[QueryIssue]:
+        """Q011: Чрезмерное использование .Ссылка — скрытые JOIN (BSL LS: RefOveruse)."""
+        issues = []
+        # Ищем 3+ уровня разыменования: Т.Поле.Подполе.Еще
+        if re.search(r"\b\w+\.\w+\.\w+\.\w+", query):
+            if not re.search(r"\b(?:ВЫРАЗИТЬ|CAST)\b", query, re.IGNORECASE):
+                issues.append(
+                    QueryIssue(
+                        rule_id="Q011",
+                        severity="MEDIUM",
+                        line=line,
+                        query_snippet=query[:100],
+                        message="Глубокое разыменование через точку — скрытые JOIN (BSL LS: RefOveruse)",
+                        recommendation="Используйте ВЫРАЗИТЬ для составных типов или ПРЕДСТАВЛЕНИЕ(). См. стандарт: #std654",
+                        tags=["SQL", "PERFORMANCE"],
+                    )
+                )
+        return issues
+
+    def _check_join_with_virtual_table(self, query: str, line: int) -> list[QueryIssue]:
+        """Q012: JOIN с виртуальной таблицей (BSL LS: JoinWithVirtualTable)."""
+        issues = []
+        # Ищем JOIN + виртуальную таблицу (Остатки, Обороты, СрезПоследних)
+        if re.search(r"\b(?:ЛЕВОЕ|ВНУТРЕННЕЕ|ПРАВОЕ|ПОЛНОЕ)?\s*(?:СОЕДИНЕНИЕ|JOIN)\b", query, re.IGNORECASE):
+            if re.search(r"\.(Остатки|Обороты|СрезПоследних|ОстаткиИОбороты)\s*\(", query, re.IGNORECASE):
+                issues.append(
+                    QueryIssue(
+                        rule_id="Q012",
+                        severity="HIGH",
+                        line=line,
+                        query_snippet=query[:100],
+                        message="JOIN с виртуальной таблицей — крайне медленно (BSL LS: JoinWithVirtualTable)",
+                        recommendation="Поместите виртуальную таблицу во временную с ИНДЕКСИРОВАТЬ ПО. См. стандарт: #std655",
+                        tags=["SQL", "PERFORMANCE"],
+                    )
+                )
+        return issues
+
+    def _check_or_in_join(self, query: str, line: int) -> list[QueryIssue]:
+        """Q013: ИЛИ в секции JOIN (BSL LS: LogicalOrInJoinQuerySection)."""
+        issues = []
+        # Извлекаем секцию ПО (ON)
+        on_match = re.search(r"\b(?:ПО|ON)\s+(.+?)(?=\s+(?:ГДЕ|WHERE|СГРУППИРОВАТЬ|GROUP|УПОРЯДОЧИТЬ|ORDER|ЛЕВОЕ|ВНУТРЕННЕЕ|ПРАВОЕ|ПОЛНОЕ|СОЕДИНЕНИЕ|JOIN|ИМЕЮЩИЕ|HAVING)|$)", query, re.IGNORECASE | re.DOTALL)
+        if on_match:
+            on_text = on_match.group(1)
+            if re.search(r"\b(?:ИЛИ|OR)\b", on_text, re.IGNORECASE):
+                issues.append(
+                    QueryIssue(
+                        rule_id="Q013",
+                        severity="MEDIUM",
+                        line=line,
+                        query_snippet=query[:100],
+                        message="ИЛИ в секции ПО (ON) — блокирует индексы (BSL LS: LogicalOrInJoinQuerySection)",
+                        recommendation="Разделите на два JOIN через ОБЪЕДИНИТЬ ВСЕ. См. стандарт: #std658",
+                        tags=["SQL", "PERFORMANCE"],
+                    )
+                )
+        return issues
+
+    def _check_multiline_string_in_query(self, query: str, line: int) -> list[QueryIssue]:
+        """Q014: Многострочный строковый литерал в запросе (BSL LS: MultilineStringInQuery)."""
+        issues = []
+        # Многострочные литералы в запросе — часто ошибка с кавычками
+        if query.count('"') % 2 != 0:
+            issues.append(
+                QueryIssue(
+                    rule_id="Q014",
+                    severity="LOW",
+                    line=line,
+                    query_snippet=query[:100],
+                    message="Нечётное количество кавычек — возможна ошибка (BSL LS: MultilineStringInQuery)",
+                    recommendation="Проверьте баланс кавычек в строковых литералах запроса",
+                    tags=["SQL", "SUSPICIOUS"],
+                )
+            )
+        return issues
+
+    def _check_fields_from_join_without_isnull(self, query: str, line: int) -> list[QueryIssue]:
+        """Q015: Поля из LEFT JOIN без ISNULL (BSL LS: FieldsFromJoinsWithoutIsNull)."""
+        issues = []
+        # Если есть LEFT JOIN и SELECT обращается к полям соединённой таблицы
+        if re.search(r"\bЛЕВОЕ\s+СОЕДИНЕНИЕ\b", query, re.IGNORECASE) or re.search(r"\bLEFT\s+JOIN\b", query, re.IGNORECASE):
+            # Проверяем есть ли ISNULL/ЕСТЬ NULL в SELECT
+            if not re.search(r"\b(?:ISNULL|ЕСТЬ\s+NULL|IS\s+NULL|СОЕДИНИТЬ)\b", query, re.IGNORECASE):
+                # Упрощённая проверка — если есть LEFT JOIN, но нет ISNULL
+                issues.append(
+                    QueryIssue(
+                        rule_id="Q015",
+                        severity="LOW",
+                        line=line,
+                        query_snippet=query[:100],
+                        message="Поля из LEFT JOIN без ISNULL — возможен NULL (BSL LS: FieldsFromJoinsWithoutIsNull)",
+                        recommendation="Используйте ISNULL(Поле, ЗначениеПоУмолчанию) для полей из LEFT JOIN",
+                        tags=["SQL", "SUSPICIOUS"],
+                    )
+                )
+        return issues
+
+    def _check_virtual_table_without_params(self, query: str, line: int) -> list[QueryIssue]:
+        """Q016: Виртуальная таблица без параметров (BSL LS: VirtualTableCallWithoutParameters)."""
+        issues = []
+        # Ищем виртуальные таблицы с пустыми параметрами
+        vt_match = re.search(r"(РегистрНакопления|РегистрСведений)\.[\w]+\.(Остатки|Обороты|СрезПоследних|ОстаткиИОбороты)\s*\(([^)]*)\)", query, re.IGNORECASE)
+        if vt_match:
+            params = vt_match.group(3).strip()
+            # Если параметры пустые или только &Период
+            if not params or re.match(r"^\s*&\w+\s*,?\s*$", params):
+                # Проверяем есть ли WHERE после
+                if re.search(r"\b(?:ГДЕ|WHERE)\b", query, re.IGNORECASE):
+                    issues.append(
+                        QueryIssue(
+                            rule_id="Q016",
+                            severity="HIGH",
+                            line=line,
+                            query_snippet=query[:100],
+                            message="Виртуальная таблица без фильтра в параметрах + WHERE — медленно (BSL LS: VirtualTableCallWithoutParameters)",
+                            recommendation="Перенесите фильтр в параметры виртуальной таблицы. См. стандарт: #std657",
+                            tags=["SQL", "PERFORMANCE"],
+                        )
+                    )
+        return issues
+
+    def _check_assign_alias_fields(self, query: str, line: int) -> list[QueryIssue]:
+        """Q017: Поля без алиасов в SELECT (BSL LS: AssignAliasFieldsInQuery)."""
+        issues = []
+        # Извлекаем SELECT
+        select_match = re.search(r"\b(?:ВЫБРАТЬ|SELECT)\s+(.+?)(?=\s+(?:ИЗ|FROM)\b)", query, re.IGNORECASE | re.DOTALL)
+        if select_match:
+            select_text = select_match.group(1)
+            # Разделяем по запятым
+            for part in re.split(r",(?![^()]*\))", select_text):
+                part = part.strip()
+                # Пропускаем *, агрегаты, и поля с КАК
+                if part == "*" or part.endswith(".*"):
+                    continue
+                if re.match(r"^(?:СУММА|SUM|КОЛИЧЕСТВО|COUNT|МИНИМУМ|MIN|МАКСИМУМ|MAX|СРЕДНЕЕ|AVG)\s*\(", part, re.IGNORECASE):
+                    continue
+                if not re.search(r"\b(?:КАК|AS)\b", part, re.IGNORECASE):
+                    # Поле без алиаса
+                    if "." in part or re.match(r"^[А-Яа-яЁё\w]+$", part.strip()):
+                        issues.append(
+                            QueryIssue(
+                                rule_id="Q017",
+                                severity="LOW",
+                                line=line,
+                                query_snippet=query[:100],
+                                message="Поле без алиаса в SELECT — ухудшает читаемость (BSL LS: AssignAliasFieldsInQuery)",
+                                recommendation="Используйте КАК для всех полей в SELECT. См. стандарт: #std437",
+                                tags=["STANDARD", "SQL"],
+                            )
+                        )
+                        break  # одно предупреждение на запрос
+        return issues
+
+    def _check_union_without_all(self, query: str, line: int) -> list[QueryIssue]:
+        """Q018: ОБЪЕДИНИТЬ без ВСЕ — удаляет дубликаты (BSL LS + #std434)."""
+        issues = []
+        # Ищем ОБЪЕДИНИТЬ без ВСЕ
+        if re.search(r"\bОБЪЕДИНИТЬ\b(?!\s+ВСЕ)", query, re.IGNORECASE):
+            issues.append(
+                QueryIssue(
+                    rule_id="Q018",
+                    severity="LOW",
+                    line=line,
+                    query_snippet=query[:100],
+                    message="ОБЪЕДИНИТЬ без ВСЕ — удаляет дубликаты (дополнительная группировка, медленнее)",
+                    recommendation="Используйте ОБЪЕДИНИТЬ ВСЕ если не нужны уникальные строки. См. стандарт: #std434",
+                    tags=["SQL", "PERFORMANCE"],
+                )
+            )
         return issues
 
     def get_stats(self, issues: list[QueryIssue]) -> dict[str, Any]:
@@ -339,6 +532,7 @@ class QueryAnalyzer:
             "total": len(issues),
             "by_severity": dict[str, Any](Counter(i.severity for i in issues)),
             "by_rule": dict[str, Any](Counter(i.rule_id for i in issues)),
+            "by_tags": dict[str, Any](Counter(tag for i in issues for tag in (i.tags or []))),
         }
 
 
