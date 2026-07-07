@@ -60,6 +60,20 @@
           "file": "patterns/security_patterns.md",
           "keywords": ["безопасность", "security", "sql-инъекция", "параметризованный запрос", "безопасный режим"],
           "applies_to": ["CommonModule", "Catalog", "Document"]
+        },
+        {
+          "id": "profit_calculation_patterns",
+          "title": "Паттерны расчёта прибыли и себестоимости (7 шт)",
+          "file": "patterns/profit_calculation_patterns.md",
+          "keywords": ["прибыль", "себестоимость", "выручка", "рентабельность", "фифо", "средняя", "партия", "ндс", "лук"],
+          "applies_to": ["Document", "AccumulationRegister", "InformationRegister", "Catalog"]
+        },
+        {
+          "id": "register_accumulation_patterns",
+          "title": "Паттерны работы с регистрами накопления (7 шт)",
+          "file": "patterns/register_accumulation_patterns.md",
+          "keywords": ["регистр накопления", "остатки", "обороты", "списание", "оприходование", "перерасчёт", "блокировка", "фифо", "средняя себестоимость"],
+          "applies_to": ["AccumulationRegister", "Document", "Catalog"]
         }
       ]
     },
@@ -122,6 +136,29 @@
           "file": "query_standards/its_query_optimization.md",
           "keywords": ["стандарт", "its", "оптимизация", "индекс", "виртуальная таблица", "временная таблица"],
           "standards": ["std729", "std652", "std654", "std655", "std656", "std657", "std658", "std708", "std733", "std777", "std791"]
+        },
+        {
+          "id": "join_patterns",
+          "title": "Паттерны JOIN в запросах 1С (полный гайд)",
+          "file": "query_standards/join_patterns.md",
+          "keywords": ["join", "соединение", "левое", "правое", "внутреннее", "полное", "временная таблица", "подзапрос", "is null", "анти-join"],
+          "standards": ["std655", "std656", "std435", "std654"],
+          "tools": ["generate_query", "analyze_queries", "solve_check", "dependency_graph.find_join_path"]
+        },
+        {
+          "id": "v8std_cross_reference",
+          "title": "Карта: BSL LS диагностика → ITS стандарт → исправление",
+          "file": "query_standards/v8std_cross_reference.md",
+          "keywords": ["bsl ls", "диагностика", "v8std", "its", "cross-reference", "карта", "исправление", "правило"],
+          "tools": ["analyze_queries", "validate_query_static", "solve_check", "check_standards"]
+        },
+        {
+          "id": "virtual_tables_guide",
+          "title": "Гайд: Виртуальные таблицы в запросах 1С",
+          "file": "query_standards/virtual_tables_guide.md",
+          "keywords": ["виртуальная таблица", "остатки", "обороты", "срез последних", "срез первых", "обороты дт кт", "параметры"],
+          "standards": ["std657", "std733", "std655"],
+          "tools": ["generate_query", "analyze_queries", "validate_query_static", "solve_check"]
         }
       ]
     },
@@ -194,26 +231,54 @@
           "keywords": ["хранение", "справочник", "документ", "регистр", "код", "реквизит", "составной тип"],
           "standards": ["std448", "std449", "std450", "std451", "std453", "std454", "std455", "std459", "std461", "std462"],
           "tools": ["get_object_structure", "check_standards", "dsl_compile_meta"]
+        },
+        {
+          "id": "its_event_handlers",
+          "title": "Стандарты ITS: Обработчики событий (6 шт)",
+          "file": "standards/its_event_handlers.md",
+          "keywords": ["обработчик", "событие", "при записи", "при проведении", "при изменении", "при открытии", "подписка на событие"],
+          "standards": ["std681", "std682", "std683", "std684", "std688", "std690", "std691", "std692", "std693"],
+          "tools": ["check_standards", "analyze_bsl", "solve_check", "get_object_structure"]
+        },
+        {
+          "id": "its_scheduled_jobs",
+          "title": "Стандарты ITS: Регламентные и фоновые задания (6 шт)",
+          "file": "standards/its_scheduled_jobs.md",
+          "keywords": ["регламентное задание", "фоновое задание", "расписание", "блокировка", "транзакция", "мониторинг", "асинхронность"],
+          "standards": ["std688", "std689", "std690", "std691", "std692", "std693", "std694"],
+          "tools": ["check_standards", "analyze_bsl", "solve_check", "inspect"]
+        },
+        {
+          "id": "its_form_standards",
+          "title": "Стандарты ITS: Формы и UI (9 шт)",
+          "file": "standards/its_form_standards.md",
+          "keywords": ["форма", "управляемая форма", "элемент", "командный интерфейс", "условное оформление", "клиент-сервер", "таблица", "выбор", "подбор"],
+          "standards": ["std740", "std741", "std742", "std743", "std744", "std745", "std746", "std747", "std748"],
+          "tools": ["check_standards", "analyze_bsl", "solve_check", "get_object_structure"]
         }
       ]
     }
   },
   "stats": {
-    "patterns": 8,
+    "patterns": 10,
     "antipatterns": 40,
     "best_practices": 38,
     "query_optimization_patterns": 15,
     "query_standards_its": 21,
+    "query_standards_extended": 3,
     "its_transactions": 4,
     "its_code_conventions": 14,
     "its_security": 6,
     "its_metadata": 8,
     "its_data_storage": 10,
+    "its_event_handlers": 9,
+    "its_scheduled_jobs": 7,
+    "its_form_standards": 9,
     "bsl_ls_diagnostics": 184,
-    "query_analyzer_rules": 18,
+    "query_analyzer_rules": 19,
     "query_optimizer_rules": 18,
-    "total_its_standards": 63,
-    "total_knowledge_items": 419
+    "total_its_standards": 102,
+    "total_knowledge_items": 443
   },
   "sources": {
     "its": "https://its.1c.ru/db/v8std",
