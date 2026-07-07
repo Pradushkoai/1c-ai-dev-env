@@ -148,9 +148,16 @@ class TestUniversalObjectParser:
         assert result["synonym"] == "Тестовый справочник"
         assert result["properties"]["Hierarchical"] == "false"
         assert result["properties"]["CodeLength"] == "11"
-        assert len(result["child_objects"]["attributes"]) == 1
-        assert result["child_objects"]["attributes"][0]["name"] == "Реквизит1"
-        assert result["child_objects"]["attributes"][0]["types"] == ["xs:string"]
+        # P1.5: universal_parser добавляет стандартные реквизиты (Ссылка, Код, ...)
+        # в attributes, поэтому длина > 1. Проверяем что Реквизит1 есть.
+        attrs = result["child_objects"]["attributes"]
+        rekvisito1 = [a for a in attrs if a.get("name") == "Реквизит1"]
+        assert len(rekvisito1) == 1
+        assert rekvisito1[0]["types"] == ["xs:string"]
+        # Стандартные реквизиты добавлены
+        std_attrs = result["child_objects"].get("standard_attributes", [])
+        assert len(std_attrs) > 0
+        assert any(a["name"] == "Ссылка" for a in std_attrs)
         assert len(result["child_objects"]["forms"]) == 1
         assert result["child_objects"]["forms"][0]["name"] == "ФормаЭлемента"
 
