@@ -60,6 +60,13 @@ ast = [
     "tree-sitter>=0.25,<1.0",
     "tree-sitter-bsl>=0.1,<1.0",
 ]
+# Phase A.0: SDBL AST parsing через ANTLR4 (язык запросов 1С)
+# Устанавливается через: pip install -e ".[query]"
+# Требует Java для генерации Python target (однократно)
+# Без него sdbl_parser.py недоступен, fallback на regex query_parser.py
+query = [
+    "antlr4-python3-runtime>=4.13,<5.0",
+]
 test = [
     "pytest>=8.0,<9.0",
     "pytest-cov>=4.0,<6.0",
