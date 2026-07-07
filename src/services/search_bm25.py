@@ -361,19 +361,97 @@ def _apply_synonyms(tokens: list[str]) -> list[str]:
     return result
 
 
+def tokenize_identifier(name: str) -> list[str]:
+    """Разбивает 1С-идентификатор на семантические токены CamelCase/PascalCase.
+
+    Алгоритм перенесён из mini-ai-1c (semantic.rs:tokenize_identifier) —
+    корректно обрабатывает акронимы (НДС, XML, JSON) внутри CamelCase:
+    переходы lowercase→uppercase и uppercase→uppercase+lowercase.
+
+    Примеры:
+        "СтавкаНДСПоЗначениюПеречисления" → ["Ставка","НДС","По","Значению","Перечисления"]
+        "ЗначениеРеквизитаОбъекта"        → ["Значение","Реквизита","Объекта"]
+        "GetNDSValue"                      → ["Get","NDS","Value"]
+
+    Лицензия: алгоритм — открытые знания (идеи не лицензируются).
+
+    Args:
+        name: Идентификатор (CamelCase/PascalCase)
+
+    Returns:
+        Список подслов (сохраняя регистр), длина каждого ≥ 2 символов.
+    """
+    if not name:
+        return []
+
+    chars = list(name)
+    n = len(chars)
+    tokens: list[str] = []
+    start = 0
+    i = 0
+
+    while i < n:
+        # Пропускаем не-буквы (цифры, подчёркивания) — разрываем токен
+        if not chars[i].isalpha():
+            if i > start:
+                tok = "".join(chars[start:i])
+                if len(tok) >= 2:
+                    tokens.append(tok)
+            start = i + 1
+            i += 1
+            continue
+
+        # Граница слова: переход с uppercase на следующую группу
+        if i > start and chars[i].isupper():
+            prev = chars[i - 1]
+            # lowercase → uppercase: "Ставка|НДС" или "Value|NDS"
+            if prev.islower():
+                tok = "".join(chars[start:i])
+                if len(tok) >= 2:
+                    tokens.append(tok)
+                start = i
+            # uppercase → uppercase + lowercase: акроним "НД|С|По" → конец акронима
+            elif prev.isupper() and i + 1 < n and chars[i + 1].islower():
+                tok = "".join(chars[start:i])
+                if len(tok) >= 2:
+                    tokens.append(tok)
+                start = i
+        i += 1
+
+    # Последний токен
+    if start < n:
+        tok = "".join(chars[start:])
+        if len(tok) >= 2:
+            tokens.append(tok)
+
+    return tokens
+
+
+def tokenize_lower(name: str) -> list[str]:
+    """Tokenize identifier к lowercase-токенам (для поиска)."""
+    return [t.lower() for t in tokenize_identifier(name)]
+
+
 def tokenize_stemmed(text: str) -> list[str]:
     """
     Токенизация + стемминг + BSL-синонимы.
 
-    Для CamelCase (mixed-case) — разбиваем на слова.
+    P1-B: использует новый tokenize_identifier (CamelCase-алгоритм из mini-ai-1c)
+    вместо примитивного regex. Это улучшает разбиение акронимов (НДС, XML, JSON).
+
+    Для CamelCase (mixed-case) — разбиваем на слова через tokenize_identifier.
     Для lowercase токенов — оставляем целиком (стеммер нормализует).
     BSL-синонимы: "стрнайти" → добавляет "strfind", и наоборот.
 
     Возвращает список стеммированных токенов с синонимами.
     """
-    # Сначала разбиваем mixed-case CamelCase на слова
-    # "НайтиПоКоду" → "Найти", "По", "Коду"
-    camelcase_parts = re.findall(r"[А-ЯA-Z][а-яёa-z]+|[А-ЯA-Z]+(?=[А-ЯA-Z][а-яёa-z])|\d+|[а-яёa-zA-Z]+", text)
+    # Сначала разбиваем mixed-case CamelCase на слова новым алгоритмом
+    # "СтавкаНДСПоЗначению" → ["Ставка", "НДС", "По", "Значению"]  (а не ["Ставка", "НД", "СП", "оЗначению"])
+    camelcase_parts = tokenize_identifier(text)
+    # Если вернулся пустой список (строка без букв) — пробуем старый regex
+    # на случай lowercase-идентификаторов
+    if not camelcase_parts:
+        camelcase_parts = re.findall(r"[а-яёa-z]+", text)
 
     result = []
     for part in camelcase_parts:
