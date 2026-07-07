@@ -743,6 +743,10 @@ def main() -> None:
 
     epf_sub.add_parser("templates", help="Список доступных шаблонов")
 
+    # query — Query Intelligence (Phase E)
+    from .cli_commands.query_cmd import setup_query_parser
+    setup_query_parser(sub)
+
     args = parser.parse_args()
     project = Project()
 
@@ -798,6 +802,8 @@ def main() -> None:
         cmd_inspect(project, args)
     elif args.command == "epf-factory":
         cmd_epf_factory(project, args)
+    elif args.command == "query":
+        args.func(args)
 
 
 # ============================================================================
