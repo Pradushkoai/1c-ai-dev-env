@@ -235,7 +235,10 @@ async def handle_get_code_metrics(project: Project, arguments: dict[str, Any]) -
 
 
 async def handle_check_transactions(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
-    """Handler для MCP tool: check_transactions, analyze_queries."""
+    """Handler для MCP tool: check_transactions.
+
+    Проверка транзакций BSL: несбалансированные, без Try/Catch, интерактив в транзакции.
+    """
     file_path = arguments.get("file_path", "")
     if not file_path:
         return [types.TextContent(type="text", text=json.dumps({"error": "file_path required"}, ensure_ascii=False))]
@@ -259,49 +262,87 @@ async def handle_check_transactions(project: Project, arguments: dict[str, Any])
             )
         ]
 
-    # Этап 1.2, Группа 1b: dynamic import заменён на прямые импорты из src.services.analyzers
-    from src.services.analyzers.query_analyzer import QueryAnalyzer
+    # Этап 1.2, Группа 1b: dynamic import заменён на прямые импорты
     from src.services.analyzers.transaction_checker import TransactionChecker
 
     try:
-        if True:  # check_transactions
-            checker = TransactionChecker()
-            violations = checker.check_file(Path(file_path))
-            stats = checker.get_stats(violations)
-            response = {
-                "file_path": file_path,
-                "total_violations": stats["total"],
-                "by_severity": stats["by_severity"],
-                "violations": [
-                    {
-                        "rule_id": v.rule_id,
-                        "severity": v.severity,
-                        "line": v.line,
-                        "message": v.message,
-                        "recommendation": v.recommendation,
-                    }
-                    for v in violations
-                ],
-            }
-        else:  # analyze_queries
-            analyzer = QueryAnalyzer()
-            issues = analyzer.analyze_file(Path(file_path))
-            stats = analyzer.get_stats(issues)
-            response = {
-                "file_path": file_path,
-                "total_issues": stats["total"],
-                "by_severity": stats["by_severity"],
-                "issues": [
-                    {
-                        "rule_id": i.rule_id,
-                        "severity": i.severity,
-                        "line": i.line,
-                        "message": i.message,
-                        "recommendation": i.recommendation,
-                    }
-                    for i in issues
-                ],
-            }
+        checker = TransactionChecker()
+        violations = checker.check_file(Path(file_path))
+        stats = checker.get_stats(violations)
+        response = {
+            "file_path": file_path,
+            "total_violations": stats["total"],
+            "by_severity": stats["by_severity"],
+            "violations": [
+                {
+                    "rule_id": v.rule_id,
+                    "severity": v.severity,
+                    "line": v.line,
+                    "message": v.message,
+                    "recommendation": v.recommendation,
+                }
+                for v in violations
+            ],
+        }
+        return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
+    except Exception as e:
+        return [
+            types.TextContent(type="text", text=json.dumps({"error": f"Analysis failed: {str(e)}"}, ensure_ascii=False))
+        ]
+
+
+async def handle_analyze_queries(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
+    """Handler для MCP tool: analyze_queries.
+
+    Phase A.1: разделён с check_transactions. Анализ запросов 1С в BSL коде —
+    10 эвристик (SELECT *, LIKE %, функции в WHERE, JOIN без ON, и т.д.).
+
+    Использует QueryAnalyzer (regex-based) с опциональным SDBL AST fallback.
+    """
+    file_path = arguments.get("file_path", "")
+    if not file_path:
+        return [types.TextContent(type="text", text=json.dumps({"error": "file_path required"}, ensure_ascii=False))]
+    # P1.8: path traversal protection
+    resolved = resolve_path_within_project(file_path, project)
+    if resolved is None:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(
+                    {"error": "Path outside project root — possible path traversal attempt"},
+                    ensure_ascii=False,
+                ),
+            )
+        ]
+    file_path = str(resolved)
+    if not os.path.exists(file_path):
+        return [
+            types.TextContent(
+                type="text", text=json.dumps({"error": f"File not found: {file_path}"}, ensure_ascii=False)
+            )
+        ]
+
+    from src.services.analyzers.query_analyzer import QueryAnalyzer
+
+    try:
+        analyzer = QueryAnalyzer()
+        issues = analyzer.analyze_file(Path(file_path))
+        stats = analyzer.get_stats(issues)
+        response = {
+            "file_path": file_path,
+            "total_issues": stats["total"],
+            "by_severity": stats["by_severity"],
+            "issues": [
+                {
+                    "rule_id": i.rule_id,
+                    "severity": i.severity,
+                    "line": i.line,
+                    "message": i.message,
+                    "recommendation": i.recommendation,
+                }
+                for i in issues
+            ],
+        }
         return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
     except Exception as e:
         return [
@@ -581,7 +622,7 @@ QUALITY_HANDLERS: dict[str, Any] = {
     "audit_security": handle_audit_security,
     "get_code_metrics": handle_get_code_metrics,
     "check_transactions": handle_check_transactions,
-    "analyze_queries": handle_check_transactions,  # P3: split into separate handler
+    "analyze_queries": handle_analyze_queries,  # Phase A.1: разделён с check_transactions
     "analyze_architecture": handle_analyze_architecture,
     "check_form_quality": handle_check_form_quality,
     "check_skd_quality": handle_check_form_quality,  # P3: split into separate handler
