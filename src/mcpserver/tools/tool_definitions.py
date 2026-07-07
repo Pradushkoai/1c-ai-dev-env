@@ -590,6 +590,107 @@ def get_all_tool_definitions() -> list[types.Tool]:
                 "type": "object",
             },
         ),
+        _build_tool(
+            name="generate_query",
+            description=(
+                "Phase B: Генерация запроса 1С по описанию задачи. Принимает описание на русском "
+                "(напр. 'продажи по месяцам за последний год'), возвращает готовый текст запроса "
+                "с параметрами, объяснением и ссылкой на паттерн knowledge base. "
+                "15 шаблонов в 6 категориях: базовые, виртуальные таблицы, пакетные, аналитика, справочники, документы. "
+                "Пример: generate_query(task='топ-10 клиентов по выручке', config_name='ut11')."
+            ),
+            input_schema={
+                "properties": {
+                    "task": {"description": "Описание задачи на русском", "type": "string"},
+                    "config_name": {"description": "Имя конфигурации (опционально)", "type": "string"},
+                    "object_hints": {
+                        "description": "Подсказки какие объекты использовать (напр. ['РегистрНакопления.Продажи'])",
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+                "required": ["task"],
+                "type": "object",
+            },
+        ),
+        _build_tool(
+            name="explain_query",
+            description=(
+                "Phase C: Человекочитаемое объяснение запроса 1С. Принимает текст запроса, "
+                "возвращает summary (краткое описание), таблицы, поля, фильтры, группировки, "
+                "JOIN, агрегаты, параметры, структуру результата. "
+                "Пример: explain_query(query='ВЫБРАТЬ Рег.Номенклатура, СУММА(Рег.Выручка) ИЗ ...')."
+            ),
+            input_schema={
+                "properties": {
+                    "query": {"description": "Текст запроса 1С", "type": "string"},
+                    "config_name": {"description": "Имя конфигурации (опционально)", "type": "string"},
+                },
+                "required": ["query"],
+                "type": "object",
+            },
+        ),
+        _build_tool(
+            name="optimize_query",
+            description=(
+                "Phase C: Предложения по оптимизации запроса 1С. 18 правил: 10 базовых (SELECT *, LIKE %, "
+                "функции в WHERE, JOIN без ON, и т.д.) + 8 производительности (SELECT TOP без ORDER BY, "
+                "ИЛИ в WHERE, FULL JOIN, JOIN с подзапросом, виртуальная таблица без фильтра, и т.д.). "
+                "Каждое предложение ссылается на паттерн knowledge_base. "
+                "Пример: optimize_query(query='ВЫБРАТЬ * ИЗ Справочник.Т ГДЕ Т.А = &А ИЛИ Т.Б = &Б')."
+            ),
+            input_schema={
+                "properties": {
+                    "query": {"description": "Текст запроса 1С", "type": "string"},
+                    "config_name": {"description": "Имя конфигурации (опционально)", "type": "string"},
+                },
+                "required": ["query"],
+                "type": "object",
+            },
+        ),
+        _build_tool(
+            name="query_templates",
+            description=(
+                "Phase B: Список доступных шаблонов запросов 1С. 15 шаблонов в 6 категориях: "
+                "basic, virtual_tables, batch, analytics, catalogs, documents. "
+                "Если category указан — возвращает шаблоны только этой категории. "
+                "Пример: query_templates(category='virtual_tables')."
+            ),
+            input_schema={
+                "properties": {
+                    "category": {
+                        "description": "Категория шаблонов (basic, virtual_tables, batch, analytics, catalogs, documents). Если не указано — все.",
+                        "type": "string",
+                    },
+                },
+                "type": "object",
+            },
+        ),
+        _build_tool(
+            name="query_workflow",
+            description=(
+                "META-TOOL: Оркестрация generate→validate→optimize в одном вызове. "
+                "Принимает описание задачи, генерирует запрос, валидирует по метаданным, "
+                "оптимизирует, объясняет — всё в одном ответе. Возвращает готовый BSL код. "
+                "ИСПОЛЬЗУЙТЕ ЭТОТ TOOL для задач типа 'напиши запрос'. "
+                "Пример: query_workflow(task='продажи по месяцам за последний год', config_name='ut11')."
+            ),
+            input_schema={
+                "properties": {
+                    "task": {"description": "Описание задачи на русском", "type": "string"},
+                    "config_name": {"description": "Имя конфигурации (опционально)", "type": "string"},
+                    "object_hints": {
+                        "description": "Подсказки какие объекты использовать",
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "auto_validate": {"description": "Автовалидация (default: true)", "type": "boolean"},
+                    "auto_optimize": {"description": "Автооптимизация (default: true)", "type": "boolean"},
+                },
+                "required": ["task"],
+                "type": "object",
+            },
+        ),
     ]
 
 

@@ -15,6 +15,7 @@ from .generate import GENERATE_HANDLERS
 from .inspect_data import INSPECT_DATA_HANDLERS
 from .misc import MISC_HANDLERS
 from .quality import QUALITY_HANDLERS
+from .query import QUERY_HANDLERS
 from .structure import STRUCTURE_HANDLERS
 
 # Объединённый реестр всех handlers
@@ -27,5 +28,6 @@ ALL_HANDLERS.update(INSPECT_DATA_HANDLERS)
 ALL_HANDLERS.update(STRUCTURE_HANDLERS)
 ALL_HANDLERS.update(GENERATE_HANDLERS)
 ALL_HANDLERS.update(QUALITY_HANDLERS)
+ALL_HANDLERS.update(QUERY_HANDLERS)
 
 __all__ = ["ALL_HANDLERS"]

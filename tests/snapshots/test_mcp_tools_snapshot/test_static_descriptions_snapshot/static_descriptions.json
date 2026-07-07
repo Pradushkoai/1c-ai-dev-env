@@ -222,6 +222,16 @@
     "optional_params": []
   },
   {
+    "name": "explain_query",
+    "description": "Phase C: Человекочитаемое объяснение запроса 1С. Принимает текст запроса, возвращает summary (краткое описание), таблицы, поля, фильтры, группировки, JOIN, агрегаты, параметры, структуру результата. Пример: explain_query(query='ВЫБРАТЬ Рег.Номенклатура, СУММА(Рег.Выручка) ИЗ ...').",
+    "required_params": [
+      "query"
+    ],
+    "optional_params": [
+      "config_name"
+    ]
+  },
+  {
     "name": "generate_processing",
     "description": "Генерация внешней обработки 1С. Создаёт структуру файлов: модуль объекта (Ext/Module.bsl), модуль формы (Forms/Форма/Ext/Form/Module.bsl), XML метаданные. Готово для упаковки в .epf. Пример: generate_processing(name='ВыгрузкаНоменклатуры', synonym='Выгрузка номенклатуры').",
     "required_params": [
@@ -232,6 +242,17 @@
       "author",
       "description",
       "output_dir"
+    ]
+  },
+  {
+    "name": "generate_query",
+    "description": "Phase B: Генерация запроса 1С по описанию задачи. Принимает описание на русском (напр. 'продажи по месяцам за последний год'), возвращает готовый текст запроса с параметрами, объяснением и ссылкой на паттерн knowledge base. 15 шаблонов в 6 категориях: базовые, виртуальные таблицы, пакетные, аналитика, справочники, документы. Пример: generate_query(task='топ-10 клиентов по выручке', config_name='ut11').",
+    "required_params": [
+      "task"
+    ],
+    "optional_params": [
+      "config_name",
+      "object_hints"
     ]
   },
   {
@@ -376,6 +397,37 @@
     ],
     "optional_params": [
       "completed"
+    ]
+  },
+  {
+    "name": "optimize_query",
+    "description": "Phase C: Предложения по оптимизации запроса 1С. 18 правил: 10 базовых (SELECT *, LIKE %, функции в WHERE, JOIN без ON, и т.д.) + 8 производительности (SELECT TOP без ORDER BY, ИЛИ в WHERE, FULL JOIN, JOIN с подзапросом, виртуальная таблица без фильтра, и т.д.). Каждое предложение ссылается на паттерн knowledge_base. Пример: optimize_query(query='ВЫБРАТЬ * ИЗ Справочник.Т ГДЕ Т.А = &А ИЛИ Т.Б = &Б').",
+    "required_params": [
+      "query"
+    ],
+    "optional_params": [
+      "config_name"
+    ]
+  },
+  {
+    "name": "query_templates",
+    "description": "Phase B: Список доступных шаблонов запросов 1С. 15 шаблонов в 6 категориях: basic, virtual_tables, batch, analytics, catalogs, documents. Если category указан — возвращает шаблоны только этой категории. Пример: query_templates(category='virtual_tables').",
+    "required_params": [],
+    "optional_params": [
+      "category"
+    ]
+  },
+  {
+    "name": "query_workflow",
+    "description": "META-TOOL: Оркестрация generate→validate→optimize в одном вызове. Принимает описание задачи, генерирует запрос, валидирует по метаданным, оптимизирует, объясняет — всё в одном ответе. Возвращает готовый BSL код. ИСПОЛЬЗУЙТЕ ЭТОТ TOOL для задач типа 'напиши запрос'. Пример: query_workflow(task='продажи по месяцам за последний год', config_name='ut11').",
+    "required_params": [
+      "task"
+    ],
+    "optional_params": [
+      "config_name",
+      "object_hints",
+      "auto_validate",
+      "auto_optimize"
     ]
   },
   {

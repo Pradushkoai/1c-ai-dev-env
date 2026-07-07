@@ -84,9 +84,15 @@
     "output_path"
   ],
   "epf_factory_templates": [],
+  "explain_query": [
+    "query"
+  ],
   "generate_processing": [
     "name",
     "synonym"
+  ],
+  "generate_query": [
+    "task"
   ],
   "generate_report": [
     "name",
@@ -127,6 +133,13 @@
   "openspec_update_task": [
     "change_id",
     "task_index"
+  ],
+  "optimize_query": [
+    "query"
+  ],
+  "query_templates": [],
+  "query_workflow": [
+    "task"
   ],
   "search_1c_methods": [
     "query"

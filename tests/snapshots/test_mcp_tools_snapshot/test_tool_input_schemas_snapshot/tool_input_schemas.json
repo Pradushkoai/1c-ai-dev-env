@@ -390,6 +390,22 @@
     "properties": {},
     "type": "object"
   },
+  "explain_query": {
+    "properties": {
+      "config_name": {
+        "description": "Имя конфигурации (опционально)",
+        "type": "string"
+      },
+      "query": {
+        "description": "Текст запроса 1С",
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "type": "object"
+  },
   "generate_processing": {
     "properties": {
       "author": {
@@ -416,6 +432,29 @@
     "required": [
       "name",
       "synonym"
+    ],
+    "type": "object"
+  },
+  "generate_query": {
+    "properties": {
+      "config_name": {
+        "description": "Имя конфигурации (опционально)",
+        "type": "string"
+      },
+      "object_hints": {
+        "description": "Подсказки какие объекты использовать (напр. ['РегистрНакопления.Продажи'])",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "task": {
+        "description": "Описание задачи на русском",
+        "type": "string"
+      }
+    },
+    "required": [
+      "task"
     ],
     "type": "object"
   },
@@ -664,6 +703,62 @@
     "required": [
       "change_id",
       "task_index"
+    ],
+    "type": "object"
+  },
+  "optimize_query": {
+    "properties": {
+      "config_name": {
+        "description": "Имя конфигурации (опционально)",
+        "type": "string"
+      },
+      "query": {
+        "description": "Текст запроса 1С",
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "type": "object"
+  },
+  "query_templates": {
+    "properties": {
+      "category": {
+        "description": "Категория шаблонов (basic, virtual_tables, batch, analytics, catalogs, documents). Если не указано — все.",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "query_workflow": {
+    "properties": {
+      "auto_optimize": {
+        "description": "Автооптимизация (default: true)",
+        "type": "boolean"
+      },
+      "auto_validate": {
+        "description": "Автовалидация (default: true)",
+        "type": "boolean"
+      },
+      "config_name": {
+        "description": "Имя конфигурации (опционально)",
+        "type": "string"
+      },
+      "object_hints": {
+        "description": "Подсказки какие объекты использовать",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "task": {
+        "description": "Описание задачи на русском",
+        "type": "string"
+      }
+    },
+    "required": [
+      "task"
     ],
     "type": "object"
   },

@@ -107,6 +107,13 @@ def create_mcp_server() -> Server:
             if handler is not None:
                 return cast(list[types.TextContent], await handler(project, arguments))
 
+        # P2.2: dict[str, Any]-dispatch для handlers группы 6 (query — Phase D)
+        from .mcpserver.handlers import QUERY_HANDLERS
+
+        handler = QUERY_HANDLERS.get(name)
+        if handler is not None:
+            return cast(list[types.TextContent], await handler(project, arguments))
+
         # Неизвестный tool
         return [
             types.TextContent(
