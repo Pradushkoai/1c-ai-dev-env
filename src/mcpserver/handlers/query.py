@@ -1,14 +1,15 @@
 """
 query.py — MCP handlers для Query Intelligence.
 
-Phase D of Query Intelligence plan: 5 MCP tools для работы с запросами 1С.
+Phase D of Query Intelligence plan (optimized): 4 MCP tools для работы с запросами 1С.
 
 Handlers:
 - handle_generate_query: генерация запроса по описанию задачи
-- handle_explain_query: объяснение что делает запрос
-- handle_optimize_query: предложения по оптимизации
-- handle_query_templates: список доступных шаблонов
+- handle_optimize_query: предложения по оптимизации (18 правил)
+- handle_bsl_templates: список query-шаблонов + BSL code-шаблонов
 - handle_query_workflow: мета-tool — оркестрация generate→validate→optimize
+
+Объяснение запросов интегрировано в validate_query_static (mode=explain).
 """
 
 from __future__ import annotations
@@ -65,37 +66,6 @@ async def handle_generate_query(project: Project, arguments: dict[str, Any]) -> 
     ]
 
 
-async def handle_explain_query(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
-    """Объяснение что делает запрос 1С.
-
-    Использует QueryExplainer для человекочитаемого описания.
-    """
-    from src.services.analyzers.query_explainer import QueryExplainer
-
-    query_text = arguments.get("query", "")
-    config_name = arguments.get("config_name", "")
-
-    if not query_text.strip():
-        return [
-            types.TextContent(
-                type="text",
-                text=json.dumps({"error": "query is required"}, ensure_ascii=False),
-            )
-        ]
-
-    metadata_index = _load_metadata_index(project, config_name)
-
-    explainer = QueryExplainer(metadata_index)
-    result = explainer.explain(query_text, config_name)
-
-    return [
-        types.TextContent(
-            type="text",
-            text=json.dumps(result.to_dict(), ensure_ascii=False, indent=2),
-        )
-    ]
-
-
 async def handle_optimize_query(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Предложения по оптимизации запроса 1С.
 
@@ -127,41 +97,49 @@ async def handle_optimize_query(project: Project, arguments: dict[str, Any]) -> 
     ]
 
 
-async def handle_query_templates(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
-    """Список доступных шаблонов запросов.
+async def handle_bsl_templates(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
+    """Список доступных шаблонов: query-шаблоны + BSL code-шаблоны.
 
-    Возвращает 15 шаблонов в 6 категориях.
+    Возвращает 15 query-шаблонов в 6 категориях + BSL code-шаблоны.
     """
     from src.services.analyzers.query_templates import (
-        ALL_TEMPLATES,
+        ALL_TEMPLATES as QUERY_TEMPLATES,
         get_templates_by_category,
-        list_all_categories,
+        list_all_categories as query_categories,
     )
+    from src.services.bsl_templates import list_templates as list_bsl_templates
 
     category = arguments.get("category", "")
 
-    if category:
-        templates = get_templates_by_category(category)
-    else:
-        templates = ALL_TEMPLATES
+    response: dict[str, Any] = {"templates": []}
 
-    response = {
-        "total": len(templates),
-        "categories": list_all_categories(),
-        "templates": [
-            {
+    # Query templates (15 шт)
+    if not category or category in query_categories():
+        q_templates = get_templates_by_category(category) if category else QUERY_TEMPLATES
+        for t in q_templates:
+            response["templates"].append({
                 "name": t.name,
                 "description": t.description,
                 "category": t.category,
+                "type": "query",
                 "keywords": t.keywords,
                 "required_params": t.required_params,
-                "optional_params": t.optional_params,
                 "example": t.example,
                 "pattern_ref": t.pattern_ref,
-            }
-            for t in templates
-        ],
-    }
+            })
+
+    # BSL code templates
+    bsl_templates = list_bsl_templates(category if category else None)
+    for t in bsl_templates:
+        response["templates"].append({
+            "name": t.name,
+            "description": t.description,
+            "category": t.category,
+            "type": "bsl_code",
+        })
+
+    response["total"] = len(response["templates"])
+    response["query_categories"] = list(query_categories())
 
     return [
         types.TextContent(
@@ -178,7 +156,6 @@ async def handle_query_workflow(project: Project, arguments: dict[str, Any]) -> 
     всё в одном ответе.
     """
     from src.services.analyzers.query_generator import QueryGenerator
-    from src.services.analyzers.query_explainer import QueryExplainer
     from src.services.analyzers.query_optimizer import QueryOptimizer
 
     task = arguments.get("task", "")
@@ -233,12 +210,13 @@ async def handle_query_workflow(project: Project, arguments: dict[str, Any]) -> 
         response["optimization"] = optimization.to_dict()
         workflow_steps.append(f"optimize_query → {'OK' if optimization.total_issues == 0 else 'ISSUES'} ({optimization.total_issues} issues, {optimization.total_suggestions} suggestions)")
 
-    # Step 4: Explain (что делает сгенерированный запрос)
+    # Step 4: Explain (через validate_query_static с mode=explain)
     if generated.text:
+        from src.services.analyzers.query_explainer import QueryExplainer
         explainer = QueryExplainer(metadata_index)
         explanation = explainer.explain(generated.text, config_name)
         response["explanation"] = explanation.to_dict()
-        workflow_steps.append("explain_query → OK")
+        workflow_steps.append("explain (via validate_query_static mode=explain) → OK")
 
     # Step 5: BSL code wrapper (готовый BSL код с запросом)
     if generated.text:
@@ -324,8 +302,7 @@ def _generate_bsl_wrapper(generated: Any) -> str:
 
 QUERY_HANDLERS: dict[str, Any] = {
     "generate_query": handle_generate_query,
-    "explain_query": handle_explain_query,
     "optimize_query": handle_optimize_query,
-    "query_templates": handle_query_templates,
+    "bsl_templates": handle_bsl_templates,
     "query_workflow": handle_query_workflow,
 }

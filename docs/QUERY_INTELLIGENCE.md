@@ -36,21 +36,18 @@ Query Intelligence — единый инструмент для **генерац
 
 ---
 
-## MCP Tools (5 шт.)
+## MCP Tools (4 новых + 2 расширенных = 6 всего для запросов)
 
 | Tool | Описание |
 |------|----------|
 | `generate_query` | Генерация запроса по описанию задачи |
-| `explain_query` | Человекочитаемое объяснение запроса |
 | `optimize_query` | Предложения по оптимизации (18 правил) |
-| `query_templates` | Список 15 шаблонов в 6 категориях |
+| `bsl_templates` | Список 15 query-шаблонов + BSL code-шаблонов |
 | `query_workflow` | Мета-tool: generate→validate→optimize в одном вызове |
+| `validate_query_static` | Валидация (mode=validate) ИЛИ объяснение (mode=explain) |
+| `analyze_queries` | Анализ запросов в BSL файле (10 эвристик) |
 
-**Существующие tools (не изменились):**
-- `validate_query_static` — статическая валидация по метаданным
-- `analyze_queries` — анализ запросов в BSL файле (10 эвристик)
-
-**Итого MCP tools:** 51
+**Итого MCP tools:** 50 (46 base + 4 new)
 
 ### Пример: query_workflow
 

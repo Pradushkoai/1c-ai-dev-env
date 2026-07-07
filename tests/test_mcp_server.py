@@ -18,13 +18,13 @@ from src.mcp_server import _get_tools_description, create_mcp_server
 
 
 def test_get_tools_description_returns_46_tools():
-    """Должно быть 51 tool (Phase D — добавлены 5 query tools)."""
+    """Должно быть 50 tool (Phase D optimized — bsl_templates заменён, explain_query слит)."""
     tools = _get_tools_description()
-    assert len(tools) == 51
+    assert len(tools) == 50
 
 
 def test_get_tools_description_names():
-    """Имена tools соответствуют спецификации (51 tool, Phase D sync)."""
+    """Имена tools соответствуют спецификации (50 tool, Phase D optimized)."""
     tools = _get_tools_description()
     expected = {
         # Базовые 29 tools
@@ -76,11 +76,10 @@ def test_get_tools_description_names():
         "openspec_archive",
         # P1.5: статический валидатор запросов 1С
         "validate_query_static",
-        # Phase D: 5 query intelligence tools
+        # Phase D: query intelligence tools (optimized)
         "generate_query",
-        "explain_query",
         "optimize_query",
-        "query_templates",
+        "bsl_templates",
         "query_workflow",
     }
     actual = {t["name"] for t in tools}
@@ -380,8 +379,8 @@ def test_call_list_tools(mcp_server_with_mock_project):
     assert handler is not None
 
     result = asyncio.run(handler(ListToolsRequest(method="tools/list")))
-    # 29 (из _get_tools_description) + 22 (динамические + validate_query_static + 5 query tools) = 51
-    assert len(result.root.tools) == 51
+    # 29 (из _get_tools_description) + 21 (динамические + validate_query_static + 3 query tools + bsl_templates) = 50
+    assert len(result.root.tools) == 50
     names = {t.name for t in result.root.tools}
     assert "list_configs" in names
     assert "solve_check" in names

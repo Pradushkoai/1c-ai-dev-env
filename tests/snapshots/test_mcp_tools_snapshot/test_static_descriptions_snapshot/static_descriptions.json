@@ -32,6 +32,14 @@
     "optional_params": []
   },
   {
+    "name": "bsl_templates",
+    "description": "Список доступных шаблонов: 15 query-шаблонов (SELECT-запросы) + BSL code-шаблоны (готовые функции). Query категории: basic, virtual_tables, batch, analytics, catalogs, documents. BSL категории: catalog, document, form, http, json, query, security. Если category указан — возвращает шаблоны только этой категории. Пример: bsl_templates(category='query'). Пример: bsl_templates(category='virtual_tables').",
+    "required_params": [],
+    "optional_params": [
+      "category"
+    ]
+  },
+  {
     "name": "build_dependency_graph",
     "description": "Граф зависимостей метаданных 1С: какие объекты ссылаются на какие. Возвращает: nodes, edges, cycles. Используйте для анализа архитектуры конфигурации. Пример: build_dependency_graph(config_name='УТ11').",
     "required_params": [
@@ -222,16 +230,6 @@
     "optional_params": []
   },
   {
-    "name": "explain_query",
-    "description": "Phase C: Человекочитаемое объяснение запроса 1С. Принимает текст запроса, возвращает summary (краткое описание), таблицы, поля, фильтры, группировки, JOIN, агрегаты, параметры, структуру результата. Пример: explain_query(query='ВЫБРАТЬ Рег.Номенклатура, СУММА(Рег.Выручка) ИЗ ...').",
-    "required_params": [
-      "query"
-    ],
-    "optional_params": [
-      "config_name"
-    ]
-  },
-  {
     "name": "generate_processing",
     "description": "Генерация внешней обработки 1С. Создаёт структуру файлов: модуль объекта (Ext/Module.bsl), модуль формы (Forms/Форма/Ext/Form/Module.bsl), XML метаданные. Готово для упаковки в .epf. Пример: generate_processing(name='ВыгрузкаНоменклатуры', synonym='Выгрузка номенклатуры').",
     "required_params": [
@@ -410,14 +408,6 @@
     ]
   },
   {
-    "name": "query_templates",
-    "description": "Phase B: Список доступных шаблонов запросов 1С. 15 шаблонов в 6 категориях: basic, virtual_tables, batch, analytics, catalogs, documents. Если category указан — возвращает шаблоны только этой категории. Пример: query_templates(category='virtual_tables').",
-    "required_params": [],
-    "optional_params": [
-      "category"
-    ]
-  },
-  {
     "name": "query_workflow",
     "description": "META-TOOL: Оркестрация generate→validate→optimize в одном вызове. Принимает описание задачи, генерирует запрос, валидирует по метаданным, оптимизирует, объясняет — всё в одном ответе. Возвращает готовый BSL код. ИСПОЛЬЗУЙТЕ ЭТОТ TOOL для задач типа 'напиши запрос'. Пример: query_workflow(task='продажи по месяцам за последний год', config_name='ut11').",
     "required_params": [
@@ -491,12 +481,13 @@
   },
   {
     "name": "validate_query_static",
-    "description": "P1.5: Статическая валидация запроса 1С по метаданным из выгрузки (БЕЗ живой базы). Проверяет: существование таблиц и полей, доступность виртуальных таблиц по типу регистра (Остатки только для AccumulationRegister.Balance), типы в агрегатных функциях (СУММА ожидает число), корректность алиасов таблиц. Возвращает: valid, total_errors, total_warnings, issues[] с rule_id и рекомендациями. Пример: validate_query_static(query='ВЫБРАТЬ Рег.Номенклатура ИЗ РегистрНакопления.Выручка.Остатки КАК Рег', config_name='ut11').",
+    "description": "Валидация ИЛИ объяснение запроса 1С по метаданным из выгрузки (БЕЗ живой базы). mode=validate (по умолчанию): проверка существования таблиц и полей, доступность виртуальных таблиц, типов в агрегатах. mode=explain: человекочитаемое описание что делает запрос (summary, таблицы, поля, фильтры, группировки, агрегаты). Пример: validate_query_static(query='ВЫБРАТЬ Рег.Номенклатура ИЗ РегистрНакопления.Выручка КАК Рег', config_name='ut11'). Пример explain: validate_query_static(query='...', mode='explain').",
     "required_params": [
       "query"
     ],
     "optional_params": [
-      "config_name"
+      "config_name",
+      "mode"
     ]
   }
 ]

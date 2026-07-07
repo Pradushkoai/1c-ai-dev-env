@@ -98,7 +98,7 @@ def cmd_query_gen(args) -> None:
 
 
 def cmd_query_explain(args) -> None:
-    """1c-ai query explain — объяснение запроса."""
+    """1c-ai query explain — объяснение запроса (делегирует в validate --mode explain)."""
     from src.services.analyzers.query_explainer import QueryExplainer
 
     query_text = _read_query(args.file, args.text)

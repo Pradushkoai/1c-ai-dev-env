@@ -11,6 +11,7 @@
   "audit_security": [
     "file_path"
   ],
+  "bsl_templates": [],
   "build_dependency_graph": [
     "config_name"
   ],
@@ -84,9 +85,6 @@
     "output_path"
   ],
   "epf_factory_templates": [],
-  "explain_query": [
-    "query"
-  ],
   "generate_processing": [
     "name",
     "synonym"
@@ -137,7 +135,6 @@
   "optimize_query": [
     "query"
   ],
-  "query_templates": [],
   "query_workflow": [
     "task"
   ],

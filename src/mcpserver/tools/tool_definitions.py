@@ -571,20 +571,17 @@ def get_all_tool_definitions() -> list[types.Tool]:
         _build_tool(
             name="validate_query_static",
             description=(
-                "P1.5: Статическая валидация запроса 1С по метаданным из выгрузки (БЕЗ живой базы). "
-                "Проверяет: существование таблиц и полей, доступность виртуальных таблиц по типу регистра "
-                "(Остатки только для AccumulationRegister.Balance), типы в агрегатных функциях "
-                "(СУММА ожидает число), корректность алиасов таблиц. Возвращает: valid, total_errors, "
-                "total_warnings, issues[] с rule_id и рекомендациями. "
-                "Пример: validate_query_static(query='ВЫБРАТЬ Рег.Номенклатура ИЗ РегистрНакопления.Выручка.Остатки КАК Рег', config_name='ut11')."
+                "Валидация ИЛИ объяснение запроса 1С по метаданным из выгрузки (БЕЗ живой базы). "
+                "mode=validate (по умолчанию): проверка существования таблиц и полей, доступность виртуальных таблиц, типов в агрегатах. "
+                "mode=explain: человекочитаемое описание что делает запрос (summary, таблицы, поля, фильтры, группировки, агрегаты). "
+                "Пример: validate_query_static(query='ВЫБРАТЬ Рег.Номенклатура ИЗ РегистрНакопления.Выручка КАК Рег', config_name='ut11'). "
+                "Пример explain: validate_query_static(query='...', mode='explain')."
             ),
             input_schema={
                 "properties": {
-                    "query": {"description": "Текст запроса 1С для валидации", "type": "string"},
-                    "config_name": {
-                        "description": "Имя конфигурации (как в list_configs). Если не указано — использует любую доступную.",
-                        "type": "string",
-                    },
+                    "query": {"description": "Текст запроса 1С", "type": "string"},
+                    "config_name": {"description": "Имя конфигурации. Если не указано — использует любую доступную.", "type": "string"},
+                    "mode": {"description": "Режим: validate (по умолчанию) или explain", "type": "string", "enum": ["validate", "explain"]},
                 },
                 "required": ["query"],
                 "type": "object",
@@ -614,23 +611,6 @@ def get_all_tool_definitions() -> list[types.Tool]:
             },
         ),
         _build_tool(
-            name="explain_query",
-            description=(
-                "Phase C: Человекочитаемое объяснение запроса 1С. Принимает текст запроса, "
-                "возвращает summary (краткое описание), таблицы, поля, фильтры, группировки, "
-                "JOIN, агрегаты, параметры, структуру результата. "
-                "Пример: explain_query(query='ВЫБРАТЬ Рег.Номенклатура, СУММА(Рег.Выручка) ИЗ ...')."
-            ),
-            input_schema={
-                "properties": {
-                    "query": {"description": "Текст запроса 1С", "type": "string"},
-                    "config_name": {"description": "Имя конфигурации (опционально)", "type": "string"},
-                },
-                "required": ["query"],
-                "type": "object",
-            },
-        ),
-        _build_tool(
             name="optimize_query",
             description=(
                 "Phase C: Предложения по оптимизации запроса 1С. 18 правил: 10 базовых (SELECT *, LIKE %, "
@@ -649,17 +629,18 @@ def get_all_tool_definitions() -> list[types.Tool]:
             },
         ),
         _build_tool(
-            name="query_templates",
+            name="bsl_templates",
             description=(
-                "Phase B: Список доступных шаблонов запросов 1С. 15 шаблонов в 6 категориях: "
-                "basic, virtual_tables, batch, analytics, catalogs, documents. "
+                "Список доступных шаблонов: 15 query-шаблонов (SELECT-запросы) + BSL code-шаблоны (готовые функции). "
+                "Query категории: basic, virtual_tables, batch, analytics, catalogs, documents. "
+                "BSL категории: catalog, document, form, http, json, query, security. "
                 "Если category указан — возвращает шаблоны только этой категории. "
-                "Пример: query_templates(category='virtual_tables')."
+                "Пример: bsl_templates(category='query'). Пример: bsl_templates(category='virtual_tables')."
             ),
             input_schema={
                 "properties": {
                     "category": {
-                        "description": "Категория шаблонов (basic, virtual_tables, batch, analytics, catalogs, documents). Если не указано — все.",
+                        "description": "Категория шаблонов. Query: basic, virtual_tables, batch, analytics, catalogs, documents. BSL: catalog, document, form, http, json, query, security.",
                         "type": "string",
                     },
                 },

@@ -533,14 +533,15 @@ async def handle_diff_configs(project: Project, arguments: dict[str, Any]) -> li
 
 
 async def handle_validate_query_static(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
-    """P1.5: Статическая валидация запроса 1С по метаданным из выгрузки (без живой базы).
+    """Валидация ИЛИ объяснение запроса 1С по метаданным (без живой базы).
 
-    Проверяет: существование таблиц и полей, доступность виртуальных таблиц по типу
-    регистра (Остатки только для AccumulationRegister.Balance), типы в агрегатных
-    функциях (СУММА ожидает число), корректность алиасов таблиц.
+    mode=validate (по умолчанию): проверка существования таблиц и полей,
+    доступность виртуальных таблиц, типы в агрегатных функциях.
+    mode=explain: человекочитаемое описание что делает запрос.
     """
     query_text = arguments.get("query", "")
     config_name = arguments.get("config_name", "")
+    mode = arguments.get("mode", "validate")  # validate | explain
 
     if not query_text.strip():
         return [
@@ -550,6 +551,45 @@ async def handle_validate_query_static(project: Project, arguments: dict[str, An
             )
         ]
 
+    # Mode: explain — человекочитаемое описание запроса
+    if mode == "explain":
+        from src.services.analyzers.query_explainer import QueryExplainer
+
+        # Загружаем metadata для enriched объяснения
+        metadata_index: dict[str, Any] = {}
+        configs_root = project.paths.derived / "configs"
+        if config_name:
+            candidate = configs_root / config_name / "unified-metadata-index.json"
+            if candidate.exists():
+                try:
+                    with open(candidate, encoding="utf-8") as f:
+                        metadata_index = json.load(f)
+                except (json.JSONDecodeError, OSError):
+                    pass
+        elif configs_root.exists():
+            for cfg_dir in sorted(configs_root.iterdir()):
+                candidate = cfg_dir / "unified-metadata-index.json"
+                if candidate.exists():
+                    try:
+                        with open(candidate, encoding="utf-8") as f:
+                            metadata_index = json.load(f)
+                        config_name = cfg_dir.name
+                    except (json.JSONDecodeError, OSError):
+                        pass
+                    break
+
+        explainer = QueryExplainer(metadata_index)
+        result = explainer.explain(query_text, config_name)
+        response = result.to_dict()
+        response["config_name"] = config_name
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(response, ensure_ascii=False, indent=2),
+            )
+        ]
+
+    # Mode: validate (по умолчанию)
     # Ищем metadata index для указанной (или любой) конфигурации
     metadata_path = None
     configs_root = project.paths.derived / "configs"
@@ -558,7 +598,6 @@ async def handle_validate_query_static(project: Project, arguments: dict[str, An
         if candidate.exists():
             metadata_path = candidate
     else:
-        # Берём любую доступную конфигурацию
         if configs_root.exists():
             for cfg_dir in sorted(configs_root.iterdir()):
                 candidate = cfg_dir / "unified-metadata-index.json"
@@ -590,7 +629,6 @@ async def handle_validate_query_static(project: Project, arguments: dict[str, An
         ]
 
     try:
-        # P1.5: импорт внутри функции (как в других handlers)
         from src.services.analyzers.query_validator_static import StaticQueryValidator
 
         validator = StaticQueryValidator.from_metadata_file(metadata_path)
