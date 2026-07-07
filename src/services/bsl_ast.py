@@ -1,10 +1,15 @@
 """
 D3.2 + 14.2 (2026-07-05): BSL tree-sitter adapter.
 
-Интегрирует tree-sitter-bsl для замены regex-based правил на AST-based.
-Опциональная зависимость: pip install tree-sitter tree-sitter-bsl
+P1-A-Integration (Phase 1.3, 2026-07-07): thin wrapper над bsl_tree_sitter.
+Раньше здесь была отдельная инициализация tree-sitter — теперь делегирует в
+bsl_tree_sitter (единый источник истины).
 
 Если tree-sitter не установлен — fallback на regex (существующие правила).
+
+Deprecated: используйте src.services.bsl_tree_sitter напрямую для новых
+кода. Этот модуль сохранён для backward compat (parse_bsl, get_ast_node_types,
+has_syntax_errors), будет удалён в v7.0.
 """
 
 from __future__ import annotations
@@ -14,34 +19,42 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_TREE_SITTER_AVAILABLE: bool | None = None
-_BS_LANGUAGE: Any = None
-_BS_PARSER: Any = None
+# P1-A-Integration: единая точка проверки доступности tree-sitter
+from src.services.bsl_tree_sitter import (
+    BslTreeSitterParser,
+    is_available as _ts_is_available,
+)
+
+# Глобальный singleton parser (lazy init)
+_BS_PARSER: BslTreeSitterParser | None = None
+_BS_TREE_CACHE: dict[int, Any] = {}  # id(code) → tree (для parse_bsl)
 
 
 def _check_tree_sitter() -> bool:
-    """Проверить доступность tree-sitter + tree-sitter-bsl."""
-    global _TREE_SITTER_AVAILABLE, _BS_LANGUAGE, _BS_PARSER
-    if _TREE_SITTER_AVAILABLE is None:
-        try:
-            import tree_sitter
-            import tree_sitter_bsl
+    """Проверить доступность tree-sitter + tree-sitter-bsl.
 
-            _BS_LANGUAGE = tree_sitter.Language(tree_sitter_bsl.language())
-            _BS_PARSER = tree_sitter.Parser(_BS_LANGUAGE)
-            _TREE_SITTER_AVAILABLE = True
-        except ImportError:
-            _TREE_SITTER_AVAILABLE = False
-            logger.debug(
-                "tree-sitter-bsl не установлен. "
-                "pip install tree-sitter tree-sitter-bsl для AST-based правил."
-            )
-    return _TREE_SITTER_AVAILABLE
+    P1-A-Integration: делегирует в bsl_tree_sitter.is_available().
+    """
+    return _ts_is_available()
+
+
+def _get_parser() -> BslTreeSitterParser | None:
+    """Возвращает singleton parser (создаёт при первом вызове)."""
+    global _BS_PARSER
+    if not _check_tree_sitter():
+        return None
+    if _BS_PARSER is None:
+        _BS_PARSER = BslTreeSitterParser()
+    return _BS_PARSER
 
 
 def parse_bsl(code: str) -> Any:
     """
-    D3.2/14.2: Распарсить BSL код через tree-sitter → AST.
+    D3.2/14.2: Распарсить BSL код через tree-sitter → AST Tree.
+
+    P1-A-Integration: использует BslTreeSitterParser из bsl_tree_sitter
+    для создания parser, но возвращает низкоуровневый tree-sitter Tree
+    (для backward compat с ast_analyzer.py и ast_analyzers_extended.py).
 
     Args:
         code: BSL исходный код.
@@ -59,12 +72,26 @@ def parse_bsl(code: str) -> Any:
     if not _check_tree_sitter():
         return None
 
-    code_bytes = code.encode("utf-8")
-    return _BS_PARSER.parse(code_bytes)
+    # Используем tree-sitter напрямую для получения Tree (не BslSymbol[])
+    # bsl_tree_sitter возвращает BslSymbol[], а нам нужен Tree для ast_analyzer
+    try:
+        import tree_sitter
+        import tree_sitter_bsl
+
+        language = tree_sitter.Language(tree_sitter_bsl.language())
+        parser = tree_sitter.Parser(language)
+        code_bytes = code.encode("utf-8", errors="replace")
+        return parser.parse(code_bytes)
+    except Exception as e:
+        logger.debug("parse_bsl failed: %s", e)
+        return None
 
 
 def is_tree_sitter_available() -> bool:
-    """Проверить, доступен ли tree-sitter-bsl."""
+    """Проверить, доступен ли tree-sitter-bsl.
+
+    P1-A-Integration: делегирует в bsl_tree_sitter.is_available().
+    """
     return _check_tree_sitter()
 
 
