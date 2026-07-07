@@ -535,6 +535,94 @@ class DependencyGraph:
         except (nx.NetworkXError, nx.NetworkXNoPath):
             return None
 
+    def find_join_path(self, from_object: str, to_object: str) -> list[dict[str, str]] | None:
+        """Найти цепочку JOIN'ов от одного объекта к другому через метаданные.
+
+        P1 improvement: автопоиск пути от поля регистра к справочнику.
+        Например: от РегистрНакопления.ВыручкаИСебестоимостьПродаж к Справочник.Номенклатура
+        через КлючиАналитикиУчетаНоменклатуры.
+
+        Args:
+            from_object: "AccumulationRegister.ВыручкаИСебестоимостьПродаж"
+            to_object: "Catalog.Номенклатура"
+
+        Returns:
+            Список шагов JOIN: [{from, to, from_field, to_field}] или None.
+        """
+        if not HAS_NETWORKX:
+            return None
+
+        # Нормализуем имена
+        from_norm = self._normalize_object_name(from_object)
+        to_norm = self._normalize_object_name(to_object)
+
+        if from_norm == to_norm:
+            return []
+
+        # Ищем кратчайший путь
+        path = self.shortest_path(from_norm, to_norm)
+        if path is None:
+            return None
+
+        # Строим список JOIN шагов
+        steps: list[dict[str, str]] = []
+        for i in range(len(path) - 1):
+            source_obj = path[i]
+            target_obj = path[i + 1]
+            # Находим рёбра между source и target
+            edges = [
+                e for e in self._all_edges
+                if e.source == source_obj and e.target == target_obj
+            ]
+            if edges:
+                edge = edges[0]
+                steps.append({
+                    "from": source_obj,
+                    "to": target_obj,
+                    "from_field": edge.source_field or "Ссылка",
+                    "to_field": edge.target_field or "Ссылка",
+                    "relation": edge.relation,
+                })
+            else:
+                steps.append({
+                    "from": source_obj,
+                    "to": target_obj,
+                    "from_field": "Ссылка",
+                    "to_field": "Ссылка",
+                    "relation": "unknown",
+                })
+        return steps
+
+    def _normalize_object_name(self, name: str) -> str:
+        """Нормализует имя объекта: Справочник.Товары → Catalog.Товары."""
+        ru_to_en = {
+            "Справочник": "Catalog",
+            "Документ": "Document",
+            "РегистрНакопления": "AccumulationRegister",
+            "РегистрСведений": "InformationRegister",
+            "РегистрБухгалтерии": "AccountingRegister",
+            "РегистрРасчета": "CalculationRegister",
+            "ПланСчетов": "ChartOfAccounts",
+            "ПланВидовХарактеристик": "ChartOfCharacteristicTypes",
+            "ПланВидовРасчета": "ChartOfCalculationTypes",
+            "ПланОбмена": "ExchangePlan",
+            "БизнесПроцесс": "BusinessProcess",
+            "Задача": "Task",
+            "Перечисление": "Enum",
+            "Константа": "Constant",
+            "Обработка": "DataProcessor",
+            "Отчет": "Report",
+        }
+        en_to_ru = {v: k for k, v in ru_to_en.items()}
+        parts = name.split(".")
+        if len(parts) >= 2:
+            prefix = parts[0]
+            if prefix in ru_to_en:
+                return f"{ru_to_en[prefix]}.{'.'.join(parts[1:])}"
+            if prefix in en_to_ru:
+                return name  # уже английский
+        return name
+
     def get_stats(self) -> dict[str, Any]:
         """Статистика графа."""
         return {

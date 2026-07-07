@@ -337,6 +337,7 @@ class UniversalObjectParser:
             "fill_checking": XMLUtils.get_text(properties, "FillChecking") if properties is not None else "",
             "use": XMLUtils.get_text(properties, "Use") if properties is not None else "",
             "indexing": XMLUtils.get_text(properties, "Indexing") if properties is not None else "",
+            "kind": "Attribute",  # P3: явный kind по умолчанию
         }
 
         if properties is not None:

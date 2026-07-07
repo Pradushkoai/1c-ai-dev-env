@@ -409,6 +409,25 @@ TEMPLATE_DOCUMENTS_WITH_TOTALS = QueryTemplate(
 # РЕЕСТР ВСЕХ ШАБЛОНОВ
 # ============================================================================
 
+
+# P2: Scalar query — возвращает одно число
+TEMPLATE_SCALAR_QUERY = QueryTemplate(
+    name="scalar_query",
+    description="Запрос возвращающий одно значение (число) — СУММА, КОЛИЧЕСТВО",
+    category="analytics",
+    keywords=["сумма", "количество", "итого", "всего", "общая", "одно число", "sum", "count", "total", "scalar"],
+    required_params=["table_name", "value_field"],
+    optional_params={"aggregate_function": "СУММА", "filter_field": ""},
+    template_text="""ВЫБРАТЬ
+    {aggregate_function}(Т.{value_field}) КАК Результат
+ИЗ
+    {table_name} КАК Т
+{filter_clause}""",
+    example="ВЫБРАТЬ СУММА(Рег.СуммаВыручки - Рег.Себестоимость) КАК Прибыль ИЗ РегистрНакопления.Продажи КАК Рег ГДЕ Рег.Период МЕЖДУ &ДатаНачала И &ДатаКонца",
+    pattern_ref="optimization_patterns.md#no-select-star",
+)
+
+
 ALL_TEMPLATES: list[QueryTemplate] = [
     TEMPLATE_SIMPLE_SELECT,
     TEMPLATE_SELECT_WITH_FILTER,
@@ -425,6 +444,8 @@ ALL_TEMPLATES: list[QueryTemplate] = [
     TEMPLATE_CATALOG_BY_ATTRIBUTE,
     TEMPLATE_DOCUMENTS_BY_PERIOD,
     TEMPLATE_DOCUMENTS_WITH_TOTALS,
+    # P2: scalar query — возвращает одно число
+    TEMPLATE_SCALAR_QUERY,
 ]
 
 

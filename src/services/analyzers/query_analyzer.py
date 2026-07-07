@@ -87,6 +87,8 @@ class QueryAnalyzer:
             issues.extend(self._check_virtual_table_without_params(query_text, line_num))
             issues.extend(self._check_assign_alias_fields(query_text, line_num))
             issues.extend(self._check_union_without_all(query_text, line_num))
+            # P2: Q019 — Пустой() vs Количество() (#std438)
+            issues.extend(self._check_count_instead_of_empty(query_text, line_num, lines))
 
         return issues
 
@@ -523,6 +525,42 @@ class QueryAnalyzer:
                     tags=["SQL", "PERFORMANCE"],
                 )
             )
+        return issues
+
+    def _check_count_instead_of_empty(self, query: str, line: int, lines: list[str]) -> list[QueryIssue]:
+        """Q019: Использование Количество() > 0 вместо Пустой() (#std438)."""
+        issues = []
+        # Проверяем весь BSL код (не только текст запроса) — ищем паттерны
+        for i, raw_line in enumerate(lines):
+            stripped = raw_line.strip()
+            # Паттерн: Результат.Выгрузить().Количество() > 0
+            if re.search(r"\.Выгрузить\(\)\.Количество\(\)\s*>\s*0", stripped, re.IGNORECASE):
+                issues.append(
+                    QueryIssue(
+                        rule_id="Q019",
+                        severity="MEDIUM",
+                        line=i + 1,
+                        query_snippet=stripped[:100],
+                        message="Использование Выгрузить().Количество() > 0 — загружает все данные. Используйте Пустой()",
+                        recommendation="Замените на: Если Не Результат.Пустой() Тогда. См. стандарт: #std438",
+                        tags=["PERFORMANCE", "STANDARD"],
+                    )
+                )
+            # Паттерн: .Количество() > 0 (без Выгрузить — может быть выборка)
+            elif re.search(r"\.Количество\(\)\s*>\s*0", stripped, re.IGNORECASE) and "Выгрузить" not in stripped:
+                # Проверяем что это результат запроса
+                if any(kw in stripped for kw in ["Результат", "Выборка", "РезультатЗапроса"]):
+                    issues.append(
+                        QueryIssue(
+                            rule_id="Q019",
+                            severity="LOW",
+                            line=i + 1,
+                            query_snippet=stripped[:100],
+                            message="Использование Количество() > 0 для проверки пустоты — медленно. Используйте Пустой()",
+                            recommendation="Замените на: Если Не Результат.Пустой() Тогда. См. стандарт: #std438",
+                            tags=["PERFORMANCE", "STANDARD"],
+                        )
+                    )
         return issues
 
     def get_stats(self, issues: list[QueryIssue]) -> dict[str, Any]:
