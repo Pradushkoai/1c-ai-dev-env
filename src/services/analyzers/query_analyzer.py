@@ -154,7 +154,7 @@ class QueryAnalyzer:
                     line=line,
                     query_snippet=query[:100],
                     message="ВЫБРАТЬ * — выбираются все поля, включая ненужные",
-                    recommendation="Указывайте только нужные поля: ВЫБРАТЬ Поле1, Поле2",
+                    recommendation="Указывайте только нужные поля: ВЫБРАТЬ Поле1, Поле2. См. паттерн: knowledge_base/query_optimization/optimization_patterns.md#no-select-star",
                 )
             )
         return issues
@@ -194,7 +194,7 @@ class QueryAnalyzer:
                         line=line,
                         query_snippet=query[:100],
                         message="Запрос с жёстко заданными значениями вместо параметров",
-                        recommendation="Используйте параметры: ГДЕ Поле = &ЗначениеПоля",
+                        recommendation="Используйте параметры: ГДЕ Поле = &ЗначениеПоля. См. паттерн: knowledge_base/query_optimization/optimization_patterns.md#parameterized-queries",
                     )
                 )
         return issues
@@ -213,7 +213,7 @@ class QueryAnalyzer:
                         line=line,
                         query_snippet=source_line.strip()[:100],
                         message="Конкатенация строк в запросе — риск SQL-инъекции",
-                        recommendation="Используйте параметры запроса вместо конкатенации",
+                        recommendation="Используйте параметры запроса вместо конкатенации. См. паттерн: knowledge_base/query_optimization/optimization_patterns.md#parameterized-queries",
                     )
                 )
         return issues
@@ -230,7 +230,7 @@ class QueryAnalyzer:
                     line=line,
                     query_snippet=query[:100],
                     message="ПОДОБНО с % в начале — full table scan (не использует индекс)",
-                    recommendation='Избегайте ПОДОБНО "%текст". Используйте ПОДОБНО "текст%"',
+                    recommendation='Избегайте ПОДОБНО "%текст". Используйте ПОДОБНО "текст%". См. паттерн: knowledge_base/query_optimization/optimization_patterns.md#like-optimization',
                 )
             )
         return issues
