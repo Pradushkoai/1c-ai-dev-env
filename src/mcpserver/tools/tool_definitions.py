@@ -205,6 +205,60 @@ def get_all_tool_definitions() -> list[types.Tool]:
             input_schema={"properties": {}, "type": "object"},
         ),
         _build_tool(
+            name="search_platform_method",
+            description=(
+                "B7: Поиск методов платформы 1С в SQLite индексе (24990 методов). "
+                "В отличие от search_1c_methods (УТ11), ищет в полном справочнике "
+                "платформы с доступностью, версиями, параметрами. "
+                "Пример: search_platform_method(query='ЗаписьЖурналаРегистрации')."
+            ),
+            input_schema={
+                "properties": {
+                    "query": {"description": "Поисковый запрос", "type": "string"},
+                    "limit": {"description": "Максимум результатов (по умолчанию 5)", "type": "integer"},
+                    "platform_version": {"description": "Версия платформы (по умолчанию 8.3.20)", "type": "string"},
+                },
+                "required": ["query"],
+                "type": "object",
+            },
+        ),
+        _build_tool(
+            name="get_method_details",
+            description=(
+                "B7: Полная карточка метода платформы 1С: синтаксис, параметры, "
+                "описание, доступность (9 контекстов), пример, версию. "
+                "Пример: get_method_details(name='ЗаписьЖурналаРегистрации')."
+            ),
+            input_schema={
+                "properties": {
+                    "name": {"description": "Имя метода (русское или английское)", "type": "string"},
+                    "platform_version": {"description": "Версия платформы", "type": "string"},
+                },
+                "required": ["name"],
+                "type": "object",
+            },
+        ),
+        _build_tool(
+            name="check_bsl_context",
+            description=(
+                "B7: Проверка BSL-кода на доступность методов в целевом контексте. "
+                "CTX001: метод недоступен (ERROR), CTX002: устарел (WARNING). "
+                "Пример: check_bsl_context(code='...', target_context=['thin_client'])."
+            ),
+            input_schema={
+                "properties": {
+                    "code": {"description": "BSL код для проверки", "type": "string"},
+                    "target_context": {
+                        "description": "Целевые контексты: thin_client, server, mobile_client, etc.",
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+                "required": ["code"],
+                "type": "object",
+            },
+        ),
+        _build_tool(
             name="dependency_query",
             description="Запрос к графу зависимостей: what_depends_on, dependencies_of, find_cycles, и т.д. Возвращает nodes, edges, cycles. Пример: dependency_query(config_name='УТ', query_type='descendants', object_name='Справочник.Товары').",
             input_schema={

@@ -63,7 +63,7 @@
 - Метаданные 1С → `1c-ai inspect meta <path>` для проверки структуры.
 
 ### Критичные файлы (проверяй вручную)
-- `src/mcp_server.py` — регистрация MCP-инструментов (45 tools).
+- `src/mcp_server.py` — регистрация MCP-инструментов (54 tools).
 - `src/cli.py` — регистрация CLI-команд (19 команд).
 - `templates/epf_factory/Form.elem.template.json` — базовый шаблон формы (154 КБ, НЕ очищать).
 - `src/services/epf_factory.py` — полный цикл сборки EPF.

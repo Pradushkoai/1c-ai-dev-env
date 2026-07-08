@@ -730,17 +730,134 @@ async def handle_check_data_exchange(project: Project, arguments: dict[str, Any]
         ]
 
 
+# ============================================================================
+# B7: Platform methods MCP handlers (определения ДО реестра)
+# ============================================================================
+
+
+async def handle_search_platform_method(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
+    """B7: Поиск методов платформы 1С в SQLite индексе."""
+    query = arguments.get("query", "")
+    limit = arguments.get("limit", 5)
+    platform_version = arguments.get("platform_version", "")
+
+    if not query:
+        return [types.TextContent(type="text", text=json.dumps({"error": "query required"}, ensure_ascii=False))]
+
+    from src.services.platform_methods_index import PlatformMethodsIndex
+
+    try:
+        idx = PlatformMethodsIndex(platform_version=platform_version or None)
+        if not idx.is_available():
+            return [types.TextContent(
+                type="text",
+                text=json.dumps({"error": "Platform methods index not built. Run: python3 scripts/build_platform_methods_index.py"}, ensure_ascii=False),
+            )]
+
+        results = idx.search(query, limit=limit)
+        response = {
+            "query": query,
+            "platform_version": idx.platform_version,
+            "total": len(results),
+            "methods": results,
+        }
+        idx.close()
+        return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
+    except Exception as e:
+        return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+
+async def handle_get_method_details(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
+    """B7: Полная карточка метода платформы 1С."""
+    name = arguments.get("name", "")
+    platform_version = arguments.get("platform_version", "")
+
+    if not name:
+        return [types.TextContent(type="text", text=json.dumps({"error": "name required"}, ensure_ascii=False))]
+
+    from src.services.platform_methods_index import PlatformMethodsIndex
+
+    try:
+        idx = PlatformMethodsIndex(platform_version=platform_version or None)
+        if not idx.is_available():
+            return [types.TextContent(
+                type="text",
+                text=json.dumps({"error": "Platform methods index not built"}, ensure_ascii=False),
+            )]
+
+        method = idx.get_method(name)
+        if method is None:
+            return [types.TextContent(type="text", text=json.dumps({"error": f"Method '{name}' not found"}, ensure_ascii=False))]
+
+        import json as json_mod
+        if method.get("params_json"):
+            method["params"] = json_mod.loads(method["params_json"])
+        if method.get("availability_json"):
+            method["availability"] = json_mod.loads(method["availability_json"])
+        if method.get("see_also_json"):
+            method["see_also"] = json_mod.loads(method["see_also_json"])
+
+        response = {
+            "platform_version": idx.platform_version,
+            "method": method,
+        }
+        idx.close()
+        return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
+    except Exception as e:
+        return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+
+async def handle_check_bsl_context(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
+    """B7: Проверка BSL-кода на доступность методов в целевом контексте."""
+    code = arguments.get("code", "")
+    target_context = arguments.get("target_context", [])
+
+    if not code:
+        return [types.TextContent(type="text", text=json.dumps({"error": "code required"}, ensure_ascii=False))]
+
+    if not target_context:
+        target_context = ["server", "thin_client", "web_client", "mobile_client"]
+
+    from src.services.analyzers.bsl_context_checker import BslContextChecker
+
+    try:
+        checker = BslContextChecker()
+        violations = checker.check_code(code, target_context=target_context)
+        response = {
+            "target_context": target_context,
+            "total_violations": len(violations),
+            "violations": [
+                {
+                    "rule_id": v.rule_id,
+                    "severity": v.severity,
+                    "line": v.line,
+                    "method_name": v.method_name,
+                    "message": v.message,
+                    "available_in": v.available_in,
+                    "recommendation": v.recommendation,
+                }
+                for v in violations
+            ],
+        }
+        return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
+    except Exception as e:
+        return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+
 # Реестр handlers
 QUALITY_HANDLERS: dict[str, Any] = {
     "get_knowledge": handle_get_knowledge,
     "audit_security": handle_audit_security,
     "get_code_metrics": handle_get_code_metrics,
     "check_transactions": handle_check_transactions,
-    "analyze_queries": handle_analyze_queries,  # Phase A.1: разделён с check_transactions
+    "analyze_queries": handle_analyze_queries,
     "analyze_architecture": handle_analyze_architecture,
     "check_form_quality": handle_check_form_quality,
-    "check_skd_quality": handle_check_form_quality,  # P3: split into separate handler
+    "check_skd_quality": handle_check_form_quality,
     "diff_configs": handle_diff_configs,
-    "validate_query_static": handle_validate_query_static,  # P1.5: статический валидатор запросов
-    "check_data_exchange": handle_check_data_exchange,  # KB-EXP-2: #std701, #std773
+    "validate_query_static": handle_validate_query_static,
+    "check_data_exchange": handle_check_data_exchange,
+    "search_platform_method": handle_search_platform_method,
+    "get_method_details": handle_get_method_details,
+    "check_bsl_context": handle_check_bsl_context,
 }

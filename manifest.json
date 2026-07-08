@@ -1,7 +1,7 @@
 {
   "version": "6.0.0",
   "name": "1C AI Development Environment",
-  "description": "Среда разработки 1С с ИИ-ассистентом: 45 MCP tools, 11 анализаторов BSL, JSON DSL компиляторы, CFE, граф зависимостей, SARIF",
+  "description": "Среда разработки 1С с ИИ-ассистентом: 54 MCP tools, 11 анализаторов BSL, JSON DSL компиляторы, CFE, граф зависимостей, SARIF",
   "system_dependencies": {
     "java": ">=17 (для BSL Language Server, опционально)",
     "python": ">=3.10",
@@ -286,7 +286,7 @@
     "forked_at": "2026-06-24",
     "count": 15
   },
-  "mcp_tools_count": 45,
+  "mcp_tools_count": 54,
   "analyzers_count": 11,
   "dsl_compilers_count": 5,
   "cli_commands_count": 18
