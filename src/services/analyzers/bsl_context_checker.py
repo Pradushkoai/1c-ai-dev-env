@@ -308,7 +308,8 @@ class BslContextChecker:
                 pattern = rf"\b{re.escape(prop)}\s*\."
                 if re.search(pattern, stripped):
                     result.append((prop, line_num))
-                    break  # одно свойство на строку
+                    # Не break — может быть несколько свойств на строке
+                    # (например: Метаданные.Справочники.Найти)
         return result
 
     def _extract_calls_regex(self, code: str) -> list:
