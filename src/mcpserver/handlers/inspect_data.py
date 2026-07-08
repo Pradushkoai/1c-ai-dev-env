@@ -157,6 +157,8 @@ async def handle_data_status(project: Project, arguments: dict[str, Any]) -> lis
     response = {
         "has_platform_index": status["has_platform_index"],
         "has_platform_methods": status["has_platform_methods"],
+        "has_platform_methods_db": status.get("has_platform_methods_db", False),
+        "platform_version": status.get("platform_version", "8.3.20"),
         "configs": status["configs"],
         "autosave_available": status["autosave_available"],
     }

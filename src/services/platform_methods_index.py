@@ -79,44 +79,100 @@ class PlatformMethodsIndex:
         if conn is None:
             return []
 
-        # Экранируем спецсимволы FTS5
         safe_query = query.replace('"', '""').strip()
         if not safe_query:
             return []
 
         try:
             cursor = conn.cursor()
+
+            # Стратегия 1: точный поиск по имени (быстро, O(1))
             cursor.execute(
-                """
-                SELECT m.name_ru, m.name_en, m.category, m.syntax,
-                       m.description, m.availability_raw, m.version_since,
-                       bm25(methods_fts) as score
-                FROM methods_fts fts
-                JOIN methods m ON m.id = fts.rowid
-                WHERE methods_fts MATCH ?
-                ORDER BY score
-                LIMIT ?
-                """,
-                (f'"{safe_query}"', limit),
+                """SELECT name_ru, name_en, category, syntax,
+                          description, availability_raw, version_since
+                   FROM methods
+                   WHERE name_ru = ? OR name_en = ?
+                   LIMIT ?""",
+                (safe_query, safe_query, limit),
             )
-            results = []
+            exact_results = []
             for row in cursor.fetchall():
-                results.append(
-                    {
-                        "name_ru": row["name_ru"] or "",
-                        "name_en": row["name_en"] or "",
-                        "category": row["category"] or "",
-                        "syntax": row["syntax"] or "",
-                        "description": row["description"] or "",
-                        "availability_raw": row["availability_raw"] or "",
-                        "version_since": row["version_since"] or "",
-                        "score": -row["score"] if row["score"] else 0.0,
-                    }
-                )
-            return results
+                exact_results.append(self._row_to_dict(row, score=10.0))
+
+            if len(exact_results) >= limit:
+                return exact_results[:limit]
+
+            # Стратегия 2: FTS5 с prefix matching (OR для многословных запросов)
+            words = safe_query.split()
+            if len(words) > 1:
+                # Многословный запрос — используем OR с префиксами
+                fts_query = " OR ".join(f'"{w}"*' for w in words if len(w) >= 2)
+            else:
+                fts_query = f'"{safe_query}"*'
+
+            cursor.execute(
+                """SELECT m.name_ru, m.name_en, m.category, m.syntax,
+                          m.description, m.availability_raw, m.version_since,
+                          bm25(methods_fts) as score
+                   FROM methods_fts fts
+                   JOIN methods m ON m.id = fts.rowid
+                   WHERE methods_fts MATCH ?
+                   ORDER BY score
+                   LIMIT ?""",
+                (fts_query, limit),
+            )
+            fts_results = []
+            seen_names = {r["name_ru"] for r in exact_results}
+            for row in cursor.fetchall():
+                name_ru = row["name_ru"] or ""
+                if name_ru not in seen_names:
+                    fts_results.append(self._row_to_dict(row, score=-row["score"] if row["score"] else 0.0))
+                    seen_names.add(name_ru)
+
+            results = exact_results + fts_results
+
+            if len(results) >= limit:
+                return results[:limit]
+
+            # Стратегия 3: LIKE fallback (для подстрок)
+            remaining = limit - len(results)
+            if remaining > 0:
+                like_results = self._search_like(safe_query, remaining)
+                for r in like_results:
+                    if r["name_ru"] not in seen_names:
+                        results.append(r)
+                        seen_names.add(r["name_ru"])
+
+            return results[:limit]
         except Exception:
-            # FTS5 может не сработать на сложных запросах — fallback на LIKE
             return self._search_like(query, limit)
+
+    @staticmethod
+    def _row_to_dict(row, score: float = 0.0) -> dict[str, Any]:
+        """Преобразовать строку SQLite в dict."""
+        try:
+            return {
+                "name_ru": row["name_ru"] or "",
+                "name_en": row["name_en"] or "",
+                "category": row["category"] or "",
+                "syntax": row["syntax"] or "",
+                "description": row["description"] or "",
+                "availability_raw": row["availability_raw"] or "",
+                "version_since": row["version_since"] or "",
+                "score": float(score),
+            }
+        except (IndexError, KeyError):
+            # Если row — tuple (нет row_factory)
+            return {
+                "name_ru": row[0] or "",
+                "name_en": row[1] or "",
+                "category": row[2] or "",
+                "syntax": row[3] or "",
+                "description": row[4] or "",
+                "availability_raw": row[5] or "",
+                "version_since": row[6] or "",
+                "score": float(score),
+            }
 
     def _search_like(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
         """Fallback поиск через LIKE (если FTS5 не сработал)."""
