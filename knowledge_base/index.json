@@ -78,7 +78,7 @@
       ]
     },
     "antipatterns": {
-      "description": "Антипаттерны — чего не делать (30 шт: 10 базовых + 20 из BSL LS)",
+      "description": "Антипаттерны — чего не делать (32 шт: 10 базовых + 20 BSL LS + 2 модулей/async)",
       "items": [
         {
           "id": "common_antipatterns",
@@ -86,6 +86,15 @@
           "file": "antipatterns/common_antipatterns.md",
           "keywords": ["антипаттерн", "плохая практика", "запрет"],
           "categories": ["критичные", "транзакции", "общие модули", "безопасность", "производительность", "устаревшее", "дизайн кода"]
+        },
+        {
+          "id": "bsl_modules_async_antipatterns",
+          "title": "Антипаттерны BSL: модули и асинхронность (5 шт)",
+          "file": "antipatterns/bsl_modules_async.md",
+          "keywords": ["асинх", "async", "ждать", "await", "переменные модуля", "общий модуль", "stateless", "обещание", "promise", "сервер", "клиент", "мобильное приложение"],
+          "categories": ["компиляция", "модули", "асинхронность", "состояние", "клиент-сервер"],
+          "rules": ["BSL-ASYNC-001", "BSL-ASYNC-002", "BSL-ASYNC-003", "BSL-MODULE-VAR-001", "BSL-MODULE-VAR-002"],
+          "tools": ["check_standards", "analyze_bsl", "solve_check", "architecture_analyzer"]
         },
         {
           "id": "query_antipatterns",
@@ -325,7 +334,7 @@
   },
   "stats": {
     "patterns": 10,
-    "antipatterns": 40,
+    "antipatterns": 45,
     "best_practices": 38,
     "query_optimization_patterns": 15,
     "query_standards_its": 21,
@@ -356,8 +365,9 @@
     "form_quality_checker_rules": 14,
     "architecture_analyzer_rules": 15,
     "check_1c_standards_rules": 62,
+    "bsl_async_antipatterns": 5,
     "total_its_standards": 222,
-    "total_knowledge_items": 451
+    "total_knowledge_items": 452
   },
   "sources": {
     "its": "https://its.1c.ru/db/v8std",
