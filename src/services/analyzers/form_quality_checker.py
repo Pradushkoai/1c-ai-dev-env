@@ -213,6 +213,115 @@ class FormQualityChecker:
                 )
             )
 
+        # ====================================================================
+        # KB-EXP-3: Усиление по стандартам v8std.ru / ITS
+        # ====================================================================
+
+        # FQ010: Слишком много элементов в командной панели (#std711)
+        # https://v8std.ru/std/711/
+        cmd_panel_items = form.get("command_panel_items", [])
+        if not cmd_panel_items:
+            # Альтернативный путь: ищем элементы с типом CommandPanel
+            cmd_panel_items = [
+                i for i in items if isinstance(i, dict)
+                and "CommandPanel" in str(i.get("type", ""))
+            ]
+        if len(cmd_panel_items) > 15:
+            issues.append(
+                FormQualityIssue(
+                    rule_id="FQ010",
+                    severity="MEDIUM",
+                    form_name=form_name,
+                    parent_name=parent_name,
+                    message=f"Слишком много элементов в командной панели ({len(cmd_panel_items)})",
+                    recommendation=(
+                        "По #std711 элементы должны помещаться без прокрутки при стандартном "
+                        "разрешении. См. https://v8std.ru/std/711/"
+                    ),
+                )
+            )
+
+        # FQ011: Элементы без заголовка у таблиц/групп (#std765)
+        # https://v8std.ru/std/765/
+        for item in items:
+            item_type = str(item.get("type", ""))
+            if any(t in item_type for t in ("Table", "Group", "Page")):
+                title = item.get("title", "") or item.get("header", "")
+                if not title and not item.get("titleHidden", False):
+                    issues.append(
+                        FormQualityIssue(
+                            rule_id="FQ011",
+                            severity="LOW",
+                            form_name=form_name,
+                            parent_name=parent_name,
+                            message=(
+                                f"Элемент '{item.get('name', '?')}' типа {item_type} без заголовка "
+                                f"(#std765)"
+                            ),
+                            recommendation=(
+                                "Задавайте заголовки таблицам и группам. Если не нужен — "
+                                "явно отключите показ. См. https://v8std.ru/std/765/"
+                            ),
+                        )
+                    )
+
+        # FQ012: Форма со слишком большим количеством реквизитов
+        # Большие формы медленно передаются между клиентом и сервером (#std744)
+        # https://v8std.ru/std/744/
+        attrs = form.get("attributes", [])
+        if len(attrs) > 50:
+            issues.append(
+                FormQualityIssue(
+                    rule_id="FQ012",
+                    severity="MEDIUM",
+                    form_name=form_name,
+                    parent_name=parent_name,
+                    message=f"Слишком много реквизитов формы ({len(attrs)})",
+                    recommendation=(
+                        "Большие формы медленно передаются между клиентом и сервером (#std744). "
+                        "Разделите на несколько форм или используйте динамический список. "
+                        "См. https://v8std.ru/std/744/"
+                    ),
+                )
+            )
+
+        # FQ013: Модальное открытие формы (#std400)
+        # https://v8std.ru/std/400/
+        # Эвристика: ищем в событиях формы модальные вызовы
+        events_str = json.dumps(events, ensure_ascii=False) if events else ""
+        modal_patterns = ["ОткрытьМодально", "DoModal", "ОткрытьЗначение("]
+        if any(p in events_str for p in modal_patterns):
+            issues.append(
+                FormQualityIssue(
+                    rule_id="FQ013",
+                    severity="HIGH",
+                    form_name=form_name,
+                    parent_name=parent_name,
+                    message="Модальное открытие формы (#std400)",
+                    recommendation=(
+                        "Используйте асинхронные методы: ОткрытьФорму, ПоказатьВопрос, "
+                        "ПоказатьПредупреждение. См. https://v8std.ru/std/400/"
+                    ),
+                )
+            )
+
+        # FQ014: Использование Сообщить в обработчике формы (#std418)
+        # https://v8std.ru/std/418/
+        if "Сообщить(" in events_str:
+            issues.append(
+                FormQualityIssue(
+                    rule_id="FQ014",
+                    severity="MEDIUM",
+                    form_name=form_name,
+                    parent_name=parent_name,
+                    message="Использование Сообщить в обработчиках формы (#std418)",
+                    recommendation=(
+                        "Используйте СообщениеПользователю вместо Сообщить. "
+                        "См. https://v8std.ru/std/418/"
+                    ),
+                )
+            )
+
         return issues
 
     def _check_items(

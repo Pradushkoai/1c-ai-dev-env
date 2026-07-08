@@ -350,6 +350,175 @@ def rule_no_deep_nesting(lines: list[str], file_path: Path) -> Iterator[Violatio
             depth = max(0, depth - 1)
 
 
+# ============================================================================
+# KB-EXP-3: Усиление по стандартам v8std.ru / ITS
+# ============================================================================
+
+
+# Оператор Перейти (#std547)
+PEREYTI_PATTERN = re.compile(r"\bПерейти\s+~?\w+", re.IGNORECASE)
+
+
+def rule_no_pereyti(lines: list[str], file_path: Path) -> Iterator[Violation]:
+    """Оператор Перейти запрещён (#std547).
+
+    https://v8std.ru/std/547/
+    Не используйте оператор Перейти — запутывает код, не поддерживается в веб-клиенте.
+    """
+    for i, line in enumerate(lines, 1):
+        if PEREYTI_PATTERN.search(line):
+            yield Violation(
+                file=str(file_path),
+                line=i,
+                col=1,
+                rule_id="no-pereyti",
+                severity="error",
+                message="Оператор Перейти запрещён (#std547) — не поддерживается в веб-клиенте",
+            )
+
+
+# Сравнение с типом через Метаданные().Имя (#std442)
+METADATA_NAME_COMPARE_PATTERN = re.compile(
+    r"\.\s*Метаданные\s*\(\s*\)\s*\.\s*Имя\s*=\s*[\"']",
+    re.IGNORECASE,
+)
+
+
+def rule_no_metadata_name_compare(lines: list[str], file_path: Path) -> Iterator[Violation]:
+    """Сравнение типа через Метаданные().Имя (#std442).
+
+    https://v8std.ru/std/442/
+    Не используйте Метаданные().Имя для проверки типа — применяйте ТипЗнч.
+    """
+    for i, line in enumerate(lines, 1):
+        if METADATA_NAME_COMPARE_PATTERN.search(line):
+            yield Violation(
+                file=str(file_path),
+                line=i,
+                col=1,
+                rule_id="no-metadata-name-compare",
+                severity="warning",
+                message=(
+                    "Сравнение через Метаданные().Имя — используйте ТипЗнч (#std442). "
+                    "См. https://v8std.ru/std/442/"
+                ),
+            )
+
+
+# Экспортная переменная модуля (#std639)
+EXPORT_VAR_PATTERN = re.compile(
+    r"^\s*Перем\s+\w+(?:\s*,\s*\w+)*\s+(Экспорт|Export)\s*;",
+    re.IGNORECASE,
+)
+
+
+def rule_no_export_variables(lines: list[str], file_path: Path) -> Iterator[Violation]:
+    """Экспортная переменная модуля (#std639).
+
+    https://v8std.ru/std/639/
+    Не используйте экспортные переменные модуля — сложно контролировать область видимости.
+    """
+    for i, line in enumerate(lines, 1):
+        if EXPORT_VAR_PATTERN.search(line):
+            yield Violation(
+                file=str(file_path),
+                line=i,
+                col=1,
+                rule_id="no-export-variables",
+                severity="warning",
+                message=(
+                    "Экспортная переменная модуля (#std639) — используйте ДополнительныеСвойства "
+                    "или общий модуль. См. https://v8std.ru/std/639/"
+                ),
+            )
+
+
+# Длинный конструктор структуры (#std693)
+LONG_STRUCT_CTOR_PATTERN = re.compile(
+    r"Новый\s+Структура\s*\(\s*[\"'][^\"']{50,}[\"']",
+    re.IGNORECASE,
+)
+
+
+def rule_no_long_structure_constructor(lines: list[str], file_path: Path) -> Iterator[Violation]:
+    """Длинный конструктор структуры (#std693).
+
+    https://v8std.ru/std/693/
+    Не передавайте в конструктор структуры более 3 значений — остальное через Вставить.
+    """
+    for i, line in enumerate(lines, 1):
+        if LONG_STRUCT_CTOR_PATTERN.search(line):
+            yield Violation(
+                file=str(file_path),
+                line=i,
+                col=1,
+                rule_id="no-long-structure-constructor",
+                severity="warning",
+                message=(
+                    "Длинный конструктор структуры (#std693) — используйте Вставить() для "
+                    "более 3 свойств. См. https://v8std.ru/std/693/"
+                ),
+            )
+
+
+# Конкатенация строк в цикле (#std782)
+# Ищем: var = var + ... + ... (2 и более плюсов в одном выражении)
+STR_CONCAT_IN_LOOP_PATTERN = re.compile(r"=\s*\S+\s*\+\s*\S+\s*\+\s*\S+")
+
+
+def rule_no_string_concat_in_loop(lines: list[str], file_path: Path) -> Iterator[Violation]:
+    """Конкатенация строк в цикле (#std782).
+
+    https://v8std.ru/std/782/
+    При массовой конкатенации используйте СтрСоединить вместо + в цикле.
+    """
+    in_loop_depth = 0
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if re.match(r"^\s*(Для|Пока)\s", line, re.IGNORECASE):
+            in_loop_depth += 1
+        elif re.match(r"^\s*(КонецЦикла|КонецПока)", stripped, re.IGNORECASE):
+            if in_loop_depth > 0:
+                in_loop_depth -= 1
+        elif in_loop_depth > 0 and STR_CONCAT_IN_LOOP_PATTERN.search(stripped):
+            yield Violation(
+                file=str(file_path),
+                line=i,
+                col=1,
+                rule_id="no-string-concat-in-loop",
+                severity="warning",
+                message=(
+                    "Конкатенация строк в цикле (#std782) — используйте массив + СтрСоединить. "
+                    "См. https://v8std.ru/std/782/"
+                ),
+            )
+
+
+# Использование ТекущаяДата вместо ТекущаяДатаСеанса (#std643)
+TEK_DATA_PATTERN = re.compile(r"\bТекущаяДата\s*\(\s*\)", re.IGNORECASE)
+
+
+def rule_no_tekuschaya_data(lines: list[str], file_path: Path) -> Iterator[Violation]:
+    """Использование ТекущаяДата вместо ТекущаяДатаСеанса (#std643).
+
+    https://v8std.ru/std/643/
+    В серверном контексте используйте ТекущаяДатаСеанса.
+    """
+    for i, line in enumerate(lines, 1):
+        if TEK_DATA_PATTERN.search(line):
+            yield Violation(
+                file=str(file_path),
+                line=i,
+                col=1,
+                rule_id="no-tekuschaya-data",
+                severity="warning",
+                message=(
+                    "ТекущаяДата() в серверном контексте — используйте ТекущаяДатаСеанса() "
+                    "(#std643). См. https://v8std.ru/std/643/"
+                ),
+            )
+
+
 # Список правил в этом модуле
 RULES = [
     rule_no_otkaz_lozh,
@@ -366,4 +535,11 @@ RULES = [
     rule_no_space_after_comment,
     rule_no_vygruzka_empty_check,
     rule_no_deep_nesting,
+    # KB-EXP-3: усиление по стандартам v8std.ru / ITS
+    rule_no_pereyti,                       # #std547
+    rule_no_metadata_name_compare,         # #std442
+    rule_no_export_variables,              # #std639
+    rule_no_long_structure_constructor,    # #std693
+    rule_no_string_concat_in_loop,         # #std782
+    rule_no_tekuschaya_data,               # #std643
 ]

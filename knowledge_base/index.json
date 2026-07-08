@@ -279,6 +279,46 @@
           "keywords": ["обмен", "план обмена", "риб", "enterprisedata", "xml", "xdto", "конвертация данных", "обменданными.загрузка", "классификатор", "правила обмена"],
           "standards": ["std701", "std771", "std773", "std637", "std464", "std465", "std752", "std542", "std498", "std499"],
           "tools": ["check_data_exchange", "check_transactions", "solve_check", "check_standards", "analyze_bsl"]
+        },
+        {
+          "id": "its_localization",
+          "title": "Стандарты ITS: Локализация (9 шт)",
+          "file": "standards/its_localization.md",
+          "keywords": ["локализация", "l10n", "нстр", "формат", "дата", "валюта", "макет", "международная версия", "бот", "регламент"],
+          "standards": ["std761", "std763", "std764", "std765", "std766", "std767", "std769", "std778", "std784"],
+          "tools": ["check_standards", "analyze_bsl", "solve_check", "audit_security"]
+        },
+        {
+          "id": "its_bsl_language",
+          "title": "Стандарты ITS: Конструкции BSL (15 шт)",
+          "file": "standards/its_bsl_language.md",
+          "keywords": ["bsl", "встроенный язык", "перевти", "каноническое", "директивы", "тип", "переменные", "исключения", "перйети", "отказ", "структура", "конкатенация"],
+          "standards": ["std441", "std439", "std442", "std445", "std639", "std494", "std790", "std547", "std647", "std640", "std686", "std693", "std782", "std409", "std544"],
+          "tools": ["check_standards", "analyze_bsl", "solve_check", "get_code_metrics", "architecture_analyzer"]
+        },
+        {
+          "id": "its_configuration",
+          "title": "Стандарты ITS: Организация работы конфигурации (16 шт)",
+          "file": "standards/its_configuration.md",
+          "keywords": ["конфигурация", "подсистема", "параметры сеанса", "часовой пояс", "общие реквизиты", "определяемые типы", "пользовательские настройки", "версия платформы", "толстый клиент", "linux", "macos", "переименование", "установка"],
+          "standards": ["std550", "std643", "std413", "std543", "std677", "std704", "std557", "std785", "std556", "std680", "std709", "std723", "std706", "std731", "std759", "std798"],
+          "tools": ["check_standards", "analyze_bsl", "solve_check", "inspect", "get_object_structure"]
+        },
+        {
+          "id": "its_data_storage_extended",
+          "title": "Стандарты ITS: Хранение данных расширенно (14 шт)",
+          "file": "standards/its_data_storage_extended.md",
+          "keywords": ["имя", "синоним", "подсказка", "коды", "строковые типы", "составной тип", "проведение", "активность движений", "самодостаточность", "комментарий", "константы", "неактуальные", "предопределенные"],
+          "standards": ["std474", "std478", "std473", "std432", "std728", "std603", "std633", "std477", "std531", "std534", "std632", "std638", "std697", "std541"],
+          "tools": ["check_standards", "check_metadata_standards", "get_object_structure", "solve_check", "analyze_bsl"]
+        },
+        {
+          "id": "its_ui_patterns",
+          "title": "Стандарты ITS: Пользовательский интерфейс (9 шт)",
+          "file": "standards/its_ui_patterns.md",
+          "keywords": ["интерфейс", "сообщить", "сообщениепользователю", "длительные операции", "печатные формы", "командный интерфейс", "обработказаполнения", "прикопировании"],
+          "standards": ["std400", "std418", "std642", "std755", "std548", "std789", "std711", "std396", "std466"],
+          "tools": ["check_standards", "check_form_quality", "analyze_bsl", "solve_check"]
         }
       ]
     }
@@ -301,14 +341,23 @@
     "its_skd_standards": 15,
     "its_rest_http_integration": 12,
     "its_data_exchange": 10,
+    "its_localization": 9,
+    "its_bsl_language": 15,
+    "its_configuration": 16,
+    "its_data_storage_extended": 14,
+    "its_ui_patterns": 9,
     "bsl_ls_diagnostics": 184,
     "query_analyzer_rules": 19,
     "query_optimizer_rules": 18,
     "security_auditor_rules": 20,
     "skd_quality_checker_rules": 15,
     "data_exchange_checker_rules": 10,
-    "total_its_standards": 139,
-    "total_knowledge_items": 446
+    "transaction_checker_rules": 11,
+    "form_quality_checker_rules": 14,
+    "architecture_analyzer_rules": 15,
+    "check_1c_standards_rules": 62,
+    "total_its_standards": 222,
+    "total_knowledge_items": 451
   },
   "sources": {
     "its": "https://its.1c.ru/db/v8std",

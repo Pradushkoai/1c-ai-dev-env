@@ -93,6 +93,12 @@ class TransactionChecker:
         violations.extend(self._check_long_transactions(lines, file_path))
         violations.extend(self._check_nested_transactions(lines, file_path))
         violations.extend(self._check_db_write_without_transaction(lines, file_path))
+        # KB-EXP-3: усиление по стандартам v8std.ru / ITS
+        violations.extend(self._check_constant_in_transaction(lines, file_path))  # #std632
+        violations.extend(self._check_no_object_lock(lines, file_path))  # #std490
+        violations.extend(self._check_record_in_loop(lines, file_path))  # #std792
+        violations.extend(self._check_full_attribute_load(lines, file_path))  # #std496
+        violations.extend(self._check_no_data_lock_before_read(lines, file_path))  # #std661
 
         return violations
 
@@ -319,6 +325,233 @@ class TransactionChecker:
                         )
                     )
                 write_count = 0
+
+        return violations
+
+    # =====================================================================
+    # Усиление по стандартам v8std.ru / ITS — KB-EXP-3
+    # =====================================================================
+
+    def _check_constant_in_transaction(self, lines: list[str], file_path: str) -> list[TransactionViolation]:
+        """TX007: Запись константы в транзакции (#std632).
+
+        https://v8std.ru/std/632/
+        Константа — узкое место: при записи блокируются другие сеансы.
+        Запись вне транзакций документа/проведения.
+        """
+        violations = []
+        # Эвристика: ищем Константы.Установить в обработчиках ОбработкаПроведения,
+        # ПередЗаписью (документа), ПриЗаписи (документа) — в пределах 50 строк
+        handler_pat = re.compile(
+            r"^\s*Процедура\s+(ОбработкаПроведения|ПередЗаписью|ПриЗаписи|ОбработкаУдаления)\s*\(",
+            re.IGNORECASE,
+        )
+        const_pat = re.compile(r"Константы\.\w+\s*\.\s*Установить\s*\(", re.IGNORECASE)
+
+        in_handler = False
+        handler_line = 0
+        for i, line in enumerate(lines, 1):
+            if handler_pat.match(line):
+                in_handler = True
+                handler_line = i
+                continue
+            if in_handler:
+                if re.match(r"^\s*КонецПроцедуры", line, re.IGNORECASE):
+                    in_handler = False
+                    continue
+                if const_pat.search(line):
+                    violations.append(
+                        TransactionViolation(
+                            rule_id="TX007",
+                            severity="MEDIUM",
+                            line=i,
+                            message=(
+                                f"Запись константы в обработчике (строка {handler_line}) "
+                                f"— узкое место (#std632): {line.strip()[:80]}"
+                            ),
+                            recommendation=(
+                                "Не записывайте константы в транзакции документа/проведения. "
+                                "См. https://v8std.ru/std/632/ — #std632"
+                            ),
+                        )
+                    )
+
+        return violations
+
+    def _check_no_object_lock(self, lines: list[str], file_path: str) -> list[TransactionViolation]:
+        """TX008: Изменение объекта без объектной блокировки (#std490).
+
+        https://v8std.ru/std/490/
+        Перед ПолучитьОбъект/СоздатьЭлемент с последующей записью — Заблокировать().
+        """
+        violations = []
+        # Эвристика: ищем ПолучитьОбъект() или СоздатьЭлемент/СоздатьДокумент
+        # без Заблокировать() в ближайших 10 строках
+        get_obj_pat = re.compile(r"\.ПолучитьОбъект\s*\(\s*\)")
+        create_pat = re.compile(
+            r"(Справочники|Документы|РегистрыСведений|РегистрыНакопления)\.\w+\s*\.\s*"
+            r"(СоздатьЭлемент|СоздатьДокумент|СоздатьНаборЗаписей)\s*\("
+        )
+        write_pat = re.compile(r"\.Записать\s*\(\s*\)")
+        lock_pat = re.compile(r"\.Заблокировать\s*\(\s*\)")
+
+        for i, line in enumerate(lines, 1):
+            if not (get_obj_pat.search(line) or create_pat.search(line)):
+                continue
+            # Проверяем 10 строк вперёд до .Записать()
+            # i — 1-indexed; lines[j-1] даёт строку j
+            # начинаем с i (текущая) до i+9
+            end = min(len(lines), i + 10)
+            found_lock = False
+            for j in range(i, end + 1):
+                if j > len(lines):
+                    break
+                future_line = lines[j - 1]
+                if lock_pat.search(future_line):
+                    found_lock = True
+                    break  # блокировка есть — нормально
+                if write_pat.search(future_line):
+                    if not found_lock:
+                        violations.append(
+                            TransactionViolation(
+                                rule_id="TX008",
+                                severity="MEDIUM",
+                                line=i,
+                                message=(
+                                    f"Изменение объекта без объектной блокировки (#std490): "
+                                    f"{line.strip()[:80]}"
+                                ),
+                                recommendation=(
+                                    "Перед изменением существующего объекта вызывайте "
+                                    "Объект.Заблокировать(). См. https://v8std.ru/std/490/ — #std490"
+                                ),
+                            )
+                        )
+                    break
+
+        return violations
+
+    def _check_record_in_loop(self, lines: list[str], file_path: str) -> list[TransactionViolation]:
+        """TX009: Запись набора записей в цикле (#std792).
+
+        https://v8std.ru/std/792/
+        Не записывайте наборы записей в цикле по одной записи — это в несколько раз медленнее.
+        """
+        violations = []
+        # Эвристика: .Записать() внутри цикла Для/Пока
+        in_loop_depth = 0
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            if re.match(r"^\s*(Для|Пока)\s", line, re.IGNORECASE):
+                in_loop_depth += 1
+            elif re.match(r"^\s*(КонецЦикла|КонецПока)", stripped, re.IGNORECASE):
+                if in_loop_depth > 0:
+                    in_loop_depth -= 1
+            elif in_loop_depth > 0 and re.search(r"\.Записать\s*\(\s*\)", stripped):
+                # Проверяем, что это набор записей (а не объект)
+                if "Запись" in stripped or "Набор" in stripped:
+                    violations.append(
+                        TransactionViolation(
+                            rule_id="TX009",
+                            severity="HIGH",
+                            line=i,
+                            message=(
+                                f"Запись набора записей в цикле (#std792): {stripped[:80]}"
+                            ),
+                            recommendation=(
+                                "Не записывайте наборы записей в цикле — формируйте весь набор "
+                                "и записывайте один раз. См. https://v8std.ru/std/792/ — #std792"
+                            ),
+                        )
+                    )
+                    break  # одно срабатывание на цикл
+
+        return violations
+
+    def _check_full_attribute_load(self, lines: list[str], file_path: str) -> list[TransactionViolation]:
+        """TX010: Получение объекта целиком для чтения одного реквизита (#std496).
+
+        https://v8std.ru/std/496/
+        ПолучитьОбъект загружает весь объект; для чтения одного реквизита используйте запрос.
+        """
+        violations = []
+        # Эвристика: ПолучитьОбъект() и в одной из следующих 5 строк обращение
+        # через точку к реквизиту (но нет .Записать()/.Удалить() — это значит только чтение)
+        get_obj_pat = re.compile(r"(\w+)\s*=\s*\w+\.ПолучитьОбъект\s*\(\s*\)")
+        for i, line in enumerate(lines, 1):
+            m = get_obj_pat.search(line)
+            if not m:
+                continue
+            obj_var = m.group(1)
+            # Проверяем следующие 5 строк на использование только через точку (чтение)
+            # i — 1-indexed; проверяем строки i+1 ... i+5 (т.е. после строки получения объекта)
+            end = min(len(lines), i + 5)
+            for j in range(i + 1, end + 1):
+                future_line = lines[j - 1]
+                # Если обращение через точку к реквизиту — это чтение
+                if re.search(rf"{obj_var}\.\w+", future_line):
+                    # Проверяем, что нет .Записать() или .Удалить() в этой строке
+                    if not re.search(
+                        rf"{obj_var}\s*\.\s*(Записать|Удалить|Заблокировать|ОтменитьПроведение)",
+                        future_line,
+                    ):
+                        violations.append(
+                            TransactionViolation(
+                                rule_id="TX010",
+                                severity="LOW",
+                                line=i,
+                                message=(
+                                    f"ПолучитьОбъект для чтения реквизита (#std496): "
+                                    f"{line.strip()[:80]}"
+                                ),
+                                recommendation=(
+                                    "Для чтения отдельных реквизитов используйте запрос, "
+                                    "не ПолучитьОбъект. См. https://v8std.ru/std/496/ — #std496"
+                                ),
+                            )
+                        )
+                        break
+
+        return violations
+
+    def _check_no_data_lock_before_read(self, lines: list[str], file_path: str) -> list[TransactionViolation]:
+        """TX011: Чтение остатков без ДЛЯ ИЗМЕНЕНИЯ в транзакции (#std661).
+
+        https://v8std.ru/std/661/
+        Контроль остатков — блокирующее чтение итогов в начале транзакции.
+        """
+        violations = []
+        # Эвристика: в транзакции (После НачатьТранзакцию) запрос к виртуальной таблице
+        # Остатки без ДЛЯ ИЗМЕНЕНИЯ
+        in_transaction = False
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            if re.search(r"НачатьТранзакцию\s*\(", stripped, re.IGNORECASE):
+                in_transaction = True
+                continue
+            if re.search(r"(ЗафиксироватьТранзакцию|ОтменитьТранзакцию)\s*\(", stripped, re.IGNORECASE):
+                in_transaction = False
+                continue
+            if in_transaction and ".Остатки(" in stripped and "ДЛЯ ИЗМЕНЕНИЯ" not in stripped.upper():
+                # Проверяем следующие 5 строк — может быть ДЛЯ ИЗМЕНЕНИЯ в конце запроса
+                end = min(len(lines), i + 5)
+                full_query = "\n".join(lines[i - 1 : end])
+                if "ДЛЯ ИЗМЕНЕНИЯ" not in full_query.upper():
+                    violations.append(
+                        TransactionViolation(
+                            rule_id="TX011",
+                            severity="HIGH",
+                            line=i,
+                            message=(
+                                f"Чтение остатков в транзакции без ДЛЯ ИЗМЕНЕНИЯ (#std661): "
+                                f"{stripped[:80]}"
+                            ),
+                            recommendation=(
+                                "Контроль остатков делайте запросом с ДЛЯ ИЗМЕНЕНИЯ в начале "
+                                "транзакции. См. https://v8std.ru/std/661/ — #std661"
+                            ),
+                        )
+                    )
 
         return violations
 

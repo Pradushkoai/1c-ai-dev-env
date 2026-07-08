@@ -145,6 +145,160 @@ class ArchitectureAnalyzer:
                             )
                         )
 
+        # ====================================================================
+        # KB-EXP-3: Усиление по стандартам v8std.ru / ITS
+        # ====================================================================
+
+        # ARCH011: Экспортная функция в модуле команды (#std544)
+        # https://v8std.ru/std/544/
+        # Модули команд и общих команд не должны содержать экспортные процедуры/функции.
+        is_command_module = (
+            "Commands" in str(file_path) or "Command" in name
+        )
+        if is_command_module:
+            for i, line in enumerate(content.split("\n"), 1):
+                if re.search(
+                    r"^\s*(Процедура|Функция)\s+\w+.*Экспорт",
+                    line,
+                    re.IGNORECASE,
+                ):
+                    issues.append(
+                        ArchitectureIssue(
+                            rule_id="ARCH011",
+                            severity="MEDIUM",
+                            module=name,
+                            message=(
+                                f"Экспортная процедура/функция в модуле команды (#std544, "
+                                f"строка {i})"
+                            ),
+                            recommendation=(
+                                "Не размещайте экспортные процедуры в модулях команд. "
+                                "См. https://v8std.ru/std/544/"
+                            ),
+                        )
+                    )
+                    break
+
+        # ARCH012: Функция начинается с «Получить» без необходимости (#std647)
+        # https://v8std.ru/std/647/
+        # Эвристика: ищем экспортные функции "Получить..."
+        for i, line in enumerate(content.split("\n"), 1):
+            m = re.search(
+                r"^\s*Функция\s+(Получить\w+).*Экспорт",
+                line,
+                re.IGNORECASE,
+            )
+            if m:
+                # Проверяем, что функция не реализует паттерн getter
+                func_name = m.group(1)
+                # Если функция содержит "Ссылку", "Объект" — это getter (нормально)
+                if not any(
+                    suffix in func_name
+                    for suffix in ("Ссылку", "Объект", "Массив", "Структуру", "Таблицу")
+                ):
+                    issues.append(
+                        ArchitectureIssue(
+                            rule_id="ARCH012",
+                            severity="LOW",
+                            module=name,
+                            message=(
+                                f"Функция '{func_name}' начинается с 'Получить' (#std647, "
+                                f"строка {i})"
+                            ),
+                            recommendation=(
+                                "Имена берите от терминов предметной области — самодокументирующиеся. "
+                                "См. https://v8std.ru/std/647/"
+                            ),
+                        )
+                    )
+
+        # ARCH013: Слишком длинная функция (#std647 — косвенно)
+        # Функция > 100 строк — сложная для понимания
+        # Проверяем по паттерну "Процедура/Функция ... КонецПроцедуры/КонецФункции"
+        proc_start_pat = re.compile(
+            r"^\s*(Процедура|Функция)\s+(\w+)", re.IGNORECASE
+        )
+        proc_end_pat = re.compile(
+            r"^\s*(КонецПроцедуры|КонецФункции)", re.IGNORECASE
+        )
+        proc_name = ""
+        proc_start_line = 0
+        for i, line in enumerate(content.split("\n"), 1):
+            if not proc_name:
+                m = proc_start_pat.match(line)
+                if m:
+                    proc_name = m.group(2)
+                    proc_start_line = i
+            else:
+                if proc_end_pat.match(line):
+                    proc_length = i - proc_start_line
+                    if proc_length > 100:
+                        issues.append(
+                            ArchitectureIssue(
+                                rule_id="ARCH013",
+                                severity="MEDIUM",
+                                module=name,
+                                message=(
+                                    f"Длинная процедура/функция '{proc_name}' — "
+                                    f"{proc_length} строк (строки {proc_start_line}-{i})"
+                                ),
+                                recommendation=(
+                                    "Разбейте процедуру на несколько по #std456 (рекомендуется < 50 строк). "
+                                    "См. https://v8std.ru/std/456/"
+                                ),
+                            )
+                        )
+                    proc_name = ""
+                    proc_start_line = 0
+
+        # ARCH014: Слишком много параметров у функции (#std640)
+        # https://v8std.ru/std/640/
+        # Эвристика: ищем объявления функций с > 5 параметрами
+        for i, line in enumerate(content.split("\n"), 1):
+            m = re.match(
+                r"^\s*(Процедура|Функция)\s+\w+\s*\(([^)]*)\)",
+                line,
+                re.IGNORECASE,
+            )
+            if m:
+                params_str = m.group(2)
+                # Считаем параметры по запятым (простая эвристика)
+                params = [p for p in params_str.split(",") if p.strip()]
+                if len(params) > 7:
+                    issues.append(
+                        ArchitectureIssue(
+                            rule_id="ARCH014",
+                            severity="MEDIUM",
+                            module=name,
+                            message=(
+                                f"Слишком много параметров ({len(params)}) у функции "
+                                f"(строка {i}) — сложно использовать (#std640)"
+                            ),
+                            recommendation=(
+                                "Не более 7 параметров; избыточные — через структуру. "
+                                "См. https://v8std.ru/std/640/"
+                            ),
+                        )
+                    )
+
+        # ARCH015: COM-объект без проверки платформы (#std723)
+        # https://v8std.ru/std/723/
+        # На Linux/macOS COM не работает — нужно проверять ТипПлатформы
+        if re.search(r"Новый\s+COMОбъект\s*\(", content, re.IGNORECASE):
+            if "ТипПлатформы" not in content and "СистемнаяИнформация" not in content:
+                issues.append(
+                    ArchitectureIssue(
+                        rule_id="ARCH015",
+                        severity="HIGH",
+                        module=name,
+                        message="Использование COM без проверки платформы (#std723)",
+                        recommendation=(
+                            "Перед использованием COM проверяйте ТипПлатформы — на Linux/macOS "
+                            "COM недоступен. См. https://v8std.ru/std/723/"
+                        ),
+                    )
+                )
+
         return issues
 
     # =====================================================================
