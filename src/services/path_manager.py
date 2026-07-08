@@ -100,6 +100,30 @@ class PathManager:
         return self.derived_dir / "platform"
 
     @property
+    def platform_versions_dir(self) -> Path:
+        """B5: Директория с индексами по версиям платформы."""
+        return self.derived_platform_dir / "versions"
+
+    def platform_methods_db(self, version: str | None = None) -> Path:
+        """B5: Путь к SQLite базе методов платформы для указанной версии.
+
+        Args:
+            version: Версия платформы (например "8.3.20").
+                     Если None — берётся из env 1C_AI_PLATFORM_VERSION или "8.3.20".
+        """
+        import os
+
+        ver = version or os.environ.get("1C_AI_PLATFORM_VERSION", "8.3.20")
+        return self.platform_versions_dir / ver / "platform-methods.db"
+
+    def platform_manifest(self, version: str | None = None) -> Path:
+        """B5: Путь к manifest.json для указанной версии платформы."""
+        import os
+
+        ver = version or os.environ.get("1C_AI_PLATFORM_VERSION", "8.3.20")
+        return self.platform_versions_dir / ver / "manifest.json"
+
+    @property
     def tools_dir(self) -> Path:
         return self._root / "tools"
 

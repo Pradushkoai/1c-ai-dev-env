@@ -70,6 +70,10 @@ class Config:
     # ─── Настройки ───
     language: str = "ru"
 
+    # ─── Платформа 1С ───
+    # B5: версия платформы для индекса методов (env: 1C_AI_PLATFORM_VERSION)
+    platform_version: str = "8.3.20"
+
     # ─── BSL Language Server ───
     bsl_ls_binary: Path = field(
         default_factory=lambda: Path.home() / ".local" / "bin" / "bsl-language-server"
@@ -173,6 +177,7 @@ class Config:
         return cls(
             project_root=project_root,
             language=os.environ.get("1C_AI_LANG", "ru"),
+            platform_version=os.environ.get("1C_AI_PLATFORM_VERSION", "8.3.20"),
             bsl_ls_binary=Path(bsl_ls),
             mcp_rate_limit=int(os.environ.get("MCP_RATE_LIMIT", "100")),
             mcp_metrics_port=mcp_port,
@@ -302,6 +307,7 @@ class Config:
         return {
             "project_root": str(self.project_root),
             "language": self.language,
+            "platform_version": self.platform_version,
             "bsl_ls_binary": str(self.bsl_ls_binary),
             "mcp_rate_limit": self.mcp_rate_limit,
             "mcp_metrics_port": self.mcp_metrics_port,

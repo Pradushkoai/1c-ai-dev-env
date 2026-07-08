@@ -62,6 +62,12 @@ class TaskProcessor:
         """Собрать полный контекст для LLM по задаче."""
         ctx = TaskContext(query=query, config_name=config_name)
 
+        # B5: автоопределение версии платформы из конфигурации
+        if config_name:
+            detected_version = self._detect_platform_version(config_name)
+            if detected_version:
+                ctx.warnings.append(f"platform_version={detected_version} (auto-detected from {config_name})")
+
         query_lower = query.lower()
         query_words = [w for w in query_lower.split() if len(w) >= 2]
 
@@ -144,6 +150,41 @@ class TaskProcessor:
                 )
         except Exception as e:
             ctx.warnings.append(f"platform_methods search failed: {e}")
+
+    def _detect_platform_version(self, config_name: str) -> str | None:
+        """B5: Автоопределение версии платформы из Configuration.xml.
+
+        Читает CompatibilityMode из Configuration.xml конфигурации
+        и преобразует "Version8_3_20" → "8.3.20".
+
+        Args:
+            config_name: Имя конфигурации (например "УправлениеТорговлей")
+
+        Returns:
+            Версия платформы (например "8.3.20") или None если не удалось определить.
+        """
+        try:
+            config_path = self._paths.config_path(config_name)
+            config_xml = config_path / "Configuration.xml"
+            if not config_xml.exists():
+                return None
+
+            import xml.etree.ElementTree as ET
+
+            tree = ET.parse(config_xml)
+            root = tree.getroot()
+
+            # Ищем <CompatibilityMode>Version8_3_20</CompatibilityMode>
+            for elem in root.iter():
+                tag = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
+                if tag == "CompatibilityMode" and elem.text:
+                    # "Version8_3_20" → "8.3.20"
+                    version = elem.text.replace("Version", "").replace("_", ".")
+                    return version
+
+            return None
+        except Exception:
+            return None
 
     def _search_api_reference(
         self,
