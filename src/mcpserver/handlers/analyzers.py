@@ -105,32 +105,36 @@ async def handle_solve_context(project: Project, arguments: dict[str, Any]) -> l
     if any(w in query_lower for w in ["запрос", "query", "register", "регистр", "выбрать"]):
         # Task: write a query
         workflow = [
-            {"step": 1, "tool": "search_1c_methods", "why": "Найти методы работающие с регистром/объектом"},
-            {"step": 2, "tool": "get_object_structure", "why": "Получить точные имена полей (ресурсы, измерения) ПЕРЕД написанием запроса"},
-            {"step": 3, "tool": "bsl_templates", "why": "Использовать шаблон query_with_filter (SEC001: параметризованный запрос)"},
-            {"step": 4, "tool": "audit_security", "why": "Проверить готовый код на SQL-инъекции (SEC001)"},
-            {"step": 5, "tool": "check_standards", "why": "Проверить стандарты 1С (ключевые слова, области, тернарные операторы)"},
+            {"step": 1, "tool": "search_platform_method", "why": "B8: Найти методы платформы для работы с регистром (с доступностью!)"},
+            {"step": 2, "tool": "get_method_details", "why": "B8: Получить точный синтаксис и параметры методов ПЕРЕД написанием"},
+            {"step": 3, "tool": "get_object_structure", "why": "Получить точные имена полей (ресурсы, измерения)"},
+            {"step": 4, "tool": "bsl_templates", "why": "Использовать шаблон query_with_filter (SEC001: параметризованный запрос)"},
+            {"step": 5, "tool": "check_bsl_context", "why": "B8: ОБЯЗАТЕЛЬНО проверить доступность методов в контексте"},
+            {"step": 6, "tool": "audit_security", "why": "Проверить готовый код на SQL-инъекции (SEC001)"},
+            {"step": 7, "tool": "check_standards", "why": "Проверить стандарты 1С"},
         ]
-    elif any(w in query_lower for w in ["обработк", "epf", "внешняя", "форма"]):
-        # Task: create EPF / form
+    elif any(w in query_lower for w in ["обработк", "epf", "внешняя", "форма", "модуль", "код", "bsl"]):
+        # Task: create EPF / form / module — генерация BSL-кода
         workflow = [
-            {"step": 1, "tool": "search_1c_methods", "why": "Найти похожие реализации"},
-            {"step": 2, "tool": "get_object_structure", "why": "Получить структуру объекта для формы"},
-            {"step": 3, "tool": "bsl_templates", "why": "Использовать шаблон для генерации BSL кода"},
-            {"step": 4, "tool": "epf_factory_create", "why": "Создать .epf файл из сгенерированного кода"},
-            {"step": 5, "tool": "audit_security", "why": "Проверить код на безопасность"},
+            {"step": 1, "tool": "search_platform_method", "why": "B8: Найти методы платформы для задачи (с доступностью!)"},
+            {"step": 2, "tool": "get_method_details", "why": "B8: ОБЯЗАТЕЛЬНО — получить синтаксис, параметры, доступность каждого метода ПЕРЕД генерацией"},
+            {"step": 3, "tool": "get_object_structure", "why": "Получить структуру объекта конфигурации"},
+            {"step": 4, "tool": "bsl_templates", "why": "Использовать шаблон для генерации BSL кода"},
+            {"step": 5, "tool": "check_bsl_context", "why": "B8: ОБЯЗАТЕЛЬНО — проверить код на доступность методов в контексте"},
+            {"step": 6, "tool": "audit_security", "why": "Проверить код на безопасность"},
+            {"step": 7, "tool": "check_standards", "why": "Проверить стандарты 1С"},
         ]
     elif any(w in query_lower for w in ["аудит", "security", "безопасн", "уязвим"]):
         # Task: security audit
         workflow = [
-            {"step": 1, "tool": "audit_security", "why": "Аудит BSL кода (15 правил SEC001-SEC015)"},
-            {"step": 2, "tool": "check_standards", "why": "Проверка стандартов 1С (56 правил)"},
-            {"step": 3, "tool": "code_sandbox", "why": "Проверка кода в sandbox перед выполнением"},
+            {"step": 1, "tool": "audit_security", "why": "Аудит BSL кода (20 правил SEC001-SEC020)"},
+            {"step": 2, "tool": "check_standards", "why": "Проверка стандартов 1С (62 правил)"},
+            {"step": 3, "tool": "check_bsl_context", "why": "B8: Проверить доступность методов в контексте"},
         ]
     elif any(w in query_lower for w in ["зависим", "архитектур", "call", "вызов"]):
         # Task: architecture analysis
         workflow = [
-            {"step": 1, "tool": "inspect", "why": "Получить обзор конфигурации (типы, количество объектов)"},
+            {"step": 1, "tool": "inspect", "why": "Получить обзор конфигурации"},
             {"step": 2, "tool": "build_dependency_graph", "why": "Построить граф зависимостей метаданных"},
             {"step": 3, "tool": "call_graph", "why": "Анализ вызовов методов (callers, callees, cycles, dead-code)"},
         ]
@@ -138,7 +142,7 @@ async def handle_solve_context(project: Project, arguments: dict[str, Any]) -> l
         # Task: search
         workflow = [
             {"step": 1, "tool": "list_configs", "why": "Проверить какие конфигурации загружены"},
-            {"step": 2, "tool": "search_1c_methods", "why": "BM25 поиск по методам платформы 1С"},
+            {"step": 2, "tool": "search_platform_method", "why": "B8: Поиск по методам платформы (24990 методов с доступностью)"},
             {"step": 3, "tool": "search_code", "why": "BM25 поиск по коду конфигурации"},
             {"step": 4, "tool": "get_object_structure", "why": "Получить структуру найденного объекта"},
         ]
@@ -146,17 +150,27 @@ async def handle_solve_context(project: Project, arguments: dict[str, Any]) -> l
         # Default workflow
         workflow = [
             {"step": 1, "tool": "list_configs", "why": "Проверить доступные конфигурации"},
-            {"step": 2, "tool": "search_1c_methods", "why": "Найти релевантные методы"},
-            {"step": 3, "tool": "get_object_structure", "why": "Получить структуру объекта"},
-            {"step": 4, "tool": "call_graph", "why": "Анализ зависимостей"},
-            {"step": 5, "tool": "audit_security", "why": "Проверка безопасности"},
-            {"step": 6, "tool": "check_standards", "why": "Проверка стандартов"},
+            {"step": 2, "tool": "search_platform_method", "why": "B8: Найти методы платформы (с доступностью!)"},
+            {"step": 3, "tool": "get_method_details", "why": "B8: Получить синтаксис и параметры методов"},
+            {"step": 4, "tool": "get_object_structure", "why": "Получить структуру объекта"},
+            {"step": 5, "tool": "check_bsl_context", "why": "B8: Проверить доступность методов в контексте"},
+            {"step": 6, "tool": "audit_security", "why": "Проверка безопасности"},
+            {"step": 7, "tool": "check_standards", "why": "Проверка стандартов"},
         ]
+
+    # B8: Добавляем правила генерации BSL-кода в ответ
+    bsl_rules = ""
+    try:
+        from src.services.prompt_library import BSL_CONTEXT_RULES
+        bsl_rules = BSL_CONTEXT_RULES
+    except ImportError:
+        pass
 
     response = {
         **ctx_dict,
         "_workflow": workflow,
         "_workflow_hint": "Следуйте шагам workflow выше для решения задачи. Каждый step указывает tool и причину вызова.",
+        "_bsl_context_rules": bsl_rules,
     }
 
     return [

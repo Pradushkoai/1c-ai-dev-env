@@ -747,6 +747,10 @@ def main() -> None:
     from .cli_commands.query_cmd import setup_query_parser
     setup_query_parser(sub)
 
+    # B11: platform — работа с методами платформы 1С
+    from .cli_commands.platform_cmd import register_platform_commands
+    register_platform_commands(sub)
+
     args = parser.parse_args()
     project = Project()
 
@@ -804,6 +808,21 @@ def main() -> None:
         cmd_epf_factory(project, args)
     elif args.command == "query":
         args.func(args)
+    elif args.command == "platform":
+        from .cli_commands.platform_cmd import (
+            cmd_platform_search,
+            cmd_platform_method,
+            cmd_platform_check,
+            cmd_platform_versions,
+        )
+        if args.platform_command == "search":
+            cmd_platform_search(project, args)
+        elif args.platform_command == "method":
+            cmd_platform_method(project, args)
+        elif args.platform_command == "check":
+            cmd_platform_check(project, args)
+        elif args.platform_command == "versions":
+            cmd_platform_versions(project, args)
 
 
 # ============================================================================
