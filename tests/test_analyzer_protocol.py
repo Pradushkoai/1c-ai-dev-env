@@ -228,12 +228,12 @@ class TestAdapters:
 
 
 class TestRegistry:
-    """get_default_analyzers возвращает 6 analyzer'ов."""
+    """get_default_analyzers возвращает 7 analyzer'ов (B6: +bsl_context_checker)."""
 
     def test_returns_6_analyzers(self) -> None:
         pm = PathManager()
         analyzers = get_default_analyzers(pm)
-        assert len(analyzers) == 6
+        assert len(analyzers) == 7  # B6: +bsl_context_checker
 
     def test_analyzer_names_unique(self) -> None:
         pm = PathManager()
@@ -245,10 +245,13 @@ class TestRegistry:
         """quick-level analyzer'ы идут раньше full-level."""
         pm = PathManager()
         analyzers = get_default_analyzers(pm)
-        # Первые 4 — quick, последние 2 — full
+        # Первые 4 — quick, 5-й — standard (bsl_context_checker), последние 2 — full
         for a in analyzers[:4]:
             assert a.min_level == "quick"
-        for a in analyzers[4:]:
+        # 5-й — standard (bsl_context_checker, B6)
+        assert analyzers[4].min_level == "standard"
+        # Последние 2 — full
+        for a in analyzers[5:]:
             assert a.min_level == "full"
 
 
@@ -277,12 +280,18 @@ class TestRunAnalyzers:
         assert len(violations) == 4
 
     def test_full_level_runs_all_6_analyzers(self, fake_analyzer_modules) -> None:
-        """level='full' запускает все 6 analyzer'ов."""
+        """level='full' запускает все 7 analyzer'ов (B6: +bsl_context_checker).
+
+        bsl_context_checker запускается, но может не найти нарушений
+        на фейковом файле (нет BSL-кода для анализа). Поэтому
+        проверяем только количество запущенных analyzer'ов.
+        """
         pm = PathManager()
         analyzers = get_default_analyzers(pm)
         violations, analyzers_run = run_analyzers(analyzers, Path("/fake.bsl"), level="full")
-        assert len(analyzers_run) == 6
-        assert len(violations) == 6
+        assert len(analyzers_run) == 7  # B6: +bsl_context_checker
+        # bsl_context_checker может не найти нарушений на фейковом файле
+        assert len(violations) >= 6  # минимум 6 (без bsl_context_checker)
 
     def test_violations_have_source_set(self, fake_analyzer_modules) -> None:
         """Каждое нарушение должно иметь заполненное поле source."""

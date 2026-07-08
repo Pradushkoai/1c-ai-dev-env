@@ -213,6 +213,206 @@ class PlatformMethodsIndex:
             if d.is_dir() and (d / "platform-methods.db").exists()
         )
 
+    def get_methods_by_name(self, name: str) -> list[dict[str, Any]]:
+        """Все методы с этим именем (для разрешения коллизий).
+
+        В 1С многие методы имеют одинаковое имя в разных контекстах:
+        'Получить' — 283 метода, 'Количество' — 263, и т.д.
+
+        Args:
+            name: Имя метода (русское или английское)
+
+        Returns:
+            Список всех методов с этим именем (включая разные контексты).
+        """
+        conn = self._get_conn()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT * FROM methods
+            WHERE name_ru = ? OR name_en = ?
+            """,
+            (name, name),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_method_in_context(self, name: str, context_type: str) -> dict[str, Any] | None:
+        """Метод конкретного типа (например HTTPСоединение.Получить).
+
+        Args:
+            name: Имя метода (например 'Получить')
+            context_type: Тип объекта (например 'HTTPСоединение')
+
+        Returns:
+            Метод или None если не найден.
+        """
+        conn = self._get_conn()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+        # Ищем метод где category содержит context_type
+        cursor.execute(
+            """
+            SELECT * FROM methods
+            WHERE (name_ru = ? OR name_en = ?)
+            AND category LIKE ?
+            LIMIT 1
+            """,
+            (name, name, f"%{context_type}%"),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def is_available_in(self, name: str, contexts: list[str], object_type: str = "") -> bool:
+        """Проверка доступности метода в целевом контексте.
+
+        Args:
+            name: Имя метода (русское или английское)
+            contexts: Список целевых контекстов (например ['thin_client', 'mobile_client'])
+            object_type: Тип объекта для разрешения коллизий
+                         (например 'HTTPСоединение' для Соединение.Получить)
+
+        Returns:
+            True если метод доступен хотя бы в одном из контекстов.
+        """
+        if object_type:
+            method = self.get_method_in_context(name, object_type)
+        else:
+            method = self.get_method(name)
+
+        if method is None:
+            # Метод не найден — не можем проверить, считаем доступным
+            return True
+
+        availability_json = method.get("availability_json", "{}")
+        try:
+            availability = json.loads(availability_json)
+        except Exception:
+            return True
+
+        # Проверяем что метод доступен хотя бы в одном из целевых контекстов
+        return any(availability.get(ctx, False) for ctx in contexts)
+
+    def is_deprecated(self, name: str, object_type: str = "") -> bool:
+        """Проверка, устарел ли метод (deprecated).
+
+        Args:
+            name: Имя метода
+            object_type: Тип объекта для разрешения коллизий
+
+        Returns:
+            True если метод устарел.
+        """
+        if object_type:
+            method = self.get_method_in_context(name, object_type)
+        else:
+            method = self.get_method(name)
+
+        if method is None:
+            return False
+
+        return bool(method.get("version_deprecated"))
+
+    def is_available_in_version(self, name: str, target_version: str, object_type: str = "") -> bool:
+        """Проверка, что метод существует в указанной версии платформы.
+
+        Args:
+            name: Имя метода
+            target_version: Целевая версия платформы (например '8.3.17')
+            object_type: Тип объекта для разрешения коллизий
+
+        Returns:
+            True если метод доступен в указанной версии (version_since <= target_version).
+        """
+        if object_type:
+            method = self.get_method_in_context(name, object_type)
+        else:
+            method = self.get_method(name)
+
+        if method is None:
+            return True  # не можем проверить
+
+        version_since = method.get("version_since", "").rstrip(".")
+        if not version_since:
+            return True  # нет информации о версии — считаем доступным
+
+        try:
+            return self._compare_versions(version_since, target_version) <= 0
+        except Exception:
+            return True
+
+    @staticmethod
+    def _compare_versions(v1: str, v2: str) -> int:
+        """Сравнить две версии платформы.
+
+        Returns:
+            -1 если v1 < v2, 0 если v1 == v2, 1 если v1 > v2
+        """
+        parts1 = [int(x) for x in v1.split(".")]
+        parts2 = [int(x) for x in v2.split(".")]
+        # Дополняем нулями до одинаковой длины
+        while len(parts1) < len(parts2):
+            parts1.append(0)
+        while len(parts2) < len(parts1):
+            parts2.append(0)
+        for p1, p2 in zip(parts1, parts2):
+            if p1 < p2:
+                return -1
+            if p1 > p2:
+                return 1
+        return 0
+
+    def find_alternative(self, name: str, target_contexts: list[str]) -> dict[str, Any] | None:
+        """Найти альтернативу для метода, недоступного в контексте.
+
+        Ищет методы с похожим именем, которые доступны в целевом контексте.
+
+        Args:
+            name: Имя метода, который недоступен
+            target_contexts: Целевые контексты
+
+        Returns:
+            Альтернативный метод или None.
+        """
+        conn = self._get_conn()
+        if conn is None:
+            return None
+
+        # Ищем методы с похожим именем (через FTS5)
+        results = self.search(name, limit=10)
+        for r in results:
+            if r["name_ru"] == name or r["name_en"] == name:
+                continue  # пропускаем тот же метод
+
+            # Проверяем доступность
+            avail_raw = r.get("availability_raw", "").lower()
+            for ctx in target_contexts:
+                ctx_ru = self._context_to_ru(ctx)
+                if ctx_ru and ctx_ru in avail_raw:
+                    return r
+
+        return None
+
+    @staticmethod
+    def _context_to_ru(ctx: str) -> str:
+        """Преобразует английский идентификатор контекста в русский."""
+        mapping = {
+            "thin_client": "тонкий клиент",
+            "web_client": "веб-клиент",
+            "mobile_client": "мобильный клиент",
+            "server": "сервер",
+            "thick_client": "толстый клиент",
+            "external_connection": "внешнее соединение",
+            "mobile_app_client": "мобильное приложение (клиент)",
+            "mobile_app_server": "мобильное приложение (сервер)",
+            "mobile_autonomous_server": "мобильный автономный сервер",
+        }
+        return mapping.get(ctx, "")
+
     def close(self) -> None:
         """Закрыть подключение к БД."""
         if self._conn is not None:

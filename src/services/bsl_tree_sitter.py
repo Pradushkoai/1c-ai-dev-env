@@ -18,6 +18,7 @@ P1-A: заменяет regex-based bsl_ast.py на настоящий инкре
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -333,3 +334,168 @@ def extract_symbols_from_file(file_path) -> list[BslSymbol]:
     if not _TS_AVAILABLE:
         raise ImportError("tree-sitter не установлен.")
     return get_parser().parse_file(file_path)
+
+
+# ============================================================================
+# B10 FIX: Type inference — извлечение вызовов с типом объекта
+# ============================================================================
+
+
+@dataclass
+class BslMethodCall:
+    """Вызов метода с контекстом объекта.
+
+    B10: Расширяет извлечение вызовов — теперь знает, через какую
+    переменную вызван метод, что позволяет разрешать коллизии имён.
+
+    Пример:
+      Соединение = Новый HTTPСоединение("api.example.com", 443);
+      Ответ = Соединение.Получить(Запрос);
+
+      → BslMethodCall(name="Получить", object_var="Соединение",
+                       resolved_type="HTTPСоединение", line=2)
+    """
+
+    name: str  # "Получить"
+    object_var: str  # "Соединение" (или "" для глобальных вызовов)
+    line: int = 0
+    resolved_type: str = ""  # "HTTPСоединение" (после type inference)
+
+
+def infer_variable_types(source: str) -> dict[str, str]:
+    """Построить карту: имя переменной → тип.
+
+    B10: Type inference для разрешения коллизий методов.
+
+    Отслеживает паттерны:
+      Перем = Новый <Тип>(...)        → {"Перем": "<Тип>"}
+      Перем = Справочники.<Имя>...    → {"Перем": "СправочникМенеджер.<Имя>"}
+      Перем = Документы.<Имя>...      → {"Перем": "ДокументМенеджер.<Имя>"}
+      Перем = РегистрыНакопления.<Имя>→ {"Перем": "РегистрНакопленияМенеджер.<Имя>"}
+
+    Args:
+        source: BSL код как строка
+
+    Returns:
+        Словарь: {"Соединение": "HTTPСоединение", "Запрос": "Запрос", ...}
+    """
+    var_types: dict[str, str] = {}
+
+    lines = source.split("\n")
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("//"):
+            continue
+
+        # Паттерн: Перем = Новый <Тип>(...)
+        # Покрывает: Новый HTTPСоединение(...), Новый Запрос(...), Новый Структура(...)
+        m = re.match(
+            r"(\w+)\s*=\s*Новый\s+(?:COMОбъект|\.)*?(\w+)\s*\(",
+            stripped,
+            re.IGNORECASE,
+        )
+        if m:
+            var_name = m.group(1)
+            type_name = m.group(2)
+            var_types[var_name] = type_name
+            continue
+
+        # Паттерн: Перем = Справочники.<Имя>.СоздатьЭлемент()
+        m = re.match(r"(\w+)\s*=\s*(Справочники|Документы|РегистрыНакопления|РегистрыСведения|Перечисления|ПланыСчетов|ПланыОбмена|ПланыВидовРасчета|ПланыВидовХарактеристик)\.(\w+)", stripped, re.IGNORECASE)
+        if m:
+            var_name = m.group(1)
+            manager_type = m.group(2)
+            object_name = m.group(3)
+            var_types[var_name] = f"{manager_type}.{object_name}"
+            continue
+
+    return var_types
+
+
+def extract_calls_with_context(source: str) -> list[BslMethodCall]:
+    """Извлечь вызовы методов с переменной-объектом.
+
+    B10: Расширяет extract_symbols — возвращает вызовы с контекстом объекта.
+
+    Использует regex (не tree-sitter) для простоты — достаточно для
+    определения object_var. Type inference (resolved_type) выполняется
+    отдельно через infer_variable_types().
+
+    Args:
+        source: BSL код как строка
+
+    Returns:
+        Список BslMethodCall с заполненными name, object_var, line.
+        resolved_type пустой — заполняется вызывающим кодом.
+    """
+    calls: list[BslMethodCall] = []
+    seen: set[tuple[str, str]] = set()
+
+    lines = source.split("\n")
+    for line_num, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if stripped.startswith("//"):
+            continue
+
+        # Паттерн: Объект.Метод( — вызов метода через переменную
+        for m in re.finditer(r"(\w+)\.(\w+)\s*\(", stripped):
+            object_var = m.group(1)
+            method_name = m.group(2)
+
+            # Пропускаем ключевые слова
+            if method_name.lower() in BSL_KEYWORDS_LOWER:
+                continue
+            if object_var.lower() in BSL_KEYWORDS_LOWER:
+                continue
+
+            key = (object_var, method_name)
+            if key not in seen:
+                seen.add(key)
+                calls.append(
+                    BslMethodCall(
+                        name=method_name,
+                        object_var=object_var,
+                        line=line_num,
+                    )
+                )
+
+        # Паттерн: Метод( — глобальный вызов (без объекта)
+        for m in re.finditer(r"(?<![\w.])([А-Яа-я]\w*)\s*\(", stripped):
+            method_name = m.group(1)
+            if method_name.lower() in BSL_KEYWORDS_LOWER:
+                continue
+            key = ("", method_name)
+            if key not in seen:
+                seen.add(key)
+                calls.append(
+                    BslMethodCall(
+                        name=method_name,
+                        object_var="",
+                        line=line_num,
+                    )
+                )
+
+    return calls
+
+
+def extract_calls_with_types(source: str) -> list[BslMethodCall]:
+    """Извлечь вызовы методов с разрешёнными типами объектов.
+
+    B10: Полный pipeline — объединяет extract_calls_with_context +
+    infer_variable_types.
+
+    Args:
+        source: BSL код как строка
+
+    Returns:
+        Список BslMethodCall с заполненными name, object_var, line,
+        resolved_type (если тип переменной удалось определить).
+    """
+    var_types = infer_variable_types(source)
+    calls = extract_calls_with_context(source)
+
+    for call in calls:
+        if call.object_var and call.object_var in var_types:
+            call.resolved_type = var_types[call.object_var]
+
+    return calls

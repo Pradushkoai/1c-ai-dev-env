@@ -282,6 +282,21 @@ class MetadataStandardsAdapter(_ScriptBasedAnalyzer):
     _analyzer_method = "check_path"
 
 
+class BslContextCheckerAdapter(_ScriptBasedAnalyzer):
+    """B6: Adapter для bsl_context_checker.py — проверка доступности методов.
+
+    Проверяет, что методы платформы 1С доступны в целевом контексте
+    (клиент/сервер/мобильное приложение). Использует type inference
+    для разрешения коллизий имён (283 «Получить» в разных типах).
+    """
+
+    source = "bsl_context_checker"
+    min_level = "standard"
+    _script_name = "bsl_context_checker"
+    _analyzer_class_name = "BslContextChecker"
+    _analyzer_method = "check_file"
+
+
 # ============================================================================
 # Registry
 # ============================================================================
@@ -296,8 +311,9 @@ def get_default_analyzers(paths: PathManager) -> list[Analyzer]:
     2. SecurityAuditor (quick)
     3. TransactionChecker (quick)
     4. QueryAnalyzer (quick)
-    5. CodeMetrics (full)
-    6. MetadataStandards (full)
+    5. BslContextChecker (standard) — B6: проверка доступности методов
+    6. CodeMetrics (full)
+    7. MetadataStandards (full)
 
     BSL LS (standard level) опущен — требует Java и обрабатывается отдельно.
 
@@ -312,6 +328,7 @@ def get_default_analyzers(paths: PathManager) -> list[Analyzer]:
         SecurityAuditorAdapter(paths),
         TransactionCheckerAdapter(paths),
         QueryAnalyzerAdapter(paths),
+        BslContextCheckerAdapter(paths),  # B6: проверка контекста методов
         CodeMetricsAdapter(paths),
         MetadataStandardsAdapter(paths),
     ]

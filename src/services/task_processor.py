@@ -533,6 +533,30 @@ class TaskProcessor:
             except Exception as e:
                 logger.warning("data_exchange_checker failed: %s", e)
 
+        # 4c. bsl_context_checker — проверка доступности методов (B6)
+        # Проверяет, что методы платформы доступны в целевом контексте
+        # (клиент/сервер/мобильное приложение). Использует SQLite индекс.
+        if level in ("standard", "full"):
+            ctx_mod = _load_script("bsl_context_checker")
+            if ctx_mod:
+                try:
+                    checker = ctx_mod.BslContextChecker(self._paths)
+                    ctx_violations = checker.check_file(file_path)
+                    for v in ctx_violations:
+                        result.violations.append(
+                            Violation(
+                                source="bsl_context_checker",
+                                rule_id=v.rule_id,
+                                severity=v.severity,
+                                line=v.line,
+                                message=v.message,
+                                file=str(file_path),
+                            )
+                        )
+                    result.analyzers_run.append("bsl_context_checker")
+                except Exception as e:
+                    logger.warning("bsl_context_checker failed: %s", e)
+
         # 5. BSL Language Server (187 диагностик) — standard / full
         if level in ("standard", "full"):
             if self._paths.bsl_ls_binary.exists():
