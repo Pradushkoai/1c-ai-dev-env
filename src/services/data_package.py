@@ -318,14 +318,26 @@ class DataPackage:
         Returns: {
             has_platform_index: bool,
             has_platform_methods: bool,
+            has_platform_methods_db: bool,  # B9 FIX: SQLite индекс платформы
+            platform_version: str,          # B5: версия платформы
             configs: [{name, has_derived, has_raw}],
             autosave_available: bool,
             autosave_info: dict[str, Any] | None,
         }
         """
+        # B9 FIX: проверяем новый SQLite индекс платформы
+        # вместо несуществующего syntax_helper_index_json
+        import os
+
+        platform_version = os.environ.get("1C_AI_PLATFORM_VERSION", "8.3.20")
+        platform_db_path = self._paths.derived_platform_dir / "versions" / platform_version / "platform-methods.db"
+
         status: dict[str, Any] = {
             "has_platform_index": self._paths.fast_search_index.exists(),
-            "has_platform_methods": self._paths.syntax_helper_index_json.exists(),
+            "has_platform_methods": platform_db_path.exists(),  # B9 FIX
+            "has_platform_methods_db": platform_db_path.exists(),  # B9 FIX: новый SQLite
+            "platform_version": platform_version,
+            "platform_db_path": str(platform_db_path),
             "configs": [],
             "autosave_available": self.has_autosave(),
             "autosave_info": None,

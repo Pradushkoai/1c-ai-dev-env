@@ -86,7 +86,38 @@ class TaskProcessor:
         return ctx
 
     def _search_platform_methods(self, ctx: TaskContext, query: str, limit: int) -> None:
-        """BM25 поиск по методам платформы 1С (если есть индекс)."""
+        """Поиск по методам платформы 1С.
+
+        B4 FIX: Использует platform-methods.db (SQLite, методы платформы 1С)
+        вместо fast-search-index.json (методы конфигурации УТ11).
+
+        Сначала пытается использовать SQLite (полный справочник платформы с
+        доступностью, версиями, параметрами). Если SQLite недоступен —
+        fallback на старый BM25 индекс (методы УТ11, ограниченная информация).
+        """
+        # B4 FIX: Сначала пробуем новый SQLite индекс платформы
+        try:
+            from .platform_methods_index import PlatformMethodsIndex
+
+            index = PlatformMethodsIndex()
+            if index.is_available():
+                results = index.search(query, limit=limit)
+                for r in results:
+                    ctx.platform_methods.append(
+                        PlatformMethodHit(
+                            name_ru=r.get("name_ru", ""),
+                            name_en=r.get("name_en", ""),
+                            score=float(r.get("score", 0.0)),
+                            syntax=r.get("syntax", ""),
+                            description=r.get("description", ""),
+                            context=r.get("category", ""),
+                        )
+                    )
+                return
+        except Exception as e:
+            ctx.warnings.append(f"platform_methods SQLite search failed: {e}")
+
+        # Fallback на старый BM25 индекс (УТ11 — для обратной совместимости)
         try:
             from .search_bm25 import search_auto
         except ImportError:
