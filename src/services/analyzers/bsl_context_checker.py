@@ -229,6 +229,36 @@ class BslContextChecker:
 
         violations: list[ContextViolation] = []
 
+        # CTX003: Проверка Асинх в коде — модуль должен быть ТОЛЬКО клиентским (BSL-ASYNC-003)
+        has_async = bool(re.search(r"\bАсинх\s+(Процедура|Функция)", code, re.IGNORECASE))
+        if has_async:
+            # Если detect_context вернул server (по умолчанию) — это значит
+            # что автоопределение не нашло &НаКлиенте. Но Асинх → только клиент.
+            # Проверяем — если target_context содержит server, предупредаем
+            if any(ctx in target_context for ctx in ("server", "mobile_app_server", "mobile_autonomous_server")):
+                violations.append(
+                    ContextViolation(
+                        rule_id="CTX003",
+                        severity="error",
+                        line=1,
+                        method_name="Асинх",
+                        message=(
+                            "Асинх Функция/Процедура НЕ компилируется на сервере (BSL-ASYNC-003). "
+                            "СНИМИТЕ галки 'Сервер' и 'Мобильное приложение (сервер)' в свойствах "
+                            "общего модуля в Конфигураторе. Оставьте ТОЛЬКО клиентские флаги."
+                        ),
+                        recommendation=(
+                            "В Конфигураторе: Общие → Общие модули → Свойства → "
+                            "❌ Сервер — СНЯТЬ\n"
+                            "❌ Мобильное приложение (сервер) — СНЯТЬ\n"
+                            "✅ Клиент (управляемое приложение) — ВКЛЮЧИТЬ\n"
+                            "✅ Мобильное приложение (клиент) — ВКЛЮЧИТЬ"
+                        ),
+                    )
+                )
+                # Асинх → только клиент, убираем сервер из проверки
+                target_context = [c for c in target_context if c not in ("server", "mobile_app_server", "mobile_autonomous_server")]
+
         # B10: Извлечь вызовы с type inference
         try:
             from ..bsl_tree_sitter import extract_calls_with_types
