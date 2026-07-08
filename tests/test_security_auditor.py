@@ -37,7 +37,8 @@ class TestSecurityRules:
             assert rule.severity in valid_severities, f"Invalid severity: {rule.severity}"
 
     def test_15_rules_defined(self):
-        assert len(SECURITY_RULES) == 15
+        # KB-EXP-2: усиление с 15 → 20 правил (#std748, #std770, #std774, #std775, #std669)
+        assert len(SECURITY_RULES) == 20
 
 
 # ============================================================================

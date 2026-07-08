@@ -656,6 +656,80 @@ async def handle_validate_query_static(project: Project, arguments: dict[str, An
         ]
 
 
+async def handle_check_data_exchange(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
+    """Handler для MCP tool: check_data_exchange.
+
+    Проверка обмена данными BSL по стандартам v8std.ru / ITS:
+    #std773 (ОбменДанными.Загрузка), #std701 (планы обмена с отборами),
+    #std771 (EnterpriseData), #std542 (файловая система обмена).
+
+    10 правил: DX001-DX010.
+    """
+    file_path = arguments.get("file_path", "")
+    if not file_path:
+        return [types.TextContent(type="text", text=json.dumps({"error": "file_path required"}, ensure_ascii=False))]
+    # Path traversal protection
+    resolved = resolve_path_within_project(file_path, project)
+    if resolved is None:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(
+                    {"error": "Path outside project root — possible path traversal attempt"},
+                    ensure_ascii=False,
+                ),
+            )
+        ]
+    file_path = str(resolved)
+    if not os.path.exists(file_path):
+        return [
+            types.TextContent(
+                type="text", text=json.dumps({"error": f"File not found: {file_path}"}, ensure_ascii=False)
+            )
+        ]
+
+    from src.services.analyzers.data_exchange_checker import DataExchangeChecker
+
+    try:
+        checker = DataExchangeChecker()
+        violations = checker.check_file(Path(file_path))
+        stats = checker.get_stats(violations)
+        response = {
+            "file_path": file_path,
+            "total_violations": stats["total_violations"],
+            "by_severity": stats["by_severity"],
+            "by_rule": stats["by_rule"],
+            "violations": [
+                {
+                    "rule_id": v.rule_id,
+                    "severity": v.severity,
+                    "line": v.line,
+                    "message": v.message,
+                    "code_snippet": v.code_snippet,
+                    "recommendation": v.recommendation,
+                }
+                for v in violations
+            ],
+            "standards": {
+                "DX001": "#std773",
+                "DX002": "#std773",
+                "DX003": "#std773",
+                "DX004": "#std701",
+                "DX005": "#std701",
+                "DX006": "#std773",
+                "DX007": "#std542",
+                "DX008": "#std771",
+                "DX009": "обобщённая практика",
+                "DX010": "#std773",
+            },
+        }
+        return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
+    except Exception as e:
+        return [
+            types.TextContent(type="text", text=json.dumps({"error": f"Analysis failed: {str(e)}"}, ensure_ascii=False))
+        ]
+
+
 # Реестр handlers
 QUALITY_HANDLERS: dict[str, Any] = {
     "get_knowledge": handle_get_knowledge,
@@ -668,4 +742,5 @@ QUALITY_HANDLERS: dict[str, Any] = {
     "check_skd_quality": handle_check_form_quality,  # P3: split into separate handler
     "diff_configs": handle_diff_configs,
     "validate_query_static": handle_validate_query_static,  # P1.5: статический валидатор запросов
+    "check_data_exchange": handle_check_data_exchange,  # KB-EXP-2: #std701, #std773
 }

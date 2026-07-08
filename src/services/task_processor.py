@@ -438,6 +438,29 @@ class TaskProcessor:
             except Exception as e:
                 logger.warning("query_analyzer failed: %s", e)
 
+        # 4b. data_exchange_checker (10 правил DX001-DX010) — все уровни
+        # KB-EXP-2: проверка стандартов обмена данными
+        # #std773 (ОбменДанными.Загрузка), #std701 (планы обмена), #std771, #std542
+        dx_mod = _load_script("data_exchange_checker")
+        if dx_mod:
+            try:
+                dx_checker = dx_mod.DataExchangeChecker()
+                dx_violations = dx_checker.check_file(file_path)
+                for v in dx_violations:
+                    result.violations.append(
+                        Violation(
+                            source="data_exchange_checker",
+                            rule_id=v.rule_id,
+                            severity=v.severity,
+                            line=v.line,
+                            message=v.message,
+                            file=str(file_path),
+                        )
+                    )
+                result.analyzers_run.append("data_exchange_checker")
+            except Exception as e:
+                logger.warning("data_exchange_checker failed: %s", e)
+
         # 5. BSL Language Server (187 диагностик) — standard / full
         if level in ("standard", "full"):
             if self._paths.bsl_ls_binary.exists():

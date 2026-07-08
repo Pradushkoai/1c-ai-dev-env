@@ -255,6 +255,30 @@
           "keywords": ["форма", "управляемая форма", "элемент", "командный интерфейс", "условное оформление", "клиент-сервер", "таблица", "выбор", "подбор"],
           "standards": ["std740", "std741", "std742", "std743", "std744", "std745", "std746", "std747", "std748"],
           "tools": ["check_standards", "analyze_bsl", "solve_check", "get_object_structure"]
+        },
+        {
+          "id": "its_skd_standards",
+          "title": "Стандарты ITS: СКД (15 шт)",
+          "file": "standards/its_skd_standards.md",
+          "keywords": ["скд", "skd", "компоновка", "отчёт", "вариант", "период", "динамический список", "условное оформление", "группировка"],
+          "standards": ["std407", "std670", "std671", "std672", "std673", "std674", "std675", "std676", "std710", "std732", "std768", "std489", "std702", "std399", "std762"],
+          "tools": ["check_skd_quality", "get_skd_schema", "skd_trace", "dsl_compile_skd", "generate_report", "solve_check"]
+        },
+        {
+          "id": "its_rest_http_integration",
+          "title": "Стандарты ITS: Интеграции REST/HTTP (12 шт)",
+          "file": "standards/its_rest_http_integration.md",
+          "keywords": ["http", "rest", "ws", "веб-сервис", "ftp", "com", "таймаут", "безопасный режим", "внешняя компонента", "odata", "json"],
+          "standards": ["std748", "std794", "std678", "std679", "std770", "std669", "std774", "std775", "std542", "std798", "std700"],
+          "tools": ["audit_security", "solve_check", "check_standards", "analyze_bsl"]
+        },
+        {
+          "id": "its_data_exchange",
+          "title": "Стандарты ITS: Обмен данными (10 шт)",
+          "file": "standards/its_data_exchange.md",
+          "keywords": ["обмен", "план обмена", "риб", "enterprisedata", "xml", "xdto", "конвертация данных", "обменданными.загрузка", "классификатор", "правила обмена"],
+          "standards": ["std701", "std771", "std773", "std637", "std464", "std465", "std752", "std542", "std498", "std499"],
+          "tools": ["check_data_exchange", "check_transactions", "solve_check", "check_standards", "analyze_bsl"]
         }
       ]
     }
@@ -274,11 +298,17 @@
     "its_event_handlers": 9,
     "its_scheduled_jobs": 7,
     "its_form_standards": 9,
+    "its_skd_standards": 15,
+    "its_rest_http_integration": 12,
+    "its_data_exchange": 10,
     "bsl_ls_diagnostics": 184,
     "query_analyzer_rules": 19,
     "query_optimizer_rules": 18,
-    "total_its_standards": 102,
-    "total_knowledge_items": 443
+    "security_auditor_rules": 20,
+    "skd_quality_checker_rules": 15,
+    "data_exchange_checker_rules": 10,
+    "total_its_standards": 139,
+    "total_knowledge_items": 446
   },
   "sources": {
     "its": "https://its.1c.ru/db/v8std",

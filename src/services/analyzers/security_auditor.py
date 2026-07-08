@@ -166,6 +166,60 @@ SECURITY_RULES = [
         description="Использование устаревшего ШифрованиеДанных — небезопасное шифрование.",
         recommendation="Используйте СредстваКриптографии для надёжного шифрования.",
     ),
+    # Усиление по стандартам v8std.ru / ITS — #std748, #std770, #std774, #std775, #std794
+    SecurityRule(
+        rule_id="SEC016",
+        name="HTTPСоединение/WSПрокси/FTPСоединение без таймаута (#std748)",
+        severity="HIGH",
+        description="Соединение с внешним ресурсом без явного указания таймаута — программа зависает при недоступности.",
+        recommendation=(
+            "Укажите таймаут (обычно 30-60 сек, не более 3 минут). "
+            "См. https://v8std.ru/std/748/ — #std748"
+        ),
+    ),
+    SecurityRule(
+        rule_id="SEC017",
+        name="Выполнить/Вычислить без УстановитьБезопасныйРежим (#std770)",
+        severity="CRITICAL",
+        description="Выполнить()/Вычислить() на сервере без включения безопасного режима — выполнение произвольного кода.",
+        recommendation=(
+            "Перед Выполнить/Вычислить вызывайте УстановитьБезопасныйРежим(Истина). "
+            "Или используйте ОбщегоНазначения.ВыполнитьВБезопасномРежиме(). "
+            "См. https://v8std.ru/std/770/ — #std770"
+        ),
+    ),
+    SecurityRule(
+        rule_id="SEC018",
+        name="КомандаСистемы/ЗапуститьПриложение с опасными символами (#std774)",
+        severity="CRITICAL",
+        description="Запуск внешнего приложения со строкой, содержащей опасные символы ($ ` | || ; & &&) — командная инъекция.",
+        recommendation=(
+            "Санитизируйте командную строку. Запрещены символы: $ ` | || ; & &&. "
+            "См. https://v8std.ru/std/774/ — #std774"
+        ),
+    ),
+    SecurityRule(
+        rule_id="SEC019",
+        name="COM Word/Excel без DisableAutoMacros (#std775)",
+        severity="HIGH",
+        description="Открытие Word/Excel через COM без отключения макросов — выполнение произвольного кода в документе.",
+        recommendation=(
+            "Перед открытием Word: ОбъектWord.WordBasic.DisableAutoMacros(1). "
+            "Перед открытием Excel: ОбъектExcel.AutomationSecurity = 3. "
+            "См. https://v8std.ru/std/775/ — #std775"
+        ),
+    ),
+    SecurityRule(
+        rule_id="SEC020",
+        name="Внешняя обработка/расширение без БСП-механизма (#std669)",
+        severity="HIGH",
+        description="Загрузка внешней обработки/расширения/компоненты напрямую из файла — выполнение непроверенного кода.",
+        recommendation=(
+            "Используйте подсистемы БСП: 'Дополнительные отчёты и обработки', "
+            "'Внешние компоненты'. Запрещено 'Файл – Открыть' в production. "
+            "См. https://v8std.ru/std/669/ — #std669"
+        ),
+    ),
 ]
 
 
@@ -260,6 +314,21 @@ class SecurityAuditor:
 
             # SEC015: Устаревшее шифрование
             violations.extend(self._check_weak_crypto(lines, i, stripped, file_path))
+
+            # SEC016: HTTPСоединение/WSПрокси без таймаута (#std748)
+            violations.extend(self._check_external_no_timeout(lines, i, stripped, file_path))
+
+            # SEC017: Выполнить/Вычислить без безопасного режима (#std770)
+            violations.extend(self._check_exec_no_safe_mode(lines, i, stripped, file_path))
+
+            # SEC018: КомандаСистемы с опасными символами (#std774)
+            violations.extend(self._check_cmd_injection(lines, i, stripped, file_path))
+
+            # SEC019: COM Word/Excel без DisableAutoMacros (#std775)
+            violations.extend(self._check_com_no_macro_disable(lines, i, stripped, file_path))
+
+            # SEC020: Внешняя обработка без БСП (#std669)
+            violations.extend(self._check_external_code_load(lines, i, stripped, file_path))
 
         return violations
 
@@ -648,6 +717,256 @@ class SecurityAuditor:
                     recommendation=self.rules["SEC015"].recommendation,
                 )
             )
+
+        return violations
+
+    # =====================================================================
+    # Усиление по стандартам v8std.ru / ITS
+    # =====================================================================
+
+    def _check_external_no_timeout(self, lines, line_num, stripped, file_path) -> list[SecurityViolation]:
+        """SEC016: HTTPСоединение/WSПрокси/FTPСоединение без таймаута (#std748).
+
+        https://v8std.ru/std/748/
+        """
+        violations = []
+
+        # Проверяем создание соединения с внешним ресурсом
+        external_patterns = [
+            r"Новый\s+HTTPСоединение\s*\(",
+            r"Новый\s+WSПрокси\s*\(",
+            r"Новый\s+WSОпределения\s*\(",
+            r"Новый\s+FTPСоединение\s*\(",
+            r"Новый\s+ИнтернетПочтовыйПрофиль\s*\(",
+        ]
+        for pattern in external_patterns:
+            if re.search(pattern, stripped):
+                # Проверяем, что вызов многострочный (ищем таймаут в следующих строках)
+                # или что в текущей строке нет таймаута
+                # Таймаут — обычно 6-й параметр (HTTPСоединение) или именованный
+                # Ищем 'Таймаут' или числовой параметр >= 5-й позиции
+                end_line = min(line_num + 5, len(lines))
+                full_call = "\n".join(lines[line_num - 1 : end_line])
+
+                # Эвристика: ищем явный 'Таймаут' или числовой аргумент
+                has_timeout = (
+                    "Таймаут" in full_call
+                    or re.search(r",\s*\d{1,4}\s*[,\)]", full_call)
+                )
+                # Если соединение закрывается на той же строке — проверяем только её
+                if ")" in stripped and "(" in stripped:
+                    # Однострочный вызов
+                    has_timeout = (
+                        "Таймаут" in stripped
+                        or re.search(r",\s*\d{1,4}\s*\)", stripped) is not None
+                    )
+
+                if not has_timeout:
+                    violations.append(
+                        SecurityViolation(
+                            rule_id="SEC016",
+                            severity="HIGH",
+                            line=line_num,
+                            message=f"Внешнее соединение без таймаута (#std748): {stripped[:80]}",
+                            code_snippet=stripped[:120],
+                            recommendation=self.rules["SEC016"].recommendation,
+                        )
+                    )
+                break  # одно срабатывание на строку
+
+        return violations
+
+    def _check_exec_no_safe_mode(self, lines, line_num, stripped, file_path) -> list[SecurityViolation]:
+        """SEC017: Выполнить/Вычислить без УстановитьБезопасныйРежим (#std770).
+
+        https://v8std.ru/std/770/
+        """
+        violations = []
+
+        # Если есть Выполнить/Вычислить с динамической строкой
+        has_exec = (
+            re.search(r"Выполнить\s*\(", stripped) is not None
+            or re.search(r"Вычислить\s*\(", stripped) is not None
+        )
+        if not has_exec:
+            return violations
+
+        # Проверяем, что это не статичный литерал
+        is_static = (
+            re.search(r'Выполнить\s*\(\s*"[^"]*"\s*\)', stripped) is not None
+            or re.search(r'Вычислить\s*\(\s*"[^"]*"\s*\)', stripped) is not None
+        )
+        if is_static:
+            return violations
+
+        # Проверяем 5 строк до и 1 после — есть ли УстановитьБезопасныйРежим(Истина)
+        start = max(0, line_num - 6)
+        end = min(len(lines), line_num + 1)
+        context = "\n".join(lines[start:end])
+
+        has_safe_mode = (
+            "УстановитьБезопасныйРежим(Истина)" in context
+            or "УстановитьБезопасныйРежим(True)" in context
+            or "ВыполнитьВБезопасномРежиме" in context
+            or "ВычислитьВБезопасномРежиме" in context
+        )
+        if not has_safe_mode:
+            violations.append(
+                SecurityViolation(
+                    rule_id="SEC017",
+                    severity="CRITICAL",
+                    line=line_num,
+                    message=f"Выполнить/Вычислить без УстановитьБезопасныйРежим (#std770): {stripped[:80]}",
+                    code_snippet=stripped[:120],
+                    recommendation=self.rules["SEC017"].recommendation,
+                )
+            )
+
+        return violations
+
+    def _check_cmd_injection(self, lines, line_num, stripped, file_path) -> list[SecurityViolation]:
+        """SEC018: КомандаСистемы/ЗапуститьПриложение с опасными символами (#std774).
+
+        https://v8std.ru/std/774/
+        """
+        violations = []
+
+        # Ищем вызов запуска приложения и извлекаем аргумент-строку
+        cmd_match = re.search(
+            r"(КомандаСистемы|ЗапуститьПриложение|НачатьЗапускПриложения)\s*\(\s*(.+?)\s*\)",
+            stripped,
+        )
+        if not cmd_match:
+            return violations
+
+        args = cmd_match.group(2)
+
+        # Опасные символы по #std774: $ ` | || ; & &&
+        # Проверяем только внутри аргументов, не в конце оператора
+        dangerous_chars = ["$", "`", "||", "&&"]
+        # Одинарные | и & — отдельно, чтобы не путать с && и ||
+        # ; — отдельно, чтобы не путать с концом оператора (если ; внутри строки)
+        for char in dangerous_chars:
+            if char in args:
+                violations.append(
+                    SecurityViolation(
+                        rule_id="SEC018",
+                        severity="CRITICAL",
+                        line=line_num,
+                        message=f"Командная строка с опасным символом '{char}' (#std774): {stripped[:80]}",
+                        code_snippet=stripped[:120],
+                        recommendation=self.rules["SEC018"].recommendation,
+                    )
+                )
+                return violations
+
+        # Проверяем ; только если она внутри строкового литерала
+        # (это означает, что ; — часть команды, а не конец оператора)
+        # Ищем строку вида "...;..." — точка с запятой внутри кавычек
+        if re.search(r'"[^"]*;[^"]*"', args):
+            violations.append(
+                SecurityViolation(
+                    rule_id="SEC018",
+                    severity="CRITICAL",
+                    line=line_num,
+                    message=f"Командная строка с опасным символом ';' (#std774): {stripped[:80]}",
+                    code_snippet=stripped[:120],
+                    recommendation=self.rules["SEC018"].recommendation,
+                )
+            )
+
+        # Одиночный | и & — внутри строк
+        if re.search(r'"[^"]*\|[^|][^"]*"', args) or re.search(r'"[^"]*&[^&][^"]*"', args):
+            violations.append(
+                SecurityViolation(
+                    rule_id="SEC018",
+                    severity="CRITICAL",
+                    line=line_num,
+                    message=f"Командная строка с опасным символом '|' или '&' (#std774): {stripped[:80]}",
+                    code_snippet=stripped[:120],
+                    recommendation=self.rules["SEC018"].recommendation,
+                )
+            )
+
+        return violations
+
+    def _check_com_no_macro_disable(self, lines, line_num, stripped, file_path) -> list[SecurityViolation]:
+        """SEC019: COM Word/Excel без DisableAutoMacros (#std775).
+
+        https://v8std.ru/std/775/
+        """
+        violations = []
+
+        # Создание COM Word.Application или Excel.Application
+        if re.search(r'Новый\s+COMОбъект\s*\(\s*"(Word\.Application|Excel\.Application)"', stripped, re.IGNORECASE):
+            # Проверяем 5 строк после — есть ли DisableAutoMacros или AutomationSecurity
+            end = min(len(lines), line_num + 5)
+            context = "\n".join(lines[line_num - 1 : end])
+
+            is_word = "word.application" in stripped.lower()
+            is_excel = "excel.application" in stripped.lower()
+
+            if is_word and "DisableAutoMacros" not in context:
+                violations.append(
+                    SecurityViolation(
+                        rule_id="SEC019",
+                        severity="HIGH",
+                        line=line_num,
+                        message=f"Word через COM без DisableAutoMacros (#std775): {stripped[:80]}",
+                        code_snippet=stripped[:120],
+                        recommendation=self.rules["SEC019"].recommendation,
+                    )
+                )
+            elif is_excel and "AutomationSecurity" not in context:
+                violations.append(
+                    SecurityViolation(
+                        rule_id="SEC019",
+                        severity="HIGH",
+                        line=line_num,
+                        message=f"Excel через COM без AutomationSecurity (#std775): {stripped[:80]}",
+                        code_snippet=stripped[:120],
+                        recommendation=self.rules["SEC019"].recommendation,
+                    )
+                )
+
+        return violations
+
+    def _check_external_code_load(self, lines, line_num, stripped, file_path) -> list[SecurityViolation]:
+        """SEC020: Внешняя обработка/расширение без БСП (#std669).
+
+        https://v8std.ru/std/669/
+        """
+        violations = []
+
+        # Поиск прямой загрузки внешней обработки из файла
+        load_patterns = [
+            r"ВнешниеОбработки\.Создать\s*\(",
+            r"ВнешниеОтчеты\.Создать\s*\(",
+            r'\.Подключить\s*\(\s*"[^"]*\.epf',
+            r'\.Подключить\s*\(\s*"[^"]*\.erf',
+            r"ПодключитьВнешнююОбработку\s*\(",
+            r"ПодключитьВнешнийОтчет\s*\(",
+        ]
+        for pattern in load_patterns:
+            if re.search(pattern, stripped, re.IGNORECASE):
+                # Если есть ДополнительныеОтчетыИОбработки — это БСП
+                # Проверяем контекст 5 строк до
+                start = max(0, line_num - 6)
+                context = "\n".join(lines[start:line_num])
+                if "ДополнительныеОтчетыИОбработки" in context:
+                    continue  # через БСП — нормально
+
+                violations.append(
+                    SecurityViolation(
+                        rule_id="SEC020",
+                        severity="HIGH",
+                        line=line_num,
+                        message=f"Прямая загрузка внешнего кода без БСП (#std669): {stripped[:80]}",
+                        code_snippet=stripped[:120],
+                        recommendation=self.rules["SEC020"].recommendation,
+                    )
+                )
+                break
 
         return violations
 

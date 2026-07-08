@@ -185,6 +185,21 @@ def get_all_tool_definitions() -> list[types.Tool]:
             },
         ),
         _build_tool(
+            name="check_data_exchange",
+            description=(
+                "Проверка обмена данными BSL по стандартам v8std.ru / ITS: "
+                "#std773 (ОбменДанными.Загрузка в ПередЗаписью/ПриЗаписи/ПередУдалением), "
+                "#std701 (планы обмена с отборами, без обращений через точку), "
+                "#std771 (EnterpriseData, без AdditionalInfo), #std542 (файлы обмена). "
+                "10 правил DX001-DX010. Пример: check_data_exchange(file_path='module.bsl')."
+            ),
+            input_schema={
+                "properties": {"file_path": {"description": "Путь к .bsl файлу", "type": "string"}},
+                "required": ["file_path"],
+                "type": "object",
+            },
+        ),
+        _build_tool(
             name="data_status",
             description="Статус данных проекта: что доступно (платформа, конфигурации), что нужно перестроить, доступен ли autosave пакет. Возвращает: has_platform_index, has_platform_methods, configs[], autosave_available. Пример: data_status().",
             input_schema={"properties": {}, "type": "object"},

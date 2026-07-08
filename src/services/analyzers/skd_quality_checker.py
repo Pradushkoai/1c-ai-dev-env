@@ -3,16 +3,30 @@
 skd_quality_checker.py — Проверка качества СКД-схем 1С.
 
 Анализирует skd-index.json и находит проблемы:
-1. СКД без параметров (жёстко заданные значения)
-2. СКД с одним набором данных без параметров
-3. СКД без группировок
-4. СКД без отборов (filters)
-5. СКД с запросом без ВЫБРАТЬ
-6. СКД без условного оформления
-7. СКД с > 50 полями (перегруженная)
-8. СКД без итоговых полей (totalFields)
-9. СКД с запросом без ГДЕ
-10. Параметры без типа данных
+1. SKD001: СКД без параметров (жёстко заданные значения)
+2. SKD002: СКД без группировок
+3. SKD003: СКД без отборов (filters)
+4. SKD004: СКД без итоговых полей (totalFields)
+5. SKD005: СКД с > 50 полями (перегруженная)
+6. SKD006: СКД с запросом без ГДЕ
+7. SKD007: Параметры без типа данных
+8. SKD008: СКД без условного оформления
+9. SKD009: СКД с пустым запросом
+10. SKD010: СКД без источника данных
+
+Усилено по стандартам v8std.ru / ITS:
+11. SKD011: Поля периодов без стандартных имён (#std672)
+12. SKD012: Вариант с именем «Основной» (#std674)
+13. SKD013: Запрос с РАЗЛИЧНЫЕ/СГРУППИРОВАТЬ ПО в динамическом списке (#std732)
+14. SKD014: Группировка более 3 уровней вложенности (#std676)
+15. SKD015: Иерархический список с РаскрыватьВсеУровни (#std489)
+
+Источники стандартов:
+- https://v8std.ru/std/672/ — поля периодов
+- https://v8std.ru/std/674/ — заголовок отчёта (варианты)
+- https://v8std.ru/std/732/ — запросы в динамических списках
+- https://v8std.ru/std/676/ — отчёты вида «таблица», «список»
+- https://v8std.ru/std/489/ — ограничения динамических списков
 
 Использование:
     from skd_quality_checker import SKDQualityChecker
@@ -219,7 +233,212 @@ class SKDQualityChecker:
                 )
             )
 
+        # ====================================================================
+        # Усиление по стандартам v8std.ru / ITS
+        # ====================================================================
+
+        # SKD011: Поля периодов без стандартных имён (#std672)
+        # Стандарт: Период.Год, Период.Квартал, Период.Месяц, Период.День, Период.Час
+        # https://v8std.ru/std/672/
+        STANDARD_PERIOD_FIELDS = {
+            "Период.Год", "Период.Квартал", "Период.Месяц", "Период.Декада",
+            "Период.Неделя", "Период.День", "Период.Час", "Период.Минута",
+            "Период.Секунда",
+        }
+        for ds in data_sets:
+            for field in ds.get("fields", []):
+                field_name = field.get("name", "") or field.get("dataPath", "")
+                field_lower = field_name.lower() if isinstance(field_name, str) else ""
+                # Если поле похоже на период (содержит "период" в имени)
+                if "период" in field_lower and field_name not in STANDARD_PERIOD_FIELDS:
+                    # Проверяем, что это не стандартное имя
+                    if not any(field_name == sp for sp in STANDARD_PERIOD_FIELDS):
+                        issues.append(
+                            SKDIssue(
+                                rule_id="SKD011",
+                                severity="LOW",
+                                schema_name=name,
+                                parent_name=parent_name,
+                                message=(
+                                    f'Поле периода "{field_name}" не использует стандартное имя '
+                                    f"(должно быть Период.Год/Квартал/Месяц/День/Час)"
+                                ),
+                                recommendation=(
+                                    "Используйте стандартные имена полей периодов по #std672: "
+                                    "Период.Год, Период.Квартал, Период.Месяц, Период.День. "
+                                    "См. https://v8std.ru/std/672/"
+                                ),
+                            )
+                        )
+                        break  # одно предупреждение на набор
+            else:
+                continue
+            break
+
+        # SKD012: Вариант с именем «Основной» (#std674)
+        # https://v8std.ru/std/674/
+        variants = schema.get("variants", [])
+        if not variants and isinstance(schema_data, dict):
+            # Может быть в корневом элементе
+            variants = schema_data.get("variants", [])
+        for variant in variants:
+            variant_name = (
+                variant.get("name", "")
+                or variant.get("presentation", "")
+                or variant.get("title", "")
+            )
+            if isinstance(variant_name, str):
+                variant_name_norm = variant_name.strip().lower()
+                if variant_name_norm in {"основной", "основная", "default", "main"}:
+                    issues.append(
+                        SKDIssue(
+                            rule_id="SKD012",
+                            severity="MEDIUM",
+                            schema_name=name,
+                            parent_name=parent_name,
+                            message=(
+                                f'Вариант "{variant_name}" назван "Основной" — название '
+                                "не раскрывает смысл отчёта"
+                            ),
+                            recommendation=(
+                                "Дайте варианту осмысленное имя по #std674 (например, "
+                                "'Анализ продаж по клиентам'). Запрещено называть вариант "
+                                "'Основной'. См. https://v8std.ru/std/674/"
+                            ),
+                        )
+                    )
+                    break
+
+        # SKD013: Запрос с РАЗЛИЧНЫЕ/СГРУППИРОВАТЬ ПО в динамическом списке (#std732)
+        # https://v8std.ru/std/732/
+        is_dynamic_list = (
+            schema_data.get("is_dynamic_list", False)
+            or schema_data.get("dynamic_list", False)
+            or "dynamic" in str(schema_data.get("description", "")).lower()
+        )
+        if is_dynamic_list:
+            for ds in data_sets:
+                query = ds.get("query", "") or ""
+                query_upper = query.upper()
+                if "РАЗЛИЧНЫЕ" in query_upper or "DISTINCT" in query_upper:
+                    issues.append(
+                        SKDIssue(
+                            rule_id="SKD013",
+                            severity="HIGH",
+                            schema_name=name,
+                            parent_name=parent_name,
+                            message=(
+                                "Динамический список использует РАЗЛИЧНЫЕ — "
+                                "блокирует динамическое считывание (#std732)"
+                            ),
+                            recommendation=(
+                                "Уберите РАЗЛИЧНЫЕ из запроса динамического списка. "
+                                "По #std732 не использовать РАЗЛИЧНЫЕ и СГРУППИРОВАТЬ ПО. "
+                                "См. https://v8std.ru/std/732/"
+                            ),
+                        )
+                    )
+                    break
+                if "СГРУППИРОВАТЬ ПО" in query_upper or "GROUP BY" in query_upper:
+                    issues.append(
+                        SKDIssue(
+                            rule_id="SKD013",
+                            severity="HIGH",
+                            schema_name=name,
+                            parent_name=parent_name,
+                            message=(
+                                "Динамический список использует СГРУППИРОВАТЬ ПО — "
+                                "блокирует динамическое считывание (#std732)"
+                            ),
+                            recommendation=(
+                                "Уберите СГРУППИРОВАТЬ ПО из запроса динамического списка, "
+                                "перенесите расчёты в регистр сведений. "
+                                "См. https://v8std.ru/std/732/"
+                            ),
+                        )
+                    )
+                    break
+
+        # SKD014: Группировка более 3 уровней вложенности (#std676)
+        # https://v8std.ru/std/676/
+        if isinstance(settings, dict):
+            groupings = (
+                settings.get("groupings", [])
+                or settings.get("groupItems", [])
+                or settings.get("item", [])
+            )
+            # Сам список groupings = уровень 1; _max_grouping_nesting считает
+            # глубину вложенности, поэтому +1 для учета верхнего уровня
+            max_nesting = self._max_grouping_nesting(groupings) + 1 if groupings else 0
+            if max_nesting > 3:
+                issues.append(
+                    SKDIssue(
+                        rule_id="SKD014",
+                        severity="MEDIUM",
+                        schema_name=name,
+                        parent_name=parent_name,
+                        message=(
+                            f"Группировка имеет {max_nesting} уровней вложенности "
+                            f"(рекомендуется ≤ 3)"
+                        ),
+                        recommendation=(
+                            "По #std676 уровней вложенности группировок должно быть "
+                            "не более 3. Разделите отчёт на несколько вариантов. "
+                            "См. https://v8std.ru/std/676/"
+                        ),
+                    )
+                )
+
+        # SKD015: Иерархический список с РаскрыватьВсеУровни (#std489)
+        # https://v8std.ru/std/489/
+        if is_dynamic_list:
+            initial_tree_view = (
+                schema_data.get("initial_tree_view", "")
+                or schema_data.get("initialTreeView", "")
+                or ""
+            )
+            if isinstance(initial_tree_view, str):
+                tv_lower = initial_tree_view.lower()
+                if "раскрыватьвсеуровни" in tv_lower or "expandall" in tv_lower:
+                    issues.append(
+                        SKDIssue(
+                            rule_id="SKD015",
+                            severity="HIGH",
+                            schema_name=name,
+                            parent_name=parent_name,
+                            message=(
+                                "Иерархический список с НачальноеОтображениеДерева = "
+                                "РаскрыватьВсеУровни — критично снижает скорость (#std489)"
+                            ),
+                            recommendation=(
+                                "Используйте НеРаскрывать или РаскрыватьВерхнийУровень. "
+                                "См. https://v8std.ru/std/489/"
+                            ),
+                        )
+                    )
+
         return issues
+
+    @staticmethod
+    def _max_grouping_nesting(groupings: Any, depth: int = 0) -> int:
+        """Вычисляет максимальную вложенность группировок."""
+        if not isinstance(groupings, list):
+            return depth
+        if not groupings:
+            return depth
+        max_child = depth
+        for g in groupings:
+            if isinstance(g, dict):
+                # Ищем вложенные группировки
+                for key in ("items", "childItems", "children", "groupings", "subgroups"):
+                    nested = g.get(key)
+                    if nested:
+                        child_depth = SKDQualityChecker._max_grouping_nesting(nested, depth + 1)
+                        max_child = max(max_child, child_depth)
+            elif isinstance(g, list):
+                child_depth = SKDQualityChecker._max_grouping_nesting(g, depth + 1)
+                max_child = max(max_child, child_depth)
+        return max_child
 
     def get_stats(self, issues: list[SKDIssue]) -> dict[str, Any]:
         from collections import Counter
