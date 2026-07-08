@@ -79,6 +79,70 @@ class BslContextChecker:
         "Отчеты", "Reports",
     })
 
+    # Базовые типы 1С — доступны во всех контекстах
+    # (не должны проверяться на доступность)
+    _BASIC_TYPES = frozenset({
+        "Структура", "Structure",
+        "Массив", "Array",
+        "Соответствие", "Map",
+        "ТаблицаЗначений", "ValueTable",
+        "СписокЗначений", "ValueList",
+        "Запрос", "Query",
+        "ДеревоЗначений", "ValueTree",
+        "СтрокаТаблицыЗначений", "ValueTableRow",
+        "СтрокаДереваЗначений", "ValueTreeRow",
+        "HTTPЗапрос", "HTTPRequest",
+        "HTTPОтвет", "HTTPResponse",
+        "HTTPСоединение", "HTTPConnection",
+        "ЗаписьJSON", "JSONWriter",
+        "ЧтениеJSON", "JSONReader",
+        "ЗаписьXML", "XMLWriter",
+        "ЧтениеXML", "XMLReader",
+        "МоментВремени", "PointInTime",
+        "ГраницаПериода", "PeriodBoundary",
+        "КвалификаторыЧисла", "NumberQualifiers",
+        "КвалификаторыСтроки", "StringQualifiers",
+        "КвалификаторыДаты", "DateQualifiers",
+        "ОписаниеТипов", "TypeDescription",
+        "БлокировкаДанных", "DataLock",
+        "ДвоичныеДанные", "BinaryData",
+        "Файл", "File",
+        "CSV", "CSV",
+    })
+
+    # Методы, которые НЕ нужно проверять (базовые операции)
+    _SKIP_METHODS = frozenset({
+        "ОписаниеОшибки", "ErrorDescription",
+        "ИнформацияОбОшибке", "ErrorInfo",
+        "КраткоеПредставлениеОшибки", "BriefErrorPresentation",
+        "ЗначениеЗаполнено", "ValueIsFilled",
+        "ТипЗнч", "TypeOf",
+        "Тип", "Type",
+        "НСтр", "NStr",
+        "СтрШаблон", "StrTemplate",
+        "СтрНачинаетсяС", "StrStartsWith",
+        "СтрЗаканчиваетсяНа", "StrEndsWith",
+        "СокрЛП", "TrimAll",
+        "СокрЛ", "TrimL",
+        "СокрП", "TrimR",
+        "СтрДлина", "StrLen",
+        "СтрНайти", "StrFind",
+        "СтрЗаменить", "StrReplace",
+        "СтрРазделить", "StrSplit",
+        "СтрСоединить", "StrConcat",
+        "СтрСравнить", "StrCompare",
+        "Формат", "Format",
+        "Число", "Number",
+        "Строка", "String",
+        "Дата", "Date",
+        "Булево", "Boolean",
+        "Цел", "Int",
+        "Окр", "Round",
+        "Мин", "Min",
+        "Макс", "Max",
+        "Сумма", "Sum",
+    })
+
     def __init__(self, paths: Any = None):
         """Инициализация.
 
@@ -190,6 +254,16 @@ class BslContextChecker:
         # Список методов, которые мы знаем — проверяем их
         # (глобальные методы и методы через переменные с известным типом)
         for call in calls:
+            method_name = call.name
+
+            # Пропускаем базовые типы (Структура, Массив, etc.)
+            if method_name in self._BASIC_TYPES:
+                continue
+
+            # Пропускаем базовые методы (ОписаниеОшибки, Формат, etc.)
+            if method_name in self._SKIP_METHODS:
+                continue
+
             # Пропускаем вызовы через переменные с неизвестным типом
             # (не можем определить доступность)
             if call.object_var and not call.resolved_type:
@@ -225,8 +299,6 @@ class BslContextChecker:
                                 )
                             )
                 continue
-
-            method_name = call.name
 
             # Определяем object_type для разрешения коллизий
             object_type = call.resolved_type if call.resolved_type else ""
