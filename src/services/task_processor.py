@@ -505,6 +505,7 @@ class TaskProcessor:
                             line=v.line,
                             message=v.message,
                             file=v.file,
+                            recommendation=getattr(v, 'recommendation', ''),
                         )
                     )
                 result.analyzers_run.append("check_1c_standards")
@@ -526,6 +527,7 @@ class TaskProcessor:
                             line=v.line,
                             message=v.message,
                             file=str(file_path),
+                            recommendation=getattr(v, 'recommendation', ''),
                         )
                     )
                 result.analyzers_run.append("security_auditor")
@@ -547,6 +549,7 @@ class TaskProcessor:
                             line=v.line,
                             message=v.message,
                             file=str(file_path),
+                            recommendation=getattr(v, 'recommendation', ''),
                         )
                     )
                 result.analyzers_run.append("transaction_checker")
@@ -568,6 +571,7 @@ class TaskProcessor:
                             line=i.line,
                             message=i.message,
                             file=str(file_path),
+                            recommendation=getattr(i, 'recommendation', ''),
                         )
                     )
                 result.analyzers_run.append("query_analyzer")
@@ -591,6 +595,7 @@ class TaskProcessor:
                             line=v.line,
                             message=v.message,
                             file=str(file_path),
+                            recommendation=getattr(v, 'recommendation', ''),
                         )
                     )
                 result.analyzers_run.append("data_exchange_checker")
@@ -615,6 +620,7 @@ class TaskProcessor:
                                 line=v.line,
                                 message=v.message,
                                 file=str(file_path),
+                                recommendation=getattr(v, 'recommendation', ''),
                             )
                         )
                     result.analyzers_run.append("bsl_context_checker")
@@ -644,6 +650,7 @@ class TaskProcessor:
                                 line=d.get("line", 0),
                                 message=d.get("message", ""),
                                 file=str(file_path),
+                                recommendation="См. документацию BSL LS для этой диагностики",
                             )
                         )
                     result.analyzers_run.append("bsl_ls")
@@ -687,6 +694,7 @@ class TaskProcessor:
                                 line=0,
                                 message=f"God Object: {cm.loc} строк, {cm.methods_count} методов",
                                 file=str(file_path),
+                                recommendation="Разделите модуль на несколько модулей по ответственности",
                             )
                         )
                     for m in cm.long_methods:
@@ -698,6 +706,7 @@ class TaskProcessor:
                                 line=m["line_start"],
                                 message=f"Длинный метод {m['name']}: {m['lloc']} строк",
                                 file=str(file_path),
+                                recommendation="Разделите метод на несколько меньших методов",
                             )
                         )
                 except Exception as e:
@@ -719,6 +728,7 @@ class TaskProcessor:
                                 line=v.line,
                                 message=v.message,
                                 file=v.file,
+                                recommendation=getattr(v, 'recommendation', ''),
                             )
                         )
                     result.analyzers_run.append("check_metadata_standards")

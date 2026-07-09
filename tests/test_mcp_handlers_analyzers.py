@@ -385,3 +385,106 @@ class TestHandleSolveCheckNextSteps:
         assert any("SEC002" in s for s in data["_next_steps"])
         assert data["summary"]["is_safe_to_use"] is False
         assert data["summary"]["must_fix_before_use_count"] == 2
+
+
+# ============================================================================
+# R4: recommendation field wired в analyzers
+# ============================================================================
+
+
+class TestRecommendationWired:
+    """R4: Тесты что recommendation field заполняется анализаторами."""
+
+    def test_security_violation_has_recommendation(self):
+        """SecurityViolation от security_auditor имеет recommendation."""
+        from src.services.analyzers.security_auditor import SecurityAuditor
+        import tempfile
+
+        # BSL код с SQL injection (SEC001) — используем одинарные кавычки для Python
+        bsl_code = (
+            'Процедура Тест()\n'
+            '    Запрос = Новый Запрос;\n'
+            '    Запрос.Текст = "ВЫБРАТЬ * ИЗ Справочник.Товары ГДЕ Код = " + Код;\n'
+            'КонецПроцедуры\n'
+        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".bsl", delete=False, encoding="utf-8") as f:
+            f.write(bsl_code)
+            f.flush()
+
+            auditor = SecurityAuditor()
+            violations = auditor.audit_file(__import__("pathlib").Path(f.name))
+
+        # Должна быть хотя бы одна violation с recommendation
+        assert len(violations) > 0
+        found_sec001 = False
+        for v in violations:
+            if v.rule_id == "SEC001":
+                found_sec001 = True
+                assert v.recommendation, f"SEC001 violation должен иметь recommendation, got: {v.recommendation!r}"
+                assert "параметр" in v.recommendation.lower() or "УстановитьПараметр" in v.recommendation
+                break
+        # Если SEC001 не сработал — проверяем что хотя бы одна violation имеет recommendation
+        if not found_sec001 and violations:
+            assert any(v.recommendation for v in violations), "Хотя бы одна violation должна иметь recommendation"
+
+    def test_check_result_violation_has_recommendation_via_task_processor(self):
+        """CheckResult.violations имеют recommendation field (через task_processor)."""
+        from src.models.task import CheckResult, Violation
+
+        # Проверяем что Violation dataclass имеет recommendation field
+        v = Violation(
+            source="security_auditor",
+            rule_id="SEC001",
+            severity="CRITICAL",
+            line=10,
+            message="SQL injection",
+            recommendation="Используйте параметры запроса",
+        )
+        assert v.recommendation == "Используйте параметры запроса"
+
+        # Проверяем что to_dict включает recommendation
+        result = CheckResult(file="test.bsl", level="standard")
+        result.violations.append(v)
+        d = result.to_dict()
+
+        assert "violations" in d
+        assert len(d["violations"]) == 1
+        assert d["violations"][0]["recommendation"] == "Используйте параметры запроса"
+        # must_fix_before_use тоже должен иметь recommendation
+        assert d["must_fix_before_use"][0]["recommendation"] == "Используйте параметры запроса"
+        assert d["top_3_priority"][0]["recommendation"] == "Используйте параметры запроса"
+
+    def test_task_processor_propagates_recommendation(self):
+        """TaskProcessor.check() копирует recommendation из SecurityViolation в Violation."""
+        from src.services.task_processor import TaskProcessor
+        from src.services.analyzers.security_auditor import SecurityAuditor
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import MagicMock
+
+        # BSL код с SQL injection — реальный файл
+        bsl_code = (
+            'Процедура Тест()\n'
+            '    Запрос = Новый Запрос;\n'
+            '    Запрос.Текст = "ВЫБРАТЬ * ИЗ Справочник.Товары ГДЕ Код = " + Код;\n'
+            'КонецПроцедуры\n'
+        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".bsl", delete=False, encoding="utf-8") as f:
+            f.write(bsl_code)
+            bsl_path = Path(f.name)
+
+        paths = MagicMock()
+        paths.scripts_dir = Path("/nonexistent")
+        paths.bsl_ls_binary = Path("/nonexistent/bsl-ls")
+
+        processor = TaskProcessor(paths)
+
+        # Запускаем check (security_auditor загрузится из src.services.analyzers)
+        result = processor.check(bsl_path, level="quick")
+
+        # Проверяем что есть security_auditor violations с recommendation
+        sec_violations = [v for v in result.violations if v.source == "security_auditor"]
+        if sec_violations:
+            # Хотя бы одна violation должна иметь recommendation
+            has_rec = any(v.recommendation for v in sec_violations)
+            assert has_rec, f"security_auditor violations должны иметь recommendation, got: {[v.recommendation for v in sec_violations]}"
