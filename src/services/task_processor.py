@@ -65,25 +65,58 @@ class TaskProcessor:
         F2.6: Source selection by intent — если required_sources указан,
         ищет ТОЛЬКО по релевантным источникам (не по всем 7).
 
+        R15 (2026-07-09): Source mapping — intent classifier использует
+        aliases (security_rules, query_standards, bsl_templates, call_graph,
+        best_practices, templates), которые маппятся на реальные search методы.
+
         Args:
             query: Текст задачи
             config_name: Имя конфигурации (для metadata/api/skd/forms)
             limit: Лимит результатов на источник
             required_sources: Список источников для поиска (из intent classifier).
-                Возможные значения: platform_methods, metadata, api_reference,
-                skd, forms, knowledge_base, standards, query_standards,
-                query_templates, bsl_templates, security_rules, best_practices,
-                call_graph, templates.
+                Поддерживаются как canonical имена, так и aliases:
+                - platform_methods (canonical)
+                - metadata, api_reference, skd, forms (canonical)
+                - knowledge_base, best_practices (alias → knowledge_base)
+                - standards, security_rules (alias → standards)
+                - query_standards (alias → standards + skd)
+                - bsl_templates, templates (alias → knowledge_base)
+                - call_graph (note only — not searched in solve())
                 Если None — ищет по всем источникам (backward compat).
         """
         ctx = TaskContext(query=query, config_name=config_name)
+
+        # R15: Source mapping — aliases → canonical
+        SOURCE_ALIASES: dict[str, str] = {
+            "best_practices": "knowledge_base",
+            "templates": "knowledge_base",
+            "bsl_templates": "knowledge_base",
+            "security_rules": "standards",
+            "query_standards": "standards",
+            # query_standards also implies skd (query-related schemas)
+        }
+        # query_standards special case: also enable skd
+        QUERY_STANDARDS_EXTRA = {"skd"}
+
+        if required_sources:
+            # Normalize: aliases → canonical
+            normalized = set()
+            for src in required_sources:
+                canonical = SOURCE_ALIASES.get(src, src)
+                normalized.add(canonical)
+                if src == "query_standards":
+                    normalized.update(QUERY_STANDARDS_EXTRA)
+            active_sources = normalized
+        else:
+            active_sources = None  # all sources
 
         # F2.6: Если required_sources не указан — все источники (backward compat)
         all_sources = {
             "platform_methods", "metadata", "api_reference", "skd", "forms",
             "knowledge_base", "standards",
         }
-        active_sources = set(required_sources) if required_sources else all_sources
+        if active_sources is None:
+            active_sources = all_sources.copy()
 
         # B5: автоопределение версии платформы из конфигурации
         if config_name:
@@ -113,13 +146,19 @@ class TaskProcessor:
         else:
             ctx.warnings.append("Конфигурация не указана — поиск по метаданным пропущен")
 
-        # 6. База знаний
-        if "knowledge_base" in active_sources or "best_practices" in active_sources:
+        # 6. База знаний (knowledge_base, best_practices, templates, bsl_templates → knowledge_base)
+        if "knowledge_base" in active_sources:
             self._search_knowledge_base(ctx, query, limit)
 
-        # 7. Стандарты (summary — что доступно для проверки)
-        if "standards" in active_sources or "security_rules" in active_sources:
+        # 7. Стандарты (standards, security_rules, query_standards → standards)
+        if "standards" in active_sources:
             ctx.standards_summary = self._standards_summary()
+
+        # R15: Note about call_graph (not searched in solve, separate tool)
+        if required_sources and "call_graph" in required_sources:
+            ctx.warnings.append(
+                "call_graph not searched in solve() — use run_cli(command='call_graph') or explain()"
+            )
 
         # F2.6: Добавляем info о source selection
         if required_sources:

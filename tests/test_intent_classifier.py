@@ -12,6 +12,7 @@ F2.5: Тесты для intent classifier.
 from __future__ import annotations
 
 import pytest
+from unittest.mock import patch
 
 from src.services.intent.classifier import (
     INTENT_PATTERNS,
@@ -556,3 +557,165 @@ class TestSourceSelection:
             mock_forms.assert_not_called()
             mock_skd.assert_not_called()
             mock_api.assert_not_called()
+
+
+# ============================================================================
+# R15: Source mapping (aliases → canonical)
+# ============================================================================
+
+
+class TestSourceMapping:
+    """R15: Тесты для mapping aliases (security_rules, query_standards, etc.)
+    к canonical source names (standards, knowledge_base, etc.)."""
+
+    def test_security_rules_alias_maps_to_standards(self):
+        """security_rules (from audit_code intent) → standards."""
+        from src.services.task_processor import TaskProcessor
+        from unittest.mock import MagicMock
+
+        paths = MagicMock()
+        processor = TaskProcessor(paths)
+
+        with patch.object(processor, "_search_platform_methods"), \
+             patch.object(processor, "_search_metadata"), \
+             patch.object(processor, "_search_forms"), \
+             patch.object(processor, "_search_skd"), \
+             patch.object(processor, "_search_api_reference"), \
+             patch.object(processor, "_search_knowledge_base") as mock_kb, \
+             patch.object(processor, "_standards_summary", return_value={"total": 0}) as mock_std:
+            
+            ctx = processor.solve(
+                query="audit code",
+                config_name="test",
+                required_sources=["security_rules"],  # alias
+            )
+            
+            # security_rules → standards_summary should be called
+            mock_std.assert_called_once()
+            # knowledge_base should NOT be called (security_rules ≠ knowledge_base)
+            mock_kb.assert_not_called()
+
+    def test_query_standards_alias_maps_to_standards_and_skd(self):
+        """query_standards (from write_query intent) → standards + skd."""
+        from src.services.task_processor import TaskProcessor
+        from unittest.mock import MagicMock
+
+        paths = MagicMock()
+        processor = TaskProcessor(paths)
+
+        with patch.object(processor, "_search_platform_methods"), \
+             patch.object(processor, "_search_metadata"), \
+             patch.object(processor, "_search_forms"), \
+             patch.object(processor, "_search_skd") as mock_skd, \
+             patch.object(processor, "_search_api_reference"), \
+             patch.object(processor, "_search_knowledge_base"), \
+             patch.object(processor, "_standards_summary", return_value={"total": 0}) as mock_std:
+            
+            ctx = processor.solve(
+                query="write query",
+                config_name="test",
+                required_sources=["query_standards"],  # alias
+            )
+            
+            # query_standards → standards + skd
+            mock_std.assert_called_once()
+            mock_skd.assert_called_once()
+
+    def test_bsl_templates_alias_maps_to_knowledge_base(self):
+        """bsl_templates (from generate_bsl intent) → knowledge_base."""
+        from src.services.task_processor import TaskProcessor
+        from unittest.mock import MagicMock
+
+        paths = MagicMock()
+        processor = TaskProcessor(paths)
+
+        with patch.object(processor, "_search_platform_methods"), \
+             patch.object(processor, "_search_metadata"), \
+             patch.object(processor, "_search_forms"), \
+             patch.object(processor, "_search_skd"), \
+             patch.object(processor, "_search_api_reference"), \
+             patch.object(processor, "_search_knowledge_base") as mock_kb, \
+             patch.object(processor, "_standards_summary", return_value={"total": 0}):
+            
+            ctx = processor.solve(
+                query="generate bsl",
+                config_name="test",
+                required_sources=["bsl_templates"],  # alias
+            )
+            
+            # bsl_templates → knowledge_base
+            mock_kb.assert_called_once()
+
+    def test_best_practices_alias_maps_to_knowledge_base(self):
+        """best_practices (from refactor_code intent) → knowledge_base."""
+        from src.services.task_processor import TaskProcessor
+        from unittest.mock import MagicMock
+
+        paths = MagicMock()
+        processor = TaskProcessor(paths)
+
+        with patch.object(processor, "_search_platform_methods"), \
+             patch.object(processor, "_search_metadata"), \
+             patch.object(processor, "_search_forms"), \
+             patch.object(processor, "_search_skd"), \
+             patch.object(processor, "_search_api_reference"), \
+             patch.object(processor, "_search_knowledge_base") as mock_kb, \
+             patch.object(processor, "_standards_summary", return_value={"total": 0}):
+            
+            ctx = processor.solve(
+                query="refactor code",
+                config_name="test",
+                required_sources=["best_practices"],  # alias
+            )
+            
+            mock_kb.assert_called_once()
+
+    def test_call_graph_adds_warning(self):
+        """call_graph в required_sources — добавляет warning (not searched in solve)."""
+        from src.services.task_processor import TaskProcessor
+        from unittest.mock import MagicMock
+
+        paths = MagicMock()
+        processor = TaskProcessor(paths)
+
+        with patch.object(processor, "_search_platform_methods"), \
+             patch.object(processor, "_search_metadata"), \
+             patch.object(processor, "_search_forms"), \
+             patch.object(processor, "_search_skd"), \
+             patch.object(processor, "_search_api_reference"), \
+             patch.object(processor, "_search_knowledge_base"), \
+             patch.object(processor, "_standards_summary", return_value={"total": 0}):
+            
+            ctx = processor.solve(
+                query="understand code",
+                config_name="test",
+                required_sources=["call_graph"],  # alias, not searched
+            )
+            
+            # Should have warning about call_graph
+            cg_warnings = [w for w in ctx.warnings if "call_graph" in w.lower()]
+            assert len(cg_warnings) > 0
+
+    def test_canonical_names_still_work(self):
+        """Canonical names (platform_methods, metadata, etc.) работают без aliases."""
+        from src.services.task_processor import TaskProcessor
+        from unittest.mock import MagicMock
+
+        paths = MagicMock()
+        processor = TaskProcessor(paths)
+
+        with patch.object(processor, "_search_platform_methods") as mock_pm, \
+             patch.object(processor, "_search_metadata") as mock_meta, \
+             patch.object(processor, "_search_api_reference") as mock_api, \
+             patch.object(processor, "_search_knowledge_base"), \
+             patch.object(processor, "_standards_summary", return_value={"total": 0}):
+            
+            ctx = processor.solve(
+                query="test",
+                config_name="test",
+                required_sources=["platform_methods", "metadata", "api_reference"],
+            )
+            
+            mock_pm.assert_called_once()
+            mock_meta.assert_called_once()
+            mock_api.assert_called_once()
