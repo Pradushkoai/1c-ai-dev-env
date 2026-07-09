@@ -23,6 +23,9 @@ class PlatformMethodHit:
     syntax: str = ""
     description: str = ""
     context: str = ""
+    # Авто-проверка доступности (заполняется в _search_platform_methods)
+    availability_raw: str = ""
+    availability_warning: str = ""  # "НЕ доступен на клиенте!" если метод недоступен в типичном контексте
 
 
 @dataclass
@@ -112,7 +115,19 @@ class TaskContext:
         return {
             "query": self.query,
             "config": self.config_name,
-            "platform_methods": [m.__dict__ for m in self.platform_methods],
+            "platform_methods": [
+                {
+                    "name_ru": m.name_ru,
+                    "name_en": m.name_en,
+                    "score": m.score,
+                    "syntax": m.syntax,
+                    "description": m.description,
+                    "context": m.context,
+                    "availability_raw": m.availability_raw,
+                    "availability_warning": m.availability_warning,
+                }
+                for m in self.platform_methods
+            ],
             "api_modules": [m.__dict__ for m in self.api_modules],
             "metadata_objects": [m.__dict__ for m in self.metadata_objects],
             "subsystems": self.subsystems,

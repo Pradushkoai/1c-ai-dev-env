@@ -92,14 +92,14 @@ class TaskProcessor:
         return ctx
 
     def _search_platform_methods(self, ctx: TaskContext, query: str, limit: int) -> None:
-        """Поиск по методам платформы 1С.
+        """Поиск по методам платформы 1С с авто-проверкой доступности.
 
         B4 FIX: Использует platform-methods.db (SQLite, методы платформы 1С)
         вместо fast-search-index.json (методы конфигурации УТ11).
 
-        Сначала пытается использовать SQLite (полный справочник платформы с
-        доступностью, версиями, параметрами). Если SQLite недоступен —
-        fallback на старый BM25 индекс (методы УТ11, ограниченная информация).
+        ОПТИМИЗАЦИЯ: Для каждого найденного метода АВТОМАТИЧЕСКИ проверяет
+        доступность и добавляет предупреждение. LLM не нужно вызывать
+        get_method_details отдельно — информация уже в ответе solve_context.
         """
         # B4 FIX: Сначала пробуем новый SQLite индекс платформы
         try:
@@ -109,14 +109,37 @@ class TaskProcessor:
             if index.is_available():
                 results = index.search(query, limit=limit)
                 for r in results:
+                    name_ru = r.get("name_ru", "")
+                    avail_raw = r.get("availability_raw", "")
+
+                    # Авто-проверка: доступен ли метод на клиенте?
+                    avail_warning = ""
+                    if avail_raw:
+                        avail_lower = avail_raw.lower()
+                        # Если в доступности НЕТ "тонкий клиент" и НЕТ "мобильный клиент"
+                        # — это серверный метод, предупреждаем
+                        is_server_only = (
+                            "сервер" in avail_lower
+                            and "тонкий клиент" not in avail_lower
+                            and "мобильный клиент" not in avail_lower
+                        )
+                        if is_server_only:
+                            avail_warning = (
+                                f"⚠️ '{name_ru}' НЕ доступен на клиенте! "
+                                f"Доступен только: {avail_raw}. "
+                                f"Не используйте в клиентских модулях."
+                            )
+
                     ctx.platform_methods.append(
                         PlatformMethodHit(
-                            name_ru=r.get("name_ru", ""),
+                            name_ru=name_ru,
                             name_en=r.get("name_en", ""),
                             score=float(r.get("score", 0.0)),
                             syntax=r.get("syntax", ""),
                             description=r.get("description", ""),
                             context=r.get("category", ""),
+                            availability_raw=avail_raw,
+                            availability_warning=avail_warning,
                         )
                     )
                 return
