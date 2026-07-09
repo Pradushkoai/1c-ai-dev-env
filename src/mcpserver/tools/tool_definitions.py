@@ -49,7 +49,7 @@ def _build_tool(name: str, description: str, input_schema: dict[str, Any]) -> ty
 
 
 def get_all_tool_definitions() -> list[types.Tool]:
-    """Вернуть список всех 46 MCP tools (для list_tools handler)."""
+    """Вернуть список всех 54 MCP tools (для list_tools handler)."""
     return [
         _build_tool(
             name="analyze_architecture",
@@ -190,7 +190,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         ),
         _build_tool(
             name="check_standards",
-            description="Проверка .bsl на 56 правил стандартов 1С. ВЫЗЫВАЙТЕ ПОСЛЕ audit_security для полной проверки качества кода. Не требует Java. Пример: check_standards(file_path='/tmp/module.bsl')",
+            description="Проверка .bsl на 62 правил стандартов 1С. ВЫЗЫВАЙТЕ ПОСЛЕ audit_security для полной проверки качества кода. Не требует Java. Пример: check_standards(file_path='/tmp/module.bsl')",
             input_schema={
                 "properties": {"file_path": {"description": "Путь к .bsl файлу", "type": "string"}},
                 "required": ["file_path"],
@@ -229,7 +229,7 @@ def get_all_tool_definitions() -> list[types.Tool]:
         _build_tool(
             name="search_platform_method",
             description=(
-                "B7: Поиск методов платформы 1С в SQLite индексе (24990 методов). "
+                "B7: Поиск методов платформы 1С в SQLite индексе. "
                 "В отличие от search_1c_methods (УТ11), ищет в полном справочнике "
                 "платформы с доступностью, версиями, параметрами. "
                 "Пример: search_platform_method(query='ЗаписьЖурналаРегистрации')."

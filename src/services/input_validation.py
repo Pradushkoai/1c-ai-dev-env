@@ -1,7 +1,7 @@
 """
 S5: Input validation для MCP tools.
 
-JSON Schema валидация для всех 45 MCP tools.
+JSON Schema валидация для всех 54 MCP tools.
 Каждый handler проверяет input перед выполнением.
 Rate limiting через env var MCP_RATE_LIMIT.
 """

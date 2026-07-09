@@ -1,7 +1,7 @@
 """
 MCP-сервер для 1C AI Development Environment.
 
-Экспортирует 45 tools для MCP-совместимых клиентов (Cursor, Claude Desktop,
+Экспортирует 54 tools для MCP-совместимых клиентов (Cursor, Claude Desktop,
 VS Code, JetBrains). Полный список tools — в src/mcpserver/tools/tool_definitions.py.
 
 Запуск: 1c-ai mcp serve

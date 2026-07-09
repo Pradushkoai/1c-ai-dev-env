@@ -88,11 +88,16 @@ async def run_sse_server(
 
     async def handle_health(request: Any) -> Any:
         """Health check endpoint."""
+        from .mcpserver.tools.tool_definitions import get_all_tool_definitions, get_mcp_visible_tools
+
+        all_tools = get_all_tool_definitions()
+        visible_tools = get_mcp_visible_tools()
         return JSONResponse({
             "status": "ok",
             "server": "1c-ai-dev-env",
             "transport": "sse",
-            "tools": 45,
+            "tools": len(all_tools),
+            "visible_tools": len(visible_tools),
         })
 
     @asynccontextmanager
@@ -162,11 +167,16 @@ async def run_http_server(
 
     async def handle_health(request: Any) -> Any:
         """Health check endpoint."""
+        from .mcpserver.tools.tool_definitions import get_all_tool_definitions, get_mcp_visible_tools
+
+        all_tools = get_all_tool_definitions()
+        visible_tools = get_mcp_visible_tools()
         return JSONResponse({
             "status": "ok",
             "server": "1c-ai-dev-env",
             "transport": "streamable-http",
-            "tools": 45,
+            "tools": len(all_tools),
+            "visible_tools": len(visible_tools),
         })
 
     @asynccontextmanager

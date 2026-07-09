@@ -123,7 +123,7 @@ class TestReadmeEn:
         readme_en = REPO_ROOT / "README.en.md"
         content = readme_en.read_text(encoding="utf-8")
         assert "MCP" in content, "README.en.md must mention MCP"
-        assert "45" in content, "README.en.md must mention 45 tools"
+        assert "54" in content, "README.en.md must mention 54 tools"
 
     def test_readme_en_has_installation(self) -> None:
         """README.en.md имеет секцию установки."""

@@ -36,7 +36,7 @@ from pathlib import Path
 from .standards import *  # noqa: F401, F403 — re-export rule_* для обратной совместимости
 from .standards import ALL_RULES, Violation  # noqa: F401
 
-# Все 56 правил из 5 модулей (style, architecture, queries, client_server, misc)
+# Все 62 правил из 5 модулей (style, architecture, queries, client_server, misc)
 
 
 # ============================================================================

@@ -223,7 +223,7 @@ class _ScriptBasedAnalyzer:
 
 
 class StandardsCheckerAdapter(_ScriptBasedAnalyzer):
-    """Adapter для scripts/check_1c_standards.py (56 правил)."""
+    """Adapter для scripts/check_1c_standards.py (62 правил)."""
 
     source = "check_1c_standards"
     min_level = "quick"

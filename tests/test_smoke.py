@@ -10,7 +10,7 @@ Smoke-тесты для критических путей 1c-ai-dev-env.
 3. BSL analysis: solve check quick на тестовом файле
 4. DSL: compile meta (минимальный JSON → XML)
 5. EPF: factory create (mock v8unpack)
-6. MCP: list_tools возвращает 45 tools
+6. MCP: list_tools возвращает 54 tools (10 visible для LLM)
 7. Diff: compare_data на двух простых индексах
 8. Standards: check_1c_standards на тестовом .bsl
 9. Security: audit_file на тестовом .bsl
@@ -156,10 +156,12 @@ class TestSmokeMCP:
 
     def test_mcp_tools_count(self):
         """MCP tools definitions содержат ожидаемое количество tools."""
-        from src.mcpserver.tools.tool_definitions import get_all_tool_definitions
+        from src.mcpserver.tools.tool_definitions import get_all_tool_definitions, get_mcp_visible_tools
 
         tools = get_all_tool_definitions()
-        assert len(tools) == 45  # 45 MCP tools
+        assert len(tools) == 54  # 54 MCP tools total
+        visible = get_mcp_visible_tools()
+        assert len(visible) == 10  # 10 visible to LLM
 
 
 # ============================================================================
@@ -250,10 +252,10 @@ class TestSmokeStandards:
     """Smoke: Standards package."""
 
     def test_all_rules_count(self):
-        """ALL_RULES содержит 56 правил."""
+        """ALL_RULES содержит 62 правил."""
         from src.services.analyzers.standards import ALL_RULES
 
-        assert len(ALL_RULES) == 56
+        assert len(ALL_RULES) == 62
 
 
 # ============================================================================

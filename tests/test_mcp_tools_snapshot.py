@@ -1,7 +1,7 @@
 """
 P1.6: Snapshot тесты для MCP tools.
 
-Проверяет стабильность контракта 45 MCP tools через pytest-snapshot.
+Проверяет стабильность контракта 54 MCP tools через pytest-snapshot.
 Любое изменение в:
 - количестве tools
 - именах tools
@@ -29,7 +29,7 @@ import pytest
 
 @pytest.fixture
 def tool_definitions() -> list[dict]:
-    """Получить определения всех 45 MCP tools для snapshot тестов."""
+    """Получить определения всех 54 MCP tools для snapshot тестов."""
     from src.mcpserver.tools.tool_definitions import get_all_tool_definitions
 
     tools = get_all_tool_definitions()
@@ -71,7 +71,7 @@ class TestToolDefinitionsSnapshot:
     """
 
     def test_tool_names_snapshot(self, snapshot, tool_definitions: list[dict]) -> None:
-        """Snapshot имён всех 45 tools (отсортированных)."""
+        """Snapshot имён всех 54 tools (отсортированных)."""
         names = [t["name"] for t in tool_definitions]
         snapshot.assert_match(
             json.dumps(names, ensure_ascii=False, indent=2),
@@ -79,7 +79,7 @@ class TestToolDefinitionsSnapshot:
         )
 
     def test_tool_count_snapshot(self, snapshot, tool_definitions: list[dict]) -> None:
-        """Snapshot количества tools (45)."""
+        """Snapshot количества tools (54)."""
         count = len(tool_definitions)
         snapshot.assert_match(f"Total MCP tools: {count}\n", "tool_count.txt")
 

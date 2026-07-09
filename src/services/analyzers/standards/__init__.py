@@ -6,9 +6,9 @@
 - architecture: 12 правил архитектуры и безопасности (no_vypolnit, no_hardcoded_credentials, etc.)
 - queries: 7 правил запросов (no_pereyti, no_full_outer_join, etc.)
 - client_server: 13 правил клиент-сервер (no_transaction_in_nacliente, etc.)
-- misc: 14 правил разного (no_otkaz_lozh, no_deep_nesting, etc.)
+- misc: 20 правил разного (no_otkaz_lozh, no_deep_nesting, etc.)
 
-Всего: 56 правил (по ALL_RULES).
+Всего: 62 правил (по ALL_RULES).
 
 Использование:
     from src.services.analyzers.standards.style import RULES as STYLE_RULES
@@ -32,7 +32,7 @@ from .queries import RULES as QUERY_RULES
 from .style import *  # noqa: F401, F403
 from .style import RULES as STYLE_RULES
 
-# Все 56 правил
+# Все 62 правил
 ALL_RULES = STYLE_RULES + ARCHITECTURE_RULES + QUERY_RULES + CLIENT_SERVER_RULES + MISC_RULES
 
 # __all__ НЕ определяем — чтобы `from .standards import *` экспортировал ВСЕ

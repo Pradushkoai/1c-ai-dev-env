@@ -106,12 +106,12 @@ class TestOpenApiSpecVersion:
 class TestOpenApiSpecTools:
     """Проверка tools в spec."""
 
-    def test_spec_has_45_tools(self) -> None:
-        """Spec содержит 45 MCP tools (актуальное количество)."""
+    def test_spec_has_54_tools(self) -> None:
+        """Spec содержит 54 MCP tools (актуальное количество)."""
         spec = _load_openapi_spec()
         tools_count = len(spec["paths"])
-        assert tools_count == 45, (
-            f"Spec должен содержать 45 tools, получено: {tools_count}. "
+        assert tools_count == 54, (
+            f"Spec должен содержать 54 tools, получено: {tools_count}. "
             f"Запустите: python3 scripts/generate_openapi.py для регенерации."
         )
 

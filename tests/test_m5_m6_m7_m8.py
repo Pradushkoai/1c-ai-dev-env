@@ -168,7 +168,7 @@ class TestM7_McpServer:
     def test_mcp_tools_count(self):
         from src.mcpserver.tools.tool_definitions import get_all_tool_definitions
         tools = get_all_tool_definitions()
-        assert len(tools) == 45
+        assert len(tools) == 54
 
 class TestM7_Cli:
     def test_cli_has_update_command(self):

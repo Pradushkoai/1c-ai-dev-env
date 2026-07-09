@@ -8,7 +8,7 @@ solve(query, config_name) → TaskContext:
     4. СКД-схемы (skd-index.json)
     5. Формы (form-index.json)
     6. База знаний (knowledge_base/)
-    7. Стандарты 1С (check_1c_standards.py — 56 правил)
+    7. Стандарты 1С (check_1c_standards.py — 62 правил)
 
 check(file_path, level) → CheckResult:
     quick:    check_1c_standards + security + transactions + queries (без Java)
@@ -449,7 +449,7 @@ class TaskProcessor:
             spec.loader.exec_module(mod)
             return mod
 
-        # 1. check_1c_standards (56 правил) — все уровни
+        # 1. check_1c_standards (62 правил) — все уровни
         std_mod = _load_script("check_1c_standards")
         if std_mod:
             try:

@@ -2,7 +2,7 @@
 Анализатор .bsl файлов через BSL Language Server.
 
 P2.2: добавлена изоляция BSL LS — subprocess с timeout, retry с backoff,
-fallback на check_1c_standards (56 правил) при недоступности BSL LS.
+fallback на check_1c_standards (62 правил) при недоступности BSL LS.
 """
 
 from __future__ import annotations
@@ -250,7 +250,7 @@ def bsl_ls_with_fallback(
     """Декоратор: запуск BSL LS с fallback на check_1c_standards.
 
     Если BSL LS недоступен (timeout, exception) — вызывает fallback_func
-    (обычно check_1c_standards с 56 правилами).
+    (обычно check_1c_standards с 62 правилами).
 
     Args:
         fallback_func: Функция для fallback (принимает те же аргументы).

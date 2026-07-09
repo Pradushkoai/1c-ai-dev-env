@@ -53,7 +53,7 @@ async def handle_analyze_bsl(project: Project, arguments: dict[str, Any]) -> lis
 
 
 async def handle_check_standards(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
-    """Проверка .bsl файла на 56 правил стандартов 1С."""
+    """Проверка .bsl файла на 62 правил стандартов 1С."""
     file_path = arguments.get("file_path", "")
     try:
         # Этап 1.2, Группа 1f: dynamic import заменён на прямой импорт из src.services.analyzers
@@ -142,7 +142,7 @@ async def handle_solve_context(project: Project, arguments: dict[str, Any]) -> l
         # Task: search
         workflow = [
             {"step": 1, "tool": "list_configs", "why": "Проверить какие конфигурации загружены"},
-            {"step": 2, "tool": "search_platform_method", "why": "B8: Поиск по методам платформы (24990 методов с доступностью)"},
+            {"step": 2, "tool": "search_platform_method", "why": "B8: Поиск по методам платформы (с доступностью)"},
             {"step": 3, "tool": "search_code", "why": "BM25 поиск по коду конфигурации"},
             {"step": 4, "tool": "get_object_structure", "why": "Получить структуру найденного объекта"},
         ]
