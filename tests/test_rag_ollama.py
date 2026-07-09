@@ -405,3 +405,152 @@ class TestTokenAwareTruncation:
 
         # char-based: обрезан до 100 + truncation message
         assert result.context_length <= 100 + 50
+
+
+# ============================================================================
+# R8: MODEL_ROUTING wired
+# ============================================================================
+
+
+class TestModelRouting:
+    """R8: Тесты для model routing в OllamaClient."""
+
+    def test_get_model_for_task_codegen(self):
+        """task_type='codegen' → codellama:13b."""
+        client = OllamaClient()
+        model = client.get_model_for_task("codegen")
+        assert model == "codellama:13b"
+
+    def test_get_model_for_task_audit(self):
+        """task_type='audit' → llama3.1:70b."""
+        client = OllamaClient()
+        model = client.get_model_for_task("audit")
+        assert model == "llama3.1:70b"
+
+    def test_get_model_for_task_chat(self):
+        """task_type='chat' → llama3.1:8b."""
+        client = OllamaClient()
+        model = client.get_model_for_task("chat")
+        assert model == "llama3.1:8b"
+
+    def test_get_model_for_task_default(self):
+        """task_type='unknown' → default (llama3.1:8b)."""
+        client = OllamaClient()
+        model = client.get_model_for_task("unknown_task")
+        assert model == "llama3.1:8b"
+
+    def test_get_context_window_known_model(self):
+        """context window для известной модели."""
+        client = OllamaClient()
+        assert client.get_context_window("llama3.1:8b") == 128000
+        assert client.get_context_window("codellama:13b") == 16000
+
+    def test_get_context_window_unknown_model(self):
+        """context window для неизвестной модели — default 8000."""
+        client = OllamaClient()
+        assert client.get_context_window("unknown:model") == 8000
+
+    def test_get_context_window_fuzzy_match(self):
+        """fuzzy match по префиксу модели."""
+        client = OllamaClient()
+        # llama3.1:custom должен match по префиксу llama3.1
+        assert client.get_context_window("llama3.1:custom") == 128000
+
+    def test_generate_for_task_uses_routing(self):
+        """generate_for_task вызывает generate с правильной моделью."""
+        client = OllamaClient()
+        mock_response = OllamaResponse(text="ответ", model="codellama:13b")
+
+        with patch.object(client, "generate", return_value=mock_response) as mock_gen:
+            result = client.generate_for_task("test prompt", task_type="codegen")
+
+        # generate должен быть вызван с model="codellama:13b"
+        assert mock_gen.call_args.kwargs.get("model") == "codellama:13b"
+        assert result.text == "ответ"
+
+    def test_generate_for_task_auto_sizes_max_tokens(self):
+        """generate_for_task auto-sizes max_tokens по context window."""
+        client = OllamaClient()
+        mock_response = OllamaResponse(text="ответ", model="codellama:13b")
+
+        with patch.object(client, "generate", return_value=mock_response) as mock_gen:
+            # codellama:13b has 16000 context, 25% = 4000
+            client.generate_for_task("test", task_type="codegen", max_tokens_ratio=0.25)
+
+        max_tokens = mock_gen.call_args.kwargs.get("max_tokens")
+        assert max_tokens == 4000  # 16000 * 0.25
+
+
+# ============================================================================
+# R9: CircuitBreaker wired
+# ============================================================================
+
+
+class TestCircuitBreaker:
+    """R9: Тесты для CircuitBreaker в OllamaClient."""
+
+    def test_circuit_breaker_starts_closed(self):
+        """CircuitBreaker starts in 'closed' state."""
+        client = OllamaClient()
+        assert client.get_circuit_breaker_state() == "closed"
+
+    def test_circuit_breaker_opens_after_5_failures(self):
+        """После 5 failов circuit opens."""
+        client = OllamaClient()
+        # Симулируем 5 failов
+        for _ in range(5):
+            client._circuit_breaker.record_failure()
+        assert client.get_circuit_breaker_state() == "open"
+
+    def test_circuit_breaker_blocks_generate_when_open(self):
+        """Когда circuit open — generate возвращает immediate error."""
+        client = OllamaClient()
+        # Открываем circuit
+        for _ in range(5):
+            client._circuit_breaker.record_failure()
+
+        result = client.generate("test")
+        assert "Circuit breaker open" in result.error
+        assert result.text == ""
+
+    def test_circuit_breaker_resets_on_success(self):
+        """Успех сбрасывает circuit breaker."""
+        client = OllamaClient()
+        # Несколько failов (но меньше threshold)
+        for _ in range(3):
+            client._circuit_breaker.record_failure()
+        assert client.get_circuit_breaker_state() == "closed"
+
+        # Успех
+        client._circuit_breaker.record_success()
+        # Failures должны быть сброшены
+        assert client._circuit_breaker._failures == 0
+
+    def test_circuit_breaker_reset_method(self):
+        """reset_circuit_breaker() создаёт новый breaker."""
+        client = OllamaClient()
+        # Открываем
+        for _ in range(5):
+            client._circuit_breaker.record_failure()
+        assert client.get_circuit_breaker_state() == "open"
+
+        # Reset
+        client.reset_circuit_breaker()
+        assert client.get_circuit_breaker_state() == "closed"
+
+    def test_generate_records_failure_on_connection_error(self):
+        """Connection error → record_failure."""
+        client = OllamaClient()
+        with patch.object(client, "_request", side_effect=Exception("connection failed")):
+            client.generate("test")
+        # Должна быть recorded failure
+        assert client._circuit_breaker._failures >= 1
+
+    def test_generate_records_success_on_valid_response(self):
+        """Valid response → record_success."""
+        client = OllamaClient()
+        mock_response_data = {"response": "test", "model": "test", "done": True}
+        with patch.object(client, "_request", return_value=mock_response_data):
+            client.generate("test")
+        assert client._circuit_breaker._failures == 0
+        assert client.get_circuit_breaker_state() == "closed"

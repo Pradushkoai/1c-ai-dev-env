@@ -106,6 +106,9 @@ class OllamaClient:
     ) -> None:
         """Инициализация Ollama client.
 
+        R8 (2026-07-09): Поддержка MODEL_ROUTING — выбор модели по task_type.
+        R9 (2026-07-09): CircuitBreaker — защита от каскадных failов.
+
         Args:
             base_url: URL Ollama API. Если None — берётся из env OLLAMA_URL
                 или DEFAULT_OLLAMA_URL.
@@ -116,6 +119,86 @@ class OllamaClient:
         self.base_url = (base_url or os.environ.get("OLLAMA_URL", DEFAULT_OLLAMA_URL)).rstrip("/")
         self.model = model or _get_default_model()
         self.timeout = timeout
+
+        # R9: CircuitBreaker для защиты от каскадных failов
+        from .prompt_library import CircuitBreaker
+        self._circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60.0)
+
+        # R8: Model context window sizes (для max_tokens auto-sizing)
+        self._model_context_windows: dict[str, int] = {
+            "llama3.1:8b": 128000,
+            "llama3.1:70b": 128000,
+            "codellama:13b": 16000,
+            "codellama:34b": 16000,
+            "mistral:7b": 32000,
+        }
+
+    # R8: Model routing
+    def get_model_for_task(self, task_type: str) -> str:
+        """R8: Выбрать модель по типу задачи.
+
+        Args:
+            task_type: codegen, audit, chat, refactor, default
+
+        Returns:
+            Имя модели для Ollama.
+        """
+        from .prompt_library import MODEL_ROUTING, route_model
+        return route_model(task_type)
+
+    def get_context_window(self, model: str | None = None) -> int:
+        """R8: Получить context window size для модели.
+
+        Args:
+            model: Имя модели (если None — self.model)
+
+        Returns:
+            Размер context window в токенах (default: 8000 если unknown).
+        """
+        use_model = model or self.model
+        # Попытка exact match
+        if use_model in self._model_context_windows:
+            return self._model_context_windows[use_model]
+        # Fuzzy match — ищем модель по префиксу
+        for key, size in self._model_context_windows.items():
+            if use_model.startswith(key.split(":")[0]):
+                return size
+        return 8000  # safe default
+
+    def generate_for_task(
+        self,
+        prompt: str,
+        task_type: str = "default",
+        context: str = "",
+        system: str = "",
+        temperature: float = 0.7,
+        max_tokens_ratio: float = 0.25,
+    ) -> OllamaResponse:
+        """R8: Генерация с автоматически выбранной моделью по task_type.
+
+        Args:
+            prompt: Пользовательский промпт.
+            task_type: codegen, audit, chat, refactor, default.
+            context: Контекст для RAG.
+            system: Системный промпт.
+            temperature: Temperature.
+            max_tokens_ratio: Доля context window для ответа (default 0.25 = 25%).
+
+        Returns:
+            OllamaResponse с результатом генерации.
+        """
+        model = self.get_model_for_task(task_type)
+        context_window = self.get_context_window(model)
+        max_tokens = int(context_window * max_tokens_ratio)
+
+        return self.generate(
+            prompt=prompt,
+            context=context,
+            model=model,
+            system=system,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
 
     def is_available(self) -> bool:
         """Проверить, доступен ли Ollama сервер.
@@ -164,6 +247,9 @@ class OllamaClient:
     ) -> OllamaResponse:
         """Генерация текста через Ollama.
 
+        R9 (2026-07-09): CircuitBreaker — если 5+ failов подряд, circuit opens
+        на 60s, возвращая immediate error без запроса к Ollama.
+
         Args:
             prompt: Пользовательский промпт (запрос).
             context: Контекст для RAG (найденные методы 1С, паттерны, и т.д.).
@@ -177,6 +263,13 @@ class OllamaClient:
             OllamaResponse с результатом генерации.
         """
         use_model = model or self.model
+
+        # R9: CircuitBreaker — проверяем доступность
+        if not self._circuit_breaker.is_available():
+            return OllamaResponse(
+                error="Circuit breaker open — Ollama unavailable (5+ failures)",
+                model=use_model,
+            )
 
         # Формируем полный промпт с контекстом
         full_prompt = self._build_prompt(prompt, context, system)
@@ -194,7 +287,11 @@ class OllamaClient:
         try:
             response = self._request("POST", "/api/generate", payload)
             if response is None:
+                self._circuit_breaker.record_failure()
                 return OllamaResponse(error="No response from Ollama", model=use_model)
+
+            # R9: Успех — сбрасываем circuit breaker
+            self._circuit_breaker.record_success()
 
             return OllamaResponse(
                 text=response.get("response", ""),
@@ -207,10 +304,24 @@ class OllamaClient:
             )
         except urllib.error.URLError as e:
             logger.warning("Ollama connection error: %s", e)
+            self._circuit_breaker.record_failure()
             return OllamaResponse(error=f"Connection error: {e}", model=use_model)
         except Exception as e:
             logger.warning("Ollama generate error: %s", e)
+            self._circuit_breaker.record_failure()
             return OllamaResponse(error=f"Generate error: {e}", model=use_model)
+
+    # R9: CircuitBreaker accessors
+    def get_circuit_breaker_state(self) -> str:
+        """R9: Получить состояние circuit breaker (closed|open|half-open)."""
+        return self._circuit_breaker._state
+
+    def reset_circuit_breaker(self) -> None:
+        """R9: Сбросить circuit breaker (для тестов)."""
+        self._circuit_breaker = type(self._circuit_breaker)(
+            failure_threshold=self._circuit_breaker.failure_threshold,
+            recovery_timeout=self._circuit_breaker.recovery_timeout,
+        )
 
     def generate_stream(
         self,
