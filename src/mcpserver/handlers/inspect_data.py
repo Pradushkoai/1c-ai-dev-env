@@ -149,7 +149,12 @@ async def handle_inspect(project: Project, arguments: dict[str, Any]) -> list[ty
 
 
 async def handle_data_status(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
-    """Статус данных проекта."""
+    """Статус данных проекта.
+
+    F2.7: Возвращает _missing_prerequisites — actionable список того,
+    что нужно сделать, чтобы данные стали доступны. LLM может сообщить
+    пользователю конкретные CLI команды.
+    """
     from src.services.data_package import DataPackage
 
     dp = DataPackage(project.paths)
@@ -170,6 +175,56 @@ async def handle_data_status(project: Project, arguments: dict[str, Any]) -> lis
             "created_at": ai.get("manifest", {}).get("created_at", "")[:19] if ai.get("manifest") else "",
         }
         response["autoload_command"] = "1c-ai data autoload"
+
+    # F2.7: Actionable _missing_prerequisites — что нужно сделать
+    missing: list[dict[str, str]] = []
+
+    if not status["has_platform_index"]:
+        missing.append({
+            "component": "platform_index",
+            "issue": "BM25 индекс методов платформы не построен",
+            "impact": "search_platform_method и solve_context не будут работать",
+            "fix_command": "1c-ai platform build-index",
+            "fix_description": "Распаковать .hbk синтакс-помощник и построить fast-search-index.json",
+        })
+
+    if not status.get("has_platform_methods_db", False):
+        missing.append({
+            "component": "platform_methods_db",
+            "issue": "SQLite индекс методов платформы не построен",
+            "impact": "get_method_details, get_method_details_batch, get_safe_methods не будут работать",
+            "fix_command": "python scripts/build_platform_methods_index.py",
+            "fix_description": "Построить SQLite FTS5 индекс из .hbk файлов",
+        })
+
+    if not status["configs"]:
+        missing.append({
+            "component": "configurations",
+            "issue": "Нет загруженных конфигураций 1С",
+            "impact": "get_object_structure, inspect, metadata поиск не будут работать",
+            "fix_command": "1c-ai config add <name> <zip_path>",
+            "fix_description": "Загрузить ZIP выгрузку конфигурации из Конфигуратора",
+        })
+
+    if not status["autosave_available"]:
+        missing.append({
+            "component": "autosave",
+            "issue": "Autosave пакет недоступен",
+            "impact": "Данные не сохраняются между сессиями автоматически",
+            "fix_command": "1c-ai data autosave --include-raw",
+            "fix_description": "Создать data package ZIP для персистентности",
+        })
+
+    response["_missing_prerequisites"] = missing
+    if missing:
+        response["_action_hint"] = (
+            f"{len(missing)} component(s) need setup. "
+            "Run fix_command for each missing component. "
+            "After setup, repeat data_status to verify."
+        )
+    else:
+        response["_action_hint"] = "✅ All components ready — all tools are functional."
+
     return [
         types.TextContent(
             type="text",

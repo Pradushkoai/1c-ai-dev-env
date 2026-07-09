@@ -326,3 +326,82 @@ class TestRagPipeline:
 
         # context_length должен быть <= max_context_length + truncation message
         assert result.context_length <= 100 + 50  # 50 for truncation message overhead
+
+
+# ============================================================================
+# F2.8: Token-aware context truncation
+# ============================================================================
+
+
+class TestTokenAwareTruncation:
+    """F2.8: Тесты для token-aware truncation в RagPipeline."""
+
+    def test_init_with_max_context_tokens(self) -> None:
+        """RagPipeline принимает max_context_tokens параметр."""
+        rag = RagPipeline(max_context_tokens=4000)
+        assert rag._max_context_tokens == 4000
+
+    def test_init_default_max_context_tokens_zero(self) -> None:
+        """По умолчанию max_context_tokens=0 (char-based fallback)."""
+        rag = RagPipeline()
+        assert rag._max_context_tokens == 0
+
+    def test_get_stats_includes_token_mode(self) -> None:
+        """get_stats() возвращает truncation_mode."""
+        rag = RagPipeline(max_context_tokens=4000)
+        with (
+            patch.object(rag.ollama, "is_available", return_value=True),
+            patch.object(rag.ollama, "get_stats", return_value={"available": True, "models": []}),
+        ):
+            stats = rag.get_stats()
+        assert stats["truncation_mode"] == "token"
+        assert stats["max_context_tokens"] == 4000
+
+    def test_get_stats_char_mode_when_no_tokens(self) -> None:
+        """truncation_mode='char' когда max_context_tokens=0."""
+        rag = RagPipeline(max_context_tokens=0)
+        with (
+            patch.object(rag.ollama, "is_available", return_value=True),
+            patch.object(rag.ollama, "get_stats", return_value={"available": True, "models": []}),
+        ):
+            stats = rag.get_stats()
+        assert stats["truncation_mode"] == "char"
+
+    def test_token_truncation_used_when_set(self) -> None:
+        """Когда max_context_tokens > 0 — используется token truncation."""
+        rag = RagPipeline(max_context_tokens=10)  # 10 tokens — очень мало
+        mock_response = OllamaResponse(text="ответ")
+
+        # Длинный контекст — больше 10 токенов
+        long_context = " ".join(["слово"] * 100)  # ~100 tokens
+
+        with (
+            patch.object(rag.ollama, "is_available", return_value=True),
+            patch.object(rag.ollama, "generate", return_value=mock_response),
+            patch.object(rag, "_search_platform_methods", return_value=long_context),
+            patch.object(rag, "_search_config_code", return_value=""),
+            patch.object(rag, "_search_knowledge_base", return_value=""),
+        ):
+            result = rag.ask("test")
+
+        # Контекст должен быть обрезан (значительно меньше оригинала)
+        assert result.context_length < len(long_context)
+
+    def test_char_truncation_fallback(self) -> None:
+        """Когда max_context_tokens=0 — используется char-based (backward compat)."""
+        rag = RagPipeline(max_context_length=100, max_context_tokens=0)
+        mock_response = OllamaResponse(text="ответ")
+
+        long_context = "x" * 200
+
+        with (
+            patch.object(rag.ollama, "is_available", return_value=True),
+            patch.object(rag.ollama, "generate", return_value=mock_response),
+            patch.object(rag, "_search_platform_methods", return_value=long_context),
+            patch.object(rag, "_search_config_code", return_value=""),
+            patch.object(rag, "_search_knowledge_base", return_value=""),
+        ):
+            result = rag.ask("test")
+
+        # char-based: обрезан до 100 + truncation message
+        assert result.context_length <= 100 + 50

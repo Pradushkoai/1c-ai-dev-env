@@ -86,6 +86,7 @@ class RagPipeline:
         ollama: OllamaClient | None = None,
         index_path: Path | None = None,
         max_context_length: int = 4000,
+        max_context_tokens: int = 0,
     ) -> None:
         """Инициализация RAG pipeline.
 
@@ -93,11 +94,15 @@ class RagPipeline:
             ollama: OllamaClient (если None — создаётся новый).
             index_path: Путь к fast-search-index.json.
                 Если None — будет определён через Project.
-            max_context_length: Максимум символов в контексте для LLM.
+            max_context_length: Максимум символов в контексте для LLM (fallback).
+            max_context_tokens: F2.8: Максимум ТОКЕНОВ в контексте (приоритет над char-based).
+                Если 0 — используется char-based (backward compat).
+                Рекомендуется: 3000-8000 в зависимости от модели Ollama.
         """
         self.ollama = ollama or OllamaClient()
         self._index_path = index_path
         self._max_context = max_context_length
+        self._max_context_tokens = max_context_tokens
 
     def is_available(self) -> bool:
         """Проверить, доступен ли RAG pipeline.
@@ -205,8 +210,13 @@ class RagPipeline:
 
         context = "\n".join(context_parts)
 
-        # Обрезка контекста до max_context_length
-        if len(context) > self._max_context:
+        # F2.8: Token-aware truncation (приоритет над char-based)
+        if self._max_context_tokens > 0:
+            from .prompt_library import truncate_to_token_limit
+
+            context = truncate_to_token_limit(context, self._max_context_tokens)
+        elif len(context) > self._max_context:
+            # Fallback: char-based (backward compat)
             context = context[: self._max_context] + "\n... (контекст обрезан)"
 
         return context, sources, total_results
@@ -298,11 +308,13 @@ class RagPipeline:
         """Получить статистику RAG pipeline.
 
         Returns:
-            {available, ollama_stats, max_context_length}
+            {available, ollama_stats, max_context_length, max_context_tokens}
         """
         return {
             "available": self.is_available(),
             "ollama": self.ollama.get_stats(),
             "max_context_length": self._max_context,
+            "max_context_tokens": self._max_context_tokens,
+            "truncation_mode": "token" if self._max_context_tokens > 0 else "char",
             "system_prompt_length": len(self.SYSTEM_PROMPT),
         }
