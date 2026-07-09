@@ -40,15 +40,22 @@ def handlers(mcp_server):
 
 
 @pytest.mark.asyncio
-async def test_list_tools_includes_epf_factory(handlers):
-    """tools/list должен включать epf_factory_create и epf_factory_templates."""
+async def test_list_tools_includes_run_cli_proxy(handlers):
+    """R1: tools/list включает run_cli proxy для доступа к hidden tools.
+
+    epf_factory_create и epf_factory_templates теперь hidden (R1),
+    доступны через run_cli(command='epf_factory_create').
+    """
     list_handler = handlers[ListToolsRequest]
     result = await list_handler(ListToolsRequest(method="tools/list"))
     tools = result.root.tools
     tool_names = [t.name for t in tools]
 
-    assert "epf_factory_create" in tool_names
-    assert "epf_factory_templates" in tool_names
+    # run_cli proxy должен быть в visible tools
+    assert "run_cli" in tool_names
+    # epf_factory_* теперь hidden — доступны через run_cli
+    assert "epf_factory_create" not in tool_names
+    assert "epf_factory_templates" not in tool_names
 
 
 @pytest.mark.asyncio

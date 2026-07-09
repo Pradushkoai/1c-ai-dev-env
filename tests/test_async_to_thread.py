@@ -175,6 +175,11 @@ class TestHandlersUseRunSync:
             processor = mock_tp_class.return_value
             mock_result = MagicMock()
             mock_result.to_dict.return_value = {"ok": True}
+            # F2.4: настраиваем prioritization attributes
+            mock_result.is_safe_to_use = True
+            mock_result.total_warnings = 0
+            mock_result.must_fix_before_use_count = 0
+            mock_result.top_3_priority = []
             mock_run_sync.return_value = mock_result
 
             result = await handle_solve_check(project, {"file_path": "test.bsl", "level": "standard"})
