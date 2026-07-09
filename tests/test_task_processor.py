@@ -70,7 +70,8 @@ def test_solve_no_config_no_indexes(setup):
     assert any("platform_methods" in m for m in ctx.missing_sources)
     # Стандарты всегда есть
     assert "total_checks" in ctx.standards_summary
-    assert ctx.standards_summary["total_checks"] == 302
+    # T12: dynamic counts — 187+62+18+20+6+10+10 = 313 проверок
+    assert ctx.standards_summary["total_checks"] == 313
 
 
 def test_solve_with_config_but_no_indexes(setup):
