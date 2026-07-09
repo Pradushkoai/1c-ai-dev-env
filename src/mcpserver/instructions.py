@@ -63,20 +63,27 @@ SYSTEM_INSTRUCTIONS = """\
 - Перем ... Экспорт → ЗАПРЕЩЕНО в общих модулях (BSL-MODULE-VAR-001)
 - Общий модуль → stateless (без переменных модуля, состояние в форме)
 
-=== КЛЮЧЕВЫЕ ИНСТРУМЕНТЫ ===
+=== КЛЮЧЕВЫЕ ИНСТРУМЕНТЫ (10 шт) ===
 
-- solve_context(query, config) — ВЫЗЫВАЙ ПЕРВЫМ для сбора контекста задачи
-- search_platform_method(query) — поиск методов платформы 1С (24990 методов)
-- get_method_details(name) — полная карточка метода (синтаксис, параметры, доступность)
-- check_bsl_context(code, target_context) — проверка BSL-кода на доступность методов
-- audit_security(file_path) — аудит безопасности BSL-кода
-- check_standards(file_path) — проверка стандартов 1С
-- get_knowledge(query) — база знаний 1С (451 статья, 222 стандарта v8std.ru)
+Тебе доступны 10 инструментов. Используй их по назначению:
+
+1. solve_context(query, config) — ВЫЗЫВАЙ ПЕРВЫМ для сбора контекста задачи
+   (внутри: поиск методов, база знаний, структура объектов)
+2. search_platform_method(query) — поиск методов платформы 1С (24990 методов)
+3. get_method_details(name) — полная карточка метода (синтаксис, параметры, доступность)
+4. check_bsl_context(code, target_context) — проверка BSL-кода на доступность методов
+5. solve_check(file_path, level) — полная проверка кода (7 analyzer'ов автоматически)
+6. bsl_templates(category) — шаблоны BSL кода для типовых задач
+7. generate_query(description) — генерация запросов 1С
+8. get_object_structure(config_name, object_name) — структура объекта конфигурации
+9. inspect(type, path) — обзор конфигурации (типы, количество объектов)
+10. data_status() — статус данных проекта (что доступно)
+
+Остальные инструменты доступны через CLI: 1c-ai <command>
 
 === ПРИОРИТЕТ ИНСТРУМЕНТОВ ===
 
-1. solve_context — всегда вызывай первым
-2. get_method_details — всегда вызывай перед генерацией BSL-кода
-3. check_bsl_context — всегда вызывай после генерации BSL-кода
-4. 1c-ai solve check (CLI) — финальная проверка (запускает 7 analyzer'ов автоматически)
+Для ЛЮБОЙ задачи: сначала solve_context
+Для генерации BSL: solve_context → get_method_details → bsl_templates → check_bsl_context
+Для проверки кода: solve_check (запускает 7 analyzer'ов автоматически)
 """

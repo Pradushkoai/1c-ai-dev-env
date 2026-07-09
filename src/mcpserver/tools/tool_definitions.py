@@ -1,11 +1,13 @@
 """
-tool_definitions.py — определения всех 46 MCP tools (types.Tool).
+tool_definitions.py — определения всех MCP tools (types.Tool).
 
 P2.2: вынесено из mcp_server.py для декомпозиции (SRP).
 Каждое определение — types.Tool с name, description, inputSchema.
 
-P1.5 (2026-07-06): добавлен validate_query_static (статическая валидация
-запросов 1С без живой базы). Всего tools: 46.
+Гибридный подход (tool interference fix):
+  - get_all_tool_definitions() возвращает ВСЕ tools (для CLI, backward compat)
+  - get_mcp_visible_tools() возвращает только 10 КЛЮЧЕВЫХ tools (для MCP/LLM)
+  - LLM не перегружена 54 инструментами — видит только нужные
 
 Источник истины — tests/snapshots/test_mcp_tools_snapshot/.
 Любое изменение имён/описаний/схем требует --snapshot-update.
@@ -15,6 +17,26 @@ from __future__ import annotations
 from typing import Any
 
 import mcp.types as types
+
+
+# ============================================================================
+# ГИБРИДНЫЙ ФИЛЬТР: только 10 ключевых инструментов видны LLM через MCP
+# ============================================================================
+
+# Эти инструменты LLM видит и может вызывать напрямую.
+# Остальные 44 — доступны через CLI или вызываются внутри этих.
+MCP_VISIBLE_TOOLS: frozenset[str] = frozenset({
+    "solve_context",          # Сбор контекста (внутри: search, KB, metadata)
+    "get_method_details",     # Карточка метода (синтаксис, доступность)
+    "check_bsl_context",      # Проверка кода на контекст
+    "solve_check",            # Полная проверка (7 analyzer'ов)
+    "bsl_templates",          # Шаблоны BSL кода
+    "generate_query",         # Генерация запросов
+    "get_object_structure",   # Структура объекта конфигурации
+    "inspect",                # Обзор конфигурации
+    "search_platform_method", # Поиск методов платформы (24990)
+    "data_status",            # Статус данных проекта
+})
 
 
 def _build_tool(name: str, description: str, input_schema: dict[str, Any]) -> types.Tool:
@@ -772,3 +794,16 @@ def get_all_descriptions() -> list[dict]:
     # Сортируем по имени для стабильности (как раньше)
     result.sort(key=lambda x: x["name"])
     return result
+
+
+def get_mcp_visible_tools() -> list[types.Tool]:
+    """Вернуть только инструменты, видимые LLM через MCP (10 шт).
+
+    Гибридный подход: LLM получает 10 ключевых инструментов вместо 54.
+    Остальные доступны через CLI или вызываются внутри solve_context/solve_check.
+
+    Returns:
+        Список types.Tool — только из MCP_VISIBLE_TOOLS.
+    """
+    all_tools = get_all_tool_definitions()
+    return [t for t in all_tools if t.name in MCP_VISIBLE_TOOLS]

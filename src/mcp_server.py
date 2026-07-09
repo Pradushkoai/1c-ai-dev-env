@@ -29,14 +29,29 @@ log = get_logger("src.mcp_server")
 
 def _get_tools_description() -> list[dict]:
     """
-    Статическое описание tools (для CLI без запуска сервера).
+    Статическое описание VISIBLE tools (для CLI без запуска сервера).
 
-    P1.3: вынесено в src/mcpserver/tools/ для декомпозиции.
-    Возвращает: [{name, description, required_params, optional_params}]
+    Возвращает только 10 ключевых инструментов (как list_tools handler).
     """
-    from .mcpserver.tools import get_all_descriptions
+    from .mcpserver.tools.tool_definitions import get_mcp_visible_tools
 
-    return get_all_descriptions()
+    tools = get_mcp_visible_tools()
+    result: list[dict] = []
+    for t in tools:
+        schema = t.inputSchema or {}
+        properties = schema.get("properties", {})
+        required_list = schema.get("required", [])
+        required_set = set(required_list)
+        required_params = [p for p in required_list if p in properties]
+        optional_params = [p for p in properties.keys() if p not in required_set]
+        result.append({
+            "name": t.name,
+            "description": t.description,
+            "required_params": required_params,
+            "optional_params": optional_params,
+        })
+    result.sort(key=lambda x: x["name"])
+    return result
 
 
 def create_mcp_server() -> Server:
@@ -51,14 +66,16 @@ def create_mcp_server() -> Server:
 
     @server.list_tools()
     async def list_tools() -> list[types.Tool]:
-        """Возвращает список всех доступных tools.
+        """Возвращает список MCP tools, видимых LLM.
 
-        P1.3 этап 2: определения вынесены в src/mcpserver/tools/tool_definitions.py
-        для декомпозиции (SRP). mcp_server.py стал тонкой обёрткой.
+        Гибридный подход: LLM видит только 10 ключевых инструментов
+        (get_mcp_visible_tools) вместо всех 54. Это предотвращает
+        tool interference — когда LLM путается в большом списке.
+        Остальные инструменты доступны через CLI.
         """
-        from .mcpserver.tools.tool_definitions import get_all_tool_definitions
+        from .mcpserver.tools.tool_definitions import get_mcp_visible_tools
 
-        return get_all_tool_definitions()
+        return get_mcp_visible_tools()
 
     @server.call_tool()
     async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
