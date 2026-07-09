@@ -337,10 +337,10 @@ class TestSecurityViolationDataclass:
 
 
 class TestAllRulesHaveTests:
-    """Проверка что все 15 правил проверяются в этом или основном тестовом файле."""
+    """Проверка что все 20 правил проверяются в этом или основном тестовом файле."""
 
-    def test_all_15_rules_defined(self) -> None:
-        assert len(SECURITY_RULES) == 15
+    def test_all_20_rules_defined(self) -> None:
+        assert len(SECURITY_RULES) == 20
 
     def test_all_rule_ids_unique(self) -> None:
         ids = [r.rule_id for r in SECURITY_RULES]
@@ -355,7 +355,7 @@ class TestAllRulesHaveTests:
             assert rule.description, f"Rule {rule.rule_id} без описания"
 
     def test_auditor_rules_dict_complete(self, auditor: SecurityAuditor) -> None:
-        """Словарь auditor.rules содержит все 15 правил."""
-        assert len(auditor.rules) == 15
+        """Словарь auditor.rules содержит все 20 правил."""
+        assert len(auditor.rules) == 20
         for rule in SECURITY_RULES:
             assert rule.rule_id in auditor.rules
