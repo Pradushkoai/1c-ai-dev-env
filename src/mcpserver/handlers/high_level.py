@@ -294,15 +294,20 @@ def _get_next_action_after_gather(plan: dict[str, Any]) -> dict[str, Any]:
 async def handle_generate(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """R1: Сгенерировать BSL код / запрос / DSL.
 
-    Оркестрирует генерацию + inline валидацию (быстрая, без Java).
-    Если CRITICAL violations — пытается auto-fix через templates.
+    CR-1 (2026-07-09): Реальная LLM генерация через OllamaClient.generate_for_task()
+    с контекстом из session (gathered_context). Fallback на bsl_templates если
+    Ollama недоступен.
+
+    CR-7 (2026-07-09): Auto-fix feedback loop — если fix_violations_from указан,
+    берёт violations из session и добавляет в prompt для LLM.
+
+    Оркестрирует генерацию + inline validation (быстрая, без Java).
 
     Возвращает:
     - artifact_id: ID для использования в validate()
     - code: сгенерированный код
     - validation_passed: True если нет CRITICAL
     - warnings: non-critical violations
-    - alternatives: suggested alternatives если были CRITICAL
 
     R3: _next_action — validate (если validation_passed=False) или done.
     """
@@ -311,6 +316,7 @@ async def handle_generate(project: Project, arguments: dict[str, Any]) -> list[t
     task = arguments.get("task", "")
     target_context = arguments.get("target_context", "server")
     artifact_type = arguments.get("type", "bsl")  # bsl | query | dsl
+    fix_violations_from = arguments.get("fix_violations_from", "")
 
     if not task:
         return [
@@ -323,6 +329,14 @@ async def handle_generate(project: Project, arguments: dict[str, Any]) -> list[t
     session_manager = SessionManager(project.paths.runtime_dir)
     session = session_manager.get_session()
 
+    # CR-7: Если fix_violations_from — берём violations из session
+    fix_violations: list[dict[str, Any]] = []
+    if fix_violations_from:
+        for v in session.validation_history:
+            if v.get("artifact_id") == fix_violations_from:
+                fix_violations = v.get("violations", [])[:10]  # top 10
+                break
+
     # Для query — используем существующий generate_query handler
     generated_code = ""
     generation_source = ""
@@ -331,21 +345,17 @@ async def handle_generate(project: Project, arguments: dict[str, Any]) -> list[t
         from .query import handle_generate_query
         result = await handle_generate_query(project, {"task": task})
         if result:
-            data = json.loads(result[0].text)
-            generated_code = data.get("query", data.get("generated_query", ""))
-            generation_source = "query_generator"
+            try:
+                data = json.loads(result[0].text)
+                generated_code = data.get("query", data.get("generated_query", ""))
+                generation_source = "query_generator"
+            except (json.JSONDecodeError, IndexError):
+                pass
     else:
-        # BSL — используем bsl_templates (упрощённая генерация)
-        try:
-            from src.services.bsl_templates import BslTemplates
-            templates = BslTemplates()
-            # Возвращаем template как стартовую точку
-            tpl = templates.get_template("catalog", "object_module")
-            if tpl:
-                generated_code = tpl
-                generation_source = "bsl_templates"
-        except Exception:
-            pass
+        # CR-1: BSL — реальная LLM генерация через Ollama
+        generated_code, generation_source = await _generate_bsl_with_llm(
+            project, session, task, target_context, fix_violations
+        )
 
     if not generated_code:
         generated_code = f"// TODO: Сгенерировать код для задачи: {task}\n// target_context: {target_context}"
@@ -382,24 +392,19 @@ async def handle_generate(project: Project, arguments: dict[str, Any]) -> list[t
         "generation_source": generation_source,
         "validation_passed": validation_passed,
         "warnings": warnings,
+        "fix_violations_from": fix_violations_from,
     }
     artifact_id = session.add_artifact(artifact)
     session.add_tool_call("generate", arguments)
     session_manager.save()
 
-    # R3: _next_action
-    if validation_passed:
-        next_action = {
-            "tool": "done",
-            "args": {},
-            "why": "Код сгенерирован и прошёл inline validation. Можно использовать.",
-        }
-    else:
-        next_action = {
-            "tool": "validate",
-            "args": {"artifact_id": artifact_id},
-            "why": f"Найдено {len(warnings)} CRITICAL violation(s) — нужна полная проверка",
-        }
+    # CR-6: adaptive _next_action
+    next_action = _get_next_action_after_generate(
+        validation_passed=validation_passed,
+        warnings_count=len(warnings),
+        artifact_id=artifact_id,
+        session=session,
+    )
 
     response = {
         "artifact_id": artifact_id,
@@ -409,6 +414,7 @@ async def handle_generate(project: Project, arguments: dict[str, Any]) -> list[t
         "validation_passed": validation_passed,
         "warnings_count": len(warnings),
         "warnings": warnings[:5],  # первые 5
+        "fix_applied": bool(fix_violations_from),
         "_next_action": next_action,
     }
 
@@ -418,6 +424,157 @@ async def handle_generate(project: Project, arguments: dict[str, Any]) -> list[t
             text=json.dumps(response, ensure_ascii=False, indent=2),
         )
     ]
+
+
+async def _generate_bsl_with_llm(
+    project: Project,
+    session: Any,
+    task: str,
+    target_context: str,
+    fix_violations: list[dict[str, Any]],
+) -> tuple[str, str]:
+    """CR-1: Генерация BSL кода через Ollama LLM.
+
+    Returns:
+        (generated_code, generation_source)
+    """
+    # Строим prompt из task + context из session + fix violations
+    context_parts: list[str] = []
+
+    # Context из gathered_context (если есть)
+    if session.gathered_context:
+        ctx = session.gathered_context
+        # Platform methods
+        for m in ctx.get("platform_methods", [])[:5]:
+            name = m.get("name_ru", "") or m.get("name_en", "")
+            syntax = m.get("syntax", "")
+            if name:
+                context_parts.append(f"Метод: {name} — {syntax}")
+        # Safe methods (pre-hoc guidance)
+        for m in ctx.get("safe_methods", [])[:5]:
+            name = m.get("name_ru", "") or m.get("name_en", "")
+            if name:
+                context_parts.append(f"Безопасный метод для {target_context}: {name}")
+        # Knowledge articles
+        for a in ctx.get("knowledge_articles", [])[:3]:
+            title = a.get("title", "")
+            if title:
+                context_parts.append(f"Паттерн: {title}")
+
+    context = "\n".join(context_parts) if context_parts else ""
+
+    # CR-7: Если есть fix_violations — добавляем в prompt
+    fix_instructions = ""
+    if fix_violations:
+        fix_lines = ["ИСПРАВЬ следующие violations в коде:"]
+        for v in fix_violations[:10]:
+            fix_lines.append(
+                f"- [{v.get('severity', '')}] {v.get('rule_id', '')}: {v.get('message', '')}"
+            )
+            if v.get("recommendation"):
+                fix_lines.append(f"  Рекомендация: {v['recommendation']}")
+        fix_instructions = "\n".join(fix_lines)
+
+    # Пытаемся LLM генерацию через Ollama
+    try:
+        from src.services.llm_ollama import OllamaClient
+
+        client = OllamaClient()
+        if client.is_available():
+            # CR-8: Проверяем circuit breaker state
+            if client.get_circuit_breaker_state() == "open":
+                logger.debug("Circuit breaker open — fallback to template")
+            else:
+                prompt_parts = [
+                    f"Задача: {task}",
+                    f"Целевой контекст: {target_context}",
+                ]
+                if context:
+                    prompt_parts.append(f"\nКонтекст:\n{context}")
+                if fix_instructions:
+                    prompt_parts.append(f"\n{fix_instructions}")
+                prompt_parts.append(
+                    "\nСгенерируй BSL код для 1С:Предприятие 8. "
+                    "Соблюдай стандарты: табы для отступов, области в коде. "
+                    "Верни только код без объяснений."
+                )
+
+                prompt = "\n".join(prompt_parts)
+
+                response = client.generate_for_task(
+                    prompt=prompt,
+                    task_type="codegen",
+                    context=context,
+                    system="Ты — эксперт 1С разработчик. Сгенерируй BSL код.",
+                    temperature=0.2,
+                    max_tokens_ratio=0.15,
+                )
+
+                if response and response.text and not response.error:
+                    code = response.text.strip()
+                    # Убираем markdown code fences если есть
+                    if code.startswith("```"):
+                        lines = code.split("\n")
+                        if lines[0].startswith("```"):
+                            lines = lines[1:]
+                        if lines and lines[-1].startswith("```"):
+                            lines = lines[:-1]
+                        code = "\n".join(lines)
+                    if code:
+                        return code, "ollama_llm"
+    except Exception as e:
+        logger.debug("LLM generation failed, fallback to template: %s", e)
+
+    # Fallback: bsl_templates (intent-based)
+    try:
+        from src.services.bsl_templates import BslTemplates
+        templates = BslTemplates()
+        # Intent-based template selection
+        template_map = {
+            "create_object": ("catalog", "object_module"),
+            "generate_bsl": ("form", "form_module"),
+            "cfe_extension": ("catalog", "object_module"),
+        }
+        intent_name = session.plan.get("intent", {}).get("name", "") if session.plan else ""
+        cat, tpl_name = template_map.get(intent_name, ("catalog", "object_module"))
+        tpl = templates.get_template(cat, tpl_name)
+        if tpl:
+            return tpl, f"bsl_templates ({intent_name})"
+    except Exception as e:
+        logger.debug("bsl_templates fallback failed: %s", e)
+
+    return "", "no_source"
+
+
+def _get_next_action_after_generate(
+    validation_passed: bool,
+    warnings_count: int,
+    artifact_id: str,
+    session: Any,
+) -> dict[str, Any]:
+    """CR-6: Adaptive _next_action после generate."""
+    if validation_passed:
+        # CR-11: Если validate уже вызывался и был safe — done
+        has_validate = any(
+            tc.get("tool_name", "").startswith("validate")
+            for tc in session.tool_call_history
+        )
+        if has_validate:
+            return {
+                "tool": "done",
+                "args": {},
+                "why": "Код сгенерирован и прошёл inline validation. Можно использовать.",
+            }
+        return {
+            "tool": "validate",
+            "args": {"artifact_id": artifact_id},
+            "why": "Код прошёл inline validation. Запустите validate для полной проверки (7-9 анализаторов).",
+        }
+    return {
+        "tool": "validate",
+        "args": {"artifact_id": artifact_id},
+        "why": f"Найдено {warnings_count} CRITICAL violation(s) — нужна полная проверка",
+    }
 
 
 # ============================================================================
@@ -431,12 +588,18 @@ async def handle_validate(project: Project, arguments: dict[str, Any]) -> list[t
     Если artifact_id указан — берёт код из session (R2 state-aware).
     Если file_path указан — проверяет файл.
 
-    Запускает solve_check (7-9 анализаторов) + check_bsl_context.
-    Возвращает приоритизированный результат (F2.4).
+    CR-2 (2026-07-09): validate(artifact_id) теперь запускает ПОЛНУЮ проверку
+    (7-9 анализаторов через solve_check) — записывает code во temp file,
+    вызывает TaskProcessor.check(), удаляет temp file.
+    Раньше запускал только check_bsl_context (неполная валидация).
+
+    Возвращает приоритизированный результат (F2.4) + grouped_violations (R5).
 
     R3: _next_action — fix и re-validate, или done.
     """
     from src.services.session import SessionManager
+    import tempfile
+    from pathlib import Path
 
     artifact_id = arguments.get("artifact_id", "")
     file_path = arguments.get("file_path", "")
@@ -459,29 +622,79 @@ async def handle_validate(project: Project, arguments: dict[str, Any]) -> list[t
         code = artifact.get("code", "")
         target_context = artifact.get("target_context", "server")
 
-        # Для inline code — запускаем check_bsl_context + audit_security
-        # (solve_check требует file_path, а у нас code в памяти)
-        try:
-            ctx_result = await handle_check_bsl_context(
-                project, {"code": code, "target_context": [target_context]}
-            )
-            ctx_data = json.loads(ctx_result[0].text) if ctx_result else {"violations": []}
-        except Exception:
-            ctx_data = {"violations": []}
+        # CR-2: Записываем code во temp file для полной валидации через solve_check
+        violations: list[dict[str, Any]] = []
+        analyzers_run: list[str] = []
+        bsl_ls_available = False
+
+        if code and level != "skip":
+            # Создаём temp file
+            temp_path: Path | None = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", suffix=".bsl", delete=False, encoding="utf-8"
+                ) as tmp:
+                    tmp.write(code)
+                    temp_path = Path(tmp.name)
+
+                # Запускаем полную проверку через TaskProcessor.check()
+                from src.services.task_processor import TaskProcessor
+                processor = TaskProcessor(project.paths)
+                check_result = await run_sync(processor.check, temp_path, level=level)
+
+                # Конвертируем Violation objects в dicts
+                for v in check_result.violations:
+                    violations.append({
+                        "source": v.source,
+                        "rule_id": v.rule_id,
+                        "severity": v.severity,
+                        "line": v.line,
+                        "message": v.message,
+                        "file": v.file,
+                        "recommendation": getattr(v, "recommendation", ""),
+                    })
+                analyzers_run = check_result.analyzers_run
+                bsl_ls_available = check_result.bsl_ls_available
+
+            except Exception as e:
+                # Fallback на check_bsl_context если solve_check упал
+                logger.warning("solve_check failed for artifact, fallback to check_bsl_context: %s", e)
+                try:
+                    ctx_result = await handle_check_bsl_context(
+                        project, {"code": code, "target_context": [target_context]}
+                    )
+                    ctx_data = json.loads(ctx_result[0].text) if ctx_result else {"violations": []}
+                    violations = ctx_data.get("violations", [])
+                    analyzers_run = ["check_bsl_context (fallback)"]
+                except Exception:
+                    violations = []
+            finally:
+                # Cleanup temp file
+                if temp_path and temp_path.exists():
+                    try:
+                        temp_path.unlink()
+                    except OSError:
+                        pass
 
         # Группируем violations (R5)
-        violations = ctx_data.get("violations", [])
         grouped = _group_violations_by_rule(violations)
 
-        must_fix = [v for v in violations if v.get("severity") == "ERROR"]
+        # CR-2: must_fix по severity (CRITICAL, ERROR, HIGH)
+        must_fix = [
+            v for v in violations
+            if v.get("severity", "").lower() in ("critical", "error", "high")
+        ]
         is_safe = len(must_fix) == 0
 
         validation = {
             "artifact_id": artifact_id,
             "target_context": target_context,
+            "level": level,
             "total_violations": len(violations),
             "must_fix_count": len(must_fix),
             "is_safe_to_use": is_safe,
+            "analyzers_run": analyzers_run,
+            "bsl_ls_available": bsl_ls_available,
             "grouped_violations": grouped,
             "violations": violations,
         }
@@ -490,14 +703,12 @@ async def handle_validate(project: Project, arguments: dict[str, Any]) -> list[t
         session.add_tool_call("validate", arguments)
         session_manager.save()
 
-        next_action = (
-            {"tool": "done", "args": {}, "why": "Код прошёл валидацию — можно использовать"}
-            if is_safe
-            else {
-                "tool": "generate",
-                "args": {"task": artifact.get("task", ""), "target_context": target_context},
-                "why": f"Исправить {len(must_fix)} CRITICAL violation(s) и регенерировать",
-            }
+        # CR-6: adaptive _next_action
+        next_action = _get_next_action_after_validate(
+            is_safe=is_safe,
+            must_fix_count=len(must_fix),
+            artifact=artifact,
+            session=session,
         )
 
         response = {
@@ -527,6 +738,34 @@ async def handle_validate(project: Project, arguments: dict[str, Any]) -> list[t
             ),
         )
     ]
+
+
+def _get_next_action_after_validate(
+    is_safe: bool,
+    must_fix_count: int,
+    artifact: dict[str, Any] | None,
+    session: Any,
+) -> dict[str, Any]:
+    """CR-6: Adaptive _next_action после validate."""
+    if is_safe:
+        return {
+            "tool": "done",
+            "args": {},
+            "why": "Код прошёл валидацию — можно использовать",
+        }
+    # CR-7: Если есть violations — предлагаем generate с fix_violations_from
+    task = artifact.get("task", "") if artifact else ""
+    target_context = artifact.get("target_context", "server") if artifact else "server"
+    artifact_id = artifact.get("artifact_id", "") if artifact else ""
+    return {
+        "tool": "generate",
+        "args": {
+            "task": task,
+            "target_context": target_context,
+            "fix_violations_from": artifact_id,
+        },
+        "why": f"Исправить {must_fix_count} CRITICAL/HIGH violation(s) — auto-fix с violations как context",
+    }
 
 
 def _group_violations_by_rule(violations: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
@@ -640,42 +879,67 @@ async def handle_explain(project: Project, arguments: dict[str, Any]) -> list[ty
 # ============================================================================
 
 
-# Whitelist разрешённых CLI команд (security — не任意 shell execution)
+# Whitelist разрешённых CLI команд (security — не любой shell execution)
+# CR-3 (2026-07-09): Добавлены search_platform_method, get_method_details,
+# get_method_details_batch, get_safe_methods, solve_context, solve_check,
+# check_bsl_context, bsl_templates, generate_query, get_object_structure
+# — стали hidden после R1, но должны быть доступны через run_cli.
 _ALLOWED_CLI_COMMANDS: frozenset[str] = frozenset({
+    # CR-3: Platform methods access (были visible до R1)
+    "search_platform_method",
+    "get_method_details",
+    "get_method_details_batch",
+    "get_safe_methods",
+    # CR-3: Legacy high-level (были visible до R1)
+    "solve_context",
+    "solve_check",
+    "check_bsl_context",
+    "bsl_templates",
+    "generate_query",
+    "get_object_structure",
+    "inspect",
+    # Architecture & dependencies
     "call_graph",
     "build_dependency_graph",
     "dependency_query",
+    "analyze_architecture",
+    # DSL compilers
     "dsl_compile_meta",
     "dsl_compile_form",
     "dsl_compile_skd",
     "dsl_compile_mxl",
     "dsl_compile_role",
+    # CFE
     "cfe_borrow",
     "cfe_patch_method",
     "cfe_diff",
+    # SKD
     "skd_trace",
-    "inspect",
+    # Config search
     "list_configs",
     "search_code",
     "get_form_elements",
     "get_api_reference",
     "get_knowledge",
+    # Quality analyzers
     "audit_security",
     "get_code_metrics",
     "check_transactions",
     "analyze_queries",
-    "analyze_architecture",
     "check_form_quality",
     "check_skd_quality",
     "diff_configs",
     "validate_query_static",
     "check_data_exchange",
+    # OpenSpec
     "openspec_proposal",
     "openspec_list",
     "openspec_update_task",
     "openspec_archive",
+    # EPF factory
     "epf_factory_create",
     "epf_factory_templates",
+    # Query intelligence
     "optimize_query",
     "query_workflow",
 })

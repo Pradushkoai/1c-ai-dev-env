@@ -869,16 +869,19 @@ def get_all_tool_definitions() -> list[types.Tool]:
             name="generate",
             description=(
                 "R1: Сгенерировать BSL код / запрос / DSL + inline validation. "
-                "Оркестрирует генерацию + быструю проверку (check_bsl_context). "
+                "CR-1: BSL генерация через Ollama LLM с контекстом из session. "
+                "CR-7: fix_violations_from — auto-fix с violations из validate(). "
                 "Возвращает artifact_id для использования в validate(). "
-                "Если validation_passed=false — вызовите validate(artifact_id) для полной проверки. "
-                "Пример: generate(task='запрос остатков по складу', target_context='server', type='query')."
+                "Если validation_passed=false — вызовите validate(artifact_id). "
+                "Пример: generate(task='запрос остатков', target_context='server', type='query'). "
+                "Пример auto-fix: generate(task='...', fix_violations_from='artifact_1')."
             ),
             input_schema={
                 "properties": {
                     "task": {"description": "Описание что сгенерировать", "type": "string"},
                     "target_context": {"description": "Целевой контекст: thin_client, server, mobile_client (default server)", "type": "string", "default": "server"},
                     "type": {"description": "Тип артефакта: bsl, query, dsl (default bsl)", "type": "string", "default": "bsl", "enum": ["bsl", "query", "dsl"]},
+                    "fix_violations_from": {"description": "CR-7: artifact_id для auto-fix — берёт violations из validate() и добавляет в prompt", "type": "string"},
                 },
                 "required": ["task"],
                 "type": "object",

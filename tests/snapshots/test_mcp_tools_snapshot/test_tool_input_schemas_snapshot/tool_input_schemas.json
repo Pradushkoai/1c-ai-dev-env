@@ -463,6 +463,10 @@
   },
   "generate": {
     "properties": {
+      "fix_violations_from": {
+        "description": "CR-7: artifact_id для auto-fix — берёт violations из validate() и добавляет в prompt",
+        "type": "string"
+      },
       "target_context": {
         "default": "server",
         "description": "Целевой контекст: thin_client, server, mobile_client (default server)",

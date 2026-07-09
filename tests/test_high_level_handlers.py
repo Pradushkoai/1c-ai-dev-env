@@ -261,7 +261,13 @@ class TestHandleValidate:
 
     @pytest.mark.asyncio
     async def test_validate_with_artifact_id(self, tmp_path):
-        """validate с artifact_id — берёт код из session."""
+        """validate с artifact_id — берёт код из session.
+
+        CR-2: validate теперь использует TaskProcessor.check() через temp file.
+        Mock TaskProcessor чтобы вернуть пустой CheckResult (safe code).
+        """
+        from src.models.task import CheckResult
+
         project = _make_project(tmp_path)
 
         # Сначала generate
@@ -271,9 +277,12 @@ class TestHandleValidate:
         }))
         artifact_id = gen_data["artifact_id"]
 
-        # validate
-        with patch("src.mcpserver.handlers.quality.handle_check_bsl_context") as mock_check:
-            mock_check.return_value = [_make_text_content(json.dumps({"violations": []}))]
+        # Mock TaskProcessor.check() — empty result (safe)
+        mock_check_result = CheckResult(file="test.bsl", level="standard")
+        mock_check_result.analyzers_run = ["check_1c_standards"]
+
+        with patch("src.services.task_processor.TaskProcessor") as mock_tp_class:
+            mock_tp_class.return_value.check.return_value = mock_check_result
 
             data = _parse(await handle_validate(project, {"artifact_id": artifact_id}))
 
@@ -297,26 +306,30 @@ class TestHandleValidate:
 
     @pytest.mark.asyncio
     async def test_validate_groups_violations(self, tmp_path):
-        """validate группирует violations по rule_id (R5)."""
+        """validate группирует violations по rule_id (R5).
+
+        CR-2: validate теперь использует TaskProcessor.check() через temp file.
+        Mock TaskProcessor чтобы вернуть предсказуемые violations.
+        """
+        from src.models.task import CheckResult, Violation as TaskViolation
+
         project = _make_project(tmp_path)
 
         # generate
         gen_data = _parse(await handle_generate(project, {"task": "test", "target_context": "server"}))
         artifact_id = gen_data["artifact_id"]
 
-        # validate с violations
-        violations = [
-            {"rule_id": "CTX001", "severity": "ERROR", "message": "method1 not available"},
-            {"rule_id": "CTX001", "severity": "ERROR", "message": "method2 not available"},
-            {"rule_id": "CTX002", "severity": "WARNING", "message": "deprecated"},
+        # Mock TaskProcessor.check() чтобы вернуть предсказуемые violations
+        mock_check_result = CheckResult(file="test.bsl", level="standard")
+        mock_check_result.violations = [
+            TaskViolation(source="bsl_context_checker", rule_id="CTX001", severity="ERROR", line=10, message="method1 not available", recommendation="Используй серверный метод"),
+            TaskViolation(source="bsl_context_checker", rule_id="CTX001", severity="ERROR", line=20, message="method2 not available", recommendation="Используй серверный метод"),
+            TaskViolation(source="bsl_context_checker", rule_id="CTX002", severity="WARNING", line=30, message="deprecated", recommendation="Обнови метод"),
         ]
+        mock_check_result.analyzers_run = ["bsl_context_checker"]
 
-        # Создаём proper mock с .text атрибутом возвращающим строку
-        mock_text_content = MagicMock()
-        mock_text_content.text = json.dumps({"violations": violations})
-
-        with patch("src.mcpserver.handlers.high_level.handle_check_bsl_context") as mock_check:
-            mock_check.return_value = [mock_text_content]
+        with patch("src.services.task_processor.TaskProcessor") as mock_tp_class:
+            mock_tp_class.return_value.check.return_value = mock_check_result
 
             data = _parse(await handle_validate(project, {"artifact_id": artifact_id}))
 
@@ -509,8 +522,13 @@ class TestIntegrationFlow:
         assert artifact_id.startswith("artifact_")
 
         # 4. validate
-        with patch("src.mcpserver.handlers.quality.handle_check_bsl_context") as mock_check:
-            mock_check.return_value = [_make_text_content(json.dumps({"violations": []}))]
+        # CR-2: validate теперь использует TaskProcessor.check() через temp file
+        from src.models.task import CheckResult
+        mock_check_result = CheckResult(file="test.bsl", level="standard")
+        mock_check_result.analyzers_run = ["check_1c_standards"]
+
+        with patch("src.services.task_processor.TaskProcessor") as mock_tp:
+            mock_tp.return_value.check.return_value = mock_check_result
 
             val_data = _parse(await handle_validate(project, {"artifact_id": artifact_id}))
             assert val_data["is_safe_to_use"] is True
@@ -544,8 +562,362 @@ class TestIntegrationFlow:
         artifact_id = gen_data["artifact_id"]
 
         # validate с этим artifact_id
-        with patch("src.mcpserver.handlers.quality.handle_check_bsl_context") as mock_check:
-            mock_check.return_value = [_make_text_content(json.dumps({"violations": []}))]
+        # CR-2: validate теперь использует TaskProcessor.check() через temp file
+        from src.models.task import CheckResult
+        mock_check_result = CheckResult(file="test.bsl", level="standard")
+        mock_check_result.analyzers_run = ["check_1c_standards"]
+
+        with patch("src.services.task_processor.TaskProcessor") as mock_tp:
+            mock_tp.return_value.check.return_value = mock_check_result
 
             val_data = _parse(await handle_validate(project, {"artifact_id": artifact_id}))
             assert val_data["artifact_id"] == artifact_id
+
+
+# ============================================================================
+# CR-1: generate LLM + CR-7: auto-fix feedback loop
+# ============================================================================
+
+
+class TestGenerateLLM:
+    """CR-1: Тесты для LLM генерации в generate."""
+
+    @pytest.mark.asyncio
+    async def test_generate_uses_ollama_when_available(self, tmp_path):
+        """CR-1: generate использует Ollama когда доступен."""
+        project = _make_project(tmp_path)
+
+        mock_response = MagicMock()
+        mock_response.text = "Процедура Тест()\nКонецПроцедуры"
+        mock_response.error = ""
+
+        with patch("src.services.llm_ollama.OllamaClient") as mock_client_class:
+            mock_client = mock_client_class.return_value
+            mock_client.is_available.return_value = True
+            mock_client.get_circuit_breaker_state.return_value = "closed"
+            mock_client.generate_for_task.return_value = mock_response
+
+            data = _parse(await handle_generate(project, {
+                "task": "создай справочник",
+                "target_context": "server",
+                "type": "bsl",
+            }))
+
+        assert data["generation_source"] == "ollama_llm"
+        assert "Процедура Тест" in data["code"]
+        mock_client.generate_for_task.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_generate_fallback_to_template_when_ollama_unavailable(self, tmp_path):
+        """CR-1: fallback на bsl_templates когда Ollama недоступен."""
+        project = _make_project(tmp_path)
+
+        with patch("src.services.llm_ollama.OllamaClient") as mock_client_class:
+            mock_client = mock_client_class.return_value
+            mock_client.is_available.return_value = False
+
+            data = _parse(await handle_generate(project, {
+                "task": "создай справочник",
+                "target_context": "server",
+                "type": "bsl",
+            }))
+
+        # Должен быть fallback на template или placeholder
+        assert data["generation_source"] in ("bsl_templates (create_object)", "bsl_templates ()", "no_source", "placeholder")
+
+    @pytest.mark.asyncio
+    async def test_generate_fallback_when_circuit_breaker_open(self, tmp_path):
+        """CR-8: fallback на template когда circuit breaker open."""
+        project = _make_project(tmp_path)
+
+        with patch("src.services.llm_ollama.OllamaClient") as mock_client_class:
+            mock_client = mock_client_class.return_value
+            mock_client.is_available.return_value = True
+            mock_client.get_circuit_breaker_state.return_value = "open"
+
+            data = _parse(await handle_generate(project, {
+                "task": "test",
+                "target_context": "server",
+                "type": "bsl",
+            }))
+
+        # generate_for_task не должен вызываться (circuit open)
+        mock_client.generate_for_task.assert_not_called()
+        assert data["generation_source"] != "ollama_llm"
+
+    @pytest.mark.asyncio
+    async def test_generate_strips_markdown_fences(self, tmp_path):
+        """CR-1: markdown code fences убираются из LLM response."""
+        project = _make_project(tmp_path)
+
+        mock_response = MagicMock()
+        mock_response.text = "```bsl\nПроцедура Тест()\nКонецПроцедуры\n```"
+        mock_response.error = ""
+
+        with patch("src.services.llm_ollama.OllamaClient") as mock_client_class:
+            mock_client = mock_client_class.return_value
+            mock_client.is_available.return_value = True
+            mock_client.get_circuit_breaker_state.return_value = "closed"
+            mock_client.generate_for_task.return_value = mock_response
+
+            data = _parse(await handle_generate(project, {
+                "task": "test",
+                "target_context": "server",
+                "type": "bsl",
+            }))
+
+        assert "```" not in data["code"]
+        assert "Процедура Тест" in data["code"]
+
+
+class TestAutoFixLoop:
+    """CR-7: Тесты для auto-fix feedback loop."""
+
+    @pytest.mark.asyncio
+    async def test_generate_with_fix_violations_from(self, tmp_path):
+        """CR-7: generate с fix_violations_from берёт violations из session."""
+        project = _make_project(tmp_path)
+
+        # Сначала generate + validate чтобы создать artifact + violations
+        gen_data = _parse(await handle_generate(project, {
+            "task": "test",
+            "target_context": "server",
+            "type": "bsl",
+        }))
+        artifact_id = gen_data["artifact_id"]
+
+        # Mock validate с violations
+        from src.models.task import CheckResult, Violation as TaskViolation
+        mock_check_result = CheckResult(file="test.bsl", level="standard")
+        mock_check_result.violations = [
+            TaskViolation(source="sec", rule_id="SEC001", severity="CRITICAL", line=10, message="SQL injection", recommendation="Используй параметры"),
+        ]
+        mock_check_result.analyzers_run = ["security_auditor"]
+
+        with patch("src.services.task_processor.TaskProcessor") as mock_tp:
+            mock_tp.return_value.check.return_value = mock_check_result
+            val_data = _parse(await handle_validate(project, {"artifact_id": artifact_id}))
+
+        # Теперь generate с fix_violations_from
+        mock_response = MagicMock()
+        mock_response.text = "Исправленный код"
+        mock_response.error = ""
+
+        with patch("src.services.llm_ollama.OllamaClient") as mock_client_class:
+            mock_client = mock_client_class.return_value
+            mock_client.is_available.return_value = True
+            mock_client.get_circuit_breaker_state.return_value = "closed"
+            mock_client.generate_for_task.return_value = mock_response
+
+            fix_data = _parse(await handle_generate(project, {
+                "task": "test",
+                "target_context": "server",
+                "type": "bsl",
+                "fix_violations_from": artifact_id,
+            }))
+
+        assert fix_data["fix_applied"] is True
+        assert fix_data["generation_source"] == "ollama_llm"
+        # generate_for_task должен быть вызван с violations в prompt
+        call_args = mock_client.generate_for_task.call_args
+        prompt = call_args.kwargs.get("prompt", "")
+        assert "SEC001" in prompt or "SQL injection" in prompt
+
+    @pytest.mark.asyncio
+    async def test_generate_without_fix_violations_from(self, tmp_path):
+        """CR-7: generate без fix_violations_from — fix_applied=False."""
+        project = _make_project(tmp_path)
+
+        with patch("src.services.llm_ollama.OllamaClient") as mock_client_class:
+            mock_client = mock_client_class.return_value
+            mock_client.is_available.return_value = False
+
+            data = _parse(await handle_generate(project, {
+                "task": "test",
+                "target_context": "server",
+                "type": "bsl",
+            }))
+
+        assert data["fix_applied"] is False
+
+
+# ============================================================================
+# CR-2: validate full (temp file + solve_check)
+# ============================================================================
+
+
+class TestValidateFull:
+    """CR-2: Тесты для полной валидации через temp file."""
+
+    @pytest.mark.asyncio
+    async def test_validate_uses_temp_file(self, tmp_path):
+        """CR-2: validate записывает code во temp file для solve_check."""
+        from src.models.task import CheckResult
+
+        project = _make_project(tmp_path)
+
+        # generate
+        gen_data = _parse(await handle_generate(project, {
+            "task": "test",
+            "target_context": "server",
+            "type": "bsl",
+        }))
+        artifact_id = gen_data["artifact_id"]
+
+        # Mock TaskProcessor.check
+        mock_check_result = CheckResult(file="test.bsl", level="standard")
+        mock_check_result.analyzers_run = ["check_1c_standards", "security_auditor"]
+
+        with patch("src.services.task_processor.TaskProcessor") as mock_tp_class:
+            mock_tp = mock_tp_class.return_value
+            mock_tp.check.return_value = mock_check_result
+
+            data = _parse(await handle_validate(project, {"artifact_id": artifact_id}))
+
+        # check должен быть вызван с Path аргументом (temp file)
+        mock_tp.check.assert_called_once()
+        call_args = mock_tp.check.call_args
+        temp_file_arg = call_args.args[0]
+        assert hasattr(temp_file_arg, "exists")  # Path-like
+        # Temp file должен быть удалён после validate
+        assert not temp_file_arg.exists()
+
+    @pytest.mark.asyncio
+    async def test_validate_returns_analyzers_run(self, tmp_path):
+        """CR-2: validate возвращает analyzers_run список."""
+        from src.models.task import CheckResult
+
+        project = _make_project(tmp_path)
+
+        gen_data = _parse(await handle_generate(project, {
+            "task": "test",
+            "target_context": "server",
+            "type": "bsl",
+        }))
+        artifact_id = gen_data["artifact_id"]
+
+        mock_check_result = CheckResult(file="test.bsl", level="standard")
+        mock_check_result.analyzers_run = ["check_1c_standards", "security_auditor", "transaction_checker"]
+
+        with patch("src.services.task_processor.TaskProcessor") as mock_tp:
+            mock_tp.return_value.check.return_value = mock_check_result
+
+            data = _parse(await handle_validate(project, {"artifact_id": artifact_id}))
+
+        assert "analyzers_run" in data
+        assert len(data["analyzers_run"]) == 3
+        assert "security_auditor" in data["analyzers_run"]
+
+    @pytest.mark.asyncio
+    async def test_validate_must_fix_includes_high_severity(self, tmp_path):
+        """CR-2: must_fix включает CRITICAL, ERROR, HIGH."""
+        from src.models.task import CheckResult, Violation as TaskViolation
+
+        project = _make_project(tmp_path)
+
+        gen_data = _parse(await handle_generate(project, {
+            "task": "test",
+            "target_context": "server",
+            "type": "bsl",
+        }))
+        artifact_id = gen_data["artifact_id"]
+
+        mock_check_result = CheckResult(file="test.bsl", level="standard")
+        mock_check_result.violations = [
+            TaskViolation(source="sec", rule_id="SEC001", severity="CRITICAL", line=10, message="critical"),
+            TaskViolation(source="sec", rule_id="SEC002", severity="HIGH", line=20, message="high"),
+            TaskViolation(source="sec", rule_id="SEC003", severity="ERROR", line=30, message="error"),
+            TaskViolation(source="std", rule_id="STD001", severity="WARNING", line=40, message="warning"),
+            TaskViolation(source="std", rule_id="STD002", severity="INFO", line=50, message="info"),
+        ]
+        mock_check_result.analyzers_run = ["security_auditor"]
+
+        with patch("src.services.task_processor.TaskProcessor") as mock_tp:
+            mock_tp.return_value.check.return_value = mock_check_result
+
+            data = _parse(await handle_validate(project, {"artifact_id": artifact_id}))
+
+        # CRITICAL + HIGH + ERROR = 3 must_fix
+        assert data["must_fix_count"] == 3
+        assert data["is_safe_to_use"] is False
+
+    @pytest.mark.asyncio
+    async def test_validate_fallback_on_exception(self, tmp_path):
+        """CR-2: fallback на check_bsl_context если solve_check упал."""
+        project = _make_project(tmp_path)
+
+        gen_data = _parse(await handle_generate(project, {
+            "task": "test",
+            "target_context": "server",
+            "type": "bsl",
+        }))
+        artifact_id = gen_data["artifact_id"]
+
+        # Mock TaskProcessor.check чтобы выбросить exception
+        mock_text_content = MagicMock()
+        mock_text_content.text = json.dumps({"violations": []})
+
+        with patch("src.services.task_processor.TaskProcessor") as mock_tp_class:
+            mock_tp_class.return_value.check.side_effect = Exception("solve_check failed")
+
+            with patch("src.mcpserver.handlers.high_level.handle_check_bsl_context") as mock_ctx:
+                mock_ctx.return_value = [mock_text_content]
+
+                data = _parse(await handle_validate(project, {"artifact_id": artifact_id}))
+
+        # Должен быть fallback — analyzers_run содержит "check_bsl_context (fallback)"
+        assert "analyzers_run" in data
+        assert any("fallback" in a for a in data["analyzers_run"])
+
+
+# ============================================================================
+# CR-3: run_cli whitelist — добавлены platform methods
+# ============================================================================
+
+
+class TestRunCliWhitelistExtended:
+    """CR-3: Тесты для расширенного whitelist."""
+
+    def test_search_platform_method_in_whitelist(self):
+        """CR-3: search_platform_method в whitelist."""
+        assert "search_platform_method" in _ALLOWED_CLI_COMMANDS
+
+    def test_get_method_details_in_whitelist(self):
+        """CR-3: get_method_details в whitelist."""
+        assert "get_method_details" in _ALLOWED_CLI_COMMANDS
+
+    def test_get_method_details_batch_in_whitelist(self):
+        """CR-3: get_method_details_batch в whitelist."""
+        assert "get_method_details_batch" in _ALLOWED_CLI_COMMANDS
+
+    def test_get_safe_methods_in_whitelist(self):
+        """CR-3: get_safe_methods в whitelist."""
+        assert "get_safe_methods" in _ALLOWED_CLI_COMMANDS
+
+    def test_solve_context_in_whitelist(self):
+        """CR-3: solve_context в whitelist."""
+        assert "solve_context" in _ALLOWED_CLI_COMMANDS
+
+    def test_solve_check_in_whitelist(self):
+        """CR-3: solve_check в whitelist."""
+        assert "solve_check" in _ALLOWED_CLI_COMMANDS
+
+    def test_check_bsl_context_in_whitelist(self):
+        """CR-3: check_bsl_context в whitelist."""
+        assert "check_bsl_context" in _ALLOWED_CLI_COMMANDS
+
+    def test_bsl_templates_in_whitelist(self):
+        """CR-3: bsl_templates в whitelist."""
+        assert "bsl_templates" in _ALLOWED_CLI_COMMANDS
+
+    def test_generate_query_in_whitelist(self):
+        """CR-3: generate_query в whitelist."""
+        assert "generate_query" in _ALLOWED_CLI_COMMANDS
+
+    def test_get_object_structure_in_whitelist(self):
+        """CR-3: get_object_structure в whitelist."""
+        assert "get_object_structure" in _ALLOWED_CLI_COMMANDS
+
+    def test_whitelist_count_increased(self):
+        """CR-3: whitelist увеличился с 36 до 46+."""
+        assert len(_ALLOWED_CLI_COMMANDS) >= 46
