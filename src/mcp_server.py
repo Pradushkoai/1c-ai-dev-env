@@ -41,7 +41,12 @@ def _get_tools_description() -> list[dict]:
 
 def create_mcp_server() -> Server:
     """Создать MCP-сервер с tools для 1C AI Development Environment."""
-    server = Server("1c-ai-dev-env")
+    from .mcpserver.instructions import SYSTEM_INSTRUCTIONS
+
+    server = Server(
+        "1c-ai-dev-env",
+        instructions=SYSTEM_INSTRUCTIONS,
+    )
     project = Project()
 
     @server.list_tools()

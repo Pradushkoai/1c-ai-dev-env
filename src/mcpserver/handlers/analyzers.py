@@ -158,19 +158,12 @@ async def handle_solve_context(project: Project, arguments: dict[str, Any]) -> l
             {"step": 7, "tool": "check_standards", "why": "Проверка стандартов"},
         ]
 
-    # B8: Добавляем правила генерации BSL-кода в ответ
-    bsl_rules = ""
-    try:
-        from src.services.prompt_library import BSL_CONTEXT_RULES
-        bsl_rules = BSL_CONTEXT_RULES
-    except ImportError:
-        pass
-
+    # B8: Правила BSL_CONTEXT_RULES перемещены в server.instructions (system prompt)
+    # Здесь оставляем только короткую ссылку для агента
     response = {
         **ctx_dict,
         "_workflow": workflow,
-        "_workflow_hint": "Следуйте шагам workflow выше для решения задачи. Каждый step указывает tool и причину вызова.",
-        "_bsl_context_rules": bsl_rules,
+        "_workflow_hint": "Следуйте шагам workflow выше. BSL-контекстные правила — в system prompt сервера.",
     }
 
     return [
