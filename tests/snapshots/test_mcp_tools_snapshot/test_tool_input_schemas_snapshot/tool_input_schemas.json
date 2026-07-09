@@ -180,6 +180,37 @@
     ],
     "type": "object"
   },
+  "check_bsl_context": {
+    "properties": {
+      "code": {
+        "description": "BSL код для проверки",
+        "type": "string"
+      },
+      "target_context": {
+        "description": "Целевые контексты: thin_client, server, mobile_client, etc.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "code"
+    ],
+    "type": "object"
+  },
+  "check_data_exchange": {
+    "properties": {
+      "file_path": {
+        "description": "Путь к .bsl файлу",
+        "type": "string"
+      }
+    },
+    "required": [
+      "file_path"
+    ],
+    "type": "object"
+  },
   "check_form_quality": {
     "properties": {
       "config_name": {
@@ -571,6 +602,44 @@
     "required": [],
     "type": "object"
   },
+  "get_method_details": {
+    "properties": {
+      "name": {
+        "description": "Имя метода (русское или английское)",
+        "type": "string"
+      },
+      "platform_version": {
+        "description": "Версия платформы",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  "get_method_details_batch": {
+    "properties": {
+      "names": {
+        "description": "Список имён методов (русских или английских)",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "platform_version": {
+        "description": "Версия платформы (опционально)",
+        "type": "string"
+      },
+      "target_context": {
+        "description": "Целевой контекст для проверки доступности (опционально): thin_client, server, mobile_client, или список"
+      }
+    },
+    "required": [
+      "names"
+    ],
+    "type": "object"
+  },
   "get_object_structure": {
     "properties": {
       "config_name": {
@@ -588,6 +657,34 @@
     },
     "required": [
       "config_name"
+    ],
+    "type": "object"
+  },
+  "get_safe_methods": {
+    "properties": {
+      "intent": {
+        "description": "Фильтр по типу задачи (опционально): query, form, catalog, document, register, security, http, json, file, string, date",
+        "type": "string"
+      },
+      "limit": {
+        "default": 20,
+        "description": "Максимум методов (default 20, max 100)",
+        "type": "integer"
+      },
+      "platform_version": {
+        "description": "Версия платформы для фильтра version_since (опционально)",
+        "type": "string"
+      },
+      "target_context": {
+        "description": "Целевой контекст: thin_client, server, mobile_client, или список",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "target_context"
     ],
     "type": "object"
   },
@@ -782,6 +879,26 @@
     "required": [
       "query",
       "config_name"
+    ],
+    "type": "object"
+  },
+  "search_platform_method": {
+    "properties": {
+      "limit": {
+        "description": "Максимум результатов (по умолчанию 5)",
+        "type": "integer"
+      },
+      "platform_version": {
+        "description": "Версия платформы (по умолчанию 8.3.20)",
+        "type": "string"
+      },
+      "query": {
+        "description": "Поисковый запрос",
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
     ],
     "type": "object"
   },

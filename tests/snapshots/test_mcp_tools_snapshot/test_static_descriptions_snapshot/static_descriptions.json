@@ -102,6 +102,24 @@
     "optional_params": []
   },
   {
+    "name": "check_bsl_context",
+    "description": "B7: Проверка BSL-кода на доступность методов в целевом контексте. CTX001: метод недоступен (ERROR), CTX002: устарел (WARNING). Пример: check_bsl_context(code='...', target_context=['thin_client']).",
+    "required_params": [
+      "code"
+    ],
+    "optional_params": [
+      "target_context"
+    ]
+  },
+  {
+    "name": "check_data_exchange",
+    "description": "Проверка обмена данными BSL по стандартам v8std.ru / ITS: #std773 (ОбменДанными.Загрузка в ПередЗаписью/ПриЗаписи/ПередУдалением), #std701 (планы обмена с отборами, без обращений через точку), #std771 (EnterpriseData, без AdditionalInfo), #std542 (файлы обмена). 10 правил DX001-DX010. Пример: check_data_exchange(file_path='module.bsl').",
+    "required_params": [
+      "file_path"
+    ],
+    "optional_params": []
+  },
+  {
     "name": "check_form_quality",
     "description": "Проверка качества форм: пустые формы, перегруженные, элементы без DataPath, кнопки без команд, дублирующие имена. Пример: check_form_quality(config_name='ut11').",
     "required_params": [
@@ -119,7 +137,7 @@
   },
   {
     "name": "check_standards",
-    "description": "Проверка .bsl на 56 правил стандартов 1С. ВЫЗЫВАЙТЕ ПОСЛЕ audit_security для полной проверки качества кода. Не требует Java. Пример: check_standards(file_path='/tmp/module.bsl')",
+    "description": "Проверка .bsl на 62 правил стандартов 1С. ВЫЗЫВАЙТЕ ПОСЛЕ audit_security для полной проверки качества кода. Не требует Java. Пример: check_standards(file_path='/tmp/module.bsl')",
     "required_params": [
       "file_path"
     ],
@@ -318,6 +336,27 @@
     ]
   },
   {
+    "name": "get_method_details",
+    "description": "B7: Полная карточка метода платформы 1С: синтаксис, параметры, описание, доступность (9 контекстов), пример, версию. Пример: get_method_details(name='ЗаписьЖурналаРегистрации').",
+    "required_params": [
+      "name"
+    ],
+    "optional_params": [
+      "platform_version"
+    ]
+  },
+  {
+    "name": "get_method_details_batch",
+    "description": "F2.2: Batch-вызов get_method_details — карточки нескольких методов одним запросом. ИСПОЛЬЗУЙТЕ вместо N отдельных get_method_details вызовов. Опционально: target_context — проверит доступность методов в контексте и вернёт not_available_in_context + deprecated списки. Максимальный batch: 50 методов. Пример: get_method_details_batch(names=['Сообщить', 'ЗаписьЖурналаРегистрации'], target_context='thin_client').",
+    "required_params": [
+      "names"
+    ],
+    "optional_params": [
+      "platform_version",
+      "target_context"
+    ]
+  },
+  {
     "name": "get_object_structure",
     "description": "Полная структура объекта конфигурации: ресурсы, измерения, реквизиты (с типами), табличные части. ВЫЗЫВАЙТЕ ПЕРЕД НАПИСАНИЕМ ЗАПРОСА для получения точных имён полей. Если object_name не указан — список всех объектов. Пример: get_object_structure(config_name='ut11', object_name='ВыручкаИСебестоимостьПродаж').",
     "required_params": [
@@ -326,6 +365,18 @@
     "optional_params": [
       "object_name",
       "object_type"
+    ]
+  },
+  {
+    "name": "get_safe_methods",
+    "description": "F2.3: Pre-hoc guidance — возвращает методы платформы 1С, ДОСТУПНЫЕ в target_context и не устаревшие. ИСПОЛЬЗУЙТЕ ДО генерации BSL-кода — получите сразу безопасный набор, вместо post-hoc проверки через check_bsl_context. Опционально: intent — фильтр по типу задачи (query, form, catalog, document, register, security, http, json, file, string, date). Пример: get_safe_methods(target_context='thin_client', intent='query', limit=20).",
+    "required_params": [
+      "target_context"
+    ],
+    "optional_params": [
+      "intent",
+      "limit",
+      "platform_version"
     ]
   },
   {
@@ -439,6 +490,17 @@
     ],
     "optional_params": [
       "limit"
+    ]
+  },
+  {
+    "name": "search_platform_method",
+    "description": "B7: Поиск методов платформы 1С в SQLite индексе. В отличие от search_1c_methods (УТ11), ищет в полном справочнике платформы с доступностью, версиями, параметрами. Пример: search_platform_method(query='ЗаписьЖурналаРегистрации').",
+    "required_params": [
+      "query"
+    ],
+    "optional_params": [
+      "limit",
+      "platform_version"
     ]
   },
   {

@@ -106,12 +106,16 @@ class TestOpenApiSpecVersion:
 class TestOpenApiSpecTools:
     """Проверка tools в spec."""
 
-    def test_spec_has_54_tools(self) -> None:
-        """Spec содержит 54 MCP tools (актуальное количество)."""
+    def test_spec_has_12_visible_tools(self) -> None:
+        """Spec содержит 12 visible MCP tools (F2.2/F2.3).
+
+        OpenAPI spec экспонирует только visible tools (12) — те, что LLM/клиент
+        может вызвать через HTTP. Остальные 44 доступны через CLI.
+        """
         spec = _load_openapi_spec()
         tools_count = len(spec["paths"])
-        assert tools_count == 54, (
-            f"Spec должен содержать 54 tools, получено: {tools_count}. "
+        assert tools_count == 12, (
+            f"Spec должен содержать 12 visible tools, получено: {tools_count}. "
             f"Запустите: python3 scripts/generate_openapi.py для регенерации."
         )
 
@@ -150,23 +154,25 @@ class TestOpenApiSpecGenerator:
         generator = REPO_ROOT / "scripts" / "generate_openapi.py"
         assert generator.exists(), "Генератор должен существовать: scripts/generate_openapi.py"
 
-    def test_generator_has_correct_version(self) -> None:
-        """Генератор содержит версию 6.0.0 (не устаревшую 5.3.1 как значение).
+    def test_generator_uses_dynamic_version(self) -> None:
+        """F2.1: Генератор использует динамическую версию из pyproject.toml.
 
-        A-1 (2026-07-05): проверяем, что версия как значение поля = 6.0.0.
-        Комментарии с упоминанием 5.3.1 (исторические) допускаются.
+        Ранее версия была захардкожена (5.3.1, потом 6.0.0) — рассинхрон с pyproject.toml.
+        Теперь: _read_pyproject_version() читает версию из pyproject.toml.
         """
         generator = REPO_ROOT / "scripts" / "generate_openapi.py"
         content = generator.read_text(encoding="utf-8")
-        # Проверяем, что НЕТ строки вида "version": "5.3.1" (как значение)
+        # Проверяем, что НЕТ захардкоженной версии как значения поля
         assert '"version": "5.3.1"' not in content, (
-            "Генератор не должен содержать устаревшую версию 5.3.1 как значение. "
-            "Обновите scripts/generate_openapi.py"
+            "Генератор не должен содержать устаревшую версию 5.3.1 как значение."
         )
-        # Проверяем, что версия 6.0.0 присутствует как значение
-        assert '"version": "6.0.0"' in content, (
-            "Генератор должен содержать версию 6.0.0 как значение. "
-            "Обновите scripts/generate_openapi.py"
+        assert '"version": "6.0.0"' not in content, (
+            "Генератор не должен содержать захардкоженную версию 6.0.0. "
+            "Используйте _read_pyproject_version() для динамической версии."
+        )
+        # Проверяем, что функция _read_pyproject_version существует
+        assert "_read_pyproject_version" in content, (
+            "Генератор должен использовать _read_pyproject_version() для динамической версии."
         )
 
     def test_generator_produces_valid_spec(self) -> None:

@@ -17,70 +17,31 @@ from src.mcp_server import _get_tools_description, create_mcp_server
 # ============ _get_tools_description ============
 
 
-def test_get_tools_description_returns_46_tools():
-    """Должно быть 50 tool (Phase D optimized — bsl_templates заменён, explain_query слит)."""
+def test_get_tools_description_returns_visible_tools():
+    """Должно быть 12 visible tools (F2.2/F2.3: добавлены get_method_details_batch, get_safe_methods).
+
+    Гибридный фильтр (commit 3c79da5): LLM видит только 12 ключевых tools.
+    Остальные 44 доступны через CLI или внутри solve_*."""
     tools = _get_tools_description()
-    assert len(tools) == 50
+    assert len(tools) == 12
 
 
 def test_get_tools_description_names():
-    """Имена tools соответствуют спецификации (50 tool, Phase D optimized)."""
+    """Имена visible tools (12 шт, F2.2/F2.3)."""
     tools = _get_tools_description()
     expected = {
-        # Базовые 29 tools
-        "list_configs",
-        "search_1c_methods",
-        "search_code",
-        "call_graph",
-        "get_form_elements",
-        "get_api_reference",
-        "analyze_bsl",
-        "check_standards",
         "solve_context",
+        "get_method_details",
+        "get_method_details_batch",  # F2.2
+        "get_safe_methods",          # F2.3
+        "check_bsl_context",
         "solve_check",
-        "data_status",
-        "get_object_structure",
-        "get_skd_schema",
-        "get_form_structure",
-        "generate_processing",
-        "generate_report",
-        "build_epf",
-        "validate_generated",
-        "get_knowledge",
-        "audit_security",
-        "get_code_metrics",
-        "check_transactions",
-        "analyze_architecture",
-        "analyze_queries",
-        "check_form_quality",
-        "check_skd_quality",
-        "diff_configs",
-        "epf_factory_create",
-        "epf_factory_templates",
-        # P1.2: 16 добавленных tools (синхронизация с handler)
-        "dsl_compile_meta",
-        "dsl_compile_form",
-        "dsl_compile_skd",
-        "dsl_compile_mxl",
-        "dsl_compile_role",
-        "cfe_borrow",
-        "cfe_patch_method",
-        "cfe_diff",
-        "skd_trace",
-        "build_dependency_graph",
-        "dependency_query",
-        "inspect",
-        "openspec_proposal",
-        "openspec_list",
-        "openspec_update_task",
-        "openspec_archive",
-        # P1.5: статический валидатор запросов 1С
-        "validate_query_static",
-        # Phase D: query intelligence tools (optimized)
-        "generate_query",
-        "optimize_query",
         "bsl_templates",
-        "query_workflow",
+        "generate_query",
+        "get_object_structure",
+        "inspect",
+        "search_platform_method",
+        "data_status",
     }
     actual = {t["name"] for t in tools}
     assert actual == expected, f"Missing: {expected - actual}, Extra: {actual - expected}"
@@ -99,17 +60,16 @@ def test_get_tools_description_has_required_fields():
 
 
 def test_get_tools_description_search_has_query_required():
-    """search_1c_methods требует query."""
+    """search_platform_method требует query (visible tool)."""
     tools = {t["name"]: t for t in _get_tools_description()}
-    assert "query" in tools["search_1c_methods"]["required_params"]
-    assert "limit" in tools["search_1c_methods"]["optional_params"]
+    assert "query" in tools["search_platform_method"]["required_params"]
+    assert "limit" in tools["search_platform_method"]["optional_params"]
 
 
-def test_get_tools_description_get_api_reference_requires_config():
-    """get_api_reference требует config_name."""
+def test_get_tools_description_get_method_details_requires_name():
+    """get_method_details требует name (visible tool)."""
     tools = {t["name"]: t for t in _get_tools_description()}
-    assert "config_name" in tools["get_api_reference"]["required_params"]
-    assert "module" in tools["get_api_reference"]["optional_params"]
+    assert "name" in tools["get_method_details"]["required_params"]
 
 
 # ============ create_mcp_server ============
@@ -366,12 +326,10 @@ def test_call_unknown_tool(mcp_server_with_mock_project):
 
 
 def test_call_list_tools(mcp_server_with_mock_project):
-    """list_tools handler возвращает все зарегистрированные Tool объекты.
+    """list_tools handler возвращает visible tools (12 шт, F2.2/F2.3).
 
-    Включает tools из _get_tools_description() (29) + дополнительные tools,
-    зарегистрированные динамически через @server.tool (build_dependency_graph,
-    dependency_query, openspec_*, dsl_compile_*, cfe_*, skd_trace, inspect).
-    """
+    Гибридный фильтр: LLM видит только 12 ключевых tools.
+    Остальные 44 доступны через CLI или вызываются внутри solve_*."""
     server, project = mcp_server_with_mock_project
     from mcp.types import ListToolsRequest
 
@@ -379,13 +337,13 @@ def test_call_list_tools(mcp_server_with_mock_project):
     assert handler is not None
 
     result = asyncio.run(handler(ListToolsRequest(method="tools/list")))
-    # 29 (из _get_tools_description) + 21 (динамические + validate_query_static + 3 query tools + bsl_templates) = 50
-    assert len(result.root.tools) == 50
+    assert len(result.root.tools) == 12
     names = {t.name for t in result.root.tools}
-    assert "list_configs" in names
+    assert "solve_context" in names
     assert "solve_check" in names
-    assert "search_code" in names
     assert "data_status" in names
+    assert "get_method_details_batch" in names  # F2.2
+    assert "get_safe_methods" in names            # F2.3
 
 
 def test_call_data_status(mcp_server_with_mock_project):

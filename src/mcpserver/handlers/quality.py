@@ -807,6 +807,297 @@ async def handle_get_method_details(project: Project, arguments: dict[str, Any])
         return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
+async def handle_get_safe_methods(
+    project: Project, arguments: dict[str, Any]
+) -> list[types.TextContent]:
+    """F2.3: Pre-hoc guidance — методы, доступные в target_context, не устаревшие.
+
+    Решает проблему post-hoc validation: вместо генерации кода и последующей
+    проверки check_bsl_context, LLM вызывает get_safe_methods ДО генерации
+    и получает сразу безопасный набор методов для целевого контекста.
+
+    Args (через arguments):
+        target_context: str | list — целевой контекст (thin_client, server, mobile_client)
+        intent: str — опциональная фильтрация по типу задачи (query, form, catalog, etc.)
+        limit: int — максимальное количество методов (default 20, max 100)
+        platform_version: str — опциональная версия платформы для фильтра version_since
+    """
+    target_context = arguments.get("target_context", "")
+    intent = arguments.get("intent", "")
+    limit = arguments.get("limit", 20)
+    platform_version = arguments.get("platform_version", "")
+
+    if not target_context:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(
+                    {"error": "target_context required (thin_client, server, mobile_client, or list)"},
+                    ensure_ascii=False,
+                ),
+            )
+        ]
+
+    # Нормализация contexts
+    if isinstance(target_context, str):
+        contexts = [target_context]
+    elif isinstance(target_context, list):
+        contexts = target_context
+    else:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps({"error": "target_context must be string or list"}, ensure_ascii=False),
+            )
+        ]
+
+    # Ограничение limit
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        limit = 20
+    limit = max(1, min(limit, 100))
+
+    from src.services.platform_methods_index import PlatformMethodsIndex
+
+    try:
+        idx = PlatformMethodsIndex(platform_version=platform_version or None)
+        if not idx.is_available():
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps({"error": "Platform methods index not built"}, ensure_ascii=False),
+                )
+            ]
+
+        # Intent → SQL-фильтр по category/description
+        # Маппинг intents на ключевые слова в описании/категории методов
+        intent_keywords: dict[str, list[str]] = {
+            "query": ["запрос", "query", "select", "виртуальн"],
+            "form": ["форма", "form", "элемент", "открыть"],
+            "catalog": ["справочник", "catalog", "элемент"],
+            "document": ["документ", "document"],
+            "register": ["регистр", "register"],
+            "security": ["безопасн", "security", "пароль", "роль"],
+            "http": ["http", "запрос", "rest", "api"],
+            "json": ["json", "читатьjson", "записатьjson"],
+            "file": ["файл", "file", "каталог"],
+            "string": ["строк", "string", "стрзаменить"],
+            "date": ["дат", "date", "время"],
+        }
+
+        # Шаг 1: поиск методов по intent (если указан)
+        candidate_methods: list[dict[str, Any]] = []
+        if intent and intent in intent_keywords:
+            keywords = intent_keywords[intent]
+            for kw in keywords:
+                results = idx.search(kw, limit=limit * 2)
+                for r in results:
+                    if r not in candidate_methods:
+                        candidate_methods.append(r)
+                if len(candidate_methods) >= limit * 2:
+                    break
+        else:
+            # Без intent — возвращаем popular methods (пустой query → топ методов)
+            candidate_methods = idx.search("", limit=limit * 2)
+
+        # Шаг 2: фильтрация по доступности в target_context и deprecated
+        safe_methods: list[dict[str, Any]] = []
+        filtered_out: list[dict[str, str]] = []
+
+        for m in candidate_methods:
+            name = m.get("name_ru", "") or m.get("name_en", "")
+            if not name:
+                continue
+
+            # Проверка доступности
+            if not idx.is_available_in(name, contexts):
+                filtered_out.append(
+                    {
+                        "name": name,
+                        "reason": f"not available in {contexts}",
+                        "available_in": m.get("availability_raw", ""),
+                    }
+                )
+                continue
+
+            # Проверка deprecated
+            if idx.is_deprecated(name):
+                filtered_out.append(
+                    {
+                        "name": name,
+                        "reason": "deprecated",
+                        "version_deprecated": m.get("version_deprecated", ""),
+                    }
+                )
+                continue
+
+            # Проверка версии (если указана)
+            if platform_version and not idx.is_available_in_version(name, platform_version):
+                filtered_out.append(
+                    {
+                        "name": name,
+                        "reason": f"not available in version {platform_version}",
+                        "version_since": m.get("version_since", ""),
+                    }
+                )
+                continue
+
+            safe_methods.append(m)
+            if len(safe_methods) >= limit:
+                break
+
+        response = {
+            "target_context": contexts,
+            "intent": intent or "any",
+            "platform_version": idx.platform_version,
+            "total_safe": len(safe_methods),
+            "total_filtered_out": len(filtered_out),
+            "safe_methods": safe_methods,
+        }
+        if filtered_out:
+            response["filtered_out"] = filtered_out[:10]  # ограничиваем
+            response["_hint"] = (
+                f"{len(filtered_out)} methods filtered out (not available in {contexts} or deprecated). "
+                "Use safe_methods list directly — they are guaranteed to work in target_context."
+            )
+
+        idx.close()
+        return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
+    except Exception as e:
+        return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+
+async def handle_get_method_details_batch(
+    project: Project, arguments: dict[str, Any]
+) -> list[types.TextContent]:
+    """F2.2: Batch-вызов get_method_details — карточки нескольких методов одним запросом.
+
+    Решает проблему N+1 вызовов: вместо N отдельных get_method_details LLM
+    вызываетывает один get_method_details_batch с names=[...].
+
+    Дополнительно (опционально) проверяет доступность методов в target_context
+    и version_since/version_deprecated — чтобы LLM не делал отдельные проверки.
+    """
+    names = arguments.get("names", [])
+    platform_version = arguments.get("platform_version", "")
+    target_context = arguments.get("target_context", "")
+
+    if not names:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps({"error": "names required (list of method names)"}, ensure_ascii=False),
+            )
+        ]
+
+    if not isinstance(names, list):
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps({"error": "names must be a list of strings"}, ensure_ascii=False),
+            )
+        ]
+
+    # Ограничение batch size — защита от abuse
+    MAX_BATCH = 50
+    if len(names) > MAX_BATCH:
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(
+                    {"error": f"batch too large: {len(names)} > {MAX_BATCH}. Split into smaller batches."},
+                    ensure_ascii=False,
+                ),
+            )
+        ]
+
+    from src.services.platform_methods_index import PlatformMethodsIndex
+
+    try:
+        idx = PlatformMethodsIndex(platform_version=platform_version or None)
+        if not idx.is_available():
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps({"error": "Platform methods index not built"}, ensure_ascii=False),
+                )
+            ]
+
+        # Опциональная проверка контекста
+        contexts: list[str] = []
+        if target_context:
+            if isinstance(target_context, str):
+                contexts = [target_context]
+            elif isinstance(target_context, list):
+                contexts = target_context
+
+        methods: list[dict[str, Any]] = []
+        not_found: list[str] = []
+        not_available: list[dict[str, str]] = []
+        deprecated: list[dict[str, str]] = []
+
+        for name in names:
+            if not isinstance(name, str):
+                continue
+            method = idx.get_method(name)
+            if method is None:
+                not_found.append(name)
+                continue
+
+            # Распаковка JSON-полей
+            import json as json_mod
+
+            if method.get("params_json"):
+                method["params"] = json_mod.loads(method["params_json"])
+            if method.get("availability_json"):
+                method["availability"] = json_mod.loads(method["availability_json"])
+            if method.get("see_also_json"):
+                method["see_also"] = json_mod.loads(method["see_also_json"])
+
+            # Опциональная проверка контекста
+            if contexts:
+                if not idx.is_available_in(name, contexts):
+                    not_available.append(
+                        {
+                            "name": name,
+                            "reason": f"not available in {contexts}",
+                            "available_in": method.get("availability_raw", ""),
+                        }
+                    )
+                if idx.is_deprecated(name):
+                    deprecated.append(
+                        {
+                            "name": name,
+                            "version_deprecated": method.get("version_deprecated", ""),
+                        }
+                    )
+
+            methods.append(method)
+
+        response: dict[str, Any] = {
+            "platform_version": idx.platform_version,
+            "total_requested": len(names),
+            "total_found": len(methods),
+            "methods": methods,
+        }
+        if not_found:
+            response["not_found"] = not_found
+        if not_available:
+            response["not_available_in_context"] = not_available
+            response["_warning"] = (
+                f"{len(not_available)} method(s) not available in {contexts}. "
+                "Do not use them in target_context — find alternatives via search_platform_method."
+            )
+        if deprecated:
+            response["deprecated"] = deprecated
+
+        idx.close()
+        return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
+    except Exception as e:
+        return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+
+
 async def handle_check_bsl_context(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """B7: Проверка BSL-кода на доступность методов в целевом контексте."""
     code = arguments.get("code", "")
@@ -859,5 +1150,7 @@ QUALITY_HANDLERS: dict[str, Any] = {
     "check_data_exchange": handle_check_data_exchange,
     "search_platform_method": handle_search_platform_method,
     "get_method_details": handle_get_method_details,
+    "get_method_details_batch": handle_get_method_details_batch,
+    "get_safe_methods": handle_get_safe_methods,
     "check_bsl_context": handle_check_bsl_context,
 }

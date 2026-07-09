@@ -7,7 +7,7 @@ P2.2: вынесено из mcp_server.py для декомпозиции (SRP).
 Гибридный подход (tool interference fix):
   - get_all_tool_definitions() возвращает ВСЕ tools (для CLI, backward compat)
   - get_mcp_visible_tools() возвращает только 10 КЛЮЧЕВЫХ tools (для MCP/LLM)
-  - LLM не перегружена 54 инструментами — видит только нужные
+  - LLM не перегружена 56 инструментами — видит только нужные
 
 Источник истины — tests/snapshots/test_mcp_tools_snapshot/.
 Любое изменение имён/описаний/схем требует --snapshot-update.
@@ -26,16 +26,18 @@ import mcp.types as types
 # Эти инструменты LLM видит и может вызывать напрямую.
 # Остальные 44 — доступны через CLI или вызываются внутри этих.
 MCP_VISIBLE_TOOLS: frozenset[str] = frozenset({
-    "solve_context",          # Сбор контекста (внутри: search, KB, metadata)
-    "get_method_details",     # Карточка метода (синтаксис, доступность)
-    "check_bsl_context",      # Проверка кода на контекст
-    "solve_check",            # Полная проверка (7 analyzer'ов)
-    "bsl_templates",          # Шаблоны BSL кода
-    "generate_query",         # Генерация запросов
-    "get_object_structure",   # Структура объекта конфигурации
-    "inspect",                # Обзор конфигурации
-    "search_platform_method", # Поиск методов платформы (24990)
-    "data_status",            # Статус данных проекта
+    "solve_context",               # Сбор контекста (внутри: search, KB, metadata)
+    "get_method_details",          # Карточка метода (синтаксис, доступность)
+    "get_method_details_batch",    # F2.2: Batch — несколько методов одним вызовом
+    "get_safe_methods",            # F2.3: Pre-hoc guidance — методы, доступные в контексте
+    "check_bsl_context",           # Проверка кода на контекст
+    "solve_check",                 # Полная проверка (7 analyzer'ов)
+    "bsl_templates",               # Шаблоны BSL кода
+    "generate_query",              # Генерация запросов
+    "get_object_structure",        # Структура объекта конфигурации
+    "inspect",                     # Обзор конфигурации
+    "search_platform_method",      # Поиск методов платформы
+    "data_status",                 # Статус данных проекта
 })
 
 
@@ -49,7 +51,7 @@ def _build_tool(name: str, description: str, input_schema: dict[str, Any]) -> ty
 
 
 def get_all_tool_definitions() -> list[types.Tool]:
-    """Вернуть список всех 54 MCP tools (для list_tools handler)."""
+    """Вернуть список всех 56 MCP tools (для list_tools handler)."""
     return [
         _build_tool(
             name="analyze_architecture",
@@ -257,6 +259,67 @@ def get_all_tool_definitions() -> list[types.Tool]:
                     "platform_version": {"description": "Версия платформы", "type": "string"},
                 },
                 "required": ["name"],
+                "type": "object",
+            },
+        ),
+        _build_tool(
+            name="get_method_details_batch",
+            description=(
+                "F2.2: Batch-вызов get_method_details — карточки нескольких методов одним запросом. "
+                "ИСПОЛЬЗУЙТЕ вместо N отдельных get_method_details вызовов. "
+                "Опционально: target_context — проверит доступность методов в контексте и вернёт "
+                "not_available_in_context + deprecated списки. "
+                "Максимальный batch: 50 методов. "
+                "Пример: get_method_details_batch(names=['Сообщить', 'ЗаписьЖурналаРегистрации'], target_context='thin_client')."
+            ),
+            input_schema={
+                "properties": {
+                    "names": {
+                        "description": "Список имён методов (русских или английских)",
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "platform_version": {"description": "Версия платформы (опционально)", "type": "string"},
+                    "target_context": {
+                        "description": "Целевой контекст для проверки доступности (опционально): thin_client, server, mobile_client, или список",
+                    },
+                },
+                "required": ["names"],
+                "type": "object",
+            },
+        ),
+        _build_tool(
+            name="get_safe_methods",
+            description=(
+                "F2.3: Pre-hoc guidance — возвращает методы платформы 1С, ДОСТУПНЫЕ в target_context "
+                "и не устаревшие. ИСПОЛЬЗУЙТЕ ДО генерации BSL-кода — получите сразу безопасный набор, "
+                "вместо post-hoc проверки через check_bsl_context. "
+                "Опционально: intent — фильтр по типу задачи (query, form, catalog, document, register, "
+                "security, http, json, file, string, date). "
+                "Пример: get_safe_methods(target_context='thin_client', intent='query', limit=20)."
+            ),
+            input_schema={
+                "properties": {
+                    "target_context": {
+                        "description": "Целевой контекст: thin_client, server, mobile_client, или список",
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "intent": {
+                        "description": "Фильтр по типу задачи (опционально): query, form, catalog, document, register, security, http, json, file, string, date",
+                        "type": "string",
+                    },
+                    "limit": {
+                        "description": "Максимум методов (default 20, max 100)",
+                        "type": "integer",
+                        "default": 20,
+                    },
+                    "platform_version": {
+                        "description": "Версия платформы для фильтра version_since (опционально)",
+                        "type": "string",
+                    },
+                },
+                "required": ["target_context"],
                 "type": "object",
             },
         ),

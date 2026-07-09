@@ -25,6 +25,22 @@ if str(_REPO_ROOT) not in sys.path:
 from src.mcp_server import _get_tools_description
 
 
+def _read_pyproject_version() -> str:
+    """F2.1: Прочитать версию из pyproject.toml (без зависимости tomli для Python 3.10+)."""
+    pyproject_path = _REPO_ROOT / "pyproject.toml"
+    try:
+        content = pyproject_path.read_text(encoding="utf-8")
+        # Простой парсинг: ищем version = "X.Y.Z" в [project] секции
+        import re
+
+        match = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+        if match:
+            return match.group(1)
+    except OSError:
+        pass
+    return "0.0.0"
+
+
 def tool_to_openapi(tool: dict) -> dict:
     """Конвертировать MCP tool описание в OpenAPI endpoint."""
     name = tool["name"]
@@ -107,9 +123,9 @@ def generate_openapi() -> dict:
                 "Каждый endpoint соответствует MCP tool. "
                 "Параметры передаются в JSON body."
             ),
-            # A-1 (2026-07-05): версия синхронизирована с pyproject.toml (6.0.0).
-            # Ранее была 5.3.1 — рассинхрон с версией проекта.
-            "version": "6.0.0",
+            # F2.1 (2026-07-09): версия читается из pyproject.toml динамически.
+            # Ранее была захардкожена 6.0.0 — рассинхрон с pyproject.toml 7.0.0.
+            "version": _read_pyproject_version(),
             "contact": {
                 "name": "Pradushkoai",
                 "url": "https://github.com/Pradushkoai/1c-ai-dev-env",

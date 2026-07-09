@@ -38,6 +38,12 @@
     "method_name",
     "interceptor_type"
   ],
+  "check_bsl_context": [
+    "code"
+  ],
+  "check_data_exchange": [
+    "file_path"
+  ],
   "check_form_quality": [
     "config_name"
   ],
@@ -109,8 +115,17 @@
     "config_name"
   ],
   "get_knowledge": [],
+  "get_method_details": [
+    "name"
+  ],
+  "get_method_details_batch": [
+    "names"
+  ],
   "get_object_structure": [
     "config_name"
+  ],
+  "get_safe_methods": [
+    "target_context"
   ],
   "get_skd_schema": [
     "config_name"
@@ -144,6 +159,9 @@
   "search_code": [
     "query",
     "config_name"
+  ],
+  "search_platform_method": [
+    "query"
   ],
   "skd_trace": [
     "template_path",
