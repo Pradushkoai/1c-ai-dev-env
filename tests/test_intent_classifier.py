@@ -391,3 +391,168 @@ class TestEdgeCases:
         assert isinstance(intent.required_sources, list)
         assert isinstance(intent.workflow, list)
         assert isinstance(intent.matched_patterns, list)
+
+
+# ============================================================================
+# F2.6: Source selection by intent
+# ============================================================================
+
+
+class TestSourceSelection:
+    """F2.6: Тесты для source selection в TaskProcessor.solve()."""
+
+    def test_solve_with_required_sources_filters(self):
+        """solve() с required_sources ищет только по указанным источникам."""
+        from src.services.task_processor import TaskProcessor
+        from src.services.path_manager import PathManager
+        from unittest.mock import MagicMock, patch
+
+        paths = MagicMock()
+        processor = TaskProcessor(paths)
+
+        # Mock all search methods to track calls
+        with patch.object(processor, "_search_platform_methods") as mock_pm, \
+             patch.object(processor, "_search_api_reference") as mock_api, \
+             patch.object(processor, "_search_metadata") as mock_meta, \
+             patch.object(processor, "_search_skd") as mock_skd, \
+             patch.object(processor, "_search_forms") as mock_forms, \
+             patch.object(processor, "_search_knowledge_base") as mock_kb, \
+             patch.object(processor, "_standards_summary", return_value={"total": 0}):
+            
+            ctx = processor.solve(
+                query="audit code",
+                config_name="test",
+                required_sources=["security_rules", "standards"],
+            )
+            
+            # platform_methods should NOT be called
+            mock_pm.assert_not_called()
+            # api_reference should NOT be called
+            mock_api.assert_not_called()
+            # metadata should NOT be called
+            mock_meta.assert_not_called()
+            # standards_summary SHOULD be called (security_rules maps to standards)
+            # knowledge_base should NOT be called
+            mock_kb.assert_not_called()
+
+    def test_solve_without_required_sources_searches_all(self):
+        """solve() без required_sources ищет по всем источникам (backward compat)."""
+        from src.services.task_processor import TaskProcessor
+        from unittest.mock import MagicMock, patch
+
+        paths = MagicMock()
+        processor = TaskProcessor(paths)
+
+        with patch.object(processor, "_search_platform_methods") as mock_pm, \
+             patch.object(processor, "_search_api_reference") as mock_api, \
+             patch.object(processor, "_search_metadata") as mock_meta, \
+             patch.object(processor, "_search_skd") as mock_skd, \
+             patch.object(processor, "_search_forms") as mock_forms, \
+             patch.object(processor, "_search_knowledge_base") as mock_kb, \
+             patch.object(processor, "_standards_summary", return_value={"total": 0}):
+            
+            ctx = processor.solve(query="test", config_name="test")
+            
+            # All sources should be called
+            mock_pm.assert_called_once()
+            mock_api.assert_called_once()
+            mock_meta.assert_called_once()
+            mock_skd.assert_called_once()
+            mock_forms.assert_called_once()
+            mock_kb.assert_called_once()
+
+    def test_solve_adds_skipped_warning(self):
+        """solve() с required_sources добавляет warning о пропущенных источниках."""
+        from src.services.task_processor import TaskProcessor
+        from unittest.mock import MagicMock, patch
+
+        paths = MagicMock()
+        processor = TaskProcessor(paths)
+
+        with patch.object(processor, "_search_platform_methods"), \
+             patch.object(processor, "_search_api_reference"), \
+             patch.object(processor, "_search_metadata"), \
+             patch.object(processor, "_search_skd"), \
+             patch.object(processor, "_search_forms"), \
+             patch.object(processor, "_search_knowledge_base"), \
+             patch.object(processor, "_standards_summary", return_value={"total": 0}):
+            
+            ctx = processor.solve(
+                query="test",
+                config_name="test",
+                required_sources=["platform_methods"],  # only 1 source
+            )
+            
+            # Should have warning about skipped sources
+            skipped_warnings = [w for w in ctx.warnings if "source selection" in w.lower()]
+            assert len(skipped_warnings) > 0
+            # Should mention which sources were skipped
+            assert any("metadata" in w for w in skipped_warnings) or \
+                   any("api_reference" in w for w in skipped_warnings)
+
+    def test_solve_query_intent_searches_relevant_sources(self):
+        """write_query intent ищет metadata + query_standards, но не forms."""
+        from src.services.task_processor import TaskProcessor
+        from src.services.intent.classifier import classify_intent
+        from unittest.mock import MagicMock, patch
+
+        paths = MagicMock()
+        processor = TaskProcessor(paths)
+
+        intent = classify_intent("напиши запрос к регистру")
+        assert intent.name == "write_query"
+        assert "metadata" in intent.required_sources
+        assert "query_standards" in intent.required_sources
+
+        with patch.object(processor, "_search_platform_methods") as mock_pm, \
+             patch.object(processor, "_search_metadata") as mock_meta, \
+             patch.object(processor, "_search_forms") as mock_forms, \
+             patch.object(processor, "_search_knowledge_base"), \
+             patch.object(processor, "_standards_summary", return_value={"total": 0}):
+            
+            ctx = processor.solve(
+                query="напиши запрос к регистру",
+                config_name="test",
+                required_sources=intent.required_sources,
+            )
+            
+            # metadata should be called (in required_sources)
+            mock_meta.assert_called_once()
+            # forms should NOT be called (not in write_query required_sources)
+            mock_forms.assert_not_called()
+
+    def test_solve_audit_intent_skips_metadata(self):
+        """audit_code intent не ищет metadata/forms (не нужны для аудита)."""
+        from src.services.task_processor import TaskProcessor
+        from src.services.intent.classifier import classify_intent
+        from unittest.mock import MagicMock, patch
+
+        paths = MagicMock()
+        processor = TaskProcessor(paths)
+
+        intent = classify_intent("проверь код на безопасность")
+        assert intent.name == "audit_code"
+        # audit_code required_sources: security_rules, standards
+        # НЕ включает metadata, forms, skd, api_reference
+        assert "metadata" not in intent.required_sources
+        assert "forms" not in intent.required_sources
+
+        with patch.object(processor, "_search_metadata") as mock_meta, \
+             patch.object(processor, "_search_forms") as mock_forms, \
+             patch.object(processor, "_search_skd") as mock_skd, \
+             patch.object(processor, "_search_api_reference") as mock_api, \
+             patch.object(processor, "_search_platform_methods"), \
+             patch.object(processor, "_search_knowledge_base"), \
+             patch.object(processor, "_standards_summary", return_value={"total": 0}):
+            
+            ctx = processor.solve(
+                query="проверь код на безопасность",
+                config_name="test",
+                required_sources=intent.required_sources,
+            )
+            
+            # metadata/forms/skd/api should NOT be called for audit
+            mock_meta.assert_not_called()
+            mock_forms.assert_not_called()
+            mock_skd.assert_not_called()
+            mock_api.assert_not_called()

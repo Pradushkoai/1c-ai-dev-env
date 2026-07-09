@@ -103,13 +103,21 @@ async def handle_solve_context(project: Project, arguments: dict[str, Any]) -> l
     config = arguments.get("config", "")
     limit = arguments.get("limit", 5)
 
-    processor = TaskProcessor(project.paths)
-    ctx = await run_sync(processor.solve, query, config_name=config, limit=limit)
-    ctx_dict = ctx.to_dict()
-
-    # F2.5: Intent classification вместо keyword matching
+    # F2.5: Intent classification
     intent = classify_intent(query)
 
+    processor = TaskProcessor(project.paths)
+    # F2.6: Source selection — передаём required_sources из intent classifier
+    ctx = await run_sync(
+        processor.solve,
+        query,
+        config_name=config,
+        limit=limit,
+        required_sources=intent.required_sources,
+    )
+    ctx_dict = ctx.to_dict()
+
+    # F2.5+F2.6: Intent уже классифицирован выше, добавляем metadata в response
     response = {
         **ctx_dict,
         "_intent": {

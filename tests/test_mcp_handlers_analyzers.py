@@ -116,7 +116,15 @@ class TestHandleSolveContext:
             mock_tp.solve.return_value = ctx
 
             await handle_solve_context(project, {"query": "test"})
-            mock_tp.solve.assert_called_once_with("test", config_name="", limit=5)
+            # F2.6: solve теперь вызывается с required_sources (из intent classifier)
+            # Для unknown intent — default required_sources
+            call_args = mock_tp.solve.call_args
+            assert call_args.args == ("test",) or call_args.args[0] == "test"
+            assert call_args.kwargs.get("config_name") == ""
+            assert call_args.kwargs.get("limit") == 5
+            # required_sources должен быть передан (даже для unknown intent)
+            assert "required_sources" in call_args.kwargs
+            assert isinstance(call_args.kwargs["required_sources"], list)
 
     @pytest.mark.asyncio
     async def test_exception(self):

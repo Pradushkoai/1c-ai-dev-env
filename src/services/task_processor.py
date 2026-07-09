@@ -58,9 +58,32 @@ class TaskProcessor:
         query: str,
         config_name: str = "",
         limit: int = 5,
+        required_sources: list[str] | None = None,
     ) -> TaskContext:
-        """Собрать полный контекст для LLM по задаче."""
+        """Собрать контекст для LLM по задаче.
+
+        F2.6: Source selection by intent — если required_sources указан,
+        ищет ТОЛЬКО по релевантным источникам (не по всем 7).
+
+        Args:
+            query: Текст задачи
+            config_name: Имя конфигурации (для metadata/api/skd/forms)
+            limit: Лимит результатов на источник
+            required_sources: Список источников для поиска (из intent classifier).
+                Возможные значения: platform_methods, metadata, api_reference,
+                skd, forms, knowledge_base, standards, query_standards,
+                query_templates, bsl_templates, security_rules, best_practices,
+                call_graph, templates.
+                Если None — ищет по всем источникам (backward compat).
+        """
         ctx = TaskContext(query=query, config_name=config_name)
+
+        # F2.6: Если required_sources не указан — все источники (backward compat)
+        all_sources = {
+            "platform_methods", "metadata", "api_reference", "skd", "forms",
+            "knowledge_base", "standards",
+        }
+        active_sources = set(required_sources) if required_sources else all_sources
 
         # B5: автоопределение версии платформы из конфигурации
         if config_name:
@@ -72,22 +95,40 @@ class TaskProcessor:
         query_words = [w for w in query_lower.split() if len(w) >= 2]
 
         # 1. Методы платформы 1С
-        self._search_platform_methods(ctx, query, limit)
+        if "platform_methods" in active_sources:
+            self._search_platform_methods(ctx, query, limit)
+        else:
+            ctx.missing_sources.append("platform_methods (skipped by intent)")
 
         # 2-5. Источники по конфигурации
         if config_name:
-            self._search_api_reference(ctx, config_name, query_words, limit)
-            self._search_metadata(ctx, config_name, query_words, limit)
-            self._search_skd(ctx, config_name, query_words, limit)
-            self._search_forms(ctx, config_name, query_words, limit)
+            if "api_reference" in active_sources:
+                self._search_api_reference(ctx, config_name, query_words, limit)
+            if "metadata" in active_sources:
+                self._search_metadata(ctx, config_name, query_words, limit)
+            if "skd" in active_sources:
+                self._search_skd(ctx, config_name, query_words, limit)
+            if "forms" in active_sources:
+                self._search_forms(ctx, config_name, query_words, limit)
         else:
             ctx.warnings.append("Конфигурация не указана — поиск по метаданным пропущен")
 
         # 6. База знаний
-        self._search_knowledge_base(ctx, query, limit)
+        if "knowledge_base" in active_sources or "best_practices" in active_sources:
+            self._search_knowledge_base(ctx, query, limit)
 
         # 7. Стандарты (summary — что доступно для проверки)
-        ctx.standards_summary = self._standards_summary()
+        if "standards" in active_sources or "security_rules" in active_sources:
+            ctx.standards_summary = self._standards_summary()
+
+        # F2.6: Добавляем info о source selection
+        if required_sources:
+            skipped = all_sources - active_sources
+            if skipped:
+                ctx.warnings.append(
+                    f"F2.6 source selection: skipped {len(skipped)} source(s) "
+                    f"({', '.join(sorted(skipped))}) — not required by intent"
+                )
 
         return ctx
 
