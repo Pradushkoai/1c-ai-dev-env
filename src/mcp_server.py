@@ -84,6 +84,15 @@ def create_mcp_server() -> Server:
         with contextlib.suppress(Exception):
             log.info(f"mcp_tool_called: {name} args={list(arguments.keys()) if arguments else []}")
 
+        # T1 (2026-07-10): HIGH_LEVEL_HANDLERS проверяются ПЕРВЫМИ —
+        # это 6 из 7 visible tools (plan, gather, generate, validate, explain, run_cli).
+        # Без этого R1 рефакторинг не работает — LLM получает "Unknown tool".
+        from .mcpserver.handlers import HIGH_LEVEL_HANDLERS
+
+        handler = HIGH_LEVEL_HANDLERS.get(name)
+        if handler is not None:
+            return cast(list[types.TextContent], await handler(project, arguments))
+
         # P2.2: dict[str, Any]-dispatch для handlers группы 1 (config/search/metadata)
         from .mcpserver.handlers import CONFIG_SEARCH_HANDLERS
 

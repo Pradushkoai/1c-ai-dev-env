@@ -330,9 +330,10 @@ async def handle_generate(project: Project, arguments: dict[str, Any]) -> list[t
     session = session_manager.get_session()
 
     # CR-7: Если fix_violations_from — берём violations из session
+    # T9 (2026-07-10): reversed — берём ПОСЛЕДНЮЮ validation (не старейшую)
     fix_violations: list[dict[str, Any]] = []
     if fix_violations_from:
-        for v in session.validation_history:
+        for v in reversed(session.validation_history):
             if v.get("artifact_id") == fix_violations_from:
                 fix_violations = v.get("violations", [])[:10]  # top 10
                 break
@@ -374,7 +375,8 @@ async def handle_generate(project: Project, arguments: dict[str, Any]) -> list[t
             if ctx_result:
                 ctx_data = json.loads(ctx_result[0].text)
                 ctx_violations = ctx_data.get("violations", [])
-                critical = [v for v in ctx_violations if v.get("severity") == "ERROR"]
+                # T4 (2026-07-10): .lower() — bsl_context_checker возвращает lowercase
+                critical = [v for v in ctx_violations if v.get("severity", "").lower() in ("error", "critical")]
                 if critical:
                     validation_passed = False
                     warnings = critical
@@ -634,8 +636,10 @@ async def handle_validate(project: Project, arguments: dict[str, Any]) -> list[t
                 with tempfile.NamedTemporaryFile(
                     mode="w", suffix=".bsl", delete=False, encoding="utf-8"
                 ) as tmp:
-                    tmp.write(code)
+                    # T11 (2026-07-10): temp_path ДО write — если write бросит,
+                    # finally block сможет удалить orphaned file.
                     temp_path = Path(tmp.name)
+                    tmp.write(code)
 
                 # Запускаем полную проверку через TaskProcessor.check()
                 from src.services.task_processor import TaskProcessor
@@ -892,8 +896,11 @@ async def handle_explain(project: Project, arguments: dict[str, Any]) -> list[ty
         # Поиск — solve_context для понимания
         from .analyzers import handle_solve_context
 
-        # Сохраняем intent для explain
-        session.set_plan({"query": query, "intent": {"name": "understand_code"}})
+        # T10 (2026-07-10): Не перетираем существующий plan — только если plan пуст.
+        # Раньше set_plan безусловно заменял plan с target_context_hint и
+        # required_sources на 2-key stub, ломая последующий gather().
+        if session.plan is None:
+            session.set_plan({"query": query, "intent": {"name": "understand_code"}})
         session.add_tool_call("explain", arguments)
         session_manager.save()
 
@@ -1013,7 +1020,10 @@ async def handle_run_cli(project: Project, arguments: dict[str, Any]) -> list[ty
         args: Аргументы для hidden tool (dict)
     """
     from src.services.session import SessionManager
+    # T5 (2026-07-10): добавлен ANALYZER_HANDLERS — без него solve_check и
+    # solve_context (в whitelist) недоступны через run_cli.
     from . import (
+        ANALYZER_HANDLERS,
         DSL_CFE_HANDLERS, MISC_HANDLERS, INSPECT_DATA_HANDLERS,
         STRUCTURE_HANDLERS, GENERATE_HANDLERS, QUALITY_HANDLERS, QUERY_HANDLERS,
         CONFIG_SEARCH_HANDLERS,
@@ -1050,6 +1060,7 @@ async def handle_run_cli(project: Project, arguments: dict[str, Any]) -> list[ty
 
     # Ищем handler во всех регистрах
     all_handlers = {
+        **ANALYZER_HANDLERS,  # T5: solve_check, solve_context, analyze_bsl, check_standards
         **CONFIG_SEARCH_HANDLERS,
         **DSL_CFE_HANDLERS,
         **MISC_HANDLERS,

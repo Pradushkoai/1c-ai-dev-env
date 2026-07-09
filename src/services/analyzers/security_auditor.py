@@ -783,10 +783,12 @@ class SecurityAuditor:
         """
         violations = []
 
-        # Если есть Выполнить/Вычислить с динамической строкой
+        # T3 (2026-07-10): (?<!\.) — negative lookbehind, чтобы не матчило
+        # методы вроде Запрос.Выполнить() или Запрос.Вычислить() (это безопасные
+        # методы Query, не BSL statement Выполнить/Вычислить).
         has_exec = (
-            re.search(r"Выполнить\s*\(", stripped) is not None
-            or re.search(r"Вычислить\s*\(", stripped) is not None
+            re.search(r"(?<!\.)Выполнить\s*\(", stripped) is not None
+            or re.search(r"(?<!\.)Вычислить\s*\(", stripped) is not None
         )
         if not has_exec:
             return violations

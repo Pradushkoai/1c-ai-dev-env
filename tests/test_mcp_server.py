@@ -282,8 +282,8 @@ def test_call_solve_context(mcp_server_with_mock_project):
     assert "knowledge_articles" in data
     assert "standards_summary" in data
     assert "missing_sources" in data
-    # 7 источников → 302 проверки
-    assert data["standards_summary"]["total_checks"] == 302
+    # T12: dynamic counts — 187+62+18+20+6+10+10 = 313 проверок
+    assert data["standards_summary"]["total_checks"] == 313
 
 
 def test_call_analyze_bsl(mcp_server_with_mock_project):

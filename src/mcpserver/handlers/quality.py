@@ -410,22 +410,17 @@ async def handle_analyze_architecture(project: Project, arguments: dict[str, Any
 
 
 async def handle_check_form_quality(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
-    """Handler для MCP tool: check_form_quality, check_skd_quality."""
+    """Handler для MCP tool: check_form_quality."""
     config_name = arguments.get("config_name", "")
     if not config_name:
         return [types.TextContent(type="text", text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
 
-    # Этап 1.2, Группа 1a: dynamic import заменён на прямой импорт из src.services.analyzers
+    # T8 (2026-07-10): Убран dead code `if True:` — check_form_quality
+    # всегда использует FormQualityChecker. check_skd_quality имеет
+    # отдельный handler handle_check_skd_quality.
     from src.services.analyzers.form_quality_checker import FormQualityChecker
 
-    if True:  # check_form_quality
-        index_path = project.paths.root / "derived" / "configs" / config_name / "form-index.json"
-        checker_class = FormQualityChecker
-    else:  # check_skd_quality — заглушка (P3 split), не вызывается
-        from src.services.analyzers.skd_quality_checker import SKDQualityChecker
-
-        index_path = project.paths.root / "derived" / "configs" / config_name / "skd-index.json"
-        checker_class = SKDQualityChecker
+    index_path = project.paths.root / "derived" / "configs" / config_name / "form-index.json"
 
     if not index_path.exists():
         return [
@@ -435,12 +430,8 @@ async def handle_check_form_quality(project: Project, arguments: dict[str, Any])
         ]
 
     try:
-        checker = checker_class()
-        issues = (
-            checker.check_form_index(index_path)
-            if True  # check_form_quality
-            else checker.check_skd_index(index_path)
-        )
+        checker = FormQualityChecker()
+        issues = checker.check_form_index(index_path)
         stats = checker.get_stats(issues)
         response = {
             "config_name": config_name,
@@ -1133,6 +1124,51 @@ async def handle_check_bsl_context(project: Project, arguments: dict[str, Any]) 
         return [types.TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
+async def handle_check_skd_quality(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
+    """T8 (2026-07-10): Отдельный handler для check_skd_quality.
+
+    Раньше check_skd_quality указывал на handle_check_form_quality с dead code
+    `if True:` — запускал form-quality вместо SKD. Теперь отдельный handler.
+    """
+    config_name = arguments.get("config_name", "")
+    if not config_name:
+        return [types.TextContent(type="text", text=json.dumps({"error": "config_name required"}, ensure_ascii=False))]
+
+    from src.services.analyzers.skd_quality_checker import SKDQualityChecker
+
+    index_path = project.paths.root / "derived" / "configs" / config_name / "skd-index.json"
+
+    if not index_path.exists():
+        return [
+            types.TextContent(
+                type="text", text=json.dumps({"error": f"Index not found: {index_path}"}, ensure_ascii=False)
+            )
+        ]
+
+    try:
+        checker = SKDQualityChecker()
+        issues = checker.check_skd_index(index_path)
+        stats = checker.get_stats(issues)
+        response = {
+            "config_name": config_name,
+            "total_issues": stats["total"],
+            "by_severity": stats.get("by_severity", {}),
+            "issues": [
+                {
+                    "rule_id": i.rule_id if hasattr(i, "rule_id") else "",
+                    "severity": i.severity if hasattr(i, "severity") else "",
+                    "message": i.message if hasattr(i, "message") else str(i),
+                }
+                for i in issues
+            ],
+        }
+        return [types.TextContent(type="text", text=json.dumps(response, ensure_ascii=False, indent=2))]
+    except Exception as e:
+        return [
+            types.TextContent(type="text", text=json.dumps({"error": f"SKD quality check failed: {str(e)}"}, ensure_ascii=False))
+        ]
+
+
 # Реестр handlers
 QUALITY_HANDLERS: dict[str, Any] = {
     "get_knowledge": handle_get_knowledge,
@@ -1142,7 +1178,7 @@ QUALITY_HANDLERS: dict[str, Any] = {
     "analyze_queries": handle_analyze_queries,
     "analyze_architecture": handle_analyze_architecture,
     "check_form_quality": handle_check_form_quality,
-    "check_skd_quality": handle_check_form_quality,
+    "check_skd_quality": handle_check_skd_quality,  # T8: отдельный handler
     "diff_configs": handle_diff_configs,
     "validate_query_static": handle_validate_query_static,
     "check_data_exchange": handle_check_data_exchange,

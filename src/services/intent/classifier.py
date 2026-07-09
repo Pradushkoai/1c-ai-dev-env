@@ -359,7 +359,7 @@ def _classify_with_llm(query: str) -> Intent | None:
             "Ответ (только одно слово):"
         )
 
-        response = client.generate(prompt, temperature=0.1, num_predict=10)
+        response = client.generate(prompt, temperature=0.1, max_tokens=10)
         if not response or not response.text:
             return None
 

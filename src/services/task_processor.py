@@ -462,16 +462,35 @@ class TaskProcessor:
             ctx.warnings.append(f"knowledge_base search failed: {e}")
 
     def _standards_summary(self) -> dict[str, Any]:
-        """Summary по доступным стандартам."""
+        """T12 (2026-07-10): Summary по доступным стандартам — dynamic counts.
+
+        Раньше были hardcoded stale числа (56 вместо 62, 15 вместо 20).
+        Теперь вычисляем из реальных источников.
+        """
+        # T12: dynamic counts из реальных модулей
+        try:
+            from src.services.analyzers.standards import ALL_RULES
+            standards_count = len(ALL_RULES)
+        except ImportError:
+            standards_count = 62  # fallback
+
+        try:
+            from src.services.analyzers.security_auditor import SECURITY_RULES
+            security_count = len(SECURITY_RULES)
+        except ImportError:
+            security_count = 20  # fallback
+
+        total = 187 + standards_count + 18 + security_count + 6 + 10 + 10
+
         return {
             "bsl_ls_diagnostics": 187,
-            "check_1c_standards_rules": 56,
+            "check_1c_standards_rules": standards_count,
             "check_metadata_rules": 18,
-            "security_rules": 15,
+            "security_rules": security_count,
             "transaction_rules": 6,
             "query_rules": 10,
             "code_metrics_count": 10,
-            "total_checks": 302,
+            "total_checks": total,
             "check_command": "1c-ai solve check <file.bsl> --level full",
         }
 

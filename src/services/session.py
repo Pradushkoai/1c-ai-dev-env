@@ -205,21 +205,35 @@ class SessionManager:
             session.validation_history = session.validation_history[-self.MAX_VALIDATIONS:]
 
     def save(self) -> None:
-        """Сохранить текущую сессию в файл."""
+        """Сохранить текущую сессию в файл.
+
+        T6 (2026-07-10): Atomic write — пишем во tmp file, потом os.replace().
+        Предотвращает corruption при crash mid-write.
+        """
         if self._current is None:
             return
 
         # CR-5: cleanup перед сохранением
         self._cleanup_expired(self._current)
 
+        import os
+        tmp_path = self._session_file.with_suffix(".tmp")
         try:
             self._runtime_dir.mkdir(parents=True, exist_ok=True)
-            self._session_file.write_text(
+            tmp_path.write_text(
                 json.dumps(self._current.to_dict(), ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
+            # os.replace — atomic на POSIX и Windows
+            os.replace(str(tmp_path), str(self._session_file))
         except OSError as e:
             logger.warning("Failed to save session: %s", e)
+            # Cleanup tmp file при ошибке
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
 
     def get_session(self) -> SessionState:
         """Получить текущую сессию."""
