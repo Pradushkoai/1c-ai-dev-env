@@ -175,7 +175,15 @@ async def handle_solve_context(project: Project, arguments: dict[str, Any]) -> l
 
 
 async def handle_solve_check(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
-    """Полная проверка .bsl кода: 7 анализаторов."""
+    """Полная проверка .bsl кода: 7 анализаторов (standard) / 9 (full).
+
+    F2.4: Возвращает приоритизированный результат:
+    - summary: must_fix_before_use_count, is_safe_to_use, verdict
+    - must_fix_before_use: CRITICAL/HIGH violations (блокируют использование)
+    - top_3_priority: топ-3 violation по severity
+    - violations: полный список
+    - _next_steps: actionable hints для LLM
+    """
     from src.services.task_processor import TaskProcessor
 
     file_path = arguments.get("file_path", "")
@@ -183,13 +191,38 @@ async def handle_solve_check(project: Project, arguments: dict[str, Any]) -> lis
 
     processor = TaskProcessor(project.paths)
     try:
-        # P1.10: check() запускает 7 анализаторов (BSL LS, security_auditor, etc) —
-        # может занимать 5-30 секунд. Без to_thread блокирует event loop MCP-сервера.
+        # P1.10: check() запускает 7-9 анализаторов — может занимать 5-30 секунд.
         result = await run_sync(processor.check, Path(file_path), level=level)
+        result_dict = result.to_dict()
+
+        # F2.4: Добавляем _next_steps на основе приоритизации
+        next_steps: list[str] = []
+        if result.is_safe_to_use:
+            next_steps.append("✅ Код безопасен — можно использовать (нет CRITICAL/HIGH violations)")
+            if result.total_warnings > 0:
+                next_steps.append(
+                    f"Рекомендуется исправить {result.total_warnings} WARNING нарушений "
+                    "(не блокирует, но улучшает качество)"
+                )
+        else:
+            next_steps.append(
+                f"❌ {result.must_fix_before_use_count} CRITICAL/HIGH violation(s) — "
+                "ИСПРАВЬТЕ перед использованием кода"
+            )
+            # Добавляем конкретные top-3 в next_steps
+            for i, v in enumerate(result.top_3_priority, 1):
+                next_steps.append(
+                    f"  {i}. [{v.severity}] {v.source}:{v.rule_id} line {v.line} — {v.message}"
+                )
+            next_steps.append(
+                "После исправления — повторите solve_check для верификации"
+            )
+
+        result_dict["_next_steps"] = next_steps
         return [
             types.TextContent(
                 type="text",
-                text=json.dumps(result.to_dict(), ensure_ascii=False, indent=2),
+                text=json.dumps(result_dict, ensure_ascii=False, indent=2),
             )
         ]
     except FileNotFoundError as e:

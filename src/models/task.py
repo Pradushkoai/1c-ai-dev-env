@@ -164,6 +164,7 @@ class Violation:
     line: int = 0
     message: str = ""
     file: str = ""
+    recommendation: str = ""  # F2.4: actionable advice для LLM
 
 
 @dataclass
@@ -212,6 +213,58 @@ class CheckResult:
             return "warnings"
         return "errors"
 
+    # F2.4: Приоритизация violations для LLM
+
+    # Severity ranking для сортировки (выше = критичнее)
+    # Class-level constant (не dataclass field) — используется в методах
+    _SEVERITY_RANK = {
+        "critical": 5,
+        "error": 4,
+        "high": 4,
+        "warning": 2,
+        "medium": 2,
+        "info": 1,
+        "low": 1,
+    }
+
+    @property
+    def must_fix_before_use(self) -> list[Violation]:
+        """F2.4: CRITICAL/HIGH violations — блокируют использование кода.
+
+        LLM должен исправить их перед тем, как отдавать код пользователю.
+        """
+        return [
+            v
+            for v in self.violations
+            if v.severity.lower() in ("critical", "error", "high")
+        ]
+
+    @property
+    def top_3_priority(self) -> list[Violation]:
+        """F2.4: Топ-3 violation по severity — LLM фокусируется на них первыми.
+
+        Сортировка: severity (desc) → source (для стабильности) → line.
+        """
+        sorted_violations = sorted(
+            self.violations,
+            key=lambda v: (
+                -self._SEVERITY_RANK.get(v.severity.lower(), 0),
+                v.source,
+                v.line,
+            ),
+        )
+        return sorted_violations[:3]
+
+    @property
+    def must_fix_before_use_count(self) -> int:
+        """F2.4: Количество CRITICAL/HIGH violations."""
+        return len(self.must_fix_before_use)
+
+    @property
+    def is_safe_to_use(self) -> bool:
+        """F2.4: True если нет CRITICAL/HIGH violations — код можно использовать."""
+        return self.must_fix_before_use_count == 0
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "file": self.file,
@@ -221,6 +274,37 @@ class CheckResult:
             "verdict": self.verdict,
             "bsl_ls_available": self.bsl_ls_available,
             "analyzers_run": self.analyzers_run,
+            # F2.4: Приоритизация для LLM
+            "summary": {
+                "must_fix_before_use_count": self.must_fix_before_use_count,
+                "is_safe_to_use": self.is_safe_to_use,
+                "verdict": self.verdict,
+                "total_violations": len(self.violations),
+            },
+            "must_fix_before_use": [
+                {
+                    "source": v.source,
+                    "rule_id": v.rule_id,
+                    "severity": v.severity,
+                    "line": v.line,
+                    "message": v.message,
+                    "file": v.file,
+                    "recommendation": v.recommendation,
+                }
+                for v in self.must_fix_before_use
+            ],
+            "top_3_priority": [
+                {
+                    "source": v.source,
+                    "rule_id": v.rule_id,
+                    "severity": v.severity,
+                    "line": v.line,
+                    "message": v.message,
+                    "file": v.file,
+                    "recommendation": v.recommendation,
+                }
+                for v in self.top_3_priority
+            ],
             "violations": [
                 {
                     "source": v.source,
@@ -229,6 +313,7 @@ class CheckResult:
                     "line": v.line,
                     "message": v.message,
                     "file": v.file,
+                    "recommendation": v.recommendation,
                 }
                 for v in self.violations
             ],
