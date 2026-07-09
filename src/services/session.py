@@ -151,7 +151,17 @@ class SessionState:
 
 
 class SessionManager:
-    """Менеджер сессий — загрузка/сохранение/кэш."""
+    """Менеджер сессий — загрузка/сохранение/кэш.
+
+    CR-5 (2026-07-09): TTL cleanup + max size limits.
+    Artifacts старше 1 часа удаляются при get_session().
+    generated_artifacts — max 20 (FIFO), validation_history — max 20.
+    """
+
+    # CR-5: TTL и max size
+    ARTIFACT_TTL_SECONDS: float = 3600.0  # 1 час
+    MAX_ARTIFACTS: int = 20
+    MAX_VALIDATIONS: int = 20
 
     def __init__(self, runtime_dir: Path) -> None:
         self._runtime_dir = runtime_dir
@@ -167,6 +177,8 @@ class SessionManager:
             try:
                 data = json.loads(self._session_file.read_text(encoding="utf-8"))
                 self._current = SessionState.from_dict(data)
+                # CR-5: cleanup при загрузке
+                self._cleanup_expired(self._current)
                 logger.debug("Session loaded: %s", self._current.session_id)
                 return self._current
             except (json.JSONDecodeError, OSError, TypeError) as e:
@@ -176,10 +188,29 @@ class SessionManager:
         logger.debug("New session created: %s", self._current.session_id)
         return self._current
 
+    def _cleanup_expired(self, session: SessionState) -> None:
+        """CR-5: Удалить устаревшие artifacts и обрезать списки."""
+        now = time.time()
+        # Удаляем artifacts старше TTL
+        if session.generated_artifacts:
+            session.generated_artifacts = [
+                a for a in session.generated_artifacts
+                if now - a.get("created_at", 0) < self.ARTIFACT_TTL_SECONDS
+            ]
+        # Обрезаем до MAX_ARTIFACTS (FIFO — оставляем последние)
+        if len(session.generated_artifacts) > self.MAX_ARTIFACTS:
+            session.generated_artifacts = session.generated_artifacts[-self.MAX_ARTIFACTS:]
+        # Обрезаем validation_history
+        if len(session.validation_history) > self.MAX_VALIDATIONS:
+            session.validation_history = session.validation_history[-self.MAX_VALIDATIONS:]
+
     def save(self) -> None:
         """Сохранить текущую сессию в файл."""
         if self._current is None:
             return
+
+        # CR-5: cleanup перед сохранением
+        self._cleanup_expired(self._current)
 
         try:
             self._runtime_dir.mkdir(parents=True, exist_ok=True)

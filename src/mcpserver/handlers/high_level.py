@@ -787,8 +787,13 @@ def _group_violations_by_rule(violations: list[dict[str, Any]]) -> dict[str, lis
 async def handle_explain(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
     """R1: Объяснить существующий код или найти использование.
 
-    Если file_path указан — анализирует код (call_graph, architecture).
-    Если query указан — ищет где используется метод/объект.
+    CR-4 (2026-07-09): explain(file_path) теперь оркеструет 3 источника:
+      1. code_metrics — метрики (LOC, complexity, methods count)
+      2. analyze_architecture — архитектурные issues (если file в config)
+      3. call_graph — callers/callees (если file в config)
+    Раньше возвращал только code_metrics.
+
+    Если query указан — ищет где используется метод/объект через solve_context.
 
     R3: _next_action — зависит от результата.
     """
@@ -796,33 +801,85 @@ async def handle_explain(project: Project, arguments: dict[str, Any]) -> list[ty
 
     file_path = arguments.get("file_path", "")
     query = arguments.get("query", "")
+    config_name = arguments.get("config_name", "")
 
     session_manager = SessionManager(project.paths.runtime_dir)
     session = session_manager.get_session()
 
     if file_path:
-        # Анализ файла — code metrics + architecture
+        # CR-4: Полный анализ — metrics + architecture + call_graph
         from .quality import handle_get_code_metrics, handle_analyze_architecture
 
-        metrics_result = await handle_get_code_metrics(project, {"file_path": file_path})
+        response: dict[str, Any] = {"file_path": file_path, "analysis_sources": []}
 
-        response: dict[str, Any] = {"file_path": file_path}
-
-        if metrics_result:
-            try:
+        # 1. Code metrics (всегда)
+        try:
+            metrics_result = await handle_get_code_metrics(project, {"file_path": file_path})
+            if metrics_result:
                 metrics_data = json.loads(metrics_result[0].text)
                 response["metrics"] = metrics_data
-            except json.JSONDecodeError:
-                pass
+                response["analysis_sources"].append("code_metrics")
+        except Exception as e:
+            logger.debug("code_metrics failed: %s", e)
+            response["metrics_error"] = str(e)
+
+        # 2. Architecture analysis (если есть config_dir)
+        try:
+            # Пытаемся определить config_dir из file_path
+            from pathlib import Path
+            file_path_obj = Path(file_path)
+            # Ищем config_dir в пути (data/configs/<name>/...)
+            parts = file_path_obj.parts
+            config_dir = None
+            for i, part in enumerate(parts):
+                if part == "configs" and i + 1 < len(parts):
+                    config_dir = Path(*parts[: i + 2])
+                    break
+
+            if config_dir and config_dir.exists():
+                arch_result = await handle_analyze_architecture(project, {"config_dir": str(config_dir)})
+                if arch_result:
+                    arch_data = json.loads(arch_result[0].text)
+                    response["architecture"] = arch_data
+                    response["analysis_sources"].append("analyze_architecture")
+        except Exception as e:
+            logger.debug("architecture analysis failed: %s", e)
+
+        # 3. Call graph (если есть config_name)
+        if config_name:
+            try:
+                # Используем run_cli для call_graph
+                call_graph_result = await handle_run_cli(project, {
+                    "command": "call_graph",
+                    "args": {"config_name": config_name, "action": "stats"},
+                })
+                if call_graph_result:
+                    cg_data = json.loads(call_graph_result[0].text)
+                    response["call_graph_summary"] = cg_data
+                    response["analysis_sources"].append("call_graph")
+            except Exception as e:
+                logger.debug("call_graph failed: %s", e)
 
         session.add_tool_call("explain", arguments)
         session_manager.save()
 
-        response["_next_action"] = {
-            "tool": "validate",
-            "args": {"file_path": file_path},
-            "why": "Проверить код на violations",
-        }
+        # CR-6: adaptive _next_action
+        has_issues = (
+            response.get("metrics", {}).get("is_god_object", False)
+            or response.get("architecture", {}).get("total_issues", 0) > 0
+        )
+        if has_issues:
+            response["_next_action"] = {
+                "tool": "validate",
+                "args": {"file_path": file_path},
+                "why": "Найдены архитектурные issues — проверьте код на violations",
+            }
+        else:
+            response["_next_action"] = {
+                "tool": "done",
+                "args": {},
+                "why": "Анализ завершён — код выглядит хорошо",
+            }
 
         return [
             types.TextContent(

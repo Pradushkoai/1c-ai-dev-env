@@ -25,8 +25,14 @@ if str(_REPO_ROOT) not in sys.path:
 
 
 def _estimate_tokens(text: str) -> int:
-    """R13: Estimate token count (~4 chars per token for Russian/English)."""
-    return max(1, len(text) // 4)
+    """CR-9: Estimate token count using tiktoken if available, fallback to len//4."""
+    try:
+        import tiktoken
+        enc = tiktoken.get_encoding("cl100k_base")
+        return len(enc.encode(text))
+    except ImportError:
+        # Fallback: ~4 chars per token for Russian/English
+        return max(1, len(text) // 4)
 
 
 def _make_mock_project():

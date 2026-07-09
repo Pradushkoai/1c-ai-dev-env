@@ -154,10 +154,11 @@ class TaskProcessor:
         if "standards" in active_sources:
             ctx.standards_summary = self._standards_summary()
 
-        # R15: Note about call_graph (not searched in solve, separate tool)
+        # CR-12: call_graph — если в required_sources, добавляем summary в warnings
         if required_sources and "call_graph" in required_sources:
             ctx.warnings.append(
-                "call_graph not searched in solve() — use run_cli(command='call_graph') or explain()"
+                "call_graph: use run_cli(command='call_graph', args={config_name, action:'stats'}) "
+                "or explain(file_path) for full call graph analysis"
             )
 
         # F2.6: Добавляем info о source selection

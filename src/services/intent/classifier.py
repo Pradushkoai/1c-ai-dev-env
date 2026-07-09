@@ -291,6 +291,17 @@ def classify_intent(query: str, use_llm_fallback: bool = True) -> Intent:
     # Если несколько patterns matched — повышаем confidence (mutual reinforcement)
     best_pattern, best_matched = max(candidates, key=lambda x: x[0].confidence)
 
+    # CR-10: Если confidence < 0.5 — пробуем LLM fallback для подтверждения
+    best_confidence = best_pattern.confidence
+    if len(best_matched) > 1:
+        best_confidence = min(1.0, best_confidence + 0.05 * (len(best_matched) - 1))
+
+    if use_llm_fallback and best_confidence < 0.5:
+        llm_intent = _classify_with_llm(query)
+        # LLM confidence (0.6) > regex confidence (<0.5) — используем LLM
+        if llm_intent is not None and llm_intent.confidence > best_confidence:
+            return llm_intent
+
     # Bonus confidence если несколько patterns matched
     confidence = best_pattern.confidence
     if len(best_matched) > 1:
