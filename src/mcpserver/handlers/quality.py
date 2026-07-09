@@ -870,33 +870,31 @@ async def handle_get_safe_methods(
                 )
             ]
 
-        # Intent → SQL-фильтр по category/description
-        # Маппинг intents на ключевые слова в описании/категории методов
-        intent_keywords: dict[str, list[str]] = {
-            "query": ["запрос", "query", "select", "виртуальн"],
-            "form": ["форма", "form", "элемент", "открыть"],
-            "catalog": ["справочник", "catalog", "элемент"],
-            "document": ["документ", "document"],
-            "register": ["регистр", "register"],
-            "security": ["безопасн", "security", "пароль", "роль"],
-            "http": ["http", "запрос", "rest", "api"],
-            "json": ["json", "читатьjson", "записатьjson"],
-            "file": ["файл", "file", "каталог"],
-            "string": ["строк", "string", "стрзаменить"],
-            "date": ["дат", "date", "время"],
+        # R7: Semantic filtering — используем intent как query для BM25/FTS5 search
+        # вместо keyword matching. idx.search использует SQLite FTS5 с unicode tokenizer,
+        # что даёт настоящий полнотекстовый поиск (не substring).
+        #
+        # intent → query mapping: intent это категория задачи, переводим в поисковый запрос
+        intent_to_query: dict[str, str] = {
+            "query": "запрос select виртуальная таблица",
+            "form": "форма элемент открыть",
+            "catalog": "справочник элемент",
+            "document": "документ",
+            "register": "регистр",
+            "security": "безопасность пароль роль",
+            "http": "http запрос rest api",
+            "json": "json читать записать",
+            "file": "файл каталог",
+            "string": "строка строкзаменить",
+            "date": "дата время",
         }
 
-        # Шаг 1: поиск методов по intent (если указан)
+        # Шаг 1: поиск методов через BM25/FTS5 (semantic, не keyword)
         candidate_methods: list[dict[str, Any]] = []
-        if intent and intent in intent_keywords:
-            keywords = intent_keywords[intent]
-            for kw in keywords:
-                results = idx.search(kw, limit=limit * 2)
-                for r in results:
-                    if r not in candidate_methods:
-                        candidate_methods.append(r)
-                if len(candidate_methods) >= limit * 2:
-                    break
+        if intent and intent in intent_to_query:
+            # Используем intent как поисковый запрос
+            search_query = intent_to_query[intent]
+            candidate_methods = idx.search(search_query, limit=limit * 2)
         else:
             # Без intent — возвращаем popular methods (пустой query → топ методов)
             candidate_methods = idx.search("", limit=limit * 2)

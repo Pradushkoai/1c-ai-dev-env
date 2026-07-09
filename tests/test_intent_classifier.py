@@ -12,7 +12,7 @@ F2.5: Тесты для intent classifier.
 from __future__ import annotations
 
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from src.services.intent.classifier import (
     INTENT_PATTERNS,
@@ -20,6 +20,7 @@ from src.services.intent.classifier import (
     classify_intent,
     get_intent_description,
     get_intent_names,
+    _classify_with_llm,
 )
 
 
@@ -719,3 +720,158 @@ class TestSourceMapping:
             mock_pm.assert_called_once()
             mock_meta.assert_called_once()
             mock_api.assert_called_once()
+
+
+# ============================================================================
+# R6: LLM-based intent fallback
+# ============================================================================
+
+
+class TestLLMFallback:
+    """R6: Тесты для LLM-based intent fallback."""
+
+    def test_llm_fallback_disabled(self):
+        """use_llm_fallback=False — unknown intent без LLM."""
+        intent = classify_intent("абракадабра непонятная", use_llm_fallback=False)
+        assert intent.name == "unknown"
+        assert intent.confidence == 0.0
+
+    def test_llm_fallback_called_when_no_regex_match(self):
+        """Если regex не match — вызывается LLM fallback."""
+        with patch("src.services.intent.classifier._classify_with_llm") as mock_llm:
+            mock_llm.return_value = Intent(
+                name="create_object",
+                confidence=0.6,
+                required_sources=["metadata"],
+                workflow=[{"step": 1, "tool": "plan", "why": "test"}],
+                matched_patterns=["llm_fallback"],
+            )
+            intent = classify_intent("очень необычный запрос", use_llm_fallback=True)
+            mock_llm.assert_called_once()
+            assert intent.name == "create_object"
+            assert intent.confidence == 0.6
+
+    def test_llm_fallback_returns_none_when_ollama_unavailable(self):
+        """Если Ollama недоступен — _classify_with_llm возвращает None."""
+        with patch("src.services.llm_ollama.OllamaClient") as mock_client:
+            mock_client.return_value.is_available.return_value = False
+            result = _classify_with_llm("test query")
+            assert result is None
+
+    def test_llm_fallback_returns_none_on_invalid_response(self):
+        """Если LLM вернул невалидный intent — None."""
+        with patch("src.services.llm_ollama.OllamaClient") as mock_client:
+            mock_client.return_value.is_available.return_value = True
+            mock_response = MagicMock()
+            mock_response.text = "invalid_intent_name"
+            mock_client.return_value.generate.return_value = mock_response
+
+            result = _classify_with_llm("test query")
+            assert result is None
+
+    def test_llm_fallback_returns_intent_on_valid_response(self):
+        """Если LLM вернул валидный intent — возвращается Intent."""
+        with patch("src.services.llm_ollama.OllamaClient") as mock_client:
+            mock_client.return_value.is_available.return_value = True
+            mock_response = MagicMock()
+            mock_response.text = "create_object"
+            mock_client.return_value.generate.return_value = mock_response
+
+            result = _classify_with_llm("test query")
+            assert result is not None
+            assert result.name == "create_object"
+            assert result.confidence == 0.6
+            assert "llm_fallback" in result.matched_patterns
+
+    def test_llm_fallback_handles_exception(self):
+        """При exception в Ollama — возвращает None."""
+        with patch("src.services.llm_ollama.OllamaClient") as mock_client:
+            mock_client.side_effect = Exception("Ollama failed")
+            result = _classify_with_llm("test query")
+            assert result is None
+
+    def test_regex_match_takes_precedence_over_llm(self):
+        """Если regex match'ит — LLM не вызывается."""
+        with patch("src.services.intent.classifier._classify_with_llm") as mock_llm:
+            intent = classify_intent("создай справочник", use_llm_fallback=True)
+            mock_llm.assert_not_called()
+            assert intent.name == "create_object"
+            assert intent.confidence >= 0.9
+
+
+# ============================================================================
+# R7: get_safe_methods semantic filtering
+# ============================================================================
+
+
+class TestSafeMethodsSemantic:
+    """R7: Тесты для semantic filtering в get_safe_methods."""
+
+    @pytest.mark.asyncio
+    async def test_get_safe_methods_uses_fts5_search(self):
+        """get_safe_methods использует FTS5 search (не keyword matching)."""
+        from src.mcpserver.handlers.quality import handle_get_safe_methods
+        from src.services.platform_methods_index import PlatformMethodsIndex
+        from unittest.mock import MagicMock, patch
+
+        project = MagicMock()
+        project.paths = MagicMock()
+
+        # Mock idx.search to verify it's called with intent-based query
+        with patch.object(PlatformMethodsIndex, "is_available", return_value=True), \
+             patch.object(PlatformMethodsIndex, "search", return_value=[]) as mock_search, \
+             patch.object(PlatformMethodsIndex, "close"):
+            
+            await handle_get_safe_methods(
+                project,
+                {"target_context": "thin_client", "intent": "query"},
+            )
+            
+            # search должен быть вызван с intent-based query, не с keyword list
+            assert mock_search.call_count >= 1
+            # Проверяем что первый аргумент — строка (query), не list
+            call_args = mock_search.call_args[0]
+            assert isinstance(call_args[0], str)
+
+    @pytest.mark.asyncio
+    async def test_get_safe_methods_intent_query_mapping(self):
+        """intent 'query' → FTS5 query 'запрос select виртуальная таблица'."""
+        from src.mcpserver.handlers.quality import handle_get_safe_methods
+        from src.services.platform_methods_index import PlatformMethodsIndex
+        from unittest.mock import MagicMock, patch
+
+        project = MagicMock()
+
+        with patch.object(PlatformMethodsIndex, "is_available", return_value=True), \
+             patch.object(PlatformMethodsIndex, "search", return_value=[]) as mock_search, \
+             patch.object(PlatformMethodsIndex, "close"):
+            
+            await handle_get_safe_methods(
+                project,
+                {"target_context": "server", "intent": "query"},
+            )
+            
+            # Проверяем что search вызван с правильным query
+            search_query = mock_search.call_args[0][0]
+            assert "запрос" in search_query or "select" in search_query
+
+    @pytest.mark.asyncio
+    async def test_get_safe_methods_no_intent_uses_empty_query(self):
+        """Без intent — пустой query (top methods)."""
+        from src.mcpserver.handlers.quality import handle_get_safe_methods
+        from src.services.platform_methods_index import PlatformMethodsIndex
+        from unittest.mock import MagicMock, patch
+
+        project = MagicMock()
+
+        with patch.object(PlatformMethodsIndex, "is_available", return_value=True), \
+             patch.object(PlatformMethodsIndex, "search", return_value=[]) as mock_search, \
+             patch.object(PlatformMethodsIndex, "close"):
+            
+            await handle_get_safe_methods(
+                project,
+                {"target_context": "server"},  # no intent
+            )
+            
+            mock_search.assert_called_once()
+            assert mock_search.call_args[0][0] == ""

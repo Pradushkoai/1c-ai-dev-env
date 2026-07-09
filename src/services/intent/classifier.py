@@ -239,11 +239,15 @@ INTENT_PATTERNS: list[IntentPattern] = [
 # ============================================================================
 
 
-def classify_intent(query: str) -> Intent:
+def classify_intent(query: str, use_llm_fallback: bool = True) -> Intent:
     """F2.5: Классифицировать intent задачи.
+
+    R6 (2026-07-09): LLM-based fallback — если confidence < 0.5 и use_llm_fallback=True,
+    пытается классифицировать через Ollama. Timeout 2s, fallback на unknown.
 
     Args:
         query: Текст задачи от LLM/пользователя
+        use_llm_fallback: Если True — использовать Ollama для low-confidence cases
 
     Returns:
         Intent с confidence, target_context_hint, required_sources, workflow.
@@ -264,17 +268,22 @@ def classify_intent(query: str) -> Intent:
             candidates.append((pattern, matched))
 
     if not candidates:
+        # R6: LLM-based fallback для unknown queries
+        if use_llm_fallback:
+            llm_intent = _classify_with_llm(query)
+            if llm_intent is not None:
+                return llm_intent
+
         # Fallback: default workflow
         return Intent(
             name="unknown",
             confidence=0.0,
             required_sources=["platform_methods", "metadata", "standards"],
             workflow=[
-                {"step": 1, "tool": "search_platform_method", "why": "Найти методы платформы"},
-                {"step": 2, "tool": "get_method_details_batch", "why": "Получить детали методов"},
-                {"step": 3, "tool": "get_object_structure", "why": "Структура объекта"},
-                {"step": 4, "tool": "check_bsl_context", "why": "Проверить контекст методов"},
-                {"step": 5, "tool": "solve_check", "why": "Проверка кода"},
+                {"step": 1, "tool": "plan", "why": "Пере-классифицировать задачу"},
+                {"step": 2, "tool": "gather", "why": "Собрать контекст (default sources)"},
+                {"step": 3, "tool": "generate", "why": "Сгенерировать код"},
+                {"step": 4, "tool": "validate", "why": "Проверить код"},
             ],
         )
 
@@ -296,6 +305,80 @@ def classify_intent(query: str) -> Intent:
         workflow=best_pattern.workflow,
         matched_patterns=best_matched,
     )
+
+
+# ============================================================================
+# R6: LLM-based intent fallback
+# ============================================================================
+
+
+def _classify_with_llm(query: str) -> Intent | None:
+    """R6: Классифицировать intent через Ollama (fallback для unknown queries).
+
+    Использует локальный Ollama для LLM-based классификации.
+    Timeout 2s — если Ollama недоступен или медленный, возвращаем None.
+
+    Args:
+        query: Текст задачи
+
+    Returns:
+        Intent если Ollama вернул валидный intent, иначе None.
+    """
+    try:
+        from src.services.llm_ollama import OllamaClient
+
+        client = OllamaClient()
+        if not client.is_available():
+            return None
+
+        prompt = (
+            "Классифицируй intent задачи для 1С разработки.\n"
+            f"Query: '{query}'\n\n"
+            "Categories (верни только одно слово):\n"
+            "- create_object (создание справочника/документа/регистра)\n"
+            "- write_query (написание запроса 1С)\n"
+            "- generate_bsl (генерация BSL кода/модуля/формы)\n"
+            "- audit_code (аудит безопасности)\n"
+            "- understand_code (понимание кода)\n"
+            "- refactor_code (рефакторинг)\n"
+            "- search_method (поиск метода)\n"
+            "- generate_skd (создание СКД)\n"
+            "- cfe_extension (расширение CFE)\n"
+            "- unknown\n\n"
+            "Ответ (только одно слово):"
+        )
+
+        response = client.generate(prompt, temperature=0.1, num_predict=10)
+        if not response or not response.text:
+            return None
+
+        # Парсим ответ — берём первое слово, нормализуем
+        intent_name = response.text.strip().lower().split()[0] if response.text.strip() else ""
+        # Убираем пунктуацию
+        intent_name = intent_name.strip(".,!?;:")
+
+        # Проверяем что это валидный intent
+        valid_intents = {p.intent_name for p in INTENT_PATTERNS}
+        if intent_name not in valid_intents:
+            return None
+
+        # Находим pattern для этого intent
+        for pattern in INTENT_PATTERNS:
+            if pattern.intent_name == intent_name:
+                return Intent(
+                    name=intent_name,
+                    confidence=0.6,  # LLM confidence ниже чем regex (0.9)
+                    target_context_hint=pattern.target_context_hint,
+                    object_type_hint=pattern.object_type_hint,
+                    required_sources=pattern.required_sources,
+                    workflow=pattern.workflow,
+                    matched_patterns=["llm_fallback"],
+                )
+
+        return None
+    except Exception:
+        # Любая ошибка — возвращаем None (fallback на unknown)
+        return None
 
 
 def get_intent_names() -> list[str]:
