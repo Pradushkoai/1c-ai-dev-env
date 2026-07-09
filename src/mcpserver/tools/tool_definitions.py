@@ -7,7 +7,7 @@ P2.2: вынесено из mcp_server.py для декомпозиции (SRP).
 Гибридный подход (tool interference fix):
   - get_all_tool_definitions() возвращает ВСЕ tools (для CLI, backward compat)
   - get_mcp_visible_tools() возвращает только 10 КЛЮЧЕВЫХ tools (для MCP/LLM)
-  - LLM не перегружена 56 инструментами — видит только нужные
+  - LLM не перегружена 62 инструментами — видит только нужные
 
 Источник истины — tests/snapshots/test_mcp_tools_snapshot/.
 Любое изменение имён/описаний/схем требует --snapshot-update.
@@ -20,24 +20,23 @@ import mcp.types as types
 
 
 # ============================================================================
-# ГИБРИДНЫЙ ФИЛЬТР: только 10 ключевых инструментов видны LLM через MCP
+# ГИБРИДНЫЙ ФИЛЬТР: R1 — 6 high-level visible tools вместо 12
 # ============================================================================
 
-# Эти инструменты LLM видит и может вызывать напрямую.
-# Остальные 44 — доступны через CLI или вызываются внутри этих.
+# R1 (2026-07-09): Консолидация visible tools.
+# 5 high-level глаголов (plan, gather, generate, validate, explain) + run_cli proxy.
+# Старые 12 tools остались как hidden — доступны через run_cli или внутри high-level.
 MCP_VISIBLE_TOOLS: frozenset[str] = frozenset({
-    "solve_context",               # Сбор контекста (внутри: search, KB, metadata)
-    "get_method_details",          # Карточка метода (синтаксис, доступность)
-    "get_method_details_batch",    # F2.2: Batch — несколько методов одним вызовом
-    "get_safe_methods",            # F2.3: Pre-hoc guidance — методы, доступные в контексте
-    "check_bsl_context",           # Проверка кода на контекст
-    "solve_check",                 # Полная проверка (7 analyzer'ов)
-    "bsl_templates",               # Шаблоны BSL кода
-    "generate_query",              # Генерация запросов
-    "get_object_structure",        # Структура объекта конфигурации
-    "inspect",                     # Обзор конфигурации
-    "search_platform_method",      # Поиск методов платформы
-    "data_status",                 # Статус данных проекта
+    # R1: 5 high-level tools (глаголы полного lifecycle)
+    "plan",          # 1. Intent classification + source selection
+    "gather",        # 2. Собрать контекст (cached, включает safe_methods)
+    "generate",      # 3. BSL/query/DSL + inline validation
+    "validate",      # 4. Полная проверка (solve_check + check_bsl_context)
+    "explain",       # 5. Понимание существующего кода
+    # R10: Proxy для 44 hidden tools
+    "run_cli",       # Доступ к call_graph, dsl_compile_*, cfe_*, etc.
+    # Утилиты (оставлены visible — не относятся к lifecycle)
+    "data_status",   # Статус данных проекта (actionable: _missing_prerequisites)
 })
 
 
@@ -51,7 +50,7 @@ def _build_tool(name: str, description: str, input_schema: dict[str, Any]) -> ty
 
 
 def get_all_tool_definitions() -> list[types.Tool]:
-    """Вернуть список всех 56 MCP tools (для list_tools handler)."""
+    """Вернуть список всех 62 MCP tools (для list_tools handler)."""
     return [
         _build_tool(
             name="analyze_architecture",
@@ -823,6 +822,120 @@ def get_all_tool_definitions() -> list[types.Tool]:
                     "auto_optimize": {"description": "Автооптимизация (default: true)", "type": "boolean"},
                 },
                 "required": ["task"],
+                "type": "object",
+            },
+        ),
+        # ====================================================================
+        # R1: HIGH-LEVEL TOOLS (5 глаголов + run_cli proxy)
+        # ====================================================================
+        _build_tool(
+            name="plan",
+            description=(
+                "R1: Классифицировать intent задачи и вернуть план действий. "
+                "ВЫЗЫВАЙТЕ ПЕРВЫМ для любой задачи. "
+                "Возвращает: intent, target_context_hint, required_sources, plan_id. "
+                "Не собирает контекст — используйте gather(plan_id) для сбора. "
+                "Пример: plan(query='создай справочник для учёта товаров', config='ut11')."
+            ),
+            input_schema={
+                "properties": {
+                    "query": {"description": "Описание задачи на русском", "type": "string"},
+                    "config": {"description": "Имя конфигурации (опционально)", "type": "string"},
+                },
+                "required": ["query"],
+                "type": "object",
+            },
+        ),
+        _build_tool(
+            name="gather",
+            description=(
+                "R1: Собрать контекст для решения задачи (cached). "
+                "Использует plan из session для source selection. "
+                "Кэширует результат — повторный вызов возвращает кэш без повторного поиска. "
+                "Включает safe_methods для target_context (pre-hoc guidance). "
+                "Пример: gather(plan_id='uuid-from-plan', limit=5). "
+                "force_refresh=true для принудительного пересбора."
+            ),
+            input_schema={
+                "properties": {
+                    "plan_id": {"description": "ID плана из plan() (опционально, использует session)", "type": "string"},
+                    "limit": {"description": "Лимит результатов на источник (default 5)", "type": "integer", "default": 5},
+                    "force_refresh": {"description": "Принудительно пересобрать контекст (default false)", "type": "boolean"},
+                },
+                "type": "object",
+            },
+        ),
+        _build_tool(
+            name="generate",
+            description=(
+                "R1: Сгенерировать BSL код / запрос / DSL + inline validation. "
+                "Оркестрирует генерацию + быструю проверку (check_bsl_context). "
+                "Возвращает artifact_id для использования в validate(). "
+                "Если validation_passed=false — вызовите validate(artifact_id) для полной проверки. "
+                "Пример: generate(task='запрос остатков по складу', target_context='server', type='query')."
+            ),
+            input_schema={
+                "properties": {
+                    "task": {"description": "Описание что сгенерировать", "type": "string"},
+                    "target_context": {"description": "Целевой контекст: thin_client, server, mobile_client (default server)", "type": "string", "default": "server"},
+                    "type": {"description": "Тип артефакта: bsl, query, dsl (default bsl)", "type": "string", "default": "bsl", "enum": ["bsl", "query", "dsl"]},
+                },
+                "required": ["task"],
+                "type": "object",
+            },
+        ),
+        _build_tool(
+            name="validate",
+            description=(
+                "R1: Полная валидация кода. "
+                "Если artifact_id — берёт код из session (state-aware). "
+                "Если file_path — проверяет файл. "
+                "Запускает solve_check (7-9 анализаторов) + check_bsl_context. "
+                "Возвращает приоритизированный результат: must_fix, top_3_priority, grouped_violations. "
+                "Пример: validate(artifact_id='artifact_1'). "
+                "Пример: validate(file_path='/tmp/module.bsl', level='standard')."
+            ),
+            input_schema={
+                "properties": {
+                    "artifact_id": {"description": "ID артефакта из generate() (state-aware)", "type": "string"},
+                    "file_path": {"description": "Путь к .bsl файлу (альтернатива artifact_id)", "type": "string"},
+                    "level": {"description": "Уровень проверки: quick, standard, full (default standard)", "type": "string", "default": "standard", "enum": ["quick", "standard", "full"]},
+                },
+                "type": "object",
+            },
+        ),
+        _build_tool(
+            name="explain",
+            description=(
+                "R1: Объяснить существующий код или найти использование. "
+                "Если file_path — анализирует код (metrics, architecture). "
+                "Если query — ищет где используется метод/объект. "
+                "Пример: explain(file_path='/tmp/module.bsl'). "
+                "Пример: explain(query='где используется ЗаписьЖурналаРегистрации')."
+            ),
+            input_schema={
+                "properties": {
+                    "file_path": {"description": "Путь к .bsl файлу для анализа", "type": "string"},
+                    "query": {"description": "Поисковый запрос (найти использование)", "type": "string"},
+                },
+                "type": "object",
+            },
+        ),
+        _build_tool(
+            name="run_cli",
+            description=(
+                "R10: Proxy для доступа к 44 hidden MCP tools через один visible tool. "
+                "Позволяет вызывать call_graph, dsl_compile_*, cfe_*, skd_trace и др. "
+                "Whitelist разрешённых команд — security. "
+                "Пример: run_cli(command='call_graph', args={'config_name': 'ut11', 'action': 'stats'}). "
+                "Без аргументов — возвращает список разрешённых команд."
+            ),
+            input_schema={
+                "properties": {
+                    "command": {"description": "Имя hidden tool (должно быть в whitelist)", "type": "string"},
+                    "args": {"description": "Аргументы для hidden tool (dict)", "type": "object"},
+                },
+                "required": ["command"],
                 "type": "object",
             },
         ),

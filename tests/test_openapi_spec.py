@@ -106,16 +106,16 @@ class TestOpenApiSpecVersion:
 class TestOpenApiSpecTools:
     """Проверка tools в spec."""
 
-    def test_spec_has_12_visible_tools(self) -> None:
-        """Spec содержит 12 visible MCP tools (F2.2/F2.3).
+    def test_spec_has_7_visible_tools(self) -> None:
+        """Spec содержит 7 visible MCP tools (R1: 6 high-level + data_status).
 
-        OpenAPI spec экспонирует только visible tools (12) — те, что LLM/клиент
-        может вызвать через HTTP. Остальные 44 доступны через CLI.
+        OpenAPI spec экспонирует только visible tools (7) — те, что LLM/клиент
+        может вызвать через HTTP. Остальные 55 доступны через run_cli.
         """
         spec = _load_openapi_spec()
         tools_count = len(spec["paths"])
-        assert tools_count == 12, (
-            f"Spec должен содержать 12 visible tools, получено: {tools_count}. "
+        assert tools_count == 7, (
+            f"Spec должен содержать 7 visible tools, получено: {tools_count}. "
             f"Запустите: python3 scripts/generate_openapi.py для регенерации."
         )
 

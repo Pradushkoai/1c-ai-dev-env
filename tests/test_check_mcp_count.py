@@ -11,7 +11,7 @@
 - docs/ARCHITECTURE.md
 - AGENTS.md
 
-Regression: P1.6 (snapshot testing) зафиксировал контракт 12 tools.
+Regression: R1 (2026-07-09) — контракт 7 visible tools (6 high-level + data_status).
 Любое изменение требует обновления всех источников.
 """
 
@@ -45,10 +45,10 @@ class TestGetActualToolsCount:
     """get_actual_tools_count() — кол-во tools из list_tools handler."""
 
     def test_returns_positive_count(self) -> None:
-        """Должно возвращать положительное число (12 tools)."""
+        """Должно возвращать положительное число (7 tools)."""
         count = get_actual_tools_count()
         assert count > 0, "Should return positive count"
-        assert count == 12, f"Expected 12 tools (per snapshot contract), got {count}"
+        assert count == 7, f"Expected 7 tools (R1: 6 high-level + data_status), got {count}"
 
     def test_returns_int(self) -> None:
         """Должно возвращать int (не float/str)."""
@@ -59,7 +59,7 @@ class TestGetActualToolsCount:
         """Должно работать с mocked Project (не требует реальной конфигурации 1С)."""
         with patch("src.project.Project"):
             count = get_actual_tools_count()
-            assert count == 12
+            assert count == 7
 
 
 class TestGetStaticToolsCount:
@@ -68,7 +68,7 @@ class TestGetStaticToolsCount:
     def test_returns_positive_count(self) -> None:
         count = get_static_tools_count()
         assert count > 0
-        assert count == 12, f"Expected 12 (per snapshot), got {count}"
+        assert count == 7, f"Expected 7 (R1), got {count}"
 
     def test_returns_int(self) -> None:
         count = get_static_tools_count()
@@ -142,8 +142,8 @@ class TestMainExitCodes:
         original_content = readme_path.read_text(encoding="utf-8")
 
         try:
-            # Меняем badge MCP%20tools-12 на MCP%20tools-99
-            modified = original_content.replace("MCP%20tools-12", "MCP%20tools-99")
+            # Меняем badge MCP%20tools-7 на MCP%20tools-99
+            modified = original_content.replace("MCP%20tools-7", "MCP%20tools-99")
             assert modified != original_content, "Test setup failed: badge pattern not found"
             readme_path.write_text(modified, encoding="utf-8")
 
@@ -159,24 +159,24 @@ class TestMainExitCodes:
 
 
 class TestSourcesOfTruth:
-    """Все источники должны сходиться к одному числу — 12."""
+    """Все источники должны сходиться к одному числу — 7."""
 
     def test_manifest_json_has_correct_count(self) -> None:
-        """manifest.json: mcp_tools_count должен быть 12."""
+        """manifest.json: mcp_tools_count должен быть 7."""
         manifest_path = _REPO_ROOT / "manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        assert manifest.get("mcp_tools_count") == 12, (
-            f"manifest.json mcp_tools_count={manifest.get('mcp_tools_count')}, expected 12"
+        assert manifest.get("mcp_tools_count") == 7, (
+            f"manifest.json mcp_tools_count={manifest.get('mcp_tools_count')}, expected 7"
         )
 
     def test_readme_badge_has_correct_count(self) -> None:
-        """README.md: badge MCP%20tools-XX должен быть 12."""
+        """README.md: badge MCP%20tools-XX должен быть 7."""
         readme = (_REPO_ROOT / "README.md").read_text(encoding="utf-8")
         import re
 
         match = re.search(r"MCP%20tools-(\d+)", readme)
         assert match is not None, "MCP tools badge not found in README.md"
-        assert int(match.group(1)) == 12, f"README badge={match.group(1)}, expected 12"
+        assert int(match.group(1)) == 7, f"README badge={match.group(1)}, expected 7"
 
     def test_actual_count_matches_snapshot(self) -> None:
         """Visible count (actual) должен быть ≤ total count (snapshot).

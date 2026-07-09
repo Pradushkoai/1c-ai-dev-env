@@ -20,102 +20,6 @@
     }
   ],
   "paths": {
-    "/tools/bsl_templates": {
-      "post": {
-        "summary": "bsl_templates",
-        "description": "Список доступных шаблонов: 15 query-шаблонов (SELECT-запросы) + BSL code-шаблоны (готовые функции). Query категории: basic, virtual_tables, batch, analytics, catalogs, documents. BSL категории: catalog, document, form, http, json, query, security. Если category указан — возвращает шаблоны только этой категории. Пример: bsl_templates(category='query'). Пример: bsl_templates(category='virtual_tables').",
-        "operationId": "bsl_templates",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "category": {
-                    "type": "string",
-                    "description": "Optional parameter: category"
-                  }
-                },
-                "required": []
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/check_bsl_context": {
-      "post": {
-        "summary": "check_bsl_context",
-        "description": "B7: Проверка BSL-кода на доступность методов в целевом контексте. CTX001: метод недоступен (ERROR), CTX002: устарел (WARNING). Пример: check_bsl_context(code='...', target_context=['thin_client']).",
-        "operationId": "check_bsl_context",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "code": {
-                    "type": "string",
-                    "description": "Required parameter: code"
-                  },
-                  "target_context": {
-                    "type": "string",
-                    "description": "Optional parameter: target_context"
-                  }
-                },
-                "required": [
-                  "code"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
     "/tools/data_status": {
       "post": {
         "summary": "data_status",
@@ -156,11 +60,113 @@
         }
       }
     },
-    "/tools/generate_query": {
+    "/tools/explain": {
       "post": {
-        "summary": "generate_query",
-        "description": "Phase B: Генерация запроса 1С по описанию задачи. Принимает описание на русском (напр. 'продажи по месяцам за последний год'), возвращает готовый текст запроса с параметрами, объяснением и ссылкой на паттерн knowledge base. 15 шаблонов в 6 категориях: базовые, виртуальные таблицы, пакетные, аналитика, справочники, документы. Пример: generate_query(task='топ-10 клиентов по выручке', config_name='ut11').",
-        "operationId": "generate_query",
+        "summary": "explain",
+        "description": "R1: Объяснить существующий код или найти использование. Если file_path — анализирует код (metrics, architecture). Если query — ищет где используется метод/объект. Пример: explain(file_path='/tmp/module.bsl'). Пример: explain(query='где используется ЗаписьЖурналаРегистрации').",
+        "operationId": "explain",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file_path": {
+                    "type": "string",
+                    "description": "Optional parameter: file_path"
+                  },
+                  "query": {
+                    "type": "string",
+                    "description": "Optional parameter: query"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/gather": {
+      "post": {
+        "summary": "gather",
+        "description": "R1: Собрать контекст для решения задачи (cached). Использует plan из session для source selection. Кэширует результат — повторный вызов возвращает кэш без повторного поиска. Включает safe_methods для target_context (pre-hoc guidance). Пример: gather(plan_id='uuid-from-plan', limit=5). force_refresh=true для принудительного пересбора.",
+        "operationId": "gather",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "plan_id": {
+                    "type": "string",
+                    "description": "Optional parameter: plan_id"
+                  },
+                  "limit": {
+                    "type": "string",
+                    "description": "Optional parameter: limit"
+                  },
+                  "force_refresh": {
+                    "type": "string",
+                    "description": "Optional parameter: force_refresh"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/generate": {
+      "post": {
+        "summary": "generate",
+        "description": "R1: Сгенерировать BSL код / запрос / DSL + inline validation. Оркестрирует генерацию + быструю проверку (check_bsl_context). Возвращает artifact_id для использования в validate(). Если validation_passed=false — вызовите validate(artifact_id) для полной проверки. Пример: generate(task='запрос остатков по складу', target_context='server', type='query').",
+        "operationId": "generate",
         "tags": [
           "MCP Tools"
         ],
@@ -175,13 +181,13 @@
                     "type": "string",
                     "description": "Required parameter: task"
                   },
-                  "config_name": {
+                  "target_context": {
                     "type": "string",
-                    "description": "Optional parameter: config_name"
+                    "description": "Optional parameter: target_context"
                   },
-                  "object_hints": {
+                  "type": {
                     "type": "string",
-                    "description": "Optional parameter: object_hints"
+                    "description": "Optional parameter: type"
                   }
                 },
                 "required": [
@@ -211,401 +217,11 @@
         }
       }
     },
-    "/tools/get_method_details": {
+    "/tools/plan": {
       "post": {
-        "summary": "get_method_details",
-        "description": "B7: Полная карточка метода платформы 1С: синтаксис, параметры, описание, доступность (9 контекстов), пример, версию. Пример: get_method_details(name='ЗаписьЖурналаРегистрации').",
-        "operationId": "get_method_details",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "description": "Required parameter: name"
-                  },
-                  "platform_version": {
-                    "type": "string",
-                    "description": "Optional parameter: platform_version"
-                  }
-                },
-                "required": [
-                  "name"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/get_method_details_batch": {
-      "post": {
-        "summary": "get_method_details_batch",
-        "description": "F2.2: Batch-вызов get_method_details — карточки нескольких методов одним запросом. ИСПОЛЬЗУЙТЕ вместо N отдельных get_method_details вызовов. Опционально: target_context — проверит доступность методов в контексте и вернёт not_available_in_context + deprecated списки. Максимальный batch: 50 методов. Пример: get_method_details_batch(names=['Сообщить', 'ЗаписьЖурналаРегистрации'], target_context='thin_client').",
-        "operationId": "get_method_details_batch",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "names": {
-                    "type": "string",
-                    "description": "Required parameter: names"
-                  },
-                  "platform_version": {
-                    "type": "string",
-                    "description": "Optional parameter: platform_version"
-                  },
-                  "target_context": {
-                    "type": "string",
-                    "description": "Optional parameter: target_context"
-                  }
-                },
-                "required": [
-                  "names"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/get_object_structure": {
-      "post": {
-        "summary": "get_object_structure",
-        "description": "Полная структура объекта конфигурации: ресурсы, измерения, реквизиты (с типами), табличные части. ВЫЗЫВАЙТЕ ПЕРЕД НАПИСАНИЕМ ЗАПРОСА для получения точных имён полей. Если object_name не указан — список всех объектов. Пример: get_object_structure(config_name='ut11', object_name='ВыручкаИСебестоимостьПродаж').",
-        "operationId": "get_object_structure",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "config_name": {
-                    "type": "string",
-                    "description": "Required parameter: config_name"
-                  },
-                  "object_name": {
-                    "type": "string",
-                    "description": "Optional parameter: object_name"
-                  },
-                  "object_type": {
-                    "type": "string",
-                    "description": "Optional parameter: object_type"
-                  }
-                },
-                "required": [
-                  "config_name"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/get_safe_methods": {
-      "post": {
-        "summary": "get_safe_methods",
-        "description": "F2.3: Pre-hoc guidance — возвращает методы платформы 1С, ДОСТУПНЫЕ в target_context и не устаревшие. ИСПОЛЬЗУЙТЕ ДО генерации BSL-кода — получите сразу безопасный набор, вместо post-hoc проверки через check_bsl_context. Опционально: intent — фильтр по типу задачи (query, form, catalog, document, register, security, http, json, file, string, date). Пример: get_safe_methods(target_context='thin_client', intent='query', limit=20).",
-        "operationId": "get_safe_methods",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "target_context": {
-                    "type": "string",
-                    "description": "Required parameter: target_context"
-                  },
-                  "intent": {
-                    "type": "string",
-                    "description": "Optional parameter: intent"
-                  },
-                  "limit": {
-                    "type": "string",
-                    "description": "Optional parameter: limit"
-                  },
-                  "platform_version": {
-                    "type": "string",
-                    "description": "Optional parameter: platform_version"
-                  }
-                },
-                "required": [
-                  "target_context"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/inspect": {
-      "post": {
-        "summary": "inspect",
-        "description": "Инспекция объектов 1С: cf (конфигурация — обзор всех объектов), meta, form, skd, mxl, role, subsystem. НАЧАЛЬНЫЙ ШАГ для понимания структуры конфигурации. Возвращает свойства и структуру. Пример: inspect(type='cf', path='data/configs/ut11').",
-        "operationId": "inspect",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "target": {
-                    "type": "string",
-                    "description": "Required parameter: target"
-                  },
-                  "path": {
-                    "type": "string",
-                    "description": "Required parameter: path"
-                  },
-                  "config_name": {
-                    "type": "string",
-                    "description": "Optional parameter: config_name"
-                  },
-                  "mode": {
-                    "type": "string",
-                    "description": "Optional parameter: mode"
-                  },
-                  "name": {
-                    "type": "string",
-                    "description": "Optional parameter: name"
-                  }
-                },
-                "required": [
-                  "target",
-                  "path"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/search_platform_method": {
-      "post": {
-        "summary": "search_platform_method",
-        "description": "B7: Поиск методов платформы 1С в SQLite индексе. В отличие от search_1c_methods (УТ11), ищет в полном справочнике платформы с доступностью, версиями, параметрами. Пример: search_platform_method(query='ЗаписьЖурналаРегистрации').",
-        "operationId": "search_platform_method",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "query": {
-                    "type": "string",
-                    "description": "Required parameter: query"
-                  },
-                  "limit": {
-                    "type": "string",
-                    "description": "Optional parameter: limit"
-                  },
-                  "platform_version": {
-                    "type": "string",
-                    "description": "Optional parameter: platform_version"
-                  }
-                },
-                "required": [
-                  "query"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/solve_check": {
-      "post": {
-        "summary": "solve_check",
-        "description": "Полная проверка .bsl кода: 7 анализаторов. Уровни: 'quick' (4 анализатора, без Java), 'standard' (quick + BSL LS), 'full' (standard + code_metrics + metadata_standards). Возвращает: total_errors, total_warnings, violations, verdict, analyzers_run, metrics (для full). verdict: 'ready' (0 errors), 'warnings' (0 errors, есть warnings), 'errors' (есть errors). Пример: solve_check(file_path='/tmp/module.bsl', level='standard')",
-        "operationId": "solve_check",
-        "tags": [
-          "MCP Tools"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file_path": {
-                    "type": "string",
-                    "description": "Required parameter: file_path"
-                  },
-                  "level": {
-                    "type": "string",
-                    "description": "Optional parameter: level"
-                  }
-                },
-                "required": [
-                  "file_path"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request — missing required parameters"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/tools/solve_context": {
-      "post": {
-        "summary": "solve_context",
-        "description": "META-TOOL: сбор контекста + workflow recommendations. ВЫЗЫВАЙТЕ ПЕРВЫМ при решении любой задачи. Анализирует тип задачи (запрос, обработка, аудит, архитектура, поиск) и возвращает _workflow — пошаговый план какие tools вызывать и в каком порядке. Собирает 7 источников: методы платформы (BM25), API-справочник, структура объектов, СКД-схемы, формы, база знаний, стандарты. Пример: solve_context(query='написать запрос к регистру продаж', config='ut11').",
-        "operationId": "solve_context",
+        "summary": "plan",
+        "description": "R1: Классифицировать intent задачи и вернуть план действий. ВЫЗЫВАЙТЕ ПЕРВЫМ для любой задачи. Возвращает: intent, target_context_hint, required_sources, plan_id. Не собирает контекст — используйте gather(plan_id) для сбора. Пример: plan(query='создай справочник для учёта товаров', config='ut11').",
+        "operationId": "plan",
         "tags": [
           "MCP Tools"
         ],
@@ -623,15 +239,115 @@
                   "config": {
                     "type": "string",
                     "description": "Optional parameter: config"
-                  },
-                  "limit": {
-                    "type": "string",
-                    "description": "Optional parameter: limit"
                   }
                 },
                 "required": [
                   "query"
                 ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/run_cli": {
+      "post": {
+        "summary": "run_cli",
+        "description": "R10: Proxy для доступа к 44 hidden MCP tools через один visible tool. Позволяет вызывать call_graph, dsl_compile_*, cfe_*, skd_trace и др. Whitelist разрешённых команд — security. Пример: run_cli(command='call_graph', args={'config_name': 'ut11', 'action': 'stats'}). Без аргументов — возвращает список разрешённых команд.",
+        "operationId": "run_cli",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "command": {
+                    "type": "string",
+                    "description": "Required parameter: command"
+                  },
+                  "args": {
+                    "type": "string",
+                    "description": "Optional parameter: args"
+                  }
+                },
+                "required": [
+                  "command"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tools/validate": {
+      "post": {
+        "summary": "validate",
+        "description": "R1: Полная валидация кода. Если artifact_id — берёт код из session (state-aware). Если file_path — проверяет файл. Запускает solve_check (7-9 анализаторов) + check_bsl_context. Возвращает приоритизированный результат: must_fix, top_3_priority, grouped_violations. Пример: validate(artifact_id='artifact_1'). Пример: validate(file_path='/tmp/module.bsl', level='standard').",
+        "operationId": "validate",
+        "tags": [
+          "MCP Tools"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "artifact_id": {
+                    "type": "string",
+                    "description": "Optional parameter: artifact_id"
+                  },
+                  "file_path": {
+                    "type": "string",
+                    "description": "Optional parameter: file_path"
+                  },
+                  "level": {
+                    "type": "string",
+                    "description": "Optional parameter: level"
+                  }
+                },
+                "required": []
               }
             }
           }

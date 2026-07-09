@@ -91,6 +91,11 @@
     "output_path"
   ],
   "epf_factory_templates": [],
+  "explain": [],
+  "gather": [],
+  "generate": [
+    "task"
+  ],
   "generate_processing": [
     "name",
     "synonym"
@@ -150,8 +155,14 @@
   "optimize_query": [
     "query"
   ],
+  "plan": [
+    "query"
+  ],
   "query_workflow": [
     "task"
+  ],
+  "run_cli": [
+    "command"
   ],
   "search_1c_methods": [
     "query"
@@ -173,6 +184,7 @@
   "solve_context": [
     "query"
   ],
+  "validate": [],
   "validate_generated": [
     "source_dir"
   ],

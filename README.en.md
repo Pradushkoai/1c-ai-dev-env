@@ -1,13 +1,13 @@
 # 1C AI Development Environment
 
-> **Universal 1C development environment with AI assistant**: parsing and analysis of 1C metadata from XML exports, 56 MCP tools for IDE/LLM, 11 BSL code analyzers (150+ rules), JSON DSL → XML compilers (5 object types), CFE extension support, metadata dependency graph, SKD tracing, generation of processors/reports/templates/roles, **creating .epf external processors from scratch without 1C**, SARIF for GitHub Code Scanning.
+> **Universal 1C development environment with AI assistant**: parsing and analysis of 1C metadata from XML exports, 62 MCP tools for IDE/LLM, 11 BSL code analyzers (150+ rules), JSON DSL → XML compilers (5 object types), CFE extension support, metadata dependency graph, SKD tracing, generation of processors/reports/templates/roles, **creating .epf external processors from scratch without 1C**, SARIF for GitHub Code Scanning.
 
 [![Version](https://img.shields.io/badge/version-6.0.0-brightgreen.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Java 17+](https://img.shields.io/badge/Java-17+-orange.svg)](https://openjdk.org/)
 [![Tests](https://img.shields.io/badge/tests-passing-success.svg)](#tests)
-[![MCP Tools](https://img.shields.io/badge/MCP%20tools-56-blue.svg)](#connecting-to-ide--llm-via-mcp)
+[![MCP Tools](https://img.shields.io/badge/MCP%20tools-62-blue.svg)](#connecting-to-ide--llm-via-mcp)
 [![CLI Commands](https://img.shields.io/badge/CLI%20commands-19-success.svg)](#cli-commands)
 
 **Languages:** [Русский](README.md) | **English**
@@ -158,7 +158,7 @@ docker compose run --rm tests
 
 ## Connecting to IDE / LLM via MCP
 
-The project includes an MCP server with 56 tools for Cursor / Claude Desktop / VS Code / JetBrains.
+The project includes an MCP server with 62 tools for Cursor / Claude Desktop / VS Code / JetBrains.
 
 ### Setup
 

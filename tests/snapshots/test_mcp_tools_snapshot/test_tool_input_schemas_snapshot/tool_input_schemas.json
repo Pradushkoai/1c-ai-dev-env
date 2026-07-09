@@ -430,6 +430,64 @@
     "properties": {},
     "type": "object"
   },
+  "explain": {
+    "properties": {
+      "file_path": {
+        "description": "Путь к .bsl файлу для анализа",
+        "type": "string"
+      },
+      "query": {
+        "description": "Поисковый запрос (найти использование)",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "gather": {
+    "properties": {
+      "force_refresh": {
+        "description": "Принудительно пересобрать контекст (default false)",
+        "type": "boolean"
+      },
+      "limit": {
+        "default": 5,
+        "description": "Лимит результатов на источник (default 5)",
+        "type": "integer"
+      },
+      "plan_id": {
+        "description": "ID плана из plan() (опционально, использует session)",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "generate": {
+    "properties": {
+      "target_context": {
+        "default": "server",
+        "description": "Целевой контекст: thin_client, server, mobile_client (default server)",
+        "type": "string"
+      },
+      "task": {
+        "description": "Описание что сгенерировать",
+        "type": "string"
+      },
+      "type": {
+        "default": "bsl",
+        "description": "Тип артефакта: bsl, query, dsl (default bsl)",
+        "enum": [
+          "bsl",
+          "query",
+          "dsl"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "task"
+    ],
+    "type": "object"
+  },
   "generate_processing": {
     "properties": {
       "author": {
@@ -812,6 +870,22 @@
     ],
     "type": "object"
   },
+  "plan": {
+    "properties": {
+      "config": {
+        "description": "Имя конфигурации (опционально)",
+        "type": "string"
+      },
+      "query": {
+        "description": "Описание задачи на русском",
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "type": "object"
+  },
   "query_workflow": {
     "properties": {
       "auto_optimize": {
@@ -840,6 +914,22 @@
     },
     "required": [
       "task"
+    ],
+    "type": "object"
+  },
+  "run_cli": {
+    "properties": {
+      "args": {
+        "description": "Аргументы для hidden tool (dict)",
+        "type": "object"
+      },
+      "command": {
+        "description": "Имя hidden tool (должно быть в whitelist)",
+        "type": "string"
+      }
+    },
+    "required": [
+      "command"
     ],
     "type": "object"
   },
@@ -959,6 +1049,29 @@
     "required": [
       "query"
     ],
+    "type": "object"
+  },
+  "validate": {
+    "properties": {
+      "artifact_id": {
+        "description": "ID артефакта из generate() (state-aware)",
+        "type": "string"
+      },
+      "file_path": {
+        "description": "Путь к .bsl файлу (альтернатива artifact_id)",
+        "type": "string"
+      },
+      "level": {
+        "default": "standard",
+        "description": "Уровень проверки: quick, standard, full (default standard)",
+        "enum": [
+          "quick",
+          "standard",
+          "full"
+        ],
+        "type": "string"
+      }
+    },
     "type": "object"
   },
   "validate_generated": {

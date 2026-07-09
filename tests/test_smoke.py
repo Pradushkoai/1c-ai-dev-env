@@ -10,7 +10,7 @@ Smoke-тесты для критических путей 1c-ai-dev-env.
 3. BSL analysis: solve check quick на тестовом файле
 4. DSL: compile meta (минимальный JSON → XML)
 5. EPF: factory create (mock v8unpack)
-6. MCP: list_tools возвращает 56 tools (12 visible для LLM)
+6. MCP: list_tools возвращает 62 tools (7 visible для LLM)
 7. Diff: compare_data на двух простых индексах
 8. Standards: check_1c_standards на тестовом .bsl
 9. Security: audit_file на тестовом .bsl
@@ -159,9 +159,9 @@ class TestSmokeMCP:
         from src.mcpserver.tools.tool_definitions import get_all_tool_definitions, get_mcp_visible_tools
 
         tools = get_all_tool_definitions()
-        assert len(tools) == 56  # 54 + 2 new (get_method_details_batch, get_safe_methods)
+        assert len(tools) == 62  # 62 MCP tools total
         visible = get_mcp_visible_tools()
-        assert len(visible) == 12  # 10 + 2 new visible tools
+        assert len(visible) == 7  # 7 visible to LLM (R1: 6 high-level + data_status)
 
 
 # ============================================================================

@@ -1,6 +1,6 @@
 # 1C AI Development Environment
 
-> **Универсальная среда разработки на 1С с ИИ-ассистентом**: парсинг и анализ метаданных 1С из XML-выгрузок, 12 MCP tools для IDE/LLM, 11 анализаторов BSL-кода (150+ правил), JSON DSL → XML компиляторы (5 типов объектов), работа с расширениями CFE, граф зависимостей метаданных, трассировка СКД, генерация обработок/отчётов/макетов/ролей, **создание внешних обработок .epf с нуля без 1С**, SARIF для GitHub Code Scanning.
+> **Универсальная среда разработки на 1С с ИИ-ассистентом**: парсинг и анализ метаданных 1С из XML-выгрузок, 7 MCP tools для IDE/LLM, 11 анализаторов BSL-кода (150+ правил), JSON DSL → XML компиляторы (5 типов объектов), работа с расширениями CFE, граф зависимостей метаданных, трассировка СКД, генерация обработок/отчётов/макетов/ролей, **создание внешних обработок .epf с нуля без 1С**, SARIF для GitHub Code Scanning.
 
 **Языки:** **Русский** | [English](README.en.md)
 
@@ -10,7 +10,7 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Java 17+](https://img.shields.io/badge/Java-17+-orange.svg)](https://openjdk.org/)
 [![Tests](https://img.shields.io/badge/tests-1595%20passing-success.svg)](#тесты)
-[![MCP Tools](https://img.shields.io/badge/MCP%20tools-12-blue.svg)](#подключение-к-ide--llm-через-mcp)
+[![MCP Tools](https://img.shields.io/badge/MCP%20tools-7-blue.svg)](#подключение-к-ide--llm-через-mcp)
 [![CLI Commands](https://img.shields.io/badge/CLI%20commands-19-success.svg)](#cli-команды)
 
 ---

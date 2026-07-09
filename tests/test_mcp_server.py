@@ -18,29 +18,25 @@ from src.mcp_server import _get_tools_description, create_mcp_server
 
 
 def test_get_tools_description_returns_visible_tools():
-    """Должно быть 12 visible tools (F2.2/F2.3: добавлены get_method_details_batch, get_safe_methods).
+    """Должно быть 7 visible tools (R1: 6 high-level + data_status).
 
-    Гибридный фильтр (commit 3c79da5): LLM видит только 12 ключевых tools.
-    Остальные 44 доступны через CLI или внутри solve_*."""
+    R1 (2026-07-09): Консолидация 12→6 high-level tools (plan, gather, generate,
+    validate, explain, run_cli) + data_status = 7 visible.
+    Остальные 55 доступны через run_cli или внутри high-level."""
     tools = _get_tools_description()
-    assert len(tools) == 12
+    assert len(tools) == 7
 
 
 def test_get_tools_description_names():
-    """Имена visible tools (12 шт, F2.2/F2.3)."""
+    """Имена visible tools (7 шт, R1)."""
     tools = _get_tools_description()
     expected = {
-        "solve_context",
-        "get_method_details",
-        "get_method_details_batch",  # F2.2
-        "get_safe_methods",          # F2.3
-        "check_bsl_context",
-        "solve_check",
-        "bsl_templates",
-        "generate_query",
-        "get_object_structure",
-        "inspect",
-        "search_platform_method",
+        "plan",
+        "gather",
+        "generate",
+        "validate",
+        "explain",
+        "run_cli",
         "data_status",
     }
     actual = {t["name"] for t in tools}
@@ -59,17 +55,16 @@ def test_get_tools_description_has_required_fields():
         assert isinstance(t["optional_params"], list)
 
 
-def test_get_tools_description_search_has_query_required():
-    """search_platform_method требует query (visible tool)."""
+def test_get_tools_description_plan_requires_query():
+    """plan требует query (R1 high-level tool)."""
     tools = {t["name"]: t for t in _get_tools_description()}
-    assert "query" in tools["search_platform_method"]["required_params"]
-    assert "limit" in tools["search_platform_method"]["optional_params"]
+    assert "query" in tools["plan"]["required_params"]
 
 
-def test_get_tools_description_get_method_details_requires_name():
-    """get_method_details требует name (visible tool)."""
+def test_get_tools_description_run_cli_requires_command():
+    """run_cli требует command (R1 proxy tool)."""
     tools = {t["name"]: t for t in _get_tools_description()}
-    assert "name" in tools["get_method_details"]["required_params"]
+    assert "command" in tools["run_cli"]["required_params"]
 
 
 # ============ create_mcp_server ============
@@ -326,10 +321,10 @@ def test_call_unknown_tool(mcp_server_with_mock_project):
 
 
 def test_call_list_tools(mcp_server_with_mock_project):
-    """list_tools handler возвращает visible tools (12 шт, F2.2/F2.3).
+    """list_tools handler возвращает visible tools (7 шт, R1).
 
-    Гибридный фильтр: LLM видит только 12 ключевых tools.
-    Остальные 44 доступны через CLI или вызываются внутри solve_*."""
+    R1: 6 high-level tools + data_status = 7 visible.
+    Остальные 55 доступны через run_cli или внутри high-level."""
     server, project = mcp_server_with_mock_project
     from mcp.types import ListToolsRequest
 
@@ -337,13 +332,15 @@ def test_call_list_tools(mcp_server_with_mock_project):
     assert handler is not None
 
     result = asyncio.run(handler(ListToolsRequest(method="tools/list")))
-    assert len(result.root.tools) == 12
+    assert len(result.root.tools) == 7
     names = {t.name for t in result.root.tools}
-    assert "solve_context" in names
-    assert "solve_check" in names
+    assert "plan" in names
+    assert "gather" in names
+    assert "generate" in names
+    assert "validate" in names
+    assert "explain" in names
+    assert "run_cli" in names
     assert "data_status" in names
-    assert "get_method_details_batch" in names  # F2.2
-    assert "get_safe_methods" in names            # F2.3
 
 
 def test_call_data_status(mcp_server_with_mock_project):

@@ -173,7 +173,7 @@ class TestSseServerIntegration:
         assert data["status"] == "ok"
         assert data["server"] == "1c-ai-dev-env"
         assert data["transport"] == "sse"
-        assert data["tools"] == 56
+        assert data["tools"] == 7
 
     def test_sse_endpoint_exists(self, sse_server_process: int) -> None:
         """SSE endpoint (/sse) доступен."""
@@ -250,7 +250,7 @@ class TestHttpServerIntegration:
         assert data["status"] == "ok"
         assert data["server"] == "1c-ai-dev-env"
         assert data["transport"] == "streamable-http"
-        assert data["tools"] == 56
+        assert data["tools"] == 7
 
 
 # ============================================================================
