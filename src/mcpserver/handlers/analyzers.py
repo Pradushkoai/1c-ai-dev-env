@@ -86,8 +86,18 @@ async def handle_check_standards(project: Project, arguments: dict[str, Any]) ->
 
 
 async def handle_solve_context(project: Project, arguments: dict[str, Any]) -> list[types.TextContent]:
-    """Сбор контекста для решения задачи 1С + workflow recommendations."""
+    """Сбор контекста для решения задачи 1С + workflow recommendations.
+
+    F2.5: Использует intent classifier вместо keyword matching.
+    Возвращает:
+    - ctx_dict: контекст из 7 источников (platform_methods, api, metadata, ...)
+    - _intent: {name, confidence, target_context_hint, object_type_hint}
+    - _workflow: последовательность tools для данного intent
+    - _required_sources: какие источники релевантны (для F2.6 source selection)
+    - _workflow_hint: короткая подсказка
+    """
     from src.services.task_processor import TaskProcessor
+    from src.services.intent.classifier import classify_intent, get_intent_description
 
     query = arguments.get("query", "")
     config = arguments.get("config", "")
@@ -97,73 +107,25 @@ async def handle_solve_context(project: Project, arguments: dict[str, Any]) -> l
     ctx = await run_sync(processor.solve, query, config_name=config, limit=limit)
     ctx_dict = ctx.to_dict()
 
-    # Step 3: Generate workflow recommendations based on task type
-    query_lower = query.lower()
-    workflow: list[dict[str, str]] = []
+    # F2.5: Intent classification вместо keyword matching
+    intent = classify_intent(query)
 
-    # Detect task type and recommend workflow
-    if any(w in query_lower for w in ["запрос", "query", "register", "регистр", "выбрать"]):
-        # Task: write a query
-        workflow = [
-            {"step": 1, "tool": "search_platform_method", "why": "B8: Найти методы платформы для работы с регистром (с доступностью!)"},
-            {"step": 2, "tool": "get_method_details", "why": "B8: Получить точный синтаксис и параметры методов ПЕРЕД написанием"},
-            {"step": 3, "tool": "get_object_structure", "why": "Получить точные имена полей (ресурсы, измерения)"},
-            {"step": 4, "tool": "bsl_templates", "why": "Использовать шаблон query_with_filter (SEC001: параметризованный запрос)"},
-            {"step": 5, "tool": "check_bsl_context", "why": "B8: ОБЯЗАТЕЛЬНО проверить доступность методов в контексте"},
-            {"step": 6, "tool": "audit_security", "why": "Проверить готовый код на SQL-инъекции (SEC001)"},
-            {"step": 7, "tool": "check_standards", "why": "Проверить стандарты 1С"},
-        ]
-    elif any(w in query_lower for w in ["обработк", "epf", "внешняя", "форма", "модуль", "код", "bsl"]):
-        # Task: create EPF / form / module — генерация BSL-кода
-        workflow = [
-            {"step": 1, "tool": "search_platform_method", "why": "B8: Найти методы платформы для задачи (с доступностью!)"},
-            {"step": 2, "tool": "get_method_details", "why": "B8: ОБЯЗАТЕЛЬНО — получить синтаксис, параметры, доступность каждого метода ПЕРЕД генерацией"},
-            {"step": 3, "tool": "get_object_structure", "why": "Получить структуру объекта конфигурации"},
-            {"step": 4, "tool": "bsl_templates", "why": "Использовать шаблон для генерации BSL кода"},
-            {"step": 5, "tool": "check_bsl_context", "why": "B8: ОБЯЗАТЕЛЬНО — проверить код на доступность методов в контексте"},
-            {"step": 6, "tool": "audit_security", "why": "Проверить код на безопасность"},
-            {"step": 7, "tool": "check_standards", "why": "Проверить стандарты 1С"},
-        ]
-    elif any(w in query_lower for w in ["аудит", "security", "безопасн", "уязвим"]):
-        # Task: security audit
-        workflow = [
-            {"step": 1, "tool": "audit_security", "why": "Аудит BSL кода (20 правил SEC001-SEC020)"},
-            {"step": 2, "tool": "check_standards", "why": "Проверка стандартов 1С (62 правил)"},
-            {"step": 3, "tool": "check_bsl_context", "why": "B8: Проверить доступность методов в контексте"},
-        ]
-    elif any(w in query_lower for w in ["зависим", "архитектур", "call", "вызов"]):
-        # Task: architecture analysis
-        workflow = [
-            {"step": 1, "tool": "inspect", "why": "Получить обзор конфигурации"},
-            {"step": 2, "tool": "build_dependency_graph", "why": "Построить граф зависимостей метаданных"},
-            {"step": 3, "tool": "call_graph", "why": "Анализ вызовов методов (callers, callees, cycles, dead-code)"},
-        ]
-    elif any(w in query_lower for w in ["поиск", "find", "search", "метод"]):
-        # Task: search
-        workflow = [
-            {"step": 1, "tool": "list_configs", "why": "Проверить какие конфигурации загружены"},
-            {"step": 2, "tool": "search_platform_method", "why": "B8: Поиск по методам платформы (с доступностью)"},
-            {"step": 3, "tool": "search_code", "why": "BM25 поиск по коду конфигурации"},
-            {"step": 4, "tool": "get_object_structure", "why": "Получить структуру найденного объекта"},
-        ]
-    else:
-        # Default workflow
-        workflow = [
-            {"step": 1, "tool": "list_configs", "why": "Проверить доступные конфигурации"},
-            {"step": 2, "tool": "search_platform_method", "why": "B8: Найти методы платформы (с доступностью!)"},
-            {"step": 3, "tool": "get_method_details", "why": "B8: Получить синтаксис и параметры методов"},
-            {"step": 4, "tool": "get_object_structure", "why": "Получить структуру объекта"},
-            {"step": 5, "tool": "check_bsl_context", "why": "B8: Проверить доступность методов в контексте"},
-            {"step": 6, "tool": "audit_security", "why": "Проверка безопасности"},
-            {"step": 7, "tool": "check_standards", "why": "Проверка стандартов"},
-        ]
-
-    # B8: Правила BSL_CONTEXT_RULES перемещены в server.instructions (system prompt)
-    # Здесь оставляем только короткую ссылку для агента
     response = {
         **ctx_dict,
-        "_workflow": workflow,
-        "_workflow_hint": "Следуйте шагам workflow выше. BSL-контекстные правила — в system prompt сервера.",
+        "_intent": {
+            "name": intent.name,
+            "description": get_intent_description(intent.name),
+            "confidence": intent.confidence,
+            "target_context_hint": intent.target_context_hint,
+            "object_type_hint": intent.object_type_hint,
+            "matched_patterns_count": len(intent.matched_patterns),
+        },
+        "_required_sources": intent.required_sources,
+        "_workflow": intent.workflow,
+        "_workflow_hint": (
+            f"Intent: {intent.name} (confidence={intent.confidence:.2f}). "
+            "Следуйте шагам workflow. BSL-контекстные правила — в system prompt сервера."
+        ),
     }
 
     return [
