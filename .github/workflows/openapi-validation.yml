@@ -3,7 +3,7 @@ name: OpenAPI Validation
 # A-5 (2026-07-05): OpenAPI spec validation через spectral.
 # Blocking при invalid spec. Гарантирует, что docs/mcp-openapi.json валиден.
 #
-# Использует: stoplightio/spectral-action@v0.8.11
+# Использует: stoplightio/spectral-action@v0.8.13
 # Ruleset: .spectral.yaml (minimal — OpenAPI 3.0 standard rules)
 # Spec: docs/mcp-openapi.json
 #
@@ -22,7 +22,7 @@ jobs:
       - name: Validate OpenAPI spec with Spectral
         # A-5: spectral проверяет docs/mcp-openapi.json на соответствие OpenAPI 3.0
         # Blocking: если spec невалиден — CI падает
-        uses: stoplightio/spectral-action@v0.8.11
+        uses: stoplightio/spectral-action@v0.8.13
         with:
           file_glob: "docs/mcp-openapi.json"
           spectral_ruleset: ".spectral.yaml"
