@@ -43,10 +43,10 @@ rag = [
     "qdrant-client>=1.0,<2.0",
 ]
 mcp = [
-    "mcp>=1.0,<2.0",
+    "mcp>=1.0,<3.0",
 ]
 mcp-http = [
-    "mcp>=1.0,<2.0",
+    "mcp>=1.0,<3.0",
     "uvicorn>=0.27,<1.0",
     "starlette>=0.37,<2.0",
 ]
@@ -90,7 +90,7 @@ dev = [
     "mypy>=1.10,<2.0",
     "pre-commit>=3.7,<5.0",
     "structlog>=24.0,<26.0",
-    "mcp>=1.0,<2.0",
+    "mcp>=1.0,<3.0",
     "networkx>=3.0,<4.0",
     "v8unpack @ git+https://github.com/saby-integration/v8unpack.git@main#egg=v8unpack",
     # P0.3: complexity budget + mutation testing
