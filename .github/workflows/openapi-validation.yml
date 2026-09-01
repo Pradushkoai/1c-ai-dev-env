@@ -22,7 +22,7 @@ jobs:
       - name: Validate OpenAPI spec with Spectral
         # A-5: spectral проверяет docs/mcp-openapi.json на соответствие OpenAPI 3.0
         # Blocking: если spec невалиден — CI падает
-        uses: stoplightio/spectral-action@v0.8.11
+        uses: stoplightio/spectral-action@v0.8.13
         with:
           file_glob: "docs/mcp-openapi.json"
           spectral_ruleset: ".spectral.yaml"
